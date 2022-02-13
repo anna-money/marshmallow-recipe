@@ -4,12 +4,15 @@ import sys
 
 from .bake import StrictTypedSchema, bake, get_field_for
 from .missing import MISSING, MissingType
-from .naming_strategy import capital_camel_case
+from .naming_strategy import camel_case, camel_case_factory, capital_camel_case, capital_camel_case_factory
 from .serialization import dump, dump_many, load, load_many
 
 __all__: tuple[str, ...] = (
     "bake",
     "capital_camel_case",
+    "capital_camel_case_factory",
+    "camel_case",
+    "camel_case_factory",
     "get_field_for",
     "MissingType",
     "MISSING",
