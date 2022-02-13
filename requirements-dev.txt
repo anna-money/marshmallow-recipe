@@ -4,7 +4,7 @@ flake8==4.0.1
 black==22.1.0
 setuptools==60.8.2
 wheel==0.37.1
-twine==3.7.1
+twine==3.8.0
 mypy==0.931
 marshmallow>2,<3
 typing_inspect>=0.7.1
