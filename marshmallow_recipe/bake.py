@@ -5,7 +5,7 @@ from typing import Any, Generic, Mapping, Type, TypeVar, cast
 import marshmallow as m
 import typing_inspect
 
-from .fields import boolean, string
+from .fields import bool_field, nested_field, str_field
 from .missing import MISSING, MissingType
 from .naming_case import DEFAULT_CASE, NamingCase
 
@@ -71,7 +71,7 @@ def get_field_for(
         return typed_field_factory(required=required, name=new_name, default=default)
 
     if dataclasses.is_dataclass(type):
-        return m.fields.Nested(
+        return nested_field(
             bake_schema(type, naming_case=naming_case),
             required=required,
             name=new_name,
@@ -122,6 +122,6 @@ class _FieldFactory(Generic[_T]):
 
 
 _SIMPLE_TYPE_FIELD_FACTORIES: dict[type, object] = {
-    bool: boolean,
-    str: string,
+    bool: bool_field,
+    str: str_field,
 }
