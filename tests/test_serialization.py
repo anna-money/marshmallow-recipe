@@ -11,10 +11,13 @@ def test_simple_types() -> None:
         str_field: Optional[str]
 
     raw = dict(bool_field=True, str_field="42")
+
     loaded = mr.load(SimpleTypesContainers, raw)
     dumped = mr.dump(loaded)
+
     assert loaded == SimpleTypesContainers(bool_field=True, str_field="42")
     assert dumped == raw
+    assert mr.schema(SimpleTypesContainers) is mr.schema(SimpleTypesContainers)
 
 
 def test_nested() -> None:
@@ -34,6 +37,8 @@ def test_nested() -> None:
     assert loaded == Container(str_field="42", bool_container_field=BoolContainer(bool_field=True))
     assert dumped == raw
 
+    assert mr.schema(Container) is mr.schema(Container)
+
 
 def test_custom_name() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -47,3 +52,5 @@ def test_custom_name() -> None:
 
     assert loaded == BoolContainer(bool_field=False)
     assert dumped == raw
+
+    assert mr.schema(BoolContainer) is mr.schema(BoolContainer)
