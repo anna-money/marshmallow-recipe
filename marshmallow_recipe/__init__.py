@@ -2,25 +2,27 @@ import collections
 import re
 import sys
 
-from .bake import StrictTypedSchema, bake, get_field_for
+from .bake import get_field_for
 from .missing import MISSING, MissingType
-from .naming_strategy import camel_case, camel_case_factory, capital_camel_case, capital_camel_case_factory
-from .serialization import dump, dump_many, load, load_many
+from .naming_case import CAMEL_CASE, CAPITAL_CAMEL_CASE, DEFAULT_CASE, CamelCase, CapitalCamelCase, NamingCase
+from .serialization import dump, dump_many, load, load_many, schema
 
 __all__: tuple[str, ...] = (
     "bake",
-    "capital_camel_case",
-    "capital_camel_case_factory",
-    "camel_case",
-    "camel_case_factory",
+    "CAPITAL_CAMEL_CASE",
+    "CapitalCamelCase",
+    "CAMEL_CASE",
+    "CamelCase",
     "get_field_for",
     "MissingType",
     "MISSING",
-    "StrictTypedSchema",
+    "NamingCase",
+    "DEFAULT_CASE",
     "load",
     "load_many",
     "dump",
     "dump_many",
+    "schema",
 )
 
 __version__ = "0.0.2"

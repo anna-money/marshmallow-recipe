@@ -11,13 +11,13 @@ def test_simple_types() -> None:
         str_field: Optional[str]
 
     raw = dict(bool_field=True, str_field="42")
-    schema = mr.bake(SimpleTypesContainers)
 
-    loaded = mr.load(schema(), raw)
-    dumped = mr.dump(schema(), loaded)
+    loaded = mr.load(SimpleTypesContainers, raw)
+    dumped = mr.dump(loaded)
 
     assert loaded == SimpleTypesContainers(bool_field=True, str_field="42")
     assert dumped == raw
+    assert mr.schema(SimpleTypesContainers) is mr.schema(SimpleTypesContainers)
 
 
 def test_nested() -> None:
@@ -31,13 +31,13 @@ def test_nested() -> None:
         bool_container_field: BoolContainer
 
     raw = dict(str_field="42", bool_container_field=dict(bool_field=True))
-    schema = mr.bake(Container)
-
-    loaded = mr.load(schema(), raw)
-    dumped = mr.dump(schema(), loaded)
+    loaded = mr.load(Container, raw)
+    dumped = mr.dump(loaded)
 
     assert loaded == Container(str_field="42", bool_container_field=BoolContainer(bool_field=True))
     assert dumped == raw
+
+    assert mr.schema(Container) is mr.schema(Container)
 
 
 def test_custom_name() -> None:
@@ -45,11 +45,12 @@ def test_custom_name() -> None:
     class BoolContainer:
         bool_field: bool = dataclasses.field(metadata=dict(name="BoolField"))
 
-    schema = mr.bake(BoolContainer)
     raw = dict(BoolField=False)
 
-    loaded = mr.load(schema(), raw)
-    dumped = mr.dump(schema(), loaded)
+    loaded = mr.load(BoolContainer, raw)
+    dumped = mr.dump(loaded)
 
     assert loaded == BoolContainer(bool_field=False)
     assert dumped == raw
+
+    assert mr.schema(BoolContainer) is mr.schema(BoolContainer)
