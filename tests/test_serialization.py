@@ -5,7 +5,7 @@ import marshmallow_recipe as mr
 
 
 def test_simple_types() -> None:
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @dataclasses.dataclass(frozen=True)
     class SimpleTypesContainers:
         bool_field: bool
         str_field: Optional[str]
@@ -21,11 +21,11 @@ def test_simple_types() -> None:
 
 
 def test_nested() -> None:
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @dataclasses.dataclass(frozen=True)
     class BoolContainer:
         bool_field: bool
 
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @dataclasses.dataclass(frozen=True)
     class Container:
         str_field: str | None
         bool_container_field: BoolContainer
@@ -41,7 +41,7 @@ def test_nested() -> None:
 
 
 def test_custom_name() -> None:
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @dataclasses.dataclass(frozen=True)
     class BoolContainer:
         bool_field: bool = dataclasses.field(metadata=dict(name="BoolField"))
 
