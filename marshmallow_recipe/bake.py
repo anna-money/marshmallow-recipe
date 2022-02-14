@@ -1,11 +1,12 @@
 import dataclasses
+import decimal
 import types
 from typing import Any, Generic, Mapping, Type, TypeVar, cast
 
 import marshmallow as m
 import typing_inspect
 
-from .fields import bool_field, nested_field, str_field
+from .fields import bool_field, decimal_field, nested_field, str_field
 from .missing import MISSING, MissingType
 from .naming_case import DEFAULT_CASE, NamingCase
 
@@ -113,6 +114,7 @@ def _try_get_custom_name(metadata: Mapping[Any, Any]) -> str | None:
 class _FieldFactory(Generic[_T]):
     def __call__(
         self,
+        *,
         required: bool,
         name: str,
         default: _T | MissingType,
@@ -124,4 +126,5 @@ class _FieldFactory(Generic[_T]):
 _SIMPLE_TYPE_FIELD_FACTORIES: dict[type, object] = {
     bool: bool_field,
     str: str_field,
+    decimal.Decimal: decimal_field,
 }
