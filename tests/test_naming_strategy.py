@@ -14,7 +14,7 @@ import marshmallow_recipe as mr
     ],
 )
 def test_capital_camel_case(name: str, expected: str) -> None:
-    capital_camel_case = mr.capital_camel_case_factory(capitalize_words={"bar"})
+    capital_camel_case = mr.CapitalCamelCase(capitalize_words={"bar"})
     assert expected == capital_camel_case(name)
 
 
@@ -30,5 +30,5 @@ def test_capital_camel_case(name: str, expected: str) -> None:
     ],
 )
 def test_camel_case(name: str, expected: str) -> None:
-    camel_case = mr.camel_case_factory(capitalize_words={"bar"})
+    camel_case = mr.CamelCase(capitalize_words={"bar"})
     assert expected == camel_case(name)

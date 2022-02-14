@@ -24,7 +24,7 @@ def assert_fields_equal(a: marshmallow.fields.Field, b: marshmallow.fields.Field
 def test_get_field_for_required_bool() -> None:
     naming_strategy = unittest.mock.Mock(return_value="bool")
     assert_fields_equal(
-        marshmallow_recipe.get_field_for("bool", bool, marshmallow_recipe.MISSING, {}, naming_strategy=naming_strategy),
+        marshmallow_recipe.get_field_for("bool", bool, marshmallow_recipe.MISSING, {}, naming_case=naming_strategy),
         marshmallow.fields.Bool(
             required=True,
             load_from="bool",
@@ -50,7 +50,7 @@ def test_get_field_for_optional_bool(
 ) -> None:
     naming_strategy = unittest.mock.Mock(return_value="bool")
     assert_fields_equal(
-        marshmallow_recipe.get_field_for("bool", field_type, field_default, {}, naming_strategy=naming_strategy),
+        marshmallow_recipe.get_field_for("bool", field_type, field_default, {}, naming_case=naming_strategy),
         marshmallow.fields.Bool(
             allow_none=True, load_from="bool", dump_to="bool", missing=marshmallow_default, default=marshmallow_default
         ),
@@ -62,7 +62,7 @@ def test_get_field_for_required_str() -> None:
     name = "str"
     naming_strategy = unittest.mock.Mock(return_value=name)
     assert_fields_equal(
-        marshmallow_recipe.get_field_for(name, str, marshmallow_recipe.MISSING, {}, naming_strategy=naming_strategy),
+        marshmallow_recipe.get_field_for(name, str, marshmallow_recipe.MISSING, {}, naming_case=naming_strategy),
         marshmallow.fields.Str(
             required=True,
             load_from=name,
@@ -89,7 +89,7 @@ def test_get_field_for_optional_str(
     name = "str"
     naming_strategy = unittest.mock.Mock(return_value=name)
     assert_fields_equal(
-        marshmallow_recipe.get_field_for(name, field_type, field_default, {}, naming_strategy=naming_strategy),
+        marshmallow_recipe.get_field_for(name, field_type, field_default, {}, naming_case=naming_strategy),
         marshmallow.fields.Str(
             allow_none=True, load_from=name, dump_to=name, missing=marshmallow_default, default=marshmallow_default
         ),
