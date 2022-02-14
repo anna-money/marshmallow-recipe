@@ -5,7 +5,7 @@ from typing import Any, Generic, Mapping, Type, TypeVar, cast
 import marshmallow as m
 import typing_inspect
 
-from .fields import boolean_field, nested_field, string_field
+from .fields import bool_field, nested_field, str_field
 from .missing import MISSING, MissingType
 from .naming_case import DEFAULT_CASE, NamingCase
 
@@ -122,6 +122,6 @@ class _FieldFactory(Generic[_T]):
 
 
 _SIMPLE_TYPE_FIELD_FACTORIES: dict[type, object] = {
-    bool: boolean_field,
-    str: string_field,
+    bool: bool_field,
+    str: str_field,
 }

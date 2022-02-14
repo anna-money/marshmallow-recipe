@@ -5,7 +5,7 @@ import marshmallow as m
 from .missing import MISSING, MissingType
 
 
-def string_field(
+def str_field(
     required: bool,
     name: str,
     default: str | None | MissingType,
@@ -26,7 +26,7 @@ def string_field(
     )
 
 
-def boolean_field(
+def bool_field(
     required: bool,
     name: str,
     default: bool | None | MissingType,
