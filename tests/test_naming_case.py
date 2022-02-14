@@ -32,3 +32,31 @@ def test_capital_camel_case(name: str, expected: str) -> None:
 def test_camel_case(name: str, expected: str) -> None:
     camel_case = mr.CamelCase(capitalize_words={"bar"})
     assert expected == camel_case(name)
+
+
+@pytest.mark.parametrize(
+    "first, second",
+    [
+        (mr.CAPITAL_CAMEL_CASE, mr.CAPITAL_CAMEL_CASE),
+        (mr.CAMEL_CASE, mr.CAMEL_CASE),
+        (mr.CapitalCamelCase(capitalize_words={"hello"}), mr.CapitalCamelCase(capitalize_words={"hello"})),
+    ],
+)
+def test_naming_cases_equal(first: mr.NamingCase, second: mr.NamingCase) -> None:
+    assert first == second
+
+
+@pytest.mark.parametrize(
+    "first, second",
+    [
+        (mr.CAPITAL_CAMEL_CASE, mr.DEFAULT_CASE),
+        (mr.CAMEL_CASE, mr.DEFAULT_CASE),
+        (mr.CapitalCamelCase(capitalize_words={"foo"}), mr.CapitalCamelCase(capitalize_words={"bar"})),
+        (mr.CAPITAL_CAMEL_CASE, mr.CapitalCamelCase(capitalize_words={"bar"})),
+        (mr.CamelCase(capitalize_words={"foo"}), mr.CamelCase(capitalize_words={"bar"})),
+        (mr.CAMEL_CASE, mr.CamelCase(capitalize_words={"bar"})),
+        (mr.CapitalCamelCase(capitalize_words={"hello"}), mr.CamelCase(capitalize_words={"hello"})),
+    ],
+)
+def test_naming_cases_not_equal(first: mr.NamingCase, second: mr.NamingCase) -> None:
+    assert first != second

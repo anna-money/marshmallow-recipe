@@ -4,7 +4,7 @@ import sys
 
 from .bake import get_field_for
 from .missing import MISSING, MissingType
-from .naming_case import CAMEL_CASE, CAPITAL_CAMEL_CASE, CamelCase, CapitalCamelCase
+from .naming_case import CAMEL_CASE, CAPITAL_CAMEL_CASE, DEFAULT_CASE, CamelCase, CapitalCamelCase, NamingCase
 from .serialization import dump, dump_many, load, load_many, schema
 
 __all__: tuple[str, ...] = (
@@ -16,6 +16,8 @@ __all__: tuple[str, ...] = (
     "get_field_for",
     "MissingType",
     "MISSING",
+    "NamingCase",
+    "DEFAULT_CASE",
     "load",
     "load_many",
     "dump",
