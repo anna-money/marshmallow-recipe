@@ -1,4 +1,5 @@
-from typing import Any, Type
+import decimal
+from typing import Any, Type, Union
 
 import marshmallow as m
 
@@ -9,7 +10,7 @@ def str_field(
     *,
     required: bool,
     name: str,
-    default: str | None | MissingType,
+    default: Union[str, None, MissingType],
     **_: Any,
 ) -> m.fields.Field:
     if required:
@@ -31,7 +32,7 @@ def bool_field(
     *,
     required: bool,
     name: str,
-    default: bool | None | MissingType,
+    default: Union[bool, None, MissingType],
     **_: Any,
 ) -> m.fields.Field:
     if required:
@@ -53,7 +54,7 @@ def nested_field(
     *,
     required: bool,
     name: str,
-    default: Any | None | MissingType,
+    default: Union[Any, None, MissingType],
     **_: Any,
 ) -> m.fields.Field:
     if required:
@@ -73,7 +74,7 @@ def nested_field(
 def decimal_field(
     required: bool,
     name: str,
-    default: Any | None | MissingType,
+    default: Union[decimal.Decimal, None, MissingType],
     **_: Any,
 ) -> m.fields.Field:
     if required:
