@@ -9,7 +9,7 @@ from .naming_case import DEFAULT_CASE, NamingCase
 _T = TypeVar("_T")
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+@dataclasses.dataclass(frozen=True)
 class _SchemaKey:
     cls: type
     strict: bool

@@ -1,5 +1,6 @@
 import dataclasses
 import decimal
+import sys
 import types
 from typing import Any, Generic, Mapping, Type, TypeVar, cast
 
@@ -55,7 +56,7 @@ def get_field_for(
         required = False
         type = next(type_arg for type_arg in type_args if type_arg is not types.NoneType)  # noqa
     # to support new union syntax
-    elif isinstance(type, types.UnionType):
+    elif sys.version_info >= (3, 10, 0) and isinstance(type, types.UnionType):
         type_args = list(set(type.__args__))
         if types.NoneType not in type_args or len(type_args) != 2:
             raise ValueError(f"Unsupported {type=}")

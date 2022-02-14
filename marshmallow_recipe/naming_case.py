@@ -9,7 +9,7 @@ class NamingCase(Protocol):
         ...
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+@dataclasses.dataclass(frozen=True)
 class CapitalCamelCase(NamingCase):
     capitalize_words: set[str]
 
@@ -24,7 +24,7 @@ class CapitalCamelCase(NamingCase):
         return word.title()
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+@dataclasses.dataclass(frozen=True)
 class CamelCase(NamingCase):
     capitalize_words: set[str]
 
@@ -40,7 +40,7 @@ class CamelCase(NamingCase):
         return word.title()
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+@dataclasses.dataclass(frozen=True)
 class _Default(NamingCase):
     pass
 
