@@ -7,7 +7,7 @@ import marshmallow as m
 import typing_inspect
 
 from .fields import bool_field, decimal_field, nested_field, str_field
-from .missing import MISSING, MissingType
+from .missing import MISSING, Missing
 from .naming_case import DEFAULT_CASE, NamingCase
 
 _T = TypeVar("_T")
@@ -30,7 +30,7 @@ def bake_schema(
                 field.name,
                 field.type,
                 _get_field_default(field),
-                field.metadata,
+                _to_supported_metadata(field.metadata),
                 naming_case=naming_case,
             )
             for field in fields
@@ -43,8 +43,8 @@ def bake_schema(
 def get_field_for(
     name: str,
     type: Type[_T],
-    default: _T | MissingType,
-    metadata: Mapping[Any, Any],
+    default: _T | Missing,
+    metadata: Mapping[str, Any],
     *,
     naming_case: NamingCase,
 ) -> m.fields.Field:
@@ -64,19 +64,20 @@ def get_field_for(
     else:
         required = True
 
-    new_name = _try_get_custom_name(metadata) or naming_case(name)
+    field_parameters = dict(name=naming_case(name))
+    field_parameters.update(metadata)
 
     field_factory = _SIMPLE_TYPE_FIELD_FACTORIES.get(type)
     if field_factory:
         typed_field_factory = cast(_FieldFactory[_T], field_factory)
-        return typed_field_factory(required=required, name=new_name, default=default)
+        return typed_field_factory(required=required, default=default, **field_parameters)
 
     if dataclasses.is_dataclass(type):
         return nested_field(
             bake_schema(type, naming_case=naming_case),
             required=required,
-            name=new_name,
             default=default,
+            **field_parameters,
         )
 
     raise ValueError(f"Unsupported {type=}")
@@ -95,7 +96,7 @@ def _get_base_schema(cls: Type[_T]) -> Type[m.Schema]:
     return _Schema
 
 
-def _get_field_default(field: dataclasses.Field[_T]) -> _T | MissingType:
+def _get_field_default(field: dataclasses.Field[_T]) -> _T | Missing:
     default_factory = field.default_factory
     if default_factory is not dataclasses.MISSING:  # type: ignore
         raise ValueError(f"Default factory is not supported for {field}")
@@ -117,7 +118,7 @@ class _FieldFactory(Generic[_T]):
         *,
         required: bool,
         name: str,
-        default: _T | MissingType,
+        default: _T | Missing,
         **kwargs: Any,
     ) -> m.fields.Field:
         ...
@@ -128,3 +129,7 @@ _SIMPLE_TYPE_FIELD_FACTORIES: dict[type, object] = {
     str: str_field,
     decimal.Decimal: decimal_field,
 }
+
+
+def _to_supported_metadata(metadata: Mapping[Any, Any]) -> Mapping[str, Any]:
+    return {k: v for k, v in metadata.items() if isinstance(k, str)}

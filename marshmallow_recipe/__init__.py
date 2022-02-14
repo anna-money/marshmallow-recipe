@@ -3,7 +3,8 @@ import re
 import sys
 
 from .bake import bake_schema, get_field_for
-from .missing import MISSING, MissingType
+from .metadata import decimal_metadata, metadata
+from .missing import MISSING, Missing
 from .naming_case import CAMEL_CASE, CAPITAL_CAMEL_CASE, DEFAULT_CASE, CamelCase, CapitalCamelCase, NamingCase
 from .serialization import dump, dump_many, load, load_many, schema
 
@@ -14,7 +15,7 @@ __all__: tuple[str, ...] = (
     "CAMEL_CASE",
     "CamelCase",
     "get_field_for",
-    "MissingType",
+    "Missing",
     "MISSING",
     "NamingCase",
     "DEFAULT_CASE",
@@ -23,6 +24,8 @@ __all__: tuple[str, ...] = (
     "dump",
     "dump_many",
     "schema",
+    "metadata",
+    "decimal_metadata",
 )
 
 __version__ = "0.0.3"

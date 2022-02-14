@@ -1,15 +1,16 @@
+import decimal
 from typing import Any, Type
 
 import marshmallow as m
 
-from .missing import MISSING, MissingType
+from .missing import MISSING, Missing
 
 
 def str_field(
     *,
     required: bool,
     name: str,
-    default: str | None | MissingType,
+    default: str | None | Missing,
     **_: Any,
 ) -> m.fields.Field:
     if required:
@@ -31,7 +32,7 @@ def bool_field(
     *,
     required: bool,
     name: str,
-    default: bool | None | MissingType,
+    default: bool | None | Missing,
     **_: Any,
 ) -> m.fields.Field:
     if required:
@@ -53,7 +54,7 @@ def nested_field(
     *,
     required: bool,
     name: str,
-    default: Any | None | MissingType,
+    default: Any | None | Missing,
     **_: Any,
 ) -> m.fields.Field:
     if required:
@@ -71,21 +72,24 @@ def nested_field(
 
 
 def decimal_field(
+    *,
     required: bool,
     name: str,
-    default: Any | None | MissingType,
+    default: decimal.Decimal | None | Missing,
+    places: int = 2,
+    as_string: bool = True,
     **_: Any,
 ) -> m.fields.Field:
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Decimal(dump_to=name, load_from=name, as_string=True, places=2, required=True)
+        return m.fields.Decimal(dump_to=name, load_from=name, as_string=as_string, places=places, required=True)
 
     return m.fields.Decimal(
         dump_to=name,
         load_from=name,
-        as_string=True,
-        places=2,
+        as_string=as_string,
+        places=places,
         allow_none=True,
         missing=None if default is MISSING else default,
         default=None if default is MISSING else default,

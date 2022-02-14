@@ -48,7 +48,7 @@ def test_get_field_for_required_bool() -> None:
     ],
 )
 def test_get_field_for_optional_bool(
-    field_type: Type[bool], field_default: str | None | mr.MissingType, marshmallow_default: str | None
+    field_type: Type[bool], field_default: str | None | mr.Missing, marshmallow_default: str | None
 ) -> None:
     naming_case = unittest.mock.Mock(return_value="bool")
     assert_fields_equal(
@@ -86,7 +86,7 @@ def test_get_field_for_required_str() -> None:
     ],
 )
 def test_get_field_for_optional_str(
-    field_type: Type[str], field_default: str | None | mr.MissingType, marshmallow_default: str | None
+    field_type: Type[str], field_default: str | None | mr.Missing, marshmallow_default: str | None
 ) -> None:
     name = "str"
     naming_case = unittest.mock.Mock(return_value=name)
@@ -137,7 +137,7 @@ def test_get_field_for_required_dataclass() -> None:
     ],
 )
 def test_get_field_for_optional_dataclass(
-    field_type: Type[str], field_default: str | None | mr.MissingType, marshmallow_default: str | None
+    field_type: Type[str], field_default: str | None | mr.Missing, marshmallow_default: str | None
 ) -> None:
     with unittest.mock.patch("marshmallow_recipe.bake.bake_schema") as bake_schema:
         bake_schema.return_value = EMPTY_SCHEMA
@@ -175,6 +175,29 @@ def test_get_field_for_required_decimal() -> None:
     naming_case.assert_called_once_with(name)
 
 
+def test_get_field_for_required_decimal_with_metadata() -> None:
+    name = "decimal"
+    custom_name = "DECIMAL"
+    naming_case = unittest.mock.Mock(return_value=name)
+    assert_fields_equal(
+        mr.get_field_for(
+            name,
+            decimal.Decimal,
+            mr.MISSING,
+            mr.decimal_metadata(name=custom_name, places=4, as_string=False),
+            naming_case=naming_case
+        ),
+        m.fields.Decimal(
+            places=4,
+            as_string=False,
+            required=True,
+            load_from=custom_name,
+            dump_to=custom_name,
+        ),
+    )
+    naming_case.assert_called_with(name)
+
+
 @pytest.mark.parametrize(
     "field_type, field_default, marshmallow_default",
     [
@@ -188,7 +211,7 @@ def test_get_field_for_required_decimal() -> None:
 )
 def test_get_field_for_optional_decimal(
     field_type: Type[decimal.Decimal],
-    field_default: decimal.Decimal | None | mr.MissingType,
+    field_default: decimal.Decimal | None | mr.Missing,
     marshmallow_default: str | None,
 ) -> None:
     name = "decimal"
