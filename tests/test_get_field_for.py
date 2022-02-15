@@ -388,11 +388,3 @@ def test_get_field_for_optional_uuid(
         ),
     )
     naming_case.assert_called_once_with(name)
-
-
-def test_missing() -> None:
-    class ContainerSchema(m.Schema):  # type: ignore
-        value = m.fields.Integer(required=True)
-
-    dumped, errors = ContainerSchema().dump(dict(value=m.missing))
-    assert dumped == {}
