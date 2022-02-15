@@ -6,7 +6,7 @@ from typing import Any, Generic, Mapping, Type, TypeVar, cast
 import marshmallow as m
 import typing_inspect
 
-from .fields import bool_field, decimal_field, nested_field, str_field
+from .fields import bool_field, decimal_field, int_field, nested_field, str_field
 from .missing import MISSING, Missing
 from .naming_case import DEFAULT_CASE, NamingCase
 
@@ -128,6 +128,7 @@ _SIMPLE_TYPE_FIELD_FACTORIES: dict[type, object] = {
     bool: bool_field,
     str: str_field,
     decimal.Decimal: decimal_field,
+    int: int_field,
 }
 
 
