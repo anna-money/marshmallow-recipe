@@ -41,14 +41,14 @@ def test_get_field_for_required_bool() -> None:
     [
         (bool | None, mr.MISSING, None),
         (bool | None, None, None),
-        (bool | None, "42", "42"),
+        (bool | None, True, True),
         (Optional[bool], mr.MISSING, None),
         (Optional[bool], None, None),
-        (Optional[bool], "42", "42"),
+        (Optional[bool], True, True),
     ],
 )
 def test_get_field_for_optional_bool(
-    field_type: Type[bool], field_default: str | None | mr.Missing, marshmallow_default: str | None
+    field_type: Type[bool], field_default: bool | None | mr.Missing, marshmallow_default: bool | None
 ) -> None:
     naming_case = unittest.mock.Mock(return_value="bool")
     assert_fields_equal(
@@ -137,7 +137,9 @@ def test_get_field_for_required_dataclass() -> None:
     ],
 )
 def test_get_field_for_optional_dataclass(
-    field_type: Type[str], field_default: str | None | mr.Missing, marshmallow_default: str | None
+    field_type: Type[EmptyDataclass],
+    field_default: EmptyDataclass | None | mr.Missing,
+    marshmallow_default: EmptyDataclass | None,
 ) -> None:
     with unittest.mock.patch("marshmallow_recipe.bake.bake_schema") as bake_schema:
         bake_schema.return_value = EMPTY_SCHEMA
@@ -185,7 +187,7 @@ def test_get_field_for_required_decimal_with_metadata() -> None:
             decimal.Decimal,
             mr.MISSING,
             mr.decimal_metadata(name=custom_name, places=4, as_string=False),
-            naming_case=naming_case
+            naming_case=naming_case,
         ),
         m.fields.Decimal(
             places=4,
@@ -212,7 +214,7 @@ def test_get_field_for_required_decimal_with_metadata() -> None:
 def test_get_field_for_optional_decimal(
     field_type: Type[decimal.Decimal],
     field_default: decimal.Decimal | None | mr.Missing,
-    marshmallow_default: str | None,
+    marshmallow_default: decimal.Decimal | None,
 ) -> None:
     name = "decimal"
     naming_case = unittest.mock.Mock(return_value=name)
@@ -221,6 +223,51 @@ def test_get_field_for_optional_decimal(
         m.fields.Decimal(
             places=2,
             as_string=True,
+            allow_none=True,
+            load_from=name,
+            dump_to=name,
+            missing=marshmallow_default,
+            default=marshmallow_default,
+        ),
+    )
+    naming_case.assert_called_once_with(name)
+
+
+def test_get_field_for_required_int() -> None:
+    name = "int"
+    naming_case = unittest.mock.Mock(return_value=name)
+    assert_fields_equal(
+        mr.get_field_for(name, int, mr.MISSING, {}, naming_case=naming_case),
+        m.fields.Int(
+            required=True,
+            load_from=name,
+            dump_to=name,
+        ),
+    )
+    naming_case.assert_called_once_with(name)
+
+
+@pytest.mark.parametrize(
+    "field_type, field_default, marshmallow_default",
+    [
+        (int | None, mr.MISSING, None),
+        (int | None, None, None),
+        (int | None, 42, 42),
+        (Optional[int], mr.MISSING, None),
+        (Optional[int], None, None),
+        (Optional[int], 42, 42),
+    ],
+)
+def test_get_field_for_optional_int(
+    field_type: Type[int],
+    field_default: int | None | mr.Missing,
+    marshmallow_default: int | None,
+) -> None:
+    name = "int"
+    naming_case = unittest.mock.Mock(return_value=name)
+    assert_fields_equal(
+        mr.get_field_for(name, field_type, field_default, {}, naming_case=naming_case),
+        m.fields.Int(
             allow_none=True,
             load_from=name,
             dump_to=name,

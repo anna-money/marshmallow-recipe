@@ -19,7 +19,7 @@ def str_field(
 
         return m.fields.String(required=True, dump_to=name, load_from=name)
 
-    return m.fields.String(
+    return m.fields.Str(
         dump_to=name,
         load_from=name,
         allow_none=True,
@@ -40,7 +40,7 @@ def bool_field(
             raise ValueError("Default values is not supported for required fields")
         return m.fields.Boolean(dump_to=name, load_from=name, required=True)
 
-    return m.fields.Boolean(
+    return m.fields.Bool(
         dump_to=name,
         load_from=name,
         allow_none=True,
@@ -90,6 +90,27 @@ def decimal_field(
         load_from=name,
         as_string=as_string,
         places=places,
+        allow_none=True,
+        missing=None if default is MISSING else default,
+        default=None if default is MISSING else default,
+    )
+
+
+def int_field(
+    *,
+    required: bool,
+    name: str,
+    default: bool | None | Missing,
+    **_: Any,
+) -> m.fields.Field:
+    if required:
+        if default is not MISSING:
+            raise ValueError("Default values is not supported for required fields")
+        return m.fields.Int(dump_to=name, load_from=name, required=True)
+
+    return m.fields.Int(
+        dump_to=name,
+        load_from=name,
         allow_none=True,
         missing=None if default is MISSING else default,
         default=None if default is MISSING else default,
