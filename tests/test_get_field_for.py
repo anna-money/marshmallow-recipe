@@ -2,6 +2,7 @@ import dataclasses
 import decimal
 import inspect
 import unittest.mock
+import uuid
 from typing import Any, Optional, Type
 
 import marshmallow as m
@@ -313,6 +314,54 @@ def test_get_field_for_optional_float(
     assert_fields_equal(
         mr.get_field_for(name, field_type, field_default, {}, naming_case=naming_case),
         m.fields.Float(
+            allow_none=True,
+            load_from=name,
+            dump_to=name,
+            missing=marshmallow_default,
+            default=marshmallow_default,
+        ),
+    )
+    naming_case.assert_called_once_with(name)
+
+
+def test_get_field_for_required_uuid() -> None:
+    name = "uuid"
+    naming_case = unittest.mock.Mock(return_value=name)
+    assert_fields_equal(
+        mr.get_field_for(name, uuid.UUID, mr.MISSING, {}, naming_case=naming_case),
+        m.fields.UUID(
+            required=True,
+            load_from=name,
+            dump_to=name,
+        ),
+    )
+    naming_case.assert_called_once_with(name)
+
+
+generated_uuid = uuid.uuid4()
+
+
+@pytest.mark.parametrize(
+    "field_type, field_default, marshmallow_default",
+    [
+        (uuid.UUID | None, mr.MISSING, None),
+        (uuid.UUID | None, None, None),
+        (uuid.UUID | None, generated_uuid, generated_uuid),
+        (Optional[uuid.UUID], mr.MISSING, None),
+        (Optional[uuid.UUID], None, None),
+        (Optional[uuid.UUID], generated_uuid, generated_uuid),
+    ],
+)
+def test_get_field_for_optional_uuid(
+    field_type: Type[uuid.UUID],
+    field_default: uuid.UUID | None | mr.Missing,
+    marshmallow_default: uuid.UUID | None,
+) -> None:
+    name = "uuid"
+    naming_case = unittest.mock.Mock(return_value=name)
+    assert_fields_equal(
+        mr.get_field_for(name, field_type, field_default, {}, naming_case=naming_case),
+        m.fields.UUID(
             allow_none=True,
             load_from=name,
             dump_to=name,
