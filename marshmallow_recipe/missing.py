@@ -1,5 +1,5 @@
 from typing import NewType
 
-MissingType = NewType("MissingType", object)
+Missing = NewType("Missing", object)
 
-MISSING = MissingType(object())
+MISSING = Missing(object())

@@ -43,7 +43,7 @@ def test_nested() -> None:
 def test_custom_name() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class BoolContainer:
-        bool_field: bool = dataclasses.field(metadata=dict(name="BoolField"))
+        bool_field: bool = dataclasses.field(metadata=mr.metadata(name="BoolField"))
 
     raw = dict(BoolField=False)
 
