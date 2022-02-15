@@ -6,6 +6,7 @@ from .bake import bake_schema, get_field_for
 from .metadata import decimal_metadata, metadata
 from .missing import MISSING, Missing
 from .naming_case import CAMEL_CASE, CAPITAL_CAMEL_CASE, DEFAULT_CASE, CamelCase, CapitalCamelCase, NamingCase
+from .none_value_handling import NoneValueHandling
 from .serialization import dump, dump_many, load, load_many, schema
 
 __all__: tuple[str, ...] = (
@@ -26,6 +27,7 @@ __all__: tuple[str, ...] = (
     "schema",
     "metadata",
     "decimal_metadata",
+    "NoneValueHandling",
 )
 
 __version__ = "0.0.3"

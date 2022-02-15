@@ -116,7 +116,14 @@ def test_get_field_for_required_dataclass() -> None:
         name = "nested"
         naming_case = unittest.mock.Mock(return_value=name)
         assert_fields_equal(
-            mr.get_field_for(name, EmptyDataclass, mr.MISSING, {}, naming_case=naming_case),
+            mr.get_field_for(
+                name,
+                EmptyDataclass,
+                mr.MISSING,
+                {},
+                naming_case=naming_case,
+                none_value_handling=mr.NoneValueHandling.EXCLUDE,
+            ),
             m.fields.Nested(
                 EMPTY_SCHEMA,
                 required=True,
@@ -125,7 +132,9 @@ def test_get_field_for_required_dataclass() -> None:
             ),
         )
         naming_case.assert_called_once_with(name)
-        bake_schema.assert_called_once_with(EmptyDataclass, naming_case=naming_case)
+        bake_schema.assert_called_once_with(
+            EmptyDataclass, naming_case=naming_case, none_value_handling=mr.NoneValueHandling.EXCLUDE
+        )
 
 
 @pytest.mark.parametrize(
@@ -148,7 +157,14 @@ def test_get_field_for_optional_dataclass(
         name = "nested"
         naming_case = unittest.mock.Mock(return_value=name)
         assert_fields_equal(
-            mr.get_field_for(name, field_type, field_default, {}, naming_case=naming_case),
+            mr.get_field_for(
+                name,
+                field_type,
+                field_default,
+                {},
+                naming_case=naming_case,
+                none_value_handling=mr.NoneValueHandling.EXCLUDE,
+            ),
             m.fields.Nested(
                 EMPTY_SCHEMA,
                 allow_none=True,
@@ -159,7 +175,9 @@ def test_get_field_for_optional_dataclass(
             ),
         )
         naming_case.assert_called_once_with(name)
-        bake_schema.assert_called_once_with(EmptyDataclass, naming_case=naming_case)
+        bake_schema.assert_called_once_with(
+            EmptyDataclass, naming_case=naming_case, none_value_handling=mr.NoneValueHandling.EXCLUDE
+        )
 
 
 def test_get_field_for_required_decimal() -> None:
@@ -370,3 +388,11 @@ def test_get_field_for_optional_uuid(
         ),
     )
     naming_case.assert_called_once_with(name)
+
+
+def test_missing() -> None:
+    class ContainerSchema(m.Schema):  # type: ignore
+        value = m.fields.Integer(required=True)
+
+    dumped, errors = ContainerSchema().dump(dict(value=m.missing))
+    assert dumped == {}

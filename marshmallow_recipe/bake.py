@@ -10,6 +10,7 @@ import typing_inspect
 from .fields import bool_field, decimal_field, float_field, int_field, nested_field, str_field, uuid_field
 from .missing import MISSING, Missing
 from .naming_case import DEFAULT_CASE, NamingCase
+from .none_value_handling import NoneValueHandling
 
 _T = TypeVar("_T")
 
@@ -18,6 +19,7 @@ def bake_schema(
     cls: Type[_T],
     *,
     naming_case: NamingCase = DEFAULT_CASE,
+    none_value_handling: NoneValueHandling = NoneValueHandling.EXCLUDE,
 ) -> Type[m.Schema]:
     if not dataclasses.is_dataclass(cls):
         raise ValueError(f"{cls} is not a dataclass")
@@ -25,7 +27,7 @@ def bake_schema(
     fields = dataclasses.fields(cls)
     schema_class = type(
         cls.__name__,
-        (_get_base_schema(cls),),
+        (_get_base_schema(cls, none_value_handling=none_value_handling),),
         {
             field.name: get_field_for(
                 field.name,
@@ -33,6 +35,7 @@ def bake_schema(
                 _get_field_default(field),
                 _to_supported_metadata(field.metadata),
                 naming_case=naming_case,
+                none_value_handling=none_value_handling,
             )
             for field in fields
             if field.init
@@ -48,6 +51,7 @@ def get_field_for(
     metadata: Mapping[str, Any],
     *,
     naming_case: NamingCase,
+    none_value_handling: NoneValueHandling = NoneValueHandling.INCLUDE,
 ) -> m.fields.Field:
     if typing_inspect.is_union_type(type):
         type_args = list(set(typing_inspect.get_args(type, True)))
@@ -75,7 +79,7 @@ def get_field_for(
 
     if dataclasses.is_dataclass(type):
         return nested_field(
-            bake_schema(type, naming_case=naming_case),
+            bake_schema(type, naming_case=naming_case, none_value_handling=none_value_handling),
             required=required,
             default=default,
             **field_parameters,
@@ -84,11 +88,13 @@ def get_field_for(
     raise ValueError(f"Unsupported {type=}")
 
 
-def _get_base_schema(cls: Type[_T]) -> Type[m.Schema]:
+def _get_base_schema(cls: Type[_T], *, none_value_handling: NoneValueHandling) -> Type[m.Schema]:
     class _Schema(m.Schema):  # type: ignore
-        @m.post_dump  # type: ignore
-        def remove_none_values(self, data: dict[str, Any]) -> dict[str, Any]:
-            return {key: value for key, value in data.items() if value is not None}
+        if none_value_handling == NoneValueHandling.EXCLUDE:
+
+            @m.post_dump  # type: ignore
+            def exclude_none_values(self, data: dict[str, Any]) -> dict[str, Any]:
+                return {key: value for key, value in data.items() if value is not None}
 
         @m.post_load  # type: ignore
         def post_load(self, data: dict[str, Any]) -> Any:
