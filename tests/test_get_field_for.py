@@ -276,3 +276,48 @@ def test_get_field_for_optional_int(
         ),
     )
     naming_case.assert_called_once_with(name)
+
+
+def test_get_field_for_required_float() -> None:
+    name = "float"
+    naming_case = unittest.mock.Mock(return_value=name)
+    assert_fields_equal(
+        mr.get_field_for(name, float, mr.MISSING, {}, naming_case=naming_case),
+        m.fields.Float(
+            required=True,
+            load_from=name,
+            dump_to=name,
+        ),
+    )
+    naming_case.assert_called_once_with(name)
+
+
+@pytest.mark.parametrize(
+    "field_type, field_default, marshmallow_default",
+    [
+        (float | None, mr.MISSING, None),
+        (float | None, None, None),
+        (float | None, 42.0, 42.0),
+        (Optional[float], mr.MISSING, None),
+        (Optional[float], None, None),
+        (Optional[float], 42.0, 42.0),
+    ],
+)
+def test_get_field_for_optional_float(
+    field_type: Type[float],
+    field_default: float | None | mr.Missing,
+    marshmallow_default: float | None,
+) -> None:
+    name = "float"
+    naming_case = unittest.mock.Mock(return_value=name)
+    assert_fields_equal(
+        mr.get_field_for(name, field_type, field_default, {}, naming_case=naming_case),
+        m.fields.Float(
+            allow_none=True,
+            load_from=name,
+            dump_to=name,
+            missing=marshmallow_default,
+            default=marshmallow_default,
+        ),
+    )
+    naming_case.assert_called_once_with(name)
