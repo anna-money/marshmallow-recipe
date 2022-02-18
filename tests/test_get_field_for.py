@@ -3,7 +3,7 @@ import decimal
 import inspect
 import unittest.mock
 import uuid
-from typing import Any, Optional, Type
+from typing import Any, Dict, Optional
 
 import marshmallow as m
 import pytest
@@ -24,82 +24,6 @@ def assert_fields_equal(a: m.fields.Field, b: m.fields.Field) -> None:
     assert attrs(a) == attrs(b)
 
 
-def test_get_field_for_required_bool() -> None:
-    naming_case = unittest.mock.Mock(return_value="bool")
-    assert_fields_equal(
-        mr.get_field_for("bool", bool, mr.MISSING, {}, naming_case=naming_case),
-        m.fields.Bool(
-            required=True,
-            load_from="bool",
-            dump_to="bool",
-        ),
-    )
-    naming_case.assert_called_once_with("bool")
-
-
-@pytest.mark.parametrize(
-    "field_type, field_default, marshmallow_default",
-    [
-        (bool | None, mr.MISSING, None),
-        (bool | None, None, None),
-        (bool | None, True, True),
-        (Optional[bool], mr.MISSING, None),
-        (Optional[bool], None, None),
-        (Optional[bool], True, True),
-    ],
-)
-def test_get_field_for_optional_bool(
-    field_type: Type[bool], field_default: bool | None | mr.Missing, marshmallow_default: bool | None
-) -> None:
-    naming_case = unittest.mock.Mock(return_value="bool")
-    assert_fields_equal(
-        mr.get_field_for("bool", field_type, field_default, {}, naming_case=naming_case),
-        m.fields.Bool(
-            allow_none=True, load_from="bool", dump_to="bool", missing=marshmallow_default, default=marshmallow_default
-        ),
-    )
-    naming_case.assert_called_once_with("bool")
-
-
-def test_get_field_for_required_str() -> None:
-    name = "str"
-    naming_case = unittest.mock.Mock(return_value=name)
-    assert_fields_equal(
-        mr.get_field_for(name, str, mr.MISSING, {}, naming_case=naming_case),
-        m.fields.Str(
-            required=True,
-            load_from=name,
-            dump_to=name,
-        ),
-    )
-    naming_case.assert_called_once_with(name)
-
-
-@pytest.mark.parametrize(
-    "field_type, field_default, marshmallow_default",
-    [
-        (str | None, mr.MISSING, None),
-        (str | None, None, None),
-        (str | None, "42", "42"),
-        (Optional[str], mr.MISSING, None),
-        (Optional[str], None, None),
-        (Optional[str], "42", "42"),
-    ],
-)
-def test_get_field_for_optional_str(
-    field_type: Type[str], field_default: str | None | mr.Missing, marshmallow_default: str | None
-) -> None:
-    name = "str"
-    naming_case = unittest.mock.Mock(return_value=name)
-    assert_fields_equal(
-        mr.get_field_for(name, field_type, field_default, {}, naming_case=naming_case),
-        m.fields.Str(
-            allow_none=True, load_from=name, dump_to=name, missing=marshmallow_default, default=marshmallow_default
-        ),
-    )
-    naming_case.assert_called_once_with(name)
-
-
 @dataclasses.dataclass
 class EmptyDataclass:
     pass
@@ -109,264 +33,237 @@ EMPTY = EmptyDataclass()
 EMPTY_SCHEMA = m.Schema()
 
 
-def test_get_field_for_required_dataclass() -> None:
-    with unittest.mock.patch("marshmallow_recipe.bake.bake_schema") as bake_schema:
-        bake_schema.return_value = EMPTY_SCHEMA
-
-        name = "nested"
-        naming_case = unittest.mock.Mock(return_value=name)
-        assert_fields_equal(
-            mr.get_field_for(name, EmptyDataclass, mr.MISSING, {}, naming_case=naming_case),
-            m.fields.Nested(
-                EMPTY_SCHEMA,
-                required=True,
-                load_from=name,
-                dump_to=name,
-            ),
-        )
-        naming_case.assert_called_once_with(name)
-        bake_schema.assert_called_once_with(EmptyDataclass, naming_case=naming_case)
-
-
 @pytest.mark.parametrize(
-    "field_type, field_default, marshmallow_default",
+    "type, metadata, field",
     [
-        (EmptyDataclass | None, mr.MISSING, None),
-        (EmptyDataclass | None, None, None),
-        (Optional[EmptyDataclass], mr.MISSING, None),
-        (Optional[EmptyDataclass], None, None),
-    ],
-)
-def test_get_field_for_optional_dataclass(
-    field_type: Type[EmptyDataclass],
-    field_default: EmptyDataclass | None | mr.Missing,
-    marshmallow_default: EmptyDataclass | None,
-) -> None:
-    with unittest.mock.patch("marshmallow_recipe.bake.bake_schema") as bake_schema:
-        bake_schema.return_value = EMPTY_SCHEMA
-
-        name = "nested"
-        naming_case = unittest.mock.Mock(return_value=name)
-        assert_fields_equal(
-            mr.get_field_for(name, field_type, field_default, {}, naming_case=naming_case),
-            m.fields.Nested(
-                EMPTY_SCHEMA,
-                allow_none=True,
-                load_from=name,
-                dump_to=name,
-                missing=marshmallow_default,
-                default=marshmallow_default,
-            ),
-        )
-        naming_case.assert_called_once_with(name)
-        bake_schema.assert_called_once_with(EmptyDataclass, naming_case=naming_case)
-
-
-def test_get_field_for_required_decimal() -> None:
-    name = "decimal"
-    naming_case = unittest.mock.Mock(return_value=name)
-    assert_fields_equal(
-        mr.get_field_for(name, decimal.Decimal, mr.MISSING, {}, naming_case=naming_case),
-        m.fields.Decimal(
-            places=2,
-            as_string=True,
-            required=True,
-            load_from=name,
-            dump_to=name,
+        # simple types
+        (bool, {}, m.fields.Bool(required=True)),
+        (Optional[bool], {}, m.fields.Bool(allow_none=True, missing=None, default=None)),
+        (bool | None, {}, m.fields.Bool(allow_none=True, missing=None, default=None)),
+        (bool, mr.metadata(name="i"), m.fields.Bool(required=True, load_from="i", dump_to="i")),
+        (
+            Optional[bool],
+            mr.metadata(name="i"),
+            m.fields.Bool(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
         ),
-    )
-    naming_case.assert_called_once_with(name)
-
-
-def test_get_field_for_required_decimal_with_metadata() -> None:
-    name = "decimal"
-    custom_name = "DECIMAL"
-    naming_case = unittest.mock.Mock(return_value=name)
-    assert_fields_equal(
-        mr.get_field_for(
-            name,
+        (
+            bool | None,
+            mr.metadata(name="i"),
+            m.fields.Bool(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+        ),
+        (str, {}, m.fields.Str(required=True)),
+        (Optional[str], {}, m.fields.Str(allow_none=True, missing=None, default=None)),
+        (str | None, {}, m.fields.Str(allow_none=True, missing=None, default=None)),
+        (str, mr.metadata(name="i"), m.fields.Str(required=True, load_from="i", dump_to="i")),
+        (
+            Optional[str],
+            mr.metadata(name="i"),
+            m.fields.Str(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+        ),
+        (
+            str | None,
+            mr.metadata(name="i"),
+            m.fields.Str(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+        ),
+        (int, {}, m.fields.Int(required=True)),
+        (Optional[int], {}, m.fields.Int(allow_none=True, missing=None, default=None)),
+        (int | None, {}, m.fields.Int(allow_none=True, missing=None, default=None)),
+        (int, mr.metadata(name="i"), m.fields.Int(required=True, load_from="i", dump_to="i")),
+        (
+            Optional[int],
+            mr.metadata(name="i"),
+            m.fields.Int(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+        ),
+        (
+            int | None,
+            mr.metadata(name="i"),
+            m.fields.Int(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+        ),
+        (float, {}, m.fields.Float(required=True)),
+        (Optional[float], {}, m.fields.Float(allow_none=True, missing=None, default=None)),
+        (float | None, {}, m.fields.Float(allow_none=True, missing=None, default=None)),
+        (float, mr.metadata(name="i"), m.fields.Float(required=True, load_from="i", dump_to="i")),
+        (
+            Optional[float],
+            mr.metadata(name="i"),
+            m.fields.Float(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+        ),
+        (
+            float | None,
+            mr.metadata(name="i"),
+            m.fields.Float(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+        ),
+        (uuid.UUID, {}, m.fields.UUID(required=True)),
+        (Optional[uuid.UUID], {}, m.fields.UUID(allow_none=True, missing=None, default=None)),
+        (uuid.UUID | None, {}, m.fields.UUID(allow_none=True, missing=None, default=None)),
+        (uuid.UUID, mr.metadata(name="i"), m.fields.UUID(required=True, load_from="i", dump_to="i")),
+        (
+            Optional[uuid.UUID],
+            mr.metadata(name="i"),
+            m.fields.UUID(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+        ),
+        (
+            uuid.UUID | None,
+            mr.metadata(name="i"),
+            m.fields.UUID(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+        ),
+        (decimal.Decimal, {}, m.fields.Decimal(required=True, places=2, as_string=True)),
+        (
+            Optional[decimal.Decimal],
+            {},
+            m.fields.Decimal(allow_none=True, missing=None, default=None, places=2, as_string=True),
+        ),
+        (
+            decimal.Decimal | None,
+            {},
+            m.fields.Decimal(allow_none=True, missing=None, default=None, places=2, as_string=True),
+        ),
+        (
             decimal.Decimal,
-            mr.MISSING,
-            mr.decimal_metadata(name=custom_name, places=4, as_string=False),
-            naming_case=naming_case,
+            mr.decimal_metadata(name="i", places=4, as_string=False),
+            m.fields.Decimal(required=True, load_from="i", dump_to="i", places=4, as_string=False),
         ),
-        m.fields.Decimal(
-            places=4,
-            as_string=False,
-            required=True,
-            load_from=custom_name,
-            dump_to=custom_name,
+        (
+            Optional[decimal.Decimal],
+            mr.decimal_metadata(name="i", places=4, as_string=False),
+            m.fields.Decimal(
+                allow_none=True, missing=None, default=None, places=4, as_string=False, load_from="i", dump_to="i"
+            ),
         ),
-    )
-    naming_case.assert_called_with(name)
-
-
-@pytest.mark.parametrize(
-    "field_type, field_default, marshmallow_default",
-    [
-        (decimal.Decimal | None, mr.MISSING, None),
-        (decimal.Decimal | None, None, None),
-        (decimal.Decimal | None, decimal.Decimal("42"), decimal.Decimal("42")),
-        (Optional[decimal.Decimal], mr.MISSING, None),
-        (Optional[decimal.Decimal], None, None),
-        (Optional[decimal.Decimal], decimal.Decimal("42"), decimal.Decimal("42")),
+        (
+            decimal.Decimal | None,
+            mr.decimal_metadata(name="i", places=4, as_string=False),
+            m.fields.Decimal(
+                allow_none=True, missing=None, default=None, places=4, as_string=False, load_from="i", dump_to="i"
+            ),
+        ),
+        # dataclass
+        (EmptyDataclass, {}, m.fields.Nested(EMPTY_SCHEMA, required=True)),
+        (Optional[EmptyDataclass], {}, m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None)),
+        (EmptyDataclass | None, {}, m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None)),
+        (
+            EmptyDataclass,
+            mr.metadata(name="i"),
+            m.fields.Nested(EMPTY_SCHEMA, required=True, load_from="i", dump_to="i"),
+        ),
+        (
+            Optional[EmptyDataclass],
+            mr.metadata(name="i"),
+            m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+        ),
+        (
+            EmptyDataclass | None,
+            mr.metadata(name="i"),
+            m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+        ),
+        # containers: list[T]
+        (list[bool], {}, m.fields.List(m.fields.Bool(required=True), required=True)),
+        (
+            list[Optional[bool]],
+            {},
+            m.fields.List(m.fields.Bool(allow_none=True, missing=None, default=None), required=True),
+        ),
+        (
+            list[bool | None],
+            {},
+            m.fields.List(m.fields.Bool(allow_none=True, missing=None, default=None), required=True),
+        ),
+        (
+            Optional[list[bool]],
+            {},
+            m.fields.List(m.fields.Bool(required=True), allow_none=True, missing=None, default=None),
+        ),
+        (
+            Optional[list[Optional[bool]]],
+            {},
+            m.fields.List(
+                m.fields.Bool(allow_none=True, missing=None, default=None), allow_none=True, missing=None, default=None
+            ),
+        ),
+        (
+            list[bool | None] | None,
+            {},
+            m.fields.List(
+                m.fields.Bool(allow_none=True, missing=None, default=None), allow_none=True, missing=None, default=None
+            ),
+        ),
+        # containers: list[T] where T: dataclass
+        (list[EmptyDataclass], {}, m.fields.List(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True)),
+        (
+            list[Optional[EmptyDataclass]],
+            {},
+            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None), required=True),
+        ),
+        (
+            list[EmptyDataclass | None],
+            {},
+            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None), required=True),
+        ),
+        (
+            Optional[list[EmptyDataclass]],
+            {},
+            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, missing=None, default=None),
+        ),
+        (
+            Optional[list[Optional[EmptyDataclass]]],
+            {},
+            m.fields.List(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None),
+                allow_none=True,
+                missing=None,
+                default=None,
+            ),
+        ),
+        (
+            list[EmptyDataclass | None] | None,
+            {},
+            m.fields.List(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None),
+                allow_none=True,
+                missing=None,
+                default=None,
+            ),
+        ),
+        # containers: Dict[str, Any]
+        (dict[str, Any], {}, m.fields.Dict(required=True)),
+        (
+            dict[str, Any],
+            mr.metadata(name="i"),
+            m.fields.Dict(required=True, load_from="i", dump_to="i"),
+        ),
+        (Optional[dict[str, Any]], {}, m.fields.Dict(allow_none=True, missing=None, default=None)),
+        (
+            Optional[dict[str, Any]],
+            mr.metadata(name="i"),
+            m.fields.Dict(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+        ),
+        (dict[str, Any] | None, {}, m.fields.Dict(allow_none=True, missing=None, default=None)),
+        (
+            dict[str, Any] | None,
+            mr.metadata(name="i"),
+            m.fields.Dict(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+        ),
+        (Dict[str, Any], {}, m.fields.Dict(required=True)),
+        (
+            Dict[str, Any],
+            mr.metadata(name="i"),
+            m.fields.Dict(required=True, load_from="i", dump_to="i"),
+        ),
+        (Optional[Dict[str, Any]], {}, m.fields.Dict(allow_none=True, missing=None, default=None)),
+        (
+            Optional[Dict[str, Any]],
+            mr.metadata(name="i"),
+            m.fields.Dict(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+        ),
+        (Dict[str, Any] | None, {}, m.fields.Dict(allow_none=True, missing=None, default=None)),
+        (
+            Dict[str, Any] | None,
+            mr.metadata(name="i"),
+            m.fields.Dict(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+        ),
     ],
 )
-def test_get_field_for_optional_decimal(
-    field_type: Type[decimal.Decimal],
-    field_default: decimal.Decimal | None | mr.Missing,
-    marshmallow_default: decimal.Decimal | None,
-) -> None:
-    name = "decimal"
-    naming_case = unittest.mock.Mock(return_value=name)
-    assert_fields_equal(
-        mr.get_field_for(name, field_type, field_default, {}, naming_case=naming_case),
-        m.fields.Decimal(
-            places=2,
-            as_string=True,
-            allow_none=True,
-            load_from=name,
-            dump_to=name,
-            missing=marshmallow_default,
-            default=marshmallow_default,
-        ),
-    )
-    naming_case.assert_called_once_with(name)
-
-
-def test_get_field_for_required_int() -> None:
-    name = "int"
-    naming_case = unittest.mock.Mock(return_value=name)
-    assert_fields_equal(
-        mr.get_field_for(name, int, mr.MISSING, {}, naming_case=naming_case),
-        m.fields.Int(
-            required=True,
-            load_from=name,
-            dump_to=name,
-        ),
-    )
-    naming_case.assert_called_once_with(name)
-
-
-@pytest.mark.parametrize(
-    "field_type, field_default, marshmallow_default",
-    [
-        (int | None, mr.MISSING, None),
-        (int | None, None, None),
-        (int | None, 42, 42),
-        (Optional[int], mr.MISSING, None),
-        (Optional[int], None, None),
-        (Optional[int], 42, 42),
-    ],
-)
-def test_get_field_for_optional_int(
-    field_type: Type[int],
-    field_default: int | None | mr.Missing,
-    marshmallow_default: int | None,
-) -> None:
-    name = "int"
-    naming_case = unittest.mock.Mock(return_value=name)
-    assert_fields_equal(
-        mr.get_field_for(name, field_type, field_default, {}, naming_case=naming_case),
-        m.fields.Int(
-            allow_none=True,
-            load_from=name,
-            dump_to=name,
-            missing=marshmallow_default,
-            default=marshmallow_default,
-        ),
-    )
-    naming_case.assert_called_once_with(name)
-
-
-def test_get_field_for_required_float() -> None:
-    name = "float"
-    naming_case = unittest.mock.Mock(return_value=name)
-    assert_fields_equal(
-        mr.get_field_for(name, float, mr.MISSING, {}, naming_case=naming_case),
-        m.fields.Float(
-            required=True,
-            load_from=name,
-            dump_to=name,
-        ),
-    )
-    naming_case.assert_called_once_with(name)
-
-
-@pytest.mark.parametrize(
-    "field_type, field_default, marshmallow_default",
-    [
-        (float | None, mr.MISSING, None),
-        (float | None, None, None),
-        (float | None, 42.0, 42.0),
-        (Optional[float], mr.MISSING, None),
-        (Optional[float], None, None),
-        (Optional[float], 42.0, 42.0),
-    ],
-)
-def test_get_field_for_optional_float(
-    field_type: Type[float],
-    field_default: float | None | mr.Missing,
-    marshmallow_default: float | None,
-) -> None:
-    name = "float"
-    naming_case = unittest.mock.Mock(return_value=name)
-    assert_fields_equal(
-        mr.get_field_for(name, field_type, field_default, {}, naming_case=naming_case),
-        m.fields.Float(
-            allow_none=True,
-            load_from=name,
-            dump_to=name,
-            missing=marshmallow_default,
-            default=marshmallow_default,
-        ),
-    )
-    naming_case.assert_called_once_with(name)
-
-
-def test_get_field_for_required_uuid() -> None:
-    name = "uuid"
-    naming_case = unittest.mock.Mock(return_value=name)
-    assert_fields_equal(
-        mr.get_field_for(name, uuid.UUID, mr.MISSING, {}, naming_case=naming_case),
-        m.fields.UUID(
-            required=True,
-            load_from=name,
-            dump_to=name,
-        ),
-    )
-    naming_case.assert_called_once_with(name)
-
-
-generated_uuid = uuid.uuid4()
-
-
-@pytest.mark.parametrize(
-    "field_type, field_default, marshmallow_default",
-    [
-        (uuid.UUID | None, mr.MISSING, None),
-        (uuid.UUID | None, None, None),
-        (uuid.UUID | None, generated_uuid, generated_uuid),
-        (Optional[uuid.UUID], mr.MISSING, None),
-        (Optional[uuid.UUID], None, None),
-        (Optional[uuid.UUID], generated_uuid, generated_uuid),
-    ],
-)
-def test_get_field_for_optional_uuid(
-    field_type: Type[uuid.UUID],
-    field_default: uuid.UUID | None | mr.Missing,
-    marshmallow_default: uuid.UUID | None,
-) -> None:
-    name = "uuid"
-    naming_case = unittest.mock.Mock(return_value=name)
-    assert_fields_equal(
-        mr.get_field_for(name, field_type, field_default, {}, naming_case=naming_case),
-        m.fields.UUID(
-            allow_none=True,
-            load_from=name,
-            dump_to=name,
-            missing=marshmallow_default,
-            default=marshmallow_default,
-        ),
-    )
-    naming_case.assert_called_once_with(name)
+def test_get_field_for(type: type, metadata: dict[str, Any], field: m.fields.Field) -> None:
+    with unittest.mock.patch("marshmallow_recipe.bake.bake_schema") as bake_schema:
+        bake_schema.return_value = EMPTY_SCHEMA
+        assert_fields_equal(mr.get_field_for(type, metadata, naming_case=mr.DEFAULT_CASE), field)
