@@ -10,8 +10,8 @@ from .missing import MISSING, Missing
 def str_field(
     *,
     required: bool,
-    name: str,
-    default: str | None | Missing,
+    default: str | None | Missing = MISSING,
+    name: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if required:
@@ -32,8 +32,8 @@ def str_field(
 def bool_field(
     *,
     required: bool,
-    name: str,
-    default: bool | None | Missing,
+    default: bool | None | Missing = MISSING,
+    name: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if required:
@@ -50,33 +50,11 @@ def bool_field(
     )
 
 
-def nested_field(
-    nested_schema: Type[m.Schema],
-    *,
-    required: bool,
-    name: str,
-    default: Any | None | Missing,
-    **_: Any,
-) -> m.fields.Field:
-    if required:
-        if default is not MISSING:
-            raise ValueError("Default values is not supported for required fields")
-        return m.fields.Nested(nested_schema, dump_to=name, load_from=name, required=True)
-
-    if default is not MISSING and default is not None:
-        raise ValueError("Default values is not supported for required fields")
-    return (
-        m.fields.Nested(nested_schema, dump_to=name, load_from=name, required=True)
-        if required
-        else m.fields.Nested(nested_schema, dump_to=name, load_from=name, allow_none=True, missing=None, default=None)
-    )
-
-
 def decimal_field(
     *,
     required: bool,
-    name: str,
-    default: decimal.Decimal | None | Missing,
+    default: decimal.Decimal | None | Missing = MISSING,
+    name: str | None = None,
     places: int = 2,
     as_string: bool = True,
     **_: Any,
@@ -100,8 +78,8 @@ def decimal_field(
 def int_field(
     *,
     required: bool,
-    name: str,
-    default: int | None | Missing,
+    default: int | None | Missing = MISSING,
+    name: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if required:
@@ -121,8 +99,8 @@ def int_field(
 def float_field(
     *,
     required: bool,
-    name: str,
-    default: float | None | Missing,
+    default: float | None | Missing = MISSING,
+    name: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if required:
@@ -142,8 +120,8 @@ def float_field(
 def uuid_field(
     *,
     required: bool,
-    name: str,
-    default: uuid.UUID | None | Missing,
+    default: uuid.UUID | None | Missing = MISSING,
+    name: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if required:
@@ -157,4 +135,77 @@ def uuid_field(
         allow_none=True,
         missing=None if default is MISSING else default,
         default=None if default is MISSING else default,
+    )
+
+
+def nested_field(
+    nested_schema: Type[m.Schema],
+    *,
+    required: bool,
+    default: Any | None | Missing = MISSING,
+    name: str | None = None,
+    **_: Any,
+) -> m.fields.Field:
+    if required:
+        if default is not MISSING:
+            raise ValueError("Default values is not supported for required fields")
+        return m.fields.Nested(nested_schema, dump_to=name, load_from=name, required=True)
+
+    if default is not MISSING and default is not None:
+        raise ValueError("Default values is not supported for required fields")
+    return m.fields.Nested(
+        nested_schema,
+        dump_to=name,
+        load_from=name,
+        allow_none=True,
+        missing=None,
+        default=None,
+    )
+
+
+def list_field(
+    field: m.fields.Field,
+    *,
+    required: bool,
+    default: Any | None | Missing = MISSING,
+    name: str | None = None,
+    **_: Any,
+) -> m.fields.Field:
+    if required:
+        if default is not MISSING:
+            raise ValueError("Default values is not supported for required fields")
+        return m.fields.List(field, dump_to=name, load_from=name, required=True)
+
+    if default is not MISSING and default is not None:
+        raise ValueError("Default values is not supported for required fields")
+    return m.fields.List(
+        field,
+        dump_to=name,
+        load_from=name,
+        allow_none=True,
+        missing=None,
+        default=None,
+    )
+
+
+def dict_field(
+    *,
+    required: bool,
+    default: Any | None | Missing = MISSING,
+    name: str | None = None,
+    **_: Any,
+) -> m.fields.Field:
+    if required:
+        if default is not MISSING:
+            raise ValueError("Default values is not supported for required fields")
+        return m.fields.Dict(dump_to=name, load_from=name, required=True)
+
+    if default is not MISSING and default is not None:
+        raise ValueError("Default values is not supported for required fields")
+    return m.fields.Dict(
+        dump_to=name,
+        load_from=name,
+        allow_none=True,
+        missing=None,
+        default=None,
     )

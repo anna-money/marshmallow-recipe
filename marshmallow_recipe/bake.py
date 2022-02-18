@@ -2,12 +2,22 @@ import dataclasses
 import decimal
 import types
 import uuid
-from typing import Any, Generic, Mapping, Type, TypeVar, cast
+from typing import Any, Dict, Generic, List, Mapping, Type, TypeVar, cast
 
 import marshmallow as m
 import typing_inspect
 
-from .fields import bool_field, decimal_field, float_field, int_field, nested_field, str_field, uuid_field
+from .fields import (
+    bool_field,
+    decimal_field,
+    dict_field,
+    float_field,
+    int_field,
+    list_field,
+    nested_field,
+    str_field,
+    uuid_field,
+)
 from .missing import MISSING, Missing
 from .naming_case import DEFAULT_CASE, NamingCase
 
@@ -28,10 +38,8 @@ def bake_schema(
         (_get_base_schema(cls),),
         {
             field.name: get_field_for(
-                field.name,
                 field.type,
-                _get_field_default(field),
-                _to_supported_metadata(field.metadata),
+                _get_metadata(name=naming_case(field.name), default=_get_field_default(field), metadata=field.metadata),
                 naming_case=naming_case,
             )
             for field in fields
@@ -42,13 +50,13 @@ def bake_schema(
 
 
 def get_field_for(
-    name: str,
     type: Type[_T],
-    default: _T | Missing,
     metadata: Mapping[str, Any],
     *,
     naming_case: NamingCase,
 ) -> m.fields.Field:
+    type = _substitute_any_to_open_generic(type)
+
     if typing_inspect.is_union_type(type):
         type_args = list(set(typing_inspect.get_args(type, True)))
         if types.NoneType not in type_args or len(type_args) != 2:
@@ -65,21 +73,31 @@ def get_field_for(
     else:
         required = True
 
-    field_parameters = dict(name=naming_case(name))
-    field_parameters.update(metadata)
-
     field_factory = _SIMPLE_TYPE_FIELD_FACTORIES.get(type)
     if field_factory:
         typed_field_factory = cast(_FieldFactory[_T], field_factory)
-        return typed_field_factory(required=required, default=default, **field_parameters)
+        return typed_field_factory(required=required, **metadata)
 
     if dataclasses.is_dataclass(type):
         return nested_field(
             bake_schema(type, naming_case=naming_case),
             required=required,
-            default=default,
-            **field_parameters,
+            **metadata,
         )
+
+    if (origin := typing_inspect.get_origin(type)) is not None:
+        arguments = typing_inspect.get_args(type, True)
+        if origin in (list, List):
+            return list_field(
+                get_field_for(arguments[0], metadata={}, naming_case=naming_case),
+                required=required,
+                **metadata,
+            )
+        if origin in (dict, Dict) and arguments[0] is str and arguments[1] is Any:
+            return dict_field(
+                required=required,
+                **metadata,
+            )
 
     raise ValueError(f"Unsupported {type=}")
 
@@ -106,13 +124,6 @@ def _get_field_default(field: dataclasses.Field[_T]) -> _T | Missing:
     return MISSING
 
 
-def _try_get_custom_name(metadata: Mapping[Any, Any]) -> str | None:
-    custom_name = metadata.get("name")
-    if not custom_name or not isinstance(custom_name, str):
-        return None
-    return custom_name
-
-
 class _FieldFactory(Generic[_T]):
     def __call__(
         self,
@@ -135,5 +146,15 @@ _SIMPLE_TYPE_FIELD_FACTORIES: dict[type, object] = {
 }
 
 
-def _to_supported_metadata(metadata: Mapping[Any, Any]) -> Mapping[str, Any]:
-    return {k: v for k, v in metadata.items() if isinstance(k, str)}
+def _get_metadata(*, name: str, default: Any, metadata: Mapping[Any, Any]) -> Mapping[str, Any]:
+    result = dict(name=name, default=default)
+    result.update({k: v for k, v in metadata.items() if isinstance(k, str)})
+    return result
+
+
+def _substitute_any_to_open_generic(type: type) -> type:
+    if type is list:
+        return list[Any]
+    if type is dict:
+        return dict[Any, Any]
+    return type
