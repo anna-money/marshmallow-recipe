@@ -107,6 +107,9 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def _get_base_schema(cls: Type[_T]) -> Type[m.Schema]:
         class _Schema(m.Schema):
+            class Meta:
+                unknown = m.EXCLUDE
+
             @m.post_dump
             def remove_none_values(self, data: dict[str, Any], **_: Any) -> dict[str, Any]:
                 return {key: value for key, value in data.items() if value is not None}

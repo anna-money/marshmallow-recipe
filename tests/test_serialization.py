@@ -54,3 +54,17 @@ def test_custom_name() -> None:
     assert dumped == raw
 
     assert mr.schema(BoolContainer) is mr.schema(BoolContainer)
+
+
+def test_unknown_field() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class BoolContainer:
+        bool_field: bool
+
+    loaded = mr.load(BoolContainer, dict(bool_field=True, int_field=42))
+    dumped = mr.dump(loaded)
+
+    assert loaded == BoolContainer(bool_field=True)
+    assert dumped == dict(bool_field=True)
+
+    assert mr.schema(BoolContainer) is mr.schema(BoolContainer)
