@@ -103,9 +103,9 @@ def get_field_for(
     raise ValueError(f"Unsupported {type=}")
 
 
-def _get_base_schema(cls: Type[_T]) -> Type[m.Schema]:
-    if _MARSHMALLOW_VERSION_MAJOR >= 3:
+if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
+    def _get_base_schema(cls: Type[_T]) -> Type[m.Schema]:
         class _Schema(m.Schema):
             @m.post_dump
             def remove_none_values(self, data: dict[str, Any], **_: Any) -> dict[str, Any]:
@@ -115,8 +115,11 @@ def _get_base_schema(cls: Type[_T]) -> Type[m.Schema]:
             def post_load(self, data: dict[str, Any], **_: Any) -> Any:
                 return cls(**data)
 
-    else:
+        return _Schema
 
+else:
+
+    def _get_base_schema(cls: Type[_T]) -> Type[m.Schema]:
         class _Schema(m.Schema):  # type: ignore
             @m.post_dump  # type: ignore
             def remove_none_values(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -126,7 +129,7 @@ def _get_base_schema(cls: Type[_T]) -> Type[m.Schema]:
             def post_load(self, data: dict[str, Any]) -> Any:
                 return cls(**data)
 
-    return _Schema
+        return _Schema
 
 
 def _get_field_default(field: dataclasses.Field[_T]) -> _T | Missing:

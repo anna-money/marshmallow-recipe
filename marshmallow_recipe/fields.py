@@ -222,11 +222,16 @@ def dict_field(
     )
 
 
-def _data_key(name: str | None) -> dict[str, Any]:
-    if name is None:
-        return {}
+if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
-    if _MARSHMALLOW_VERSION_MAJOR >= 3:
+    def _data_key(name: str | None) -> dict[str, Any]:
+        if name is None:
+            return {}
         return dict(data_key=name)
-    else:
+
+else:
+
+    def _data_key(name: str | None) -> dict[str, Any]:
+        if name is None:
+            return {}
         return dict(dump_to=name, load_from=name)
