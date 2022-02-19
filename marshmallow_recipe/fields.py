@@ -6,6 +6,8 @@ import marshmallow as m
 
 from .missing import MISSING, Missing
 
+_MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
+
 
 def str_field(
     *,
@@ -18,14 +20,13 @@ def str_field(
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
 
-        return m.fields.String(required=True, dump_to=name, load_from=name)
+        return m.fields.String(required=True, **_data_key(name))
 
     return m.fields.Str(
-        dump_to=name,
-        load_from=name,
         allow_none=True,
         missing=None if default is MISSING else default,
         default=None if default is MISSING else default,
+        **_data_key(name),
     )
 
 
@@ -39,14 +40,14 @@ def bool_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Boolean(dump_to=name, load_from=name, required=True)
+
+        return m.fields.Boolean(required=True, **_data_key(name))
 
     return m.fields.Bool(
-        dump_to=name,
-        load_from=name,
         allow_none=True,
         missing=None if default is MISSING else default,
         default=None if default is MISSING else default,
+        **_data_key(name),
     )
 
 
@@ -62,16 +63,15 @@ def decimal_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Decimal(dump_to=name, load_from=name, as_string=as_string, places=places, required=True)
+        return m.fields.Decimal(required=True, as_string=as_string, places=places, **_data_key(name))
 
     return m.fields.Decimal(
-        dump_to=name,
-        load_from=name,
-        as_string=as_string,
-        places=places,
         allow_none=True,
         missing=None if default is MISSING else default,
         default=None if default is MISSING else default,
+        as_string=as_string,
+        places=places,
+        **_data_key(name),
     )
 
 
@@ -85,14 +85,16 @@ def int_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Int(dump_to=name, load_from=name, required=True)
+        return m.fields.Int(
+            required=True,
+            **_data_key(name),
+        )
 
     return m.fields.Int(
-        dump_to=name,
-        load_from=name,
         allow_none=True,
         missing=None if default is MISSING else default,
         default=None if default is MISSING else default,
+        **_data_key(name),
     )
 
 
@@ -106,14 +108,13 @@ def float_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Float(dump_to=name, load_from=name, required=True)
+        return m.fields.Float(required=True, **_data_key(name))
 
     return m.fields.Float(
-        dump_to=name,
-        load_from=name,
         allow_none=True,
         missing=None if default is MISSING else default,
         default=None if default is MISSING else default,
+        **_data_key(name),
     )
 
 
@@ -127,14 +128,16 @@ def uuid_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.UUID(dump_to=name, load_from=name, required=True)
+        return m.fields.UUID(
+            required=True,
+            **_data_key(name),
+        )
 
     return m.fields.UUID(
-        dump_to=name,
-        load_from=name,
         allow_none=True,
         missing=None if default is MISSING else default,
         default=None if default is MISSING else default,
+        **_data_key(name),
     )
 
 
@@ -149,17 +152,20 @@ def nested_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Nested(nested_schema, dump_to=name, load_from=name, required=True)
+        return m.fields.Nested(
+            nested_schema,
+            required=True,
+            **_data_key(name),
+        )
 
     if default is not MISSING and default is not None:
         raise ValueError("Default values is not supported for required fields")
     return m.fields.Nested(
         nested_schema,
-        dump_to=name,
-        load_from=name,
         allow_none=True,
         missing=None,
         default=None,
+        **_data_key(name),
     )
 
 
@@ -174,17 +180,20 @@ def list_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.List(field, dump_to=name, load_from=name, required=True)
+        return m.fields.List(
+            field,
+            required=True,
+            **_data_key(name),
+        )
 
     if default is not MISSING and default is not None:
         raise ValueError("Default values is not supported for required fields")
     return m.fields.List(
         field,
-        dump_to=name,
-        load_from=name,
         allow_none=True,
         missing=None,
         default=None,
+        **_data_key(name),
     )
 
 
@@ -198,14 +207,26 @@ def dict_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Dict(dump_to=name, load_from=name, required=True)
+        return m.fields.Dict(
+            required=True,
+            **_data_key(name),
+        )
 
     if default is not MISSING and default is not None:
         raise ValueError("Default values is not supported for required fields")
     return m.fields.Dict(
-        dump_to=name,
-        load_from=name,
         allow_none=True,
         missing=None,
         default=None,
+        **_data_key(name),
     )
+
+
+def _data_key(name: str | None) -> dict[str, Any]:
+    if name is None:
+        return {}
+
+    if _MARSHMALLOW_VERSION_MAJOR >= 3:
+        return dict(data_key=name)
+    else:
+        return dict(dump_to=name, load_from=name)

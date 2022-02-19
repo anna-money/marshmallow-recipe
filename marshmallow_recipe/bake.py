@@ -22,6 +22,7 @@ from .missing import MISSING, Missing
 from .naming_case import DEFAULT_CASE, NamingCase
 
 _T = TypeVar("_T")
+_MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
 
 
 def bake_schema(
@@ -103,14 +104,27 @@ def get_field_for(
 
 
 def _get_base_schema(cls: Type[_T]) -> Type[m.Schema]:
-    class _Schema(m.Schema):  # type: ignore
-        @m.post_dump  # type: ignore
-        def remove_none_values(self, data: dict[str, Any]) -> dict[str, Any]:
-            return {key: value for key, value in data.items() if value is not None}
+    if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
-        @m.post_load  # type: ignore
-        def post_load(self, data: dict[str, Any]) -> Any:
-            return cls(**data)
+        class _Schema(m.Schema):
+            @m.post_dump
+            def remove_none_values(self, data: dict[str, Any], **_: Any) -> dict[str, Any]:
+                return {key: value for key, value in data.items() if value is not None}
+
+            @m.post_load
+            def post_load(self, data: dict[str, Any], **_: Any) -> Any:
+                return cls(**data)
+
+    else:
+
+        class _Schema(m.Schema):  # type: ignore
+            @m.post_dump  # type: ignore
+            def remove_none_values(self, data: dict[str, Any]) -> dict[str, Any]:
+                return {key: value for key, value in data.items() if value is not None}
+
+            @m.post_load  # type: ignore
+            def post_load(self, data: dict[str, Any]) -> Any:
+                return cls(**data)
 
     return _Schema
 
