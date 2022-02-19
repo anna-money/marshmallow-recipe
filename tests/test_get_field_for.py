@@ -13,13 +13,18 @@ import marshmallow_recipe as mr
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
 
 
-def data_key(name: str | None) -> dict[str, Any]:
-    if name is None:
-        return {}
+if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
-    if _MARSHMALLOW_VERSION_MAJOR >= 3:
+    def data_key(name: str | None) -> dict[str, Any]:
+        if name is None:
+            return {}
         return dict(data_key=name)
-    else:
+
+else:
+
+    def data_key(name: str | None) -> dict[str, Any]:
+        if name is None:
+            return {}
         return dict(dump_to=name, load_from=name)
 
 
