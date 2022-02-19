@@ -20,13 +20,13 @@ def str_field(
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
 
-        return m.fields.String(required=True, **_data_key(name))
+        return m.fields.String(required=True, **data_key(name))
 
     return m.fields.Str(
         allow_none=True,
         missing=None if default is MISSING else default,
         default=None if default is MISSING else default,
-        **_data_key(name),
+        **data_key(name),
     )
 
 
@@ -41,13 +41,13 @@ def bool_field(
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
 
-        return m.fields.Boolean(required=True, **_data_key(name))
+        return m.fields.Boolean(required=True, **data_key(name))
 
     return m.fields.Bool(
         allow_none=True,
         missing=None if default is MISSING else default,
         default=None if default is MISSING else default,
-        **_data_key(name),
+        **data_key(name),
     )
 
 
@@ -63,7 +63,7 @@ def decimal_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Decimal(required=True, as_string=as_string, places=places, **_data_key(name))
+        return m.fields.Decimal(required=True, as_string=as_string, places=places, **data_key(name))
 
     return m.fields.Decimal(
         allow_none=True,
@@ -71,7 +71,7 @@ def decimal_field(
         default=None if default is MISSING else default,
         as_string=as_string,
         places=places,
-        **_data_key(name),
+        **data_key(name),
     )
 
 
@@ -87,14 +87,14 @@ def int_field(
             raise ValueError("Default values is not supported for required fields")
         return m.fields.Int(
             required=True,
-            **_data_key(name),
+            **data_key(name),
         )
 
     return m.fields.Int(
         allow_none=True,
         missing=None if default is MISSING else default,
         default=None if default is MISSING else default,
-        **_data_key(name),
+        **data_key(name),
     )
 
 
@@ -108,13 +108,13 @@ def float_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Float(required=True, **_data_key(name))
+        return m.fields.Float(required=True, **data_key(name))
 
     return m.fields.Float(
         allow_none=True,
         missing=None if default is MISSING else default,
         default=None if default is MISSING else default,
-        **_data_key(name),
+        **data_key(name),
     )
 
 
@@ -130,14 +130,14 @@ def uuid_field(
             raise ValueError("Default values is not supported for required fields")
         return m.fields.UUID(
             required=True,
-            **_data_key(name),
+            **data_key(name),
         )
 
     return m.fields.UUID(
         allow_none=True,
         missing=None if default is MISSING else default,
         default=None if default is MISSING else default,
-        **_data_key(name),
+        **data_key(name),
     )
 
 
@@ -155,7 +155,7 @@ def nested_field(
         return m.fields.Nested(
             nested_schema,
             required=True,
-            **_data_key(name),
+            **data_key(name),
         )
 
     if default is not MISSING and default is not None:
@@ -165,7 +165,7 @@ def nested_field(
         allow_none=True,
         missing=None,
         default=None,
-        **_data_key(name),
+        **data_key(name),
     )
 
 
@@ -183,7 +183,7 @@ def list_field(
         return m.fields.List(
             field,
             required=True,
-            **_data_key(name),
+            **data_key(name),
         )
 
     if default is not MISSING and default is not None:
@@ -193,7 +193,7 @@ def list_field(
         allow_none=True,
         missing=None,
         default=None,
-        **_data_key(name),
+        **data_key(name),
     )
 
 
@@ -209,7 +209,7 @@ def dict_field(
             raise ValueError("Default values is not supported for required fields")
         return m.fields.Dict(
             required=True,
-            **_data_key(name),
+            **data_key(name),
         )
 
     if default is not MISSING and default is not None:
@@ -218,20 +218,20 @@ def dict_field(
         allow_none=True,
         missing=None,
         default=None,
-        **_data_key(name),
+        **data_key(name),
     )
 
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
-    def _data_key(name: str | None) -> dict[str, Any]:
+    def data_key(name: str | None) -> dict[str, Any]:
         if name is None:
             return {}
         return dict(data_key=name)
 
 else:
 
-    def _data_key(name: str | None) -> dict[str, Any]:
+    def data_key(name: str | None) -> dict[str, Any]:
         if name is None:
             return {}
         return dict(dump_to=name, load_from=name)
