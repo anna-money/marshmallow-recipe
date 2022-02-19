@@ -3,7 +3,7 @@ from pathlib import Path
 
 from setuptools import setup
 
-install_requires = ["marshmallow>2,<3", "typing_inspect>=0.7.1"]
+install_requires = ["marshmallow>=2,<4", "typing_inspect>=0.7.1"]
 
 
 def read(*parts):

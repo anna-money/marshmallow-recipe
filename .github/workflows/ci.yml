@@ -19,6 +19,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.10"]
+        marshmallow: ["marshmallow>=2,<3", "marshmallow>=3,<4"]
 
     steps:
     - uses: actions/checkout@v2
@@ -29,6 +30,9 @@ jobs:
     - name: Install dependencies
       run: |
         make deps
+    - name: Install ${{ matrix.marshmallow }}
+      run: |
+        pip install "${{ matrix.marshmallow }}"
     - name: Lint
       run: |
         make lint
