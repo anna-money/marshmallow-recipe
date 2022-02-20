@@ -1,3 +1,4 @@
+import datetime
 import decimal
 import uuid
 from typing import Any, Type
@@ -134,6 +135,52 @@ def uuid_field(
         )
 
     return m.fields.UUID(
+        allow_none=True,
+        missing=None if default is MISSING else default,
+        default=None if default is MISSING else default,
+        **data_key(name),
+    )
+
+
+def datetime_field(
+    *,
+    required: bool,
+    default: datetime.datetime | None | Missing = MISSING,
+    name: str | None = None,
+    **_: Any,
+) -> m.fields.Field:
+    if required:
+        if default is not MISSING:
+            raise ValueError("Default values is not supported for required fields")
+        return m.fields.DateTime(
+            required=True,
+            **data_key(name),
+        )
+
+    return m.fields.DateTime(
+        allow_none=True,
+        missing=None if default is MISSING else default,
+        default=None if default is MISSING else default,
+        **data_key(name),
+    )
+
+
+def date_field(
+    *,
+    required: bool,
+    default: datetime.date | None | Missing = MISSING,
+    name: str | None = None,
+    **_: Any,
+) -> m.fields.Field:
+    if required:
+        if default is not MISSING:
+            raise ValueError("Default values is not supported for required fields")
+        return m.fields.Date(
+            required=True,
+            **data_key(name),
+        )
+
+    return m.fields.Date(
         allow_none=True,
         missing=None if default is MISSING else default,
         default=None if default is MISSING else default,

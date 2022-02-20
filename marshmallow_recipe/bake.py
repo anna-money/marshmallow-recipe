@@ -1,4 +1,5 @@
 import dataclasses
+import datetime
 import decimal
 import types
 import uuid
@@ -9,6 +10,8 @@ import typing_inspect
 
 from .fields import (
     bool_field,
+    date_field,
+    datetime_field,
     decimal_field,
     dict_field,
     float_field,
@@ -163,6 +166,8 @@ _SIMPLE_TYPE_FIELD_FACTORIES: dict[type, object] = {
     int: int_field,
     float: float_field,
     uuid.UUID: uuid_field,
+    datetime.datetime: datetime_field,
+    datetime.date: date_field,
 }
 
 
