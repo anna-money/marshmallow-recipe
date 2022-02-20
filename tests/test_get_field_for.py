@@ -1,4 +1,5 @@
 import dataclasses
+import datetime
 import decimal
 import inspect
 import unittest.mock
@@ -53,7 +54,7 @@ EMPTY_SCHEMA = m.Schema()
 @pytest.mark.parametrize(
     "type, metadata, field",
     [
-        # simple types
+        # simple types: bool
         (bool, {}, m.fields.Bool(required=True)),
         (Optional[bool], {}, m.fields.Bool(allow_none=True, missing=None, default=None)),
         (bool | None, {}, m.fields.Bool(allow_none=True, missing=None, default=None)),
@@ -68,6 +69,7 @@ EMPTY_SCHEMA = m.Schema()
             mr.metadata(name="i"),
             m.fields.Bool(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
+        # simple types: str
         (str, {}, m.fields.Str(required=True)),
         (Optional[str], {}, m.fields.Str(allow_none=True, missing=None, default=None)),
         (str | None, {}, m.fields.Str(allow_none=True, missing=None, default=None)),
@@ -82,6 +84,7 @@ EMPTY_SCHEMA = m.Schema()
             mr.metadata(name="i"),
             m.fields.Str(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
+        # simple types: int
         (int, {}, m.fields.Int(required=True)),
         (Optional[int], {}, m.fields.Int(allow_none=True, missing=None, default=None)),
         (int | None, {}, m.fields.Int(allow_none=True, missing=None, default=None)),
@@ -96,6 +99,7 @@ EMPTY_SCHEMA = m.Schema()
             mr.metadata(name="i"),
             m.fields.Int(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
+        # simple types: float
         (float, {}, m.fields.Float(required=True)),
         (Optional[float], {}, m.fields.Float(allow_none=True, missing=None, default=None)),
         (float | None, {}, m.fields.Float(allow_none=True, missing=None, default=None)),
@@ -110,6 +114,7 @@ EMPTY_SCHEMA = m.Schema()
             mr.metadata(name="i"),
             m.fields.Float(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
+        # simple types: uuid
         (uuid.UUID, {}, m.fields.UUID(required=True)),
         (Optional[uuid.UUID], {}, m.fields.UUID(allow_none=True, missing=None, default=None)),
         (uuid.UUID | None, {}, m.fields.UUID(allow_none=True, missing=None, default=None)),
@@ -124,6 +129,7 @@ EMPTY_SCHEMA = m.Schema()
             mr.metadata(name="i"),
             m.fields.UUID(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
+        # simple types: decimal
         (decimal.Decimal, {}, m.fields.Decimal(required=True, places=2, as_string=True)),
         (
             Optional[decimal.Decimal],
@@ -149,6 +155,60 @@ EMPTY_SCHEMA = m.Schema()
             decimal.Decimal | None,
             mr.decimal_metadata(name="i", places=4, as_string=False),
             m.fields.Decimal(allow_none=True, missing=None, default=None, places=4, as_string=False, **data_key("i")),
+        ),
+        # simple types: datetime
+        (datetime.datetime, {}, m.fields.DateTime(required=True)),
+        (
+            Optional[datetime.datetime],
+            {},
+            m.fields.DateTime(allow_none=True, missing=None, default=None),
+        ),
+        (
+            datetime.datetime | None,
+            {},
+            m.fields.DateTime(allow_none=True, missing=None, default=None),
+        ),
+        (
+            datetime.datetime,
+            mr.metadata(name="i"),
+            m.fields.DateTime(required=True, **data_key("i")),
+        ),
+        (
+            Optional[datetime.datetime],
+            mr.metadata(name="i"),
+            m.fields.DateTime(allow_none=True, missing=None, default=None, **data_key("i")),
+        ),
+        (
+            datetime.datetime | None,
+            mr.metadata(name="i"),
+            m.fields.DateTime(allow_none=True, missing=None, default=None, **data_key("i")),
+        ),
+        # simple types: date
+        (datetime.date, {}, m.fields.Date(required=True)),
+        (
+            Optional[datetime.date],
+            {},
+            m.fields.Date(allow_none=True, missing=None, default=None),
+        ),
+        (
+            datetime.date | None,
+            {},
+            m.fields.Date(allow_none=True, missing=None, default=None),
+        ),
+        (
+            datetime.date,
+            mr.metadata(name="i"),
+            m.fields.Date(required=True, **data_key("i")),
+        ),
+        (
+            Optional[datetime.date],
+            mr.metadata(name="i"),
+            m.fields.Date(allow_none=True, missing=None, default=None, **data_key("i")),
+        ),
+        (
+            datetime.date | None,
+            mr.metadata(name="i"),
+            m.fields.Date(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         # dataclass
         (EmptyDataclass, {}, m.fields.Nested(EMPTY_SCHEMA, required=True)),
