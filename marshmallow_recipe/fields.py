@@ -86,10 +86,7 @@ def int_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Int(
-            required=True,
-            **data_key(name),
-        )
+        return m.fields.Int(required=True, **data_key(name))
 
     return m.fields.Int(
         allow_none=True,
@@ -129,10 +126,7 @@ def uuid_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.UUID(
-            required=True,
-            **data_key(name),
-        )
+        return m.fields.UUID(required=True, **data_key(name))
 
     return m.fields.UUID(
         allow_none=True,
@@ -152,10 +146,7 @@ def datetime_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.DateTime(
-            required=True,
-            **data_key(name),
-        )
+        return m.fields.DateTime(required=True, **data_key(name))
 
     return m.fields.DateTime(
         allow_none=True,
@@ -175,10 +166,7 @@ def date_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Date(
-            required=True,
-            **data_key(name),
-        )
+        return m.fields.Date(required=True, **data_key(name))
 
     return m.fields.Date(
         allow_none=True,
@@ -199,11 +187,7 @@ def nested_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Nested(
-            nested_schema,
-            required=True,
-            **data_key(name),
-        )
+        return m.fields.Nested(nested_schema, required=True, **data_key(name))
 
     if default is not MISSING and default is not None:
         raise ValueError("Default values is not supported for required fields")
@@ -227,11 +211,7 @@ def list_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.List(
-            field,
-            required=True,
-            **data_key(name),
-        )
+        return m.fields.List(field, required=True, **data_key(name))
 
     if default is not MISSING and default is not None:
         raise ValueError("Default values is not supported for required fields")
@@ -254,10 +234,7 @@ def dict_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Dict(
-            required=True,
-            **data_key(name),
-        )
+        return m.fields.Dict(required=True, **data_key(name))
 
     if default is not MISSING and default is not None:
         raise ValueError("Default values is not supported for required fields")
