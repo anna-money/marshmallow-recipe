@@ -10,6 +10,23 @@ import pytest
 
 import marshmallow_recipe as mr
 
+_MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
+
+
+if _MARSHMALLOW_VERSION_MAJOR >= 3:
+
+    def data_key(name: str | None) -> dict[str, Any]:
+        if name is None:
+            return {}
+        return dict(data_key=name)
+
+else:
+
+    def data_key(name: str | None) -> dict[str, Any]:
+        if name is None:
+            return {}
+        return dict(dump_to=name, load_from=name)
+
 
 def assert_fields_equal(a: m.fields.Field, b: m.fields.Field) -> None:
     assert a.__class__ == b.__class__, "field class"
@@ -40,72 +57,72 @@ EMPTY_SCHEMA = m.Schema()
         (bool, {}, m.fields.Bool(required=True)),
         (Optional[bool], {}, m.fields.Bool(allow_none=True, missing=None, default=None)),
         (bool | None, {}, m.fields.Bool(allow_none=True, missing=None, default=None)),
-        (bool, mr.metadata(name="i"), m.fields.Bool(required=True, load_from="i", dump_to="i")),
+        (bool, mr.metadata(name="i"), m.fields.Bool(required=True, **data_key("i"))),
         (
             Optional[bool],
             mr.metadata(name="i"),
-            m.fields.Bool(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+            m.fields.Bool(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         (
             bool | None,
             mr.metadata(name="i"),
-            m.fields.Bool(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+            m.fields.Bool(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         (str, {}, m.fields.Str(required=True)),
         (Optional[str], {}, m.fields.Str(allow_none=True, missing=None, default=None)),
         (str | None, {}, m.fields.Str(allow_none=True, missing=None, default=None)),
-        (str, mr.metadata(name="i"), m.fields.Str(required=True, load_from="i", dump_to="i")),
+        (str, mr.metadata(name="i"), m.fields.Str(required=True, **data_key("i"))),
         (
             Optional[str],
             mr.metadata(name="i"),
-            m.fields.Str(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+            m.fields.Str(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         (
             str | None,
             mr.metadata(name="i"),
-            m.fields.Str(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+            m.fields.Str(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         (int, {}, m.fields.Int(required=True)),
         (Optional[int], {}, m.fields.Int(allow_none=True, missing=None, default=None)),
         (int | None, {}, m.fields.Int(allow_none=True, missing=None, default=None)),
-        (int, mr.metadata(name="i"), m.fields.Int(required=True, load_from="i", dump_to="i")),
+        (int, mr.metadata(name="i"), m.fields.Int(required=True, **data_key("i"))),
         (
             Optional[int],
             mr.metadata(name="i"),
-            m.fields.Int(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+            m.fields.Int(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         (
             int | None,
             mr.metadata(name="i"),
-            m.fields.Int(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+            m.fields.Int(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         (float, {}, m.fields.Float(required=True)),
         (Optional[float], {}, m.fields.Float(allow_none=True, missing=None, default=None)),
         (float | None, {}, m.fields.Float(allow_none=True, missing=None, default=None)),
-        (float, mr.metadata(name="i"), m.fields.Float(required=True, load_from="i", dump_to="i")),
+        (float, mr.metadata(name="i"), m.fields.Float(required=True, **data_key("i"))),
         (
             Optional[float],
             mr.metadata(name="i"),
-            m.fields.Float(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+            m.fields.Float(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         (
             float | None,
             mr.metadata(name="i"),
-            m.fields.Float(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+            m.fields.Float(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         (uuid.UUID, {}, m.fields.UUID(required=True)),
         (Optional[uuid.UUID], {}, m.fields.UUID(allow_none=True, missing=None, default=None)),
         (uuid.UUID | None, {}, m.fields.UUID(allow_none=True, missing=None, default=None)),
-        (uuid.UUID, mr.metadata(name="i"), m.fields.UUID(required=True, load_from="i", dump_to="i")),
+        (uuid.UUID, mr.metadata(name="i"), m.fields.UUID(required=True, **data_key("i"))),
         (
             Optional[uuid.UUID],
             mr.metadata(name="i"),
-            m.fields.UUID(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+            m.fields.UUID(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         (
             uuid.UUID | None,
             mr.metadata(name="i"),
-            m.fields.UUID(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+            m.fields.UUID(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         (decimal.Decimal, {}, m.fields.Decimal(required=True, places=2, as_string=True)),
         (
@@ -121,21 +138,17 @@ EMPTY_SCHEMA = m.Schema()
         (
             decimal.Decimal,
             mr.decimal_metadata(name="i", places=4, as_string=False),
-            m.fields.Decimal(required=True, load_from="i", dump_to="i", places=4, as_string=False),
+            m.fields.Decimal(required=True, **data_key("i"), places=4, as_string=False),
         ),
         (
             Optional[decimal.Decimal],
             mr.decimal_metadata(name="i", places=4, as_string=False),
-            m.fields.Decimal(
-                allow_none=True, missing=None, default=None, places=4, as_string=False, load_from="i", dump_to="i"
-            ),
+            m.fields.Decimal(allow_none=True, missing=None, default=None, places=4, as_string=False, **data_key("i")),
         ),
         (
             decimal.Decimal | None,
             mr.decimal_metadata(name="i", places=4, as_string=False),
-            m.fields.Decimal(
-                allow_none=True, missing=None, default=None, places=4, as_string=False, load_from="i", dump_to="i"
-            ),
+            m.fields.Decimal(allow_none=True, missing=None, default=None, places=4, as_string=False, **data_key("i")),
         ),
         # dataclass
         (EmptyDataclass, {}, m.fields.Nested(EMPTY_SCHEMA, required=True)),
@@ -144,17 +157,17 @@ EMPTY_SCHEMA = m.Schema()
         (
             EmptyDataclass,
             mr.metadata(name="i"),
-            m.fields.Nested(EMPTY_SCHEMA, required=True, load_from="i", dump_to="i"),
+            m.fields.Nested(EMPTY_SCHEMA, required=True, **data_key("i")),
         ),
         (
             Optional[EmptyDataclass],
             mr.metadata(name="i"),
-            m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+            m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         (
             EmptyDataclass | None,
             mr.metadata(name="i"),
-            m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+            m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         # containers: list[T]
         (list[bool], {}, m.fields.List(m.fields.Bool(required=True), required=True)),
@@ -229,37 +242,37 @@ EMPTY_SCHEMA = m.Schema()
         (
             dict[str, Any],
             mr.metadata(name="i"),
-            m.fields.Dict(required=True, load_from="i", dump_to="i"),
+            m.fields.Dict(required=True, **data_key("i")),
         ),
         (Optional[dict[str, Any]], {}, m.fields.Dict(allow_none=True, missing=None, default=None)),
         (
             Optional[dict[str, Any]],
             mr.metadata(name="i"),
-            m.fields.Dict(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+            m.fields.Dict(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         (dict[str, Any] | None, {}, m.fields.Dict(allow_none=True, missing=None, default=None)),
         (
             dict[str, Any] | None,
             mr.metadata(name="i"),
-            m.fields.Dict(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+            m.fields.Dict(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         (Dict[str, Any], {}, m.fields.Dict(required=True)),
         (
             Dict[str, Any],
             mr.metadata(name="i"),
-            m.fields.Dict(required=True, load_from="i", dump_to="i"),
+            m.fields.Dict(required=True, **data_key("i")),
         ),
         (Optional[Dict[str, Any]], {}, m.fields.Dict(allow_none=True, missing=None, default=None)),
         (
             Optional[Dict[str, Any]],
             mr.metadata(name="i"),
-            m.fields.Dict(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+            m.fields.Dict(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         (Dict[str, Any] | None, {}, m.fields.Dict(allow_none=True, missing=None, default=None)),
         (
             Dict[str, Any] | None,
             mr.metadata(name="i"),
-            m.fields.Dict(allow_none=True, missing=None, default=None, load_from="i", dump_to="i"),
+            m.fields.Dict(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
     ],
 )
