@@ -2,7 +2,7 @@ import dataclasses
 import datetime
 import decimal
 import uuid
-from typing import Any
+from typing import Any, cast
 
 import marshmallow_recipe as mr
 
@@ -22,6 +22,8 @@ def test_simple_types() -> None:
         optional_float_field: float | None
         uuid_field: uuid.UUID
         optional_uuid_field: uuid.UUID | None
+        datetime_tz_utc_field: datetime.datetime
+        optional_datetime_tz_utc_field: datetime.datetime | None
         datetime_field: datetime.datetime
         optional_datetime_field: datetime.datetime | None
         date_field: datetime.date
@@ -42,8 +44,10 @@ def test_simple_types() -> None:
         optional_float_field=42.0,
         uuid_field="15f75b02-1c34-46a2-92a5-18363aadea05",
         optional_uuid_field="15f75b02-1c34-46a2-92a5-18363aadea05",
-        datetime_field="2022-02-20T11:33:48.607289+00:00",
-        optional_datetime_field="2022-02-20T11:33:48.607289+00:00",
+        datetime_tz_utc_field="2022-02-20T11:33:48.607289+00:00",
+        optional_datetime_tz_utc_field="2022-02-20T11:33:48.607289+00:00",
+        datetime_field="2022-02-20T11:33:48.607289",
+        optional_datetime_field="2022-02-20T11:33:48.607289",
         date_field="2022-02-20",
         optional_date_field="2022-02-20",
         dict_field=dict(key="value"),
@@ -66,6 +70,8 @@ def test_simple_types() -> None:
         optional_float_field=42.0,
         uuid_field=uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05"),
         optional_uuid_field=uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05"),
+        datetime_tz_utc_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 607289),
+        optional_datetime_tz_utc_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 607289),
         datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 607289),
         optional_datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 607289),
         date_field=datetime.date(2022, 2, 20),
@@ -73,7 +79,11 @@ def test_simple_types() -> None:
         dict_field=dict(key="value"),
         optional_dict_field=dict(key="value"),
     )
-    assert dumped == raw
+    assert dumped == {
+        **raw,
+        "datetime_tz_utc_field": cast(Any, "2022-02-20T11:33:48.607289"),
+        "optional_datetime_tz_utc_field": cast(Any, "2022-02-20T11:33:48.607289"),
+    }
     assert mr.schema(SimpleTypesContainers) is mr.schema(SimpleTypesContainers)
 
 

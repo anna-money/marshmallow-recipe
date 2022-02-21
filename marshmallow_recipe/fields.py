@@ -270,8 +270,16 @@ else:
             return {}
         return dict(dump_to=name, load_from=name)
 
+    def _custom_datetime_serialize(dt: datetime.datetime, *_: Any, **__: Any) -> Any:
+        return dt.isoformat()
+
     class DateTimeFieldV2(m.fields.DateTime):
-        def _deserialize(self, value: Any, attr: Any, data: Any) -> Any:
+        DATEFORMAT_SERIALIZATION_FUNCS = {
+            **m.fields.DateTime.DATEFORMAT_SERIALIZATION_FUNCS,  # type: ignore
+            "iso": _custom_datetime_serialize,
+        }
+
+        def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:
             result = super()._deserialize(value, attr, data)
             if result.tzinfo is None:
                 return result
