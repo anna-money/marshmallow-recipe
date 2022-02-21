@@ -17,17 +17,23 @@ _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
-    def data_key(name: str | None) -> dict[str, Any]:
+    def data_key_fields(name: str | None) -> dict[str, Any]:
         if name is None:
             return {}
         return dict(data_key=name)
 
+    def default_fields(value: Any) -> dict[str, Any]:
+        return dict(dump_default=value, load_default=value)
+
 else:
 
-    def data_key(name: str | None) -> dict[str, Any]:
+    def data_key_fields(name: str | None) -> dict[str, Any]:
         if name is None:
             return {}
         return dict(dump_to=name, load_from=name)
+
+    def default_fields(value: Any) -> dict[str, Any]:
+        return dict(missing=value, default=value)
 
 
 def assert_fields_equal(a: m.fields.Field, b: m.fields.Field) -> None:
@@ -57,208 +63,212 @@ EMPTY_SCHEMA = m.Schema()
     [
         # simple types: bool
         (bool, {}, m.fields.Bool(required=True)),
-        (Optional[bool], {}, m.fields.Bool(allow_none=True, missing=None, default=None)),
-        (bool | None, {}, m.fields.Bool(allow_none=True, missing=None, default=None)),
-        (bool, mr.metadata(name="i"), m.fields.Bool(required=True, **data_key("i"))),
+        (Optional[bool], {}, m.fields.Bool(allow_none=True, **default_fields(None))),
+        (bool | None, {}, m.fields.Bool(allow_none=True, **default_fields(None))),
+        (bool, mr.metadata(name="i"), m.fields.Bool(required=True, **data_key_fields("i"))),
         (
             Optional[bool],
             mr.metadata(name="i"),
-            m.fields.Bool(allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.Bool(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             bool | None,
             mr.metadata(name="i"),
-            m.fields.Bool(allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.Bool(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: str
         (str, {}, m.fields.Str(required=True)),
-        (Optional[str], {}, m.fields.Str(allow_none=True, missing=None, default=None)),
-        (str | None, {}, m.fields.Str(allow_none=True, missing=None, default=None)),
-        (str, mr.metadata(name="i"), m.fields.Str(required=True, **data_key("i"))),
+        (Optional[str], {}, m.fields.Str(allow_none=True, **default_fields(None))),
+        (str | None, {}, m.fields.Str(allow_none=True, **default_fields(None))),
+        (str, mr.metadata(name="i"), m.fields.Str(required=True, **data_key_fields("i"))),
         (
             Optional[str],
             mr.metadata(name="i"),
-            m.fields.Str(allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.Str(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             str | None,
             mr.metadata(name="i"),
-            m.fields.Str(allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.Str(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: int
         (int, {}, m.fields.Int(required=True)),
-        (Optional[int], {}, m.fields.Int(allow_none=True, missing=None, default=None)),
-        (int | None, {}, m.fields.Int(allow_none=True, missing=None, default=None)),
-        (int, mr.metadata(name="i"), m.fields.Int(required=True, **data_key("i"))),
+        (Optional[int], {}, m.fields.Int(allow_none=True, **default_fields(None))),
+        (int | None, {}, m.fields.Int(allow_none=True, **default_fields(None))),
+        (int, mr.metadata(name="i"), m.fields.Int(required=True, **data_key_fields("i"))),
         (
             Optional[int],
             mr.metadata(name="i"),
-            m.fields.Int(allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.Int(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             int | None,
             mr.metadata(name="i"),
-            m.fields.Int(allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.Int(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: float
         (float, {}, m.fields.Float(required=True)),
-        (Optional[float], {}, m.fields.Float(allow_none=True, missing=None, default=None)),
-        (float | None, {}, m.fields.Float(allow_none=True, missing=None, default=None)),
-        (float, mr.metadata(name="i"), m.fields.Float(required=True, **data_key("i"))),
+        (Optional[float], {}, m.fields.Float(allow_none=True, **default_fields(None))),
+        (float | None, {}, m.fields.Float(allow_none=True, **default_fields(None))),
+        (float, mr.metadata(name="i"), m.fields.Float(required=True, **data_key_fields("i"))),
         (
             Optional[float],
             mr.metadata(name="i"),
-            m.fields.Float(allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.Float(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             float | None,
             mr.metadata(name="i"),
-            m.fields.Float(allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.Float(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: uuid
         (uuid.UUID, {}, m.fields.UUID(required=True)),
-        (Optional[uuid.UUID], {}, m.fields.UUID(allow_none=True, missing=None, default=None)),
-        (uuid.UUID | None, {}, m.fields.UUID(allow_none=True, missing=None, default=None)),
-        (uuid.UUID, mr.metadata(name="i"), m.fields.UUID(required=True, **data_key("i"))),
+        (Optional[uuid.UUID], {}, m.fields.UUID(allow_none=True, **default_fields(None))),
+        (uuid.UUID | None, {}, m.fields.UUID(allow_none=True, **default_fields(None))),
+        (uuid.UUID, mr.metadata(name="i"), m.fields.UUID(required=True, **data_key_fields("i"))),
         (
             Optional[uuid.UUID],
             mr.metadata(name="i"),
-            m.fields.UUID(allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.UUID(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             uuid.UUID | None,
             mr.metadata(name="i"),
-            m.fields.UUID(allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.UUID(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: decimal
         (decimal.Decimal, {}, m.fields.Decimal(required=True, places=2, as_string=True)),
         (
             Optional[decimal.Decimal],
             {},
-            m.fields.Decimal(allow_none=True, missing=None, default=None, places=2, as_string=True),
+            m.fields.Decimal(allow_none=True, **default_fields(None), places=2, as_string=True),
         ),
         (
             decimal.Decimal | None,
             {},
-            m.fields.Decimal(allow_none=True, missing=None, default=None, places=2, as_string=True),
+            m.fields.Decimal(allow_none=True, **default_fields(None), places=2, as_string=True),
         ),
         (
             decimal.Decimal,
             mr.decimal_metadata(name="i", places=4, as_string=False),
-            m.fields.Decimal(required=True, **data_key("i"), places=4, as_string=False),
+            m.fields.Decimal(required=True, **data_key_fields("i"), places=4, as_string=False),
         ),
         (
             Optional[decimal.Decimal],
             mr.decimal_metadata(name="i", places=4, as_string=False),
-            m.fields.Decimal(allow_none=True, missing=None, default=None, places=4, as_string=False, **data_key("i")),
+            m.fields.Decimal(
+                allow_none=True, **default_fields(None), places=4, as_string=False, **data_key_fields("i")
+            ),
         ),
         (
             decimal.Decimal | None,
             mr.decimal_metadata(name="i", places=4, as_string=False),
-            m.fields.Decimal(allow_none=True, missing=None, default=None, places=4, as_string=False, **data_key("i")),
+            m.fields.Decimal(
+                allow_none=True, **default_fields(None), places=4, as_string=False, **data_key_fields("i")
+            ),
         ),
         # simple types: datetime
         (datetime.datetime, {}, mr_fields.DateTimeField(required=True)),
         (
             Optional[datetime.datetime],
             {},
-            mr_fields.DateTimeField(allow_none=True, missing=None, default=None),
+            mr_fields.DateTimeField(allow_none=True, **default_fields(None)),
         ),
         (
             datetime.datetime | None,
             {},
-            mr_fields.DateTimeField(allow_none=True, missing=None, default=None),
+            mr_fields.DateTimeField(allow_none=True, **default_fields(None)),
         ),
         (
             datetime.datetime,
             mr.metadata(name="i"),
-            mr_fields.DateTimeField(required=True, **data_key("i")),
+            mr_fields.DateTimeField(required=True, **data_key_fields("i")),
         ),
         (
             Optional[datetime.datetime],
             mr.metadata(name="i"),
-            mr_fields.DateTimeField(allow_none=True, missing=None, default=None, **data_key("i")),
+            mr_fields.DateTimeField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             datetime.datetime | None,
             mr.metadata(name="i"),
-            mr_fields.DateTimeField(allow_none=True, missing=None, default=None, **data_key("i")),
+            mr_fields.DateTimeField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: date
         (datetime.date, {}, m.fields.Date(required=True)),
         (
             Optional[datetime.date],
             {},
-            m.fields.Date(allow_none=True, missing=None, default=None),
+            m.fields.Date(allow_none=True, **default_fields(None)),
         ),
         (
             datetime.date | None,
             {},
-            m.fields.Date(allow_none=True, missing=None, default=None),
+            m.fields.Date(allow_none=True, **default_fields(None)),
         ),
         (
             datetime.date,
             mr.metadata(name="i"),
-            m.fields.Date(required=True, **data_key("i")),
+            m.fields.Date(required=True, **data_key_fields("i")),
         ),
         (
             Optional[datetime.date],
             mr.metadata(name="i"),
-            m.fields.Date(allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.Date(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             datetime.date | None,
             mr.metadata(name="i"),
-            m.fields.Date(allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.Date(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # dataclass
         (EmptyDataclass, {}, m.fields.Nested(EMPTY_SCHEMA, required=True)),
-        (Optional[EmptyDataclass], {}, m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None)),
-        (EmptyDataclass | None, {}, m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None)),
+        (Optional[EmptyDataclass], {}, m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
+        (EmptyDataclass | None, {}, m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
         (
             EmptyDataclass,
             mr.metadata(name="i"),
-            m.fields.Nested(EMPTY_SCHEMA, required=True, **data_key("i")),
+            m.fields.Nested(EMPTY_SCHEMA, required=True, **data_key_fields("i")),
         ),
         (
             Optional[EmptyDataclass],
             mr.metadata(name="i"),
-            m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             EmptyDataclass | None,
             mr.metadata(name="i"),
-            m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # containers: list[T]
         (list[bool], {}, m.fields.List(m.fields.Bool(required=True), required=True)),
         (
             list[Optional[bool]],
             {},
-            m.fields.List(m.fields.Bool(allow_none=True, missing=None, default=None), required=True),
+            m.fields.List(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             list[bool | None],
             {},
-            m.fields.List(m.fields.Bool(allow_none=True, missing=None, default=None), required=True),
+            m.fields.List(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[list[bool]],
             {},
-            m.fields.List(m.fields.Bool(required=True), allow_none=True, missing=None, default=None),
+            m.fields.List(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[list[Optional[bool]]],
             {},
             m.fields.List(
-                m.fields.Bool(allow_none=True, missing=None, default=None), allow_none=True, missing=None, default=None
+                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
         (
             list[bool | None] | None,
             {},
             m.fields.List(
-                m.fields.Bool(allow_none=True, missing=None, default=None), allow_none=True, missing=None, default=None
+                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
         # containers: list[T] where T: dataclass
@@ -266,36 +276,34 @@ EMPTY_SCHEMA = m.Schema()
         (
             list[Optional[EmptyDataclass]],
             {},
-            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None), required=True),
+            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             list[EmptyDataclass | None],
             {},
-            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None), required=True),
+            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[list[EmptyDataclass]],
             {},
-            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, missing=None, default=None),
+            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[list[Optional[EmptyDataclass]]],
             {},
             m.fields.List(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None),
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
-                missing=None,
-                default=None,
+                **default_fields(None),
             ),
         ),
         (
             list[EmptyDataclass | None] | None,
             {},
             m.fields.List(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, missing=None, default=None),
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
-                missing=None,
-                default=None,
+                **default_fields(None),
             ),
         ),
         # containers: Dict[str, Any]
@@ -303,37 +311,37 @@ EMPTY_SCHEMA = m.Schema()
         (
             dict[str, Any],
             mr.metadata(name="i"),
-            m.fields.Dict(required=True, **data_key("i")),
+            m.fields.Dict(required=True, **data_key_fields("i")),
         ),
-        (Optional[dict[str, Any]], {}, m.fields.Dict(allow_none=True, missing=None, default=None)),
+        (Optional[dict[str, Any]], {}, m.fields.Dict(allow_none=True, **default_fields(None))),
         (
             Optional[dict[str, Any]],
             mr.metadata(name="i"),
-            m.fields.Dict(allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.Dict(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
-        (dict[str, Any] | None, {}, m.fields.Dict(allow_none=True, missing=None, default=None)),
+        (dict[str, Any] | None, {}, m.fields.Dict(allow_none=True, **default_fields(None))),
         (
             dict[str, Any] | None,
             mr.metadata(name="i"),
-            m.fields.Dict(allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.Dict(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (Dict[str, Any], {}, m.fields.Dict(required=True)),
         (
             Dict[str, Any],
             mr.metadata(name="i"),
-            m.fields.Dict(required=True, **data_key("i")),
+            m.fields.Dict(required=True, **data_key_fields("i")),
         ),
-        (Optional[Dict[str, Any]], {}, m.fields.Dict(allow_none=True, missing=None, default=None)),
+        (Optional[Dict[str, Any]], {}, m.fields.Dict(allow_none=True, **default_fields(None))),
         (
             Optional[Dict[str, Any]],
             mr.metadata(name="i"),
-            m.fields.Dict(allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.Dict(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
-        (Dict[str, Any] | None, {}, m.fields.Dict(allow_none=True, missing=None, default=None)),
+        (Dict[str, Any] | None, {}, m.fields.Dict(allow_none=True, **default_fields(None))),
         (
             Dict[str, Any] | None,
             mr.metadata(name="i"),
-            m.fields.Dict(allow_none=True, missing=None, default=None, **data_key("i")),
+            m.fields.Dict(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
     ],
 )
