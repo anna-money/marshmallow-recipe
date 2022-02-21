@@ -246,6 +246,8 @@ def dict_field(
     )
 
 
+DateTimeField: Type[m.fields.DateTime]
+
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def data_key(name: str | None) -> dict[str, Any]:
@@ -253,12 +255,14 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             return {}
         return dict(data_key=name)
 
-    class DateTimeField(m.fields.DateTime):
+    class DateTimeFieldV3(m.fields.DateTime):
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             result = super()._deserialize(value, attr, data)
             if result.tzinfo is None:
                 return result
             return result.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+
+    DateTimeField = DateTimeFieldV3
 else:
 
     def data_key(name: str | None) -> dict[str, Any]:
@@ -266,10 +270,11 @@ else:
             return {}
         return dict(dump_to=name, load_from=name)
 
-
-    class DateTimeField(m.fields.DateTime):
+    class DateTimeFieldV2(m.fields.DateTime):
         def _deserialize(self, value: Any, attr: Any, data: Any) -> Any:
             result = super()._deserialize(value, attr, data)
             if result.tzinfo is None:
                 return result
             return result.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+
+    DateTimeField = DateTimeFieldV2
