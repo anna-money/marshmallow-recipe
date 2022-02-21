@@ -4,6 +4,8 @@ import decimal
 import uuid
 from typing import Any
 
+import pytest
+
 import marshmallow_recipe as mr
 
 
@@ -66,8 +68,8 @@ def test_simple_types() -> None:
         optional_float_field=42.0,
         uuid_field=uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05"),
         optional_uuid_field=uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05"),
-        datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 607289),
-        optional_datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 607289),
+        datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc),
+        optional_datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc),
         date_field=datetime.date(2022, 2, 20),
         optional_date_field=datetime.date(2022, 2, 20),
         dict_field=dict(key="value"),
@@ -124,3 +126,35 @@ def test_unknown_field() -> None:
     assert dumped == dict(bool_field=True)
 
     assert mr.schema(BoolContainer) is mr.schema(BoolContainer)
+
+
+@pytest.mark.parametrize(
+    "raw, dt",
+    [
+        ("2022-02-20T11:33:48.607289+00:00", datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc)),
+        ("2022-02-20T11:33:48.607289", datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc)),
+    ],
+)
+def test_datetime_field_load(raw: str, dt: datetime.datetime) -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class DateTimeContainer:
+        datetime_field: datetime.datetime
+
+    loaded = mr.load(DateTimeContainer, dict(datetime_field=raw))
+    assert loaded == DateTimeContainer(datetime_field=dt)
+
+
+@pytest.mark.parametrize(
+    "dt, raw",
+    [
+        (datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc), "2022-02-20T11:33:48.607289+00:00"),
+        (datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, None), "2022-02-20T11:33:48.607289+00:00"),
+    ],
+)
+def test_datetime_field_dump(dt: datetime.datetime, raw: str) -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class DateTimeContainer:
+        datetime_field: datetime.datetime
+
+    dumped = mr.dump(DateTimeContainer(datetime_field=dt))
+    assert dumped == dict(datetime_field=raw)

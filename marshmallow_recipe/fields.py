@@ -146,9 +146,9 @@ def datetime_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.DateTime(required=True, **data_key(name))
+        return DateTimeField(required=True, **data_key(name))
 
-    return m.fields.DateTime(
+    return DateTimeField(
         allow_none=True,
         missing=None if default is MISSING else default,
         default=None if default is MISSING else default,
@@ -246,6 +246,8 @@ def dict_field(
     )
 
 
+DateTimeField: Type[m.fields.DateTime]
+
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def data_key(name: str | None) -> dict[str, Any]:
@@ -253,9 +255,44 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             return {}
         return dict(data_key=name)
 
+    class DateTimeFieldV3(m.fields.DateTime):
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            result = super()._deserialize(value, attr, data, **kwargs)
+            if result.tzinfo is None:
+                return result.replace(tzinfo=datetime.timezone.utc)
+            return result.astimezone(datetime.timezone.utc)
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            if value is None:
+                return None
+
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=datetime.timezone.utc)
+
+            return super()._serialize(value, attr, obj, **kwargs)
+
+    DateTimeField = DateTimeFieldV3
 else:
+    dateutil_tz_utc_cls: Type[datetime.tzinfo] | None
+    try:
+        import dateutil.tz  # type: ignore
+
+        dateutil_tz_utc_cls = dateutil.tz.tzutc
+    except ImportError:
+        dateutil_tz_utc_cls = None
 
     def data_key(name: str | None) -> dict[str, Any]:
         if name is None:
             return {}
         return dict(dump_to=name, load_from=name)
+
+    class DateTimeFieldV2(m.fields.DateTime):
+        def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:
+            result = super()._deserialize(value, attr, data)
+            if result.tzinfo is None:
+                return result.replace(tzinfo=datetime.timezone.utc)
+            if dateutil_tz_utc_cls is not None and isinstance(result.tzinfo, dateutil_tz_utc_cls):
+                return result.replace(tzinfo=datetime.timezone.utc)
+            return result.astimezone(datetime.timezone.utc)
+
+    DateTimeField = DateTimeFieldV2
