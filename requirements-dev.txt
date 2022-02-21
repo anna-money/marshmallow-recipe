@@ -3,7 +3,7 @@ isort==5.10.1
 flake8==4.0.1
 black==22.1.0
 mypy==0.931
-marshmallow>2,<4
+marshmallow>=2,<4
 typing_inspect>=0.7.1
 
 setuptools

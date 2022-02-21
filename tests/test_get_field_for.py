@@ -10,6 +10,7 @@ import marshmallow as m
 import pytest
 
 import marshmallow_recipe as mr
+from marshmallow_recipe.fields import DateTimeField
 
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
 
@@ -157,31 +158,31 @@ EMPTY_SCHEMA = m.Schema()
             m.fields.Decimal(allow_none=True, missing=None, default=None, places=4, as_string=False, **data_key("i")),
         ),
         # simple types: datetime
-        (datetime.datetime, {}, m.fields.DateTime(required=True)),
+        (datetime.datetime, {}, DateTimeField(required=True)),
         (
             Optional[datetime.datetime],
             {},
-            m.fields.DateTime(allow_none=True, missing=None, default=None),
+            DateTimeField(allow_none=True, missing=None, default=None),
         ),
         (
             datetime.datetime | None,
             {},
-            m.fields.DateTime(allow_none=True, missing=None, default=None),
+            DateTimeField(allow_none=True, missing=None, default=None),
         ),
         (
             datetime.datetime,
             mr.metadata(name="i"),
-            m.fields.DateTime(required=True, **data_key("i")),
+            DateTimeField(required=True, **data_key("i")),
         ),
         (
             Optional[datetime.datetime],
             mr.metadata(name="i"),
-            m.fields.DateTime(allow_none=True, missing=None, default=None, **data_key("i")),
+            DateTimeField(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         (
             datetime.datetime | None,
             mr.metadata(name="i"),
-            m.fields.DateTime(allow_none=True, missing=None, default=None, **data_key("i")),
+            DateTimeField(allow_none=True, missing=None, default=None, **data_key("i")),
         ),
         # simple types: date
         (datetime.date, {}, m.fields.Date(required=True)),
