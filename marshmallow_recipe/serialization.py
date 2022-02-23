@@ -44,18 +44,18 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         naming_case: NamingCase = DEFAULT_CASE,
     ) -> dict[str, Any]:
         data_schema = schema(type(data), naming_case=naming_case)
-        if errors := data_schema.validate(dataclasses.asdict(data)):
-            raise m.ValidationError(errors)
         dumped: dict[str, Any] = data_schema.dump(data)
+        if errors := data_schema.validate(dumped):
+            raise m.ValidationError(errors)
         return dumped
 
     def dump_many(data: list[_T], *, naming_case: NamingCase = DEFAULT_CASE) -> list[dict[str, Any]]:
         if not data:
             return []
-        item_schema = schema(type(data[0]), many=True, naming_case=naming_case)
-        if errors := item_schema.validate([dataclasses.asdict(item) for item in data]):
+        data_schema = schema(type(data[0]), many=True, naming_case=naming_case)
+        dumped: list[dict[str, Any]] = data_schema.dump(data)
+        if errors := data_schema.validate(dumped):
             raise m.ValidationError(errors)
-        dumped: list[dict[str, Any]] = item_schema.dump(data)
         return dumped
 
 else:
