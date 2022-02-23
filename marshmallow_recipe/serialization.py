@@ -26,7 +26,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         existent_schema = _schemas.get(key)
         if existent_schema is not None:
             return existent_schema
-        new_schema = bake_schema(cls, naming_case=naming_case)()
+        new_schema = bake_schema(cls, naming_case=naming_case)(many=many)
         _schemas[key] = new_schema
         return new_schema
 
@@ -65,7 +65,7 @@ else:
         existent_schema = _schemas.get(key)
         if existent_schema is not None:
             return existent_schema
-        new_schema = bake_schema(cls, naming_case=naming_case)(strict=True, many=True)  # type: ignore
+        new_schema = bake_schema(cls, naming_case=naming_case)(strict=True, many=many)  # type: ignore
         _schemas[key] = new_schema
         return new_schema
 
