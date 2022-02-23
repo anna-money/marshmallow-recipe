@@ -13,6 +13,7 @@ _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class _SchemaKey:
     cls: type
+    many: bool
     naming_case: NamingCase
 
 
@@ -20,37 +21,47 @@ _schemas: dict[_SchemaKey, m.Schema] = {}
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
-    def schema(cls: Type[_T], *, naming_case: NamingCase = DEFAULT_CASE) -> m.Schema:
-        key = _SchemaKey(cls=cls, naming_case=naming_case)
+    def schema(cls: Type[_T], *, many: bool = False, naming_case: NamingCase = DEFAULT_CASE) -> m.Schema:
+        key = _SchemaKey(cls=cls, many=many, naming_case=naming_case)
         existent_schema = _schemas.get(key)
         if existent_schema is not None:
             return existent_schema
-        new_schema = bake_schema(cls, naming_case=naming_case)()
+        new_schema = bake_schema(cls, naming_case=naming_case)(many=many)
         _schemas[key] = new_schema
         return new_schema
 
     def load(cls: Type[_T], data: dict[str, Any], *, naming_case: NamingCase = DEFAULT_CASE) -> _T:
-        return cast(_T, schema(cls, naming_case=naming_case).load(data))
+        loaded: _T = schema(cls, naming_case=naming_case).load(data)
+        return loaded
 
     def load_many(cls: Type[_T], data: dict[str, Any], *, naming_case: NamingCase = DEFAULT_CASE) -> list[_T]:
-        return cast(list[_T], schema(cls, naming_case=naming_case).load(data, many=True))
+        loaded: list[_T] = schema(cls, many=True, naming_case=naming_case).load(data)
+        return loaded
 
     def dump(
         data: _T,
         *,
         naming_case: NamingCase = DEFAULT_CASE,
     ) -> dict[str, Any]:
-        return cast(dict[str, Any], schema(type(data), naming_case=naming_case).dump(data))
+        data_schema = schema(type(data), naming_case=naming_case)
+        if errors := data_schema.validate(dataclasses.asdict(data)):
+            raise m.ValidationError(errors)
+        dumped: dict[str, Any] = data_schema.dump(data)
+        return dumped
 
     def dump_many(data: list[_T], *, naming_case: NamingCase = DEFAULT_CASE) -> list[dict[str, Any]]:
         if not data:
             return []
-        return cast(list[dict[str, Any]], schema(type(data[0]), naming_case=naming_case).dump(data, many=True))
+        item_schema = schema(type(data[0]), many=True, naming_case=naming_case)
+        if errors := item_schema.validate([dataclasses.asdict(item) for item in data]):
+            raise m.ValidationError(errors)
+        dumped: list[dict[str, Any]] = item_schema.dump(data)
+        return dumped
 
 else:
 
-    def schema(cls: Type[_T], *, naming_case: NamingCase = DEFAULT_CASE) -> m.Schema:
-        key = _SchemaKey(cls=cls, naming_case=naming_case)
+    def schema(cls: Type[_T], *, many: bool = False, naming_case: NamingCase = DEFAULT_CASE) -> m.Schema:
+        key = _SchemaKey(cls=cls, many=many, naming_case=naming_case)
         existent_schema = _schemas.get(key)
         if existent_schema is not None:
             return existent_schema
@@ -59,15 +70,11 @@ else:
         return new_schema
 
     def load(cls: Type[_T], data: dict[str, Any], *, naming_case: NamingCase = DEFAULT_CASE) -> _T:
-        loaded, errors = schema(cls, naming_case=naming_case).load(data)
-        if errors:
-            raise ValueError(f"Schema {schema} must be strict")
+        loaded, _ = schema(cls, naming_case=naming_case).load(data)
         return cast(_T, loaded)
 
     def load_many(cls: Type[_T], data: dict[str, Any], *, naming_case: NamingCase = DEFAULT_CASE) -> list[_T]:
-        loaded, errors = schema(cls, naming_case=naming_case).load(data, many=True)
-        if errors:
-            raise ValueError(f"Schema {schema} must be strict")
+        loaded, _ = schema(cls, many=True, naming_case=naming_case).load(data)
         return cast(list[_T], loaded)
 
     def dump(
@@ -75,15 +82,11 @@ else:
         *,
         naming_case: NamingCase = DEFAULT_CASE,
     ) -> dict[str, Any]:
-        dumped, errors = schema(type(data), naming_case=naming_case).dump(data)
-        if errors:
-            raise ValueError(f"Schema {schema} must be strict")
+        dumped, _ = schema(type(data), naming_case=naming_case).dump(data)
         return cast(dict[str, Any], dumped)
 
     def dump_many(data: list[_T], *, naming_case: NamingCase = DEFAULT_CASE) -> list[dict[str, Any]]:
         if not data:
             return []
-        dumped, errors = schema(type(data[0]), naming_case=naming_case).dump(data, many=True)
-        if errors:
-            raise ValueError(f"Schema {schema} must be strict")
+        dumped, _ = schema(type(data[0]), many=True, naming_case=naming_case).dump(data)
         return cast(list[dict[str, Any]], dumped)

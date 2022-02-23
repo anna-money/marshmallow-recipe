@@ -2,8 +2,9 @@ import dataclasses
 import datetime
 import decimal
 import uuid
-from typing import Any
+from typing import Any, cast
 
+import marshmallow as m
 import pytest
 
 import marshmallow_recipe as mr
@@ -158,3 +159,21 @@ def test_datetime_field_dump(dt: datetime.datetime, raw: str) -> None:
 
     dumped = mr.dump(DateTimeContainer(datetime_field=dt))
     assert dumped == dict(datetime_field=raw)
+
+
+def test_dump_invalid_value():
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class IntContainer:
+        int_field: int
+
+    with pytest.raises(m.ValidationError):
+        mr.dump(IntContainer(int_field=cast(int, "invalid")))
+
+
+def test_dump_many_invalid_value():
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class IntContainer:
+        int_field: int
+
+    with pytest.raises(m.ValidationError):
+        mr.dump_many([IntContainer(int_field=cast(int, "invalid"))])
