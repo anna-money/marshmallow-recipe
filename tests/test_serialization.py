@@ -176,8 +176,10 @@ def test_dump_invalid_value():
     class UUIDContainer:
         uuid_field: uuid.UUID
 
-    with pytest.raises(m.ValidationError):
+    with pytest.raises(m.ValidationError) as exc_info:
         mr.dump(UUIDContainer(uuid_field=cast(uuid.UUID, "invalid")))
+
+    assert exc_info.value.messages == {"uuid_field": ["Not a valid UUID."]}
 
 
 def test_dump_many_invalid_value():
@@ -185,5 +187,7 @@ def test_dump_many_invalid_value():
     class UUIDContainer:
         uuid_field: uuid.UUID
 
-    with pytest.raises(m.ValidationError):
+    with pytest.raises(m.ValidationError) as exc_info:
         mr.dump_many([UUIDContainer(uuid_field=cast(uuid.UUID, "invalid"))])
+
+    assert exc_info.value.messages == {0: {"uuid_field": ["Not a valid UUID."]}}
