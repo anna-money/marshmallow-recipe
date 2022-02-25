@@ -3,14 +3,12 @@ from typing import Protocol
 
 
 class NamingCase(Protocol):
-    __slots__ = ()
-
     def __call__(self, name: str) -> str:
         ...
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class CapitalCamelCase(NamingCase):
+class CapitalCamelCase:
     capitalize_words: set[str]
 
     def __call__(self, name: str) -> str:
@@ -25,7 +23,7 @@ class CapitalCamelCase(NamingCase):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class CamelCase(NamingCase):
+class CamelCase:
     capitalize_words: set[str]
 
     def __call__(self, name: str) -> str:
@@ -41,8 +39,9 @@ class CamelCase(NamingCase):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class _Default(NamingCase):
-    pass
+class _Default:
+    def __call__(self, name: str) -> str:
+        return name
 
 
 CAPITAL_CAMEL_CASE = CapitalCamelCase(capitalize_words=set())
