@@ -35,6 +35,17 @@ def test_camel_case(name: str, expected: str) -> None:
 
 
 @pytest.mark.parametrize(
+    "naming_case, name, expected",
+    [
+        (mr.PREFIXED("a:"), "hello", "a:hello"),
+        (mr.PREFIXED("a:", mr.CAMEL_CASE), "hello_world", "a:helloWorld"),
+    ],
+)
+def test_prefixed_case(naming_case: mr.NamingCase, name: str, expected: str) -> None:
+    assert naming_case(name) == expected
+
+
+@pytest.mark.parametrize(
     "first, second",
     [
         (mr.CAPITAL_CAMEL_CASE, mr.CAPITAL_CAMEL_CASE),

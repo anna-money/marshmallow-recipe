@@ -41,6 +41,15 @@ class CamelCase(NamingCase):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class PrefixedCase(NamingCase):
+    parent: NamingCase
+    prefix: str
+
+    def __call__(self, name: str) -> str:
+        return f"{self.prefix}{self.parent(name) or name}"
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class _Default(NamingCase):
     pass
 
@@ -48,3 +57,10 @@ class _Default(NamingCase):
 CAPITAL_CAMEL_CASE = CapitalCamelCase(capitalize_words=set())
 CAMEL_CASE = CamelCase(capitalize_words=set())
 DEFAULT_CASE = _Default()
+
+
+def prefixed(prefix: str, parent: NamingCase | None = None) -> NamingCase:
+    return PrefixedCase(prefix=prefix, parent=parent if parent is not None else DEFAULT_CASE)
+
+
+PREFIXED = prefixed
