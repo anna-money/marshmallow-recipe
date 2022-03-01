@@ -129,6 +129,45 @@ def test_unknown_field() -> None:
     assert mr.schema(BoolContainer) is mr.schema(BoolContainer)
 
 
+def test_schema_with_default_case():
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class DataClass:
+        str_field: str
+
+    origin = dict(str_field="foobar")
+    loaded = mr.load(DataClass, origin, naming_case=mr.DEFAULT_CASE)
+    dumped = mr.dump(loaded, naming_case=mr.DEFAULT_CASE)
+
+    assert loaded == DataClass(str_field="foobar")
+    assert dumped == origin
+
+
+def test_schema_with_capital_camel_case():
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class DataClass:
+        str_field: str
+
+    origin = dict(StrField="foobar")
+    loaded = mr.load(DataClass, origin, naming_case=mr.CAPITAL_CAMEL_CASE)
+    dumped = mr.dump(loaded, naming_case=mr.CAPITAL_CAMEL_CASE)
+
+    assert loaded == DataClass(str_field="foobar")
+    assert dumped == origin
+
+
+def test_schema_with_camel_case():
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class DataClass:
+        str_field: str
+
+    origin = dict(strField="foobar")
+    loaded = mr.load(DataClass, origin, naming_case=mr.CAMEL_CASE)
+    dumped = mr.dump(loaded, naming_case=mr.CAMEL_CASE)
+
+    assert loaded == DataClass(str_field="foobar")
+    assert dumped == origin
+
+
 @pytest.mark.parametrize(
     "raw, dt",
     [

@@ -9,7 +9,7 @@ class NamingCase(Protocol):
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class CapitalCamelCase:
-    capitalize_words: set[str]
+    capitalize_words: frozenset[str]
 
     def __call__(self, name: str) -> str:
         return "".join(self._process_word(word) for word in name.split("_") if word)
@@ -24,7 +24,7 @@ class CapitalCamelCase:
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class CamelCase:
-    capitalize_words: set[str]
+    capitalize_words: frozenset[str]
 
     def __call__(self, name: str) -> str:
         words = [word for word in name.split("_") if word]
@@ -44,6 +44,6 @@ class _Default:
         return name
 
 
-CAPITAL_CAMEL_CASE = CapitalCamelCase(capitalize_words=set())
-CAMEL_CASE = CamelCase(capitalize_words=set())
+CAPITAL_CAMEL_CASE = CapitalCamelCase(capitalize_words=frozenset())
+CAMEL_CASE = CamelCase(capitalize_words=frozenset())
 DEFAULT_CASE = _Default()
