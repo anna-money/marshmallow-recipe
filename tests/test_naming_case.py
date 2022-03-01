@@ -14,7 +14,7 @@ import marshmallow_recipe as mr
     ],
 )
 def test_capital_camel_case(name: str, expected: str) -> None:
-    capital_camel_case = mr.CapitalCamelCase(capitalize_words={"bar"})
+    capital_camel_case = mr.CapitalCamelCase(capitalize_words=frozenset(["bar"]))
     assert expected == capital_camel_case(name)
 
 
@@ -30,7 +30,7 @@ def test_capital_camel_case(name: str, expected: str) -> None:
     ],
 )
 def test_camel_case(name: str, expected: str) -> None:
-    camel_case = mr.CamelCase(capitalize_words={"bar"})
+    camel_case = mr.CamelCase(capitalize_words=frozenset(["bar"]))
     assert expected == camel_case(name)
 
 
@@ -39,7 +39,10 @@ def test_camel_case(name: str, expected: str) -> None:
     [
         (mr.CAPITAL_CAMEL_CASE, mr.CAPITAL_CAMEL_CASE),
         (mr.CAMEL_CASE, mr.CAMEL_CASE),
-        (mr.CapitalCamelCase(capitalize_words={"hello"}), mr.CapitalCamelCase(capitalize_words={"hello"})),
+        (
+            mr.CapitalCamelCase(capitalize_words=frozenset(["hello"])),
+            mr.CapitalCamelCase(capitalize_words=frozenset(["hello"])),
+        ),
     ],
 )
 def test_naming_cases_equal(first: mr.NamingCase, second: mr.NamingCase) -> None:
@@ -51,11 +54,17 @@ def test_naming_cases_equal(first: mr.NamingCase, second: mr.NamingCase) -> None
     [
         (mr.CAPITAL_CAMEL_CASE, mr.DEFAULT_CASE),
         (mr.CAMEL_CASE, mr.DEFAULT_CASE),
-        (mr.CapitalCamelCase(capitalize_words={"foo"}), mr.CapitalCamelCase(capitalize_words={"bar"})),
-        (mr.CAPITAL_CAMEL_CASE, mr.CapitalCamelCase(capitalize_words={"bar"})),
-        (mr.CamelCase(capitalize_words={"foo"}), mr.CamelCase(capitalize_words={"bar"})),
-        (mr.CAMEL_CASE, mr.CamelCase(capitalize_words={"bar"})),
-        (mr.CapitalCamelCase(capitalize_words={"hello"}), mr.CamelCase(capitalize_words={"hello"})),
+        (
+            mr.CapitalCamelCase(capitalize_words=frozenset(["foo"])),
+            mr.CapitalCamelCase(capitalize_words=frozenset(["bar"])),
+        ),
+        (mr.CAPITAL_CAMEL_CASE, mr.CapitalCamelCase(capitalize_words=frozenset(["bar"]))),
+        (mr.CamelCase(capitalize_words=frozenset(["foo"])), mr.CamelCase(capitalize_words=frozenset(["bar"]))),
+        (mr.CAMEL_CASE, mr.CamelCase(capitalize_words=frozenset(["bar"]))),
+        (
+            mr.CapitalCamelCase(capitalize_words=frozenset(["hello"])),
+            mr.CamelCase(capitalize_words=frozenset(["hello"])),
+        ),
     ],
 )
 def test_naming_cases_not_equal(first: mr.NamingCase, second: mr.NamingCase) -> None:
