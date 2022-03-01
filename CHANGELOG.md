@@ -1,3 +1,11 @@
+## v0.0.5(2022-03-01)
+
+* [Validate before dump for marshmallow3](https://github.com/Pliner/marshmallow-recipe/pull/25)
+* [Move many to schema](https://github.com/Pliner/marshmallow-recipe/pull/27)
+* [Fix default naming case](https://github.com/Pliner/marshmallow-recipe/pull/29)
+* [Fix unhashable type: 'set' error](https://github.com/Pliner/marshmallow-recipe/pull/30)
+
+
 ## v0.0.4(2022-02-21)
 
 * [Support decimal field](https://github.com/Pliner/marshmallow-recipe/pull/10)
