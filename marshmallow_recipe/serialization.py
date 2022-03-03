@@ -92,4 +92,4 @@ else:
         return cast(list[dict[str, Any]], dumped)
 
 
-EMPTY_SCHEMA = m.Schema()
+EmptySchema = m.Schema
