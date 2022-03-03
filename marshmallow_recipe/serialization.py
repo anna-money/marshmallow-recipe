@@ -90,3 +90,6 @@ else:
             return []
         dumped, _ = schema(type(data[0]), many=True, naming_case=naming_case).dump(data)
         return cast(list[dict[str, Any]], dumped)
+
+
+EMPTY_SCHEMA = m.Schema()
