@@ -1,6 +1,7 @@
 import dataclasses
 import datetime
 import decimal
+import enum
 import uuid
 from typing import Any, cast
 
@@ -8,6 +9,11 @@ import marshmallow as m
 import pytest
 
 import marshmallow_recipe as mr
+
+
+class Parity(str, enum.Enum):
+    ODD = "ODD"
+    EVEN = "EVEN"
 
 
 def test_simple_types() -> None:
@@ -198,6 +204,38 @@ def test_datetime_field_dump(dt: datetime.datetime, raw: str) -> None:
 
     dumped = mr.dump(DateTimeContainer(datetime_field=dt))
     assert dumped == dict(datetime_field=raw)
+
+
+@pytest.mark.parametrize(
+    "value, raw",
+    [
+        (Parity.ODD, "ODD"),
+        (Parity.EVEN, "EVEN"),
+    ],
+)
+def test_enum_field_dump(value: Parity, raw: str) -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class EnumContainer:
+        enum_field: Parity
+
+    dumped = mr.dump(EnumContainer(enum_field=value))
+    assert dumped == dict(enum_field=raw)
+
+
+@pytest.mark.parametrize(
+    "raw, value",
+    [
+        ("ODD", Parity.ODD),
+        ("EVEN", Parity.EVEN),
+    ],
+)
+def test_enum_field_load(value: Parity, raw: str) -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class EnumContainer:
+        enum_field: Parity
+
+    dumped = mr.load(EnumContainer, dict(enum_field=raw))
+    assert dumped == EnumContainer(enum_field=value)
 
 
 @pytest.mark.skip("Bug in marshmallow")

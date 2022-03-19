@@ -1,6 +1,8 @@
 import dataclasses
 import datetime
 import decimal
+import enum
+import inspect
 import types
 import uuid
 from typing import Any, Dict, Generic, List, Mapping, Type, TypeVar, cast
@@ -14,6 +16,7 @@ from .fields import (
     datetime_field,
     decimal_field,
     dict_field,
+    enum_field,
     float_field,
     int_field,
     list_field,
@@ -81,6 +84,9 @@ def get_field_for(
     if field_factory:
         typed_field_factory = cast(_FieldFactory[_T], field_factory)
         return typed_field_factory(required=required, **metadata)
+
+    if inspect.isclass(type) and issubclass(type, enum.Enum):
+        return enum_field(enum_type=type, required=required, **metadata)
 
     if dataclasses.is_dataclass(type):
         return nested_field(
