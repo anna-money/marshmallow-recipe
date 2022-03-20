@@ -17,16 +17,18 @@ def str_field(
     required: bool,
     default: str | None | Missing = MISSING,
     name: str | None = None,
+    validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
 
-        return m.fields.String(required=True, **data_key_fields(name))
+        return m.fields.String(required=True, validate=validate, **data_key_fields(name))
 
     return m.fields.Str(
         allow_none=True,
+        validate=validate,
         **default_fields(None if default is MISSING else default),
         **data_key_fields(name),
     )
@@ -37,16 +39,18 @@ def bool_field(
     required: bool,
     default: bool | None | Missing = MISSING,
     name: str | None = None,
+    validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
 
-        return m.fields.Boolean(required=True, **data_key_fields(name))
+        return m.fields.Boolean(required=True, validate=validate, **data_key_fields(name))
 
     return m.fields.Bool(
         allow_none=True,
+        validate=validate,
         **default_fields(None if default is MISSING else default),
         **data_key_fields(name),
     )
@@ -59,17 +63,21 @@ def decimal_field(
     name: str | None = None,
     places: int = 2,
     as_string: bool = True,
+    validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Decimal(required=True, as_string=as_string, places=places, **data_key_fields(name))
+        return m.fields.Decimal(
+            required=True, as_string=as_string, places=places, validate=validate, **data_key_fields(name)
+        )
 
     return m.fields.Decimal(
         allow_none=True,
         as_string=as_string,
         places=places,
+        validate=validate,
         **default_fields(None if default is MISSING else default),
         **data_key_fields(name),
     )
@@ -80,15 +88,17 @@ def int_field(
     required: bool,
     default: int | None | Missing = MISSING,
     name: str | None = None,
+    validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Int(required=True, **data_key_fields(name))
+        return m.fields.Int(required=True, validate=validate, **data_key_fields(name))
 
     return m.fields.Int(
         allow_none=True,
+        validate=validate,
         **default_fields(None if default is MISSING else default),
         **data_key_fields(name),
     )
@@ -99,15 +109,17 @@ def float_field(
     required: bool,
     default: float | None | Missing = MISSING,
     name: str | None = None,
+    validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Float(required=True, **data_key_fields(name))
+        return m.fields.Float(required=True, validate=validate, **data_key_fields(name))
 
     return m.fields.Float(
         allow_none=True,
+        validate=validate,
         **default_fields(None if default is MISSING else default),
         **data_key_fields(name),
     )
@@ -118,15 +130,17 @@ def uuid_field(
     required: bool,
     default: uuid.UUID | None | Missing = MISSING,
     name: str | None = None,
+    validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.UUID(required=True, **data_key_fields(name))
+        return m.fields.UUID(required=True, validate=validate, **data_key_fields(name))
 
     return m.fields.UUID(
         allow_none=True,
+        validate=validate,
         **default_fields(None if default is MISSING else default),
         **data_key_fields(name),
     )
@@ -137,15 +151,17 @@ def datetime_field(
     required: bool,
     default: datetime.datetime | None | Missing = MISSING,
     name: str | None = None,
+    validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return DateTimeField(required=True, **data_key_fields(name))
+        return DateTimeField(required=True, validate=validate, **data_key_fields(name))
 
     return DateTimeField(
         allow_none=True,
+        validate=validate,
         **default_fields(None if default is MISSING else default),
         **data_key_fields(name),
     )
@@ -156,15 +172,17 @@ def date_field(
     required: bool,
     default: datetime.date | None | Missing = MISSING,
     name: str | None = None,
+    validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return m.fields.Date(required=True, **data_key_fields(name))
+        return m.fields.Date(required=True, validate=validate, **data_key_fields(name))
 
     return m.fields.Date(
         allow_none=True,
+        validate=validate,
         **default_fields(None if default is MISSING else default),
         **data_key_fields(name),
     )
@@ -176,8 +194,12 @@ def nested_field(
     required: bool,
     default: Any | None | Missing = MISSING,
     name: str | None = None,
+    validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    if validate is not None:
+        raise ValueError("Validation is not supported")
+
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
@@ -199,8 +221,12 @@ def list_field(
     required: bool,
     default: Any | None | Missing = MISSING,
     name: str | None = None,
+    validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    if validate is not None:
+        raise ValueError("Validation is not supported")
+
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
@@ -221,8 +247,12 @@ def dict_field(
     required: bool,
     default: Any | None | Missing = MISSING,
     name: str | None = None,
+    validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    if validate is not None:
+        raise ValueError("Validation is not supported")
+
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
@@ -243,7 +273,11 @@ def enum_field(
     required: bool,
     name: str | None = None,
     default: Any | None | Missing = MISSING,
+    validate: Callable[[Any], Any] | None = None,
 ) -> marshmallow.fields.Field:
+    if validate is not None:
+        raise ValueError("Validation is not supported")
+
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
