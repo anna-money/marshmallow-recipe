@@ -1,6 +1,7 @@
 import dataclasses
 import datetime
 import decimal
+import enum
 import inspect
 import unittest.mock
 import uuid
@@ -10,7 +11,7 @@ import marshmallow as m
 import pytest
 
 import marshmallow_recipe as mr
-import marshmallow_recipe.fields as mr_fields
+import marshmallow_recipe.fields
 
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
 
@@ -51,6 +52,10 @@ def assert_fields_equal(a: m.fields.Field, b: m.fields.Field) -> None:
 
 @dataclasses.dataclass
 class EmptyDataclass:
+    pass
+
+
+class Enum(str, enum.Enum):
     pass
 
 
@@ -168,31 +173,31 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # simple types: datetime
-        (datetime.datetime, {}, mr_fields.DateTimeField(required=True)),
+        (datetime.datetime, {}, mr.fields.DateTimeField(required=True)),
         (
             Optional[datetime.datetime],
             {},
-            mr_fields.DateTimeField(allow_none=True, **default_fields(None)),
+            mr.fields.DateTimeField(allow_none=True, **default_fields(None)),
         ),
         (
             datetime.datetime | None,
             {},
-            mr_fields.DateTimeField(allow_none=True, **default_fields(None)),
+            mr.fields.DateTimeField(allow_none=True, **default_fields(None)),
         ),
         (
             datetime.datetime,
             mr.metadata(name="i"),
-            mr_fields.DateTimeField(required=True, **data_key_fields("i")),
+            mr.fields.DateTimeField(required=True, **data_key_fields("i")),
         ),
         (
             Optional[datetime.datetime],
             mr.metadata(name="i"),
-            mr_fields.DateTimeField(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.fields.DateTimeField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             datetime.datetime | None,
             mr.metadata(name="i"),
-            mr_fields.DateTimeField(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.fields.DateTimeField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: date
         (datetime.date, {}, m.fields.Date(required=True)),
@@ -220,6 +225,21 @@ EMPTY_SCHEMA = m.Schema()
             datetime.date | None,
             mr.metadata(name="i"),
             m.fields.Date(allow_none=True, **default_fields(None), **data_key_fields("i")),
+        ),
+        # enum
+        (Enum, {}, mr.fields.EnumField(enum_type=Enum, required=True)),
+        (Optional[Enum], {}, mr.fields.EnumField(enum_type=Enum, allow_none=True, **default_fields(None))),
+        (Enum | None, {}, mr.fields.EnumField(enum_type=Enum, allow_none=True, **default_fields(None))),
+        (Enum, mr.metadata(name="i"), mr.fields.EnumField(enum_type=Enum, required=True, **data_key_fields("i"))),
+        (
+            Optional[Enum],
+            mr.metadata(name="i"),
+            mr.fields.EnumField(enum_type=Enum, allow_none=True, **default_fields(None), **data_key_fields("i")),
+        ),
+        (
+            Enum | None,
+            mr.metadata(name="i"),
+            mr.fields.EnumField(enum_type=Enum, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # dataclass
         (EmptyDataclass, {}, m.fields.Nested(EMPTY_SCHEMA, required=True)),

@@ -1,6 +1,7 @@
 import dataclasses
 import datetime
 import decimal
+import enum
 import uuid
 from typing import Any, cast
 
@@ -8,6 +9,11 @@ import marshmallow as m
 import pytest
 
 import marshmallow_recipe as mr
+
+
+class Parity(str, enum.Enum):
+    ODD = "odd"
+    EVEN = "even"
 
 
 def test_simple_types() -> None:
@@ -31,6 +37,8 @@ def test_simple_types() -> None:
         optional_date_field: datetime.date | None
         dict_field: dict[str, Any]
         optional_dict_field: dict[str, Any] | None
+        enum_field: Parity
+        optional_enum_field: Parity | None
 
     raw = dict(
         str_field="42",
@@ -51,6 +59,8 @@ def test_simple_types() -> None:
         optional_date_field="2022-02-20",
         dict_field=dict(key="value"),
         optional_dict_field=dict(key="value"),
+        enum_field="odd",
+        optional_enum_field="even",
     )
 
     loaded = mr.load(SimpleTypesContainers, raw)
@@ -75,6 +85,8 @@ def test_simple_types() -> None:
         optional_date_field=datetime.date(2022, 2, 20),
         dict_field=dict(key="value"),
         optional_dict_field=dict(key="value"),
+        enum_field=Parity.ODD,
+        optional_enum_field=Parity.EVEN,
     )
     assert dumped == raw
     assert mr.schema(SimpleTypesContainers) is mr.schema(SimpleTypesContainers)
@@ -198,6 +210,38 @@ def test_datetime_field_dump(dt: datetime.datetime, raw: str) -> None:
 
     dumped = mr.dump(DateTimeContainer(datetime_field=dt))
     assert dumped == dict(datetime_field=raw)
+
+
+@pytest.mark.parametrize(
+    "value, raw",
+    [
+        (Parity.ODD, "odd"),
+        (Parity.EVEN, "even"),
+    ],
+)
+def test_enum_field_dump(value: Parity, raw: str) -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class EnumContainer:
+        enum_field: Parity
+
+    dumped = mr.dump(EnumContainer(enum_field=value))
+    assert dumped == dict(enum_field=raw)
+
+
+@pytest.mark.parametrize(
+    "raw, value",
+    [
+        ("odd", Parity.ODD),
+        ("even", Parity.EVEN),
+    ],
+)
+def test_enum_field_load(value: Parity, raw: str) -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class EnumContainer:
+        enum_field: Parity
+
+    dumped = mr.load(EnumContainer, dict(enum_field=raw))
+    assert dumped == EnumContainer(enum_field=value)
 
 
 @pytest.mark.skip("Bug in marshmallow")
