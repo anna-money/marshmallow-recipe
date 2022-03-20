@@ -1,3 +1,8 @@
+## v0.0.7(2022-03-20)
+
+* [Support validation](https://github.com/Pliner/marshmallow-recipe/pull/37)
+
+
 ## v0.0.6(2022-03-20)
 
 * [Support enum](https://github.com/Pliner/marshmallow-recipe/pull/36)
