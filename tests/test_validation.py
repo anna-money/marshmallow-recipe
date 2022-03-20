@@ -16,11 +16,8 @@ def test_int_validation() -> None:
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(value=0))
-    with pytest.raises(m.ValidationError):
-        mr.dump(Holder(value=0))
 
     mr.load(Holder, dict(value=42))
-    mr.dump(Holder(value=42))
 
 
 def test_float_validation() -> None:
@@ -30,11 +27,8 @@ def test_float_validation() -> None:
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(value=0))
-    with pytest.raises(m.ValidationError):
-        mr.dump(Holder(value=0))
 
     mr.load(Holder, dict(value=42))
-    mr.dump(Holder(value=42))
 
 
 def test_decimal_validation() -> None:
@@ -44,11 +38,8 @@ def test_decimal_validation() -> None:
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(value="0"))
-    with pytest.raises(m.ValidationError):
-        mr.dump(Holder(value=decimal.Decimal(0)))
 
     mr.load(Holder, dict(value="42"))
-    mr.dump(Holder(value=decimal.Decimal("42")))
 
 
 def test_str_validation() -> None:
@@ -58,11 +49,8 @@ def test_str_validation() -> None:
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(value=""))
-    with pytest.raises(m.ValidationError):
-        mr.dump(Holder(value=""))
 
     mr.load(Holder, dict(value="42"))
-    mr.dump(Holder(value="42"))
 
 
 def test_bool_validation() -> None:
@@ -72,11 +60,8 @@ def test_bool_validation() -> None:
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(value="False"))
-    with pytest.raises(m.ValidationError):
-        mr.dump(Holder(value=False))
 
     mr.load(Holder, dict(value="True"))
-    mr.dump(Holder(value=True))
 
 
 def test_uuid_validation() -> None:
@@ -88,11 +73,8 @@ def test_uuid_validation() -> None:
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(value=str(invalid)))
-    with pytest.raises(m.ValidationError):
-        mr.dump(Holder(value=invalid))
 
     mr.load(Holder, dict(value=str(uuid.uuid4())))
-    mr.dump(Holder(value=uuid.uuid4()))
 
 
 def test_date_validation() -> None:
@@ -104,11 +86,8 @@ def test_date_validation() -> None:
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(value=invalid.isoformat()))
-    with pytest.raises(m.ValidationError):
-        mr.dump(Holder(value=invalid))
 
     mr.load(Holder, dict(value=datetime.date(2001, 1, 2).isoformat()))
-    mr.dump(Holder(value=datetime.date(2001, 1, 2)))
 
 
 def test_datetime_validation() -> None:
@@ -120,8 +99,5 @@ def test_datetime_validation() -> None:
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(value=invalid.isoformat()))
-    with pytest.raises(m.ValidationError):
-        mr.dump(Holder(value=invalid))
 
     mr.load(Holder, dict(value=datetime.datetime(2001, 1, 2).isoformat()))
-    mr.dump(Holder(value=datetime.datetime(2001, 1, 2)))
