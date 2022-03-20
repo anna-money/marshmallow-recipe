@@ -37,6 +37,8 @@ def test_simple_types() -> None:
         optional_date_field: datetime.date | None
         dict_field: dict[str, Any]
         optional_dict_field: dict[str, Any] | None
+        enum_field: Parity
+        optional_enum_field: Parity | None
 
     raw = dict(
         str_field="42",
@@ -57,6 +59,8 @@ def test_simple_types() -> None:
         optional_date_field="2022-02-20",
         dict_field=dict(key="value"),
         optional_dict_field=dict(key="value"),
+        enum_field="ODD",
+        optional_enum_field="EVEN",
     )
 
     loaded = mr.load(SimpleTypesContainers, raw)
@@ -81,6 +85,8 @@ def test_simple_types() -> None:
         optional_date_field=datetime.date(2022, 2, 20),
         dict_field=dict(key="value"),
         optional_dict_field=dict(key="value"),
+        enum_field=Parity.ODD,
+        optional_enum_field=Parity.EVEN,
     )
     assert dumped == raw
     assert mr.schema(SimpleTypesContainers) is mr.schema(SimpleTypesContainers)
