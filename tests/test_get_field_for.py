@@ -227,19 +227,19 @@ EMPTY_SCHEMA = m.Schema()
             m.fields.Date(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # enum
-        (Enum, {}, mr.fields.StringEnumField(enum_type=Enum, required=True)),
-        (Optional[Enum], {}, mr.fields.StringEnumField(enum_type=Enum, allow_none=True, **default_fields(None))),
-        (Enum | None, {}, mr.fields.StringEnumField(enum_type=Enum, allow_none=True, **default_fields(None))),
-        (Enum, mr.metadata(name="i"), mr.fields.StringEnumField(enum_type=Enum, required=True, **data_key_fields("i"))),
+        (Enum, {}, mr.fields.EnumField(enum_type=Enum, required=True)),
+        (Optional[Enum], {}, mr.fields.EnumField(enum_type=Enum, allow_none=True, **default_fields(None))),
+        (Enum | None, {}, mr.fields.EnumField(enum_type=Enum, allow_none=True, **default_fields(None))),
+        (Enum, mr.metadata(name="i"), mr.fields.EnumField(enum_type=Enum, required=True, **data_key_fields("i"))),
         (
             Optional[Enum],
             mr.metadata(name="i"),
-            mr.fields.StringEnumField(enum_type=Enum, allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.fields.EnumField(enum_type=Enum, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             Enum | None,
             mr.metadata(name="i"),
-            mr.fields.StringEnumField(enum_type=Enum, allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.fields.EnumField(enum_type=Enum, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # dataclass
         (EmptyDataclass, {}, m.fields.Nested(EMPTY_SCHEMA, required=True)),

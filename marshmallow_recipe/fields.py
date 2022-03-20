@@ -247,13 +247,13 @@ def enum_field(
     if required:
         if default is not MISSING:
             raise ValueError("Default values is not supported for required fields")
-        return StringEnumField(
+        return EnumField(
             enum_type=enum_type,
             required=True,
             **data_key_fields(name),
         )
 
-    return StringEnumField(
+    return EnumField(
         enum_type=enum_type,
         allow_none=True,
         **default_fields(None if default is MISSING else default),
@@ -262,7 +262,7 @@ def enum_field(
 
 
 DateTimeField: Type[m.fields.DateTime]
-StringEnumField: Type[m.fields.String]
+EnumField: Type[m.fields.String]
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
@@ -292,7 +292,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     DateTimeField = DateTimeFieldV3
 
-    class StringEnumFieldV3(m.fields.String):
+    class EnumFieldV3(m.fields.String):
         default_error = "Not a valid choice: '{input}'. Allowed values: {choices}"
 
         def __init__(
@@ -316,7 +316,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             self.enum_type = enum_type
             self._validate_enum(self.enum_type)
 
-            self.error = error or StringEnumFieldV3.default_error
+            self.error = error or EnumFieldV3.default_error
             self._validate_error(self.error)
 
             self.choices = [enum_instance.value for enum_instance in cast(Iterable[enum.Enum], enum_type)]
@@ -396,7 +396,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             if not isinstance(default, enum_type):
                 raise ValueError(f"Default should be an instance of enum_type {enum_type}")
 
-    StringEnumField = StringEnumFieldV3
+    EnumField = EnumFieldV3
 else:
     dateutil_tz_utc_cls: Type[datetime.tzinfo] | None
     try:
@@ -425,7 +425,7 @@ else:
 
     DateTimeField = DateTimeFieldV2
 
-    class StringEnumFieldV2(m.fields.String):
+    class EnumFieldV2(m.fields.String):
         default_error = "Not a valid choice: '{input}'. Allowed values: {choices}"
 
         def __init__(
@@ -449,7 +449,7 @@ else:
             self.enum_type = enum_type
             self._validate_enum(self.enum_type)
 
-            self.error = error or StringEnumFieldV2.default_error
+            self.error = error or EnumFieldV2.default_error
             self._validate_error(self.error)
 
             self.choices = [enum_instance.value for enum_instance in cast(Iterable[enum.Enum], enum_type)]
@@ -529,4 +529,4 @@ else:
             if not isinstance(default, enum_type):
                 raise ValueError(f"Default should be an instance of enum_type {enum_type}")
 
-    StringEnumField = StringEnumFieldV2
+    EnumField = EnumFieldV2

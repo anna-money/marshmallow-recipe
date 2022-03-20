@@ -12,8 +12,8 @@ import marshmallow_recipe as mr
 
 
 class Parity(str, enum.Enum):
-    ODD = "ODD"
-    EVEN = "EVEN"
+    ODD = "odd"
+    EVEN = "even"
 
 
 def test_simple_types() -> None:
@@ -59,8 +59,8 @@ def test_simple_types() -> None:
         optional_date_field="2022-02-20",
         dict_field=dict(key="value"),
         optional_dict_field=dict(key="value"),
-        enum_field="ODD",
-        optional_enum_field="EVEN",
+        enum_field="odd",
+        optional_enum_field="even",
     )
 
     loaded = mr.load(SimpleTypesContainers, raw)
@@ -215,8 +215,8 @@ def test_datetime_field_dump(dt: datetime.datetime, raw: str) -> None:
 @pytest.mark.parametrize(
     "value, raw",
     [
-        (Parity.ODD, "ODD"),
-        (Parity.EVEN, "EVEN"),
+        (Parity.ODD, "odd"),
+        (Parity.EVEN, "even"),
     ],
 )
 def test_enum_field_dump(value: Parity, raw: str) -> None:
@@ -231,8 +231,8 @@ def test_enum_field_dump(value: Parity, raw: str) -> None:
 @pytest.mark.parametrize(
     "raw, value",
     [
-        ("ODD", Parity.ODD),
-        ("EVEN", Parity.EVEN),
+        ("odd", Parity.ODD),
+        ("even", Parity.EVEN),
     ],
 )
 def test_enum_field_load(value: Parity, raw: str) -> None:
