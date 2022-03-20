@@ -1,3 +1,9 @@
+## v0.0.6(2022-03-20)
+
+* [Support enum](https://github.com/Pliner/marshmallow-recipe/pull/36)
+* [Add empty schema](https://github.com/Pliner/marshmallow-recipe/pull/31)
+
+
 ## v0.0.5(2022-03-01)
 
 * [Validate before dump for marshmallow3](https://github.com/Pliner/marshmallow-recipe/pull/25)
