@@ -21,8 +21,8 @@ def str_field(
     **_: Any,
 ) -> m.fields.Field:
     if required:
-        if default is not MISSING:
-            raise ValueError("Default values is not supported for required fields")
+        if default is None:
+            raise ValueError("Default value cannot be none")
 
         return m.fields.String(required=True, validate=validate, **data_key_fields(name))
 
@@ -43,8 +43,8 @@ def bool_field(
     **_: Any,
 ) -> m.fields.Field:
     if required:
-        if default is not MISSING:
-            raise ValueError("Default values is not supported for required fields")
+        if default is None:
+            raise ValueError("Default value cannot be none")
 
         return m.fields.Boolean(required=True, validate=validate, **data_key_fields(name))
 
@@ -67,8 +67,8 @@ def decimal_field(
     **_: Any,
 ) -> m.fields.Field:
     if required:
-        if default is not MISSING:
-            raise ValueError("Default values is not supported for required fields")
+        if default is None:
+            raise ValueError("Default value cannot be none")
         return m.fields.Decimal(
             required=True, as_string=as_string, places=places, validate=validate, **data_key_fields(name)
         )
@@ -92,8 +92,8 @@ def int_field(
     **_: Any,
 ) -> m.fields.Field:
     if required:
-        if default is not MISSING:
-            raise ValueError("Default values is not supported for required fields")
+        if default is None:
+            raise ValueError("Default value cannot be none")
         return m.fields.Int(required=True, validate=validate, **data_key_fields(name))
 
     return m.fields.Int(
@@ -113,8 +113,8 @@ def float_field(
     **_: Any,
 ) -> m.fields.Field:
     if required:
-        if default is not MISSING:
-            raise ValueError("Default values is not supported for required fields")
+        if default is None:
+            raise ValueError("Default value cannot be none")
         return m.fields.Float(required=True, validate=validate, **data_key_fields(name))
 
     return m.fields.Float(
@@ -134,8 +134,8 @@ def uuid_field(
     **_: Any,
 ) -> m.fields.Field:
     if required:
-        if default is not MISSING:
-            raise ValueError("Default values is not supported for required fields")
+        if default is None:
+            raise ValueError("Default value cannot be none")
         return m.fields.UUID(required=True, validate=validate, **data_key_fields(name))
 
     return m.fields.UUID(
@@ -155,8 +155,8 @@ def datetime_field(
     **_: Any,
 ) -> m.fields.Field:
     if required:
-        if default is not MISSING:
-            raise ValueError("Default values is not supported for required fields")
+        if default is None:
+            raise ValueError("Default value cannot be none")
         return DateTimeField(required=True, validate=validate, **data_key_fields(name))
 
     return DateTimeField(
@@ -176,8 +176,8 @@ def date_field(
     **_: Any,
 ) -> m.fields.Field:
     if required:
-        if default is not MISSING:
-            raise ValueError("Default values is not supported for required fields")
+        if default is None:
+            raise ValueError("Default value cannot be none")
         return m.fields.Date(required=True, validate=validate, **data_key_fields(name))
 
     return m.fields.Date(
@@ -201,12 +201,13 @@ def nested_field(
         raise ValueError("Validation is not supported")
 
     if required:
-        if default is not MISSING:
-            raise ValueError("Default values is not supported for required fields")
+        if default is None:
+            raise ValueError("Default value cannot be none")
         return m.fields.Nested(nested_schema, required=True, **data_key_fields(name))
 
     if default is not MISSING and default is not None:
-        raise ValueError("Default values is not supported for required fields")
+        raise ValueError("Default value is not supported for nested field")
+
     return m.fields.Nested(
         nested_schema,
         allow_none=True,
@@ -228,12 +229,13 @@ def list_field(
         raise ValueError("Validation is not supported")
 
     if required:
-        if default is not MISSING:
-            raise ValueError("Default values is not supported for required fields")
+        if default is None:
+            raise ValueError("Default value cannot be none")
         return m.fields.List(field, required=True, **data_key_fields(name))
 
     if default is not MISSING and default is not None:
-        raise ValueError("Default values is not supported for required fields")
+        raise ValueError("Default value is not supported for list field")
+
     return m.fields.List(
         field,
         allow_none=True,
@@ -254,12 +256,13 @@ def dict_field(
         raise ValueError("Validation is not supported")
 
     if required:
-        if default is not MISSING:
-            raise ValueError("Default values is not supported for required fields")
+        if default is None:
+            raise ValueError("Default value cannot be none")
         return m.fields.Dict(required=True, **data_key_fields(name))
 
     if default is not MISSING and default is not None:
-        raise ValueError("Default values is not supported for required fields")
+        raise ValueError("Default value is not supported for dict field")
+
     return m.fields.Dict(
         allow_none=True,
         **default_fields(None),
@@ -279,8 +282,8 @@ def enum_field(
         raise ValueError("Validation is not supported")
 
     if required:
-        if default is not MISSING:
-            raise ValueError("Default values is not supported for required fields")
+        if default is None:
+            raise ValueError("Default value cannot be none")
         return EnumField(
             enum_type=enum_type,
             required=True,

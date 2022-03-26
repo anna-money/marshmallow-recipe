@@ -40,26 +40,47 @@ def test_simple_types() -> None:
         enum_field: Parity
         optional_enum_field: Parity | None
 
+        str_field_with_default: str = "42"
+        bool_field_with_default: bool = True
+        decimal_field_with_default: decimal.Decimal = decimal.Decimal("42")
+        int_field_with_default: int = 42
+        float_field_with_default: float = 42.0
+        uuid_field_with_default: uuid.UUID = uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05")
+        datetime_field_with_default: datetime.datetime = datetime.datetime(
+            2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc
+        )
+        date_field_with_default: datetime.date = datetime.date(2022, 2, 20)
+        enum_field_with_default: Parity = Parity.ODD
+
     raw = dict(
         str_field="42",
+        str_field_with_default="42",
         optional_str_field="42",
         bool_field=True,
+        bool_field_with_default=True,
         optional_bool_field=True,
         decimal_field="42.00",
+        decimal_field_with_default="42.00",
         optional_decimal_field="42.00",
         int_field=42,
+        int_field_with_default=42,
         optional_int_field=42,
         float_field=42.0,
+        float_field_with_default=42.0,
         optional_float_field=42.0,
         uuid_field="15f75b02-1c34-46a2-92a5-18363aadea05",
+        uuid_field_with_default="15f75b02-1c34-46a2-92a5-18363aadea05",
         optional_uuid_field="15f75b02-1c34-46a2-92a5-18363aadea05",
         datetime_field="2022-02-20T11:33:48.607289+00:00",
+        datetime_field_with_default="2022-02-20T11:33:48.607289+00:00",
         optional_datetime_field="2022-02-20T11:33:48.607289+00:00",
         date_field="2022-02-20",
+        date_field_with_default="2022-02-20",
         optional_date_field="2022-02-20",
         dict_field=dict(key="value"),
         optional_dict_field=dict(key="value"),
         enum_field="odd",
+        enum_field_with_default="odd",
         optional_enum_field="even",
     )
 
