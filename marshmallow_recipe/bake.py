@@ -21,6 +21,7 @@ from .fields import (
     int_field,
     list_field,
     nested_field,
+    raw_field,
     str_field,
     uuid_field,
 )
@@ -62,6 +63,9 @@ def get_field_for(
     *,
     naming_case: NamingCase,
 ) -> m.fields.Field:
+    if type is Any:
+        return raw_field(**metadata)
+
     type = _substitute_any_to_open_generic(type)
 
     if typing_inspect.is_union_type(type):
