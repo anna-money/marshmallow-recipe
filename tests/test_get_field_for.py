@@ -66,6 +66,9 @@ EMPTY_SCHEMA = m.Schema()
 @pytest.mark.parametrize(
     "type, metadata, field",
     [
+        # Any
+        (Any, {}, m.fields.Raw(allow_none=True, **default_fields(None))),
+        (Any, mr.metadata(name="i"), m.fields.Raw(allow_none=True, **default_fields(None), **data_key_fields("i"))),
         # simple types: bool
         (bool, {}, m.fields.Bool(required=True)),
         (Optional[bool], {}, m.fields.Bool(allow_none=True, **default_fields(None))),
