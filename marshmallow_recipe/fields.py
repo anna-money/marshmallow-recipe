@@ -298,6 +298,21 @@ def enum_field(
     )
 
 
+def raw_field(
+    *,
+    default: Any | None | Missing = MISSING,
+    name: str | None = None,
+    validate: Callable[[Any], Any] | None = None,
+    **_: Any,
+) -> m.fields.Field:
+    return m.fields.Raw(
+        allow_none=True,
+        validate=validate,
+        **default_fields(None if default is MISSING else default),
+        **data_key_fields(name),
+    )
+
+
 DateTimeField: Type[m.fields.DateTime]
 EnumField: Type[m.fields.String]
 
