@@ -19,6 +19,7 @@ class Parity(str, enum.Enum):
 def test_simple_types() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class SimpleTypesContainers:
+        any_field: Any
         str_field: str
         optional_str_field: str | None
         bool_field: bool
@@ -53,6 +54,7 @@ def test_simple_types() -> None:
         enum_field_with_default: Parity = Parity.ODD
 
     raw = dict(
+        any_field={},
         str_field="42",
         str_field_with_default="42",
         optional_str_field="42",
@@ -88,6 +90,7 @@ def test_simple_types() -> None:
     dumped = mr.dump(loaded)
 
     assert loaded == SimpleTypesContainers(
+        any_field={},
         str_field="42",
         optional_str_field="42",
         bool_field=True,
