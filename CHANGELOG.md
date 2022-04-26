@@ -1,3 +1,8 @@
+## v0.0.9(2022-04-26)
+
+* [Support Any](https://github.com/Pliner/marshmallow-recipe/pull/42)
+
+
 ## v0.0.8(2022-03-26)
 
 * [Allow default value for required fields](https://github.com/Pliner/marshmallow-recipe/pull/39)

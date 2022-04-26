@@ -29,7 +29,7 @@ __all__: tuple[str, ...] = (
     "decimal_metadata",
 )
 
-__version__ = "0.0.8"
+__version__ = "0.0.9"
 
 version = f"{__version__}, Python {sys.version}"
 
