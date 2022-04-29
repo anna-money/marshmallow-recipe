@@ -2,7 +2,7 @@
 
 The main goal of this opinionated library is to simplify migration from marshmallow2 to marshmallow3. 
 Also, it helps with:
-1. Stop writing marshmallow schema completely: it generates them from dataclass. 
+1. Stop writing marshmallow schemas completely: it generates them from dataclass. 
 2. Using different naming cases(camel and capital camel cases are supported).
 3. Utilizing best practises on fields configuration.
 
