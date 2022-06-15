@@ -2,6 +2,7 @@
 
 * [Fix input of load_many](https://github.com/anna-money/marshmallow-recipe/pull/46)
 
+
 ## v0.0.9(2022-04-26)
 
 * [Support Any](https://github.com/Pliner/marshmallow-recipe/pull/42)
