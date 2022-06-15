@@ -34,7 +34,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         loaded: _T = schema(cls, naming_case=naming_case).load(data)
         return loaded
 
-    def load_many(cls: Type[_T], data: dict[str, Any], *, naming_case: NamingCase = DEFAULT_CASE) -> list[_T]:
+    def load_many(cls: Type[_T], data: list[dict[str, Any]], *, naming_case: NamingCase = DEFAULT_CASE) -> list[_T]:
         loaded: list[_T] = schema(cls, many=True, naming_case=naming_case).load(data)
         return loaded
 
@@ -73,7 +73,7 @@ else:
         loaded, _ = schema(cls, naming_case=naming_case).load(data)
         return cast(_T, loaded)
 
-    def load_many(cls: Type[_T], data: dict[str, Any], *, naming_case: NamingCase = DEFAULT_CASE) -> list[_T]:
+    def load_many(cls: Type[_T], data: list[dict[str, Any]], *, naming_case: NamingCase = DEFAULT_CASE) -> list[_T]:
         loaded, _ = schema(cls, many=True, naming_case=naming_case).load(data)
         return cast(list[_T], loaded)
 
