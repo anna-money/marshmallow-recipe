@@ -204,6 +204,20 @@ def test_schema_with_camel_case():
     assert dumped == origin
 
 
+def test_many():
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class BoolContainer:
+        bool_field: bool
+
+    loaded = mr.load_many(BoolContainer, [dict(bool_field=True), dict(bool_field=False)])
+    dumped = mr.dump_many(loaded)
+
+    assert loaded == [BoolContainer(bool_field=True), BoolContainer(bool_field=False)]
+    assert dumped == [dict(bool_field=True), dict(bool_field=False)]
+
+    assert mr.schema(BoolContainer) is mr.schema(BoolContainer)
+
+
 @pytest.mark.parametrize(
     "raw, dt",
     [
