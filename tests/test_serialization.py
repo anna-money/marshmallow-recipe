@@ -218,6 +218,20 @@ def test_many():
     assert mr.schema(BoolContainer) is mr.schema(BoolContainer)
 
 
+def test_many_empty():
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class BoolContainer:
+        bool_field: bool
+
+    loaded = mr.load_many(BoolContainer, [])
+    dumped = mr.dump_many(loaded)
+
+    assert loaded == []
+    assert dumped == []
+
+    assert mr.schema(BoolContainer) is mr.schema(BoolContainer)
+
+
 @pytest.mark.parametrize(
     "raw, dt",
     [
