@@ -26,7 +26,7 @@ from .fields import (
     uuid_field,
 )
 from .naming_case import NamingCase
-from .options import MarshmallowRecipeOptions, NoneValueHandling, get_options_for
+from .options import NoneValueHandling, get_options_for
 
 _T = TypeVar("_T")
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
@@ -47,7 +47,7 @@ def bake_schema(
     fields = dataclasses.fields(cls)
     schema_class = type(
         cls.__name__,
-        (_get_base_schema(cls, options),),
+        (_get_base_schema(cls, options.none_value_handling),),
         {
             field.name: get_field_for(
                 field.type,
@@ -122,14 +122,14 @@ def get_field_for(
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
-    def _get_base_schema(cls: Type[_T], options: MarshmallowRecipeOptions) -> Type[m.Schema]:
+    def _get_base_schema(cls: Type[_T], none_value_handling: NoneValueHandling) -> Type[m.Schema]:
         class _Schema(m.Schema):
             class Meta:
                 unknown = m.EXCLUDE
 
             @m.post_dump
             def remove_none_values(self, data: dict[str, Any], **_: Any) -> dict[str, Any]:
-                if options.none_value_handling == NoneValueHandling.IGNORE:
+                if none_value_handling == NoneValueHandling.IGNORE:
                     return {key: value for key, value in data.items() if value is not None}
                 return data
 
@@ -141,11 +141,11 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
 else:
 
-    def _get_base_schema(cls: Type[_T], options: MarshmallowRecipeOptions) -> Type[m.Schema]:
+    def _get_base_schema(cls: Type[_T], none_value_handling: NoneValueHandling) -> Type[m.Schema]:
         class _Schema(m.Schema):  # type: ignore
             @m.post_dump  # type: ignore
             def remove_none_values(self, data: dict[str, Any]) -> dict[str, Any]:
-                if options.none_value_handling == NoneValueHandling.IGNORE:
+                if none_value_handling == NoneValueHandling.IGNORE:
                     return {key: value for key, value in data.items() if value is not None}
                 return data
 
