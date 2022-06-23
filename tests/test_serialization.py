@@ -151,6 +151,22 @@ def test_custom_name() -> None:
     assert mr.schema(BoolContainer) is mr.schema(BoolContainer)
 
 
+def test_none() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class BoolContainer:
+        bool_field: bool | None = None
+
+    raw: dict[str, Any] = dict()
+
+    loaded = mr.load(BoolContainer, raw)
+    dumped = mr.dump(loaded)
+
+    assert loaded == BoolContainer(bool_field=None)
+    assert dumped == raw
+
+    assert mr.schema(BoolContainer) is mr.schema(BoolContainer)
+
+
 def test_unknown_field() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class BoolContainer:
@@ -326,3 +342,13 @@ def test_dump_many_invalid_value():
         mr.dump_many([UUIDContainer(uuid_field=cast(uuid.UUID, "invalid"))])
 
     assert exc_info.value.messages == {0: {"uuid_field": ["Not a valid UUID."]}}
+
+
+def test_naming_case_in_options() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @mr.options(naming_case=mr.CAMEL_CASE)
+    class TestFieldContainer:
+        test_field: str
+
+    dumped = mr.dump(TestFieldContainer(test_field="some_value"))
+    assert dumped == {"testField": "some_value"}

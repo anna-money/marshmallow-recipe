@@ -1,11 +1,11 @@
 from typing import Any, Callable, Mapping
 
-from .missing import MISSING, Missing
+from .missing import MISSING
 
 
 def metadata(
     *,
-    name: str | Missing = MISSING,
+    name: str = MISSING,
     validate: Callable[[Any], Any] | None = None,
 ) -> Mapping[Any, Any]:
     result: dict[Any, Any] = {}
@@ -18,9 +18,9 @@ def metadata(
 
 def decimal_metadata(
     *,
-    name: str | Missing = MISSING,
-    places: int | Missing = MISSING,
-    as_string: bool | Missing = MISSING,
+    name: str = MISSING,
+    places: int = MISSING,
+    as_string: bool = MISSING,
     validate: Callable[[Any], Any] | None = None,
 ) -> Mapping[Any, Any]:
     result: dict[Any, Any] = {}

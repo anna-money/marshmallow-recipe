@@ -9,6 +9,8 @@ Also, it helps with:
 
 ```python
 import dataclasses
+import datetime
+import decimal
 import marshmallow_recipe as mr
 import uuid
 
@@ -36,3 +38,28 @@ mr.load(Transaction, raw)
 mr.schema(Transaction)
 ```
 
+Update API example:
+
+```python
+import decimal
+import dataclasses
+import marshmallow_recipe as mr
+
+@dataclasses.dataclass(frozen=True)
+@mr.options(none_value_handling=mr.NoneValueHandling.INCLUDE)
+class CompanyUpdateData:
+    name: str = mr.MISSING
+    annual_turnover: decimal.Decimal | None = mr.MISSING
+
+company_update_data = CompanyUpdateData(name="updated name")
+dumped = mr.dump(company_update_data)
+assert dumped == {"name": "updated name"}  # Note: no "annual_turnover" here
+
+loaded = mr.load(CompanyUpdateData, {"name": "updated name"})
+assert loaded.name == "updated name"
+assert loaded.annual_turnover is mr.MISSING
+
+loaded = mr.load(CompanyUpdateData, {"annual_turnover": None})
+assert loaded.name is mr.MISSING
+assert loaded.annual_turnover is None
+```

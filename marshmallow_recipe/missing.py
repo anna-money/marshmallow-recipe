@@ -1,5 +1,5 @@
-from typing import NewType
+from typing import Any
 
-Missing = NewType("Missing", object)
+from marshmallow import missing
 
-MISSING = Missing(object())
+MISSING: Any = missing
