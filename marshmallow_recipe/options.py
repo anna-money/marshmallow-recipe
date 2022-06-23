@@ -47,6 +47,4 @@ def options(
 
 
 def get_options_for(type) -> DataclassOptions:
-    if not hasattr(type, _OPTIONS):
-        return _DEFAULT_OPTIONS
-    return getattr(type, _OPTIONS)
+    return getattr(type, _OPTIONS, _DEFAULT_OPTIONS)
