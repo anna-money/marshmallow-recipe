@@ -25,8 +25,8 @@ from .fields import (
     str_field,
     uuid_field,
 )
-from .missing import MISSING, Missing
 from .naming_case import DEFAULT_CASE, NamingCase
+from .options import MarshmallowRecipeOptions, NoneValueHandling, get_options_for
 
 _T = TypeVar("_T")
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
@@ -43,7 +43,7 @@ def bake_schema(
     fields = dataclasses.fields(cls)
     schema_class = type(
         cls.__name__,
-        (_get_base_schema(cls),),
+        (_get_base_schema(cls, get_options_for(cls)),),
         {
             field.name: get_field_for(
                 field.type,
@@ -118,14 +118,16 @@ def get_field_for(
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
-    def _get_base_schema(cls: Type[_T]) -> Type[m.Schema]:
+    def _get_base_schema(cls: Type[_T], options: MarshmallowRecipeOptions) -> Type[m.Schema]:
         class _Schema(m.Schema):
             class Meta:
                 unknown = m.EXCLUDE
 
             @m.post_dump
             def remove_none_values(self, data: dict[str, Any], **_: Any) -> dict[str, Any]:
-                return {key: value for key, value in data.items() if value is not None}
+                if options.none_value_handling == NoneValueHandling.IGNORE:
+                    return {key: value for key, value in data.items() if value is not None}
+                return data
 
             @m.post_load
             def post_load(self, data: dict[str, Any], **_: Any) -> Any:
@@ -135,11 +137,13 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
 else:
 
-    def _get_base_schema(cls: Type[_T]) -> Type[m.Schema]:
+    def _get_base_schema(cls: Type[_T], options: MarshmallowRecipeOptions) -> Type[m.Schema]:
         class _Schema(m.Schema):  # type: ignore
             @m.post_dump  # type: ignore
             def remove_none_values(self, data: dict[str, Any]) -> dict[str, Any]:
-                return {key: value for key, value in data.items() if value is not None}
+                if options.none_value_handling == NoneValueHandling.IGNORE:
+                    return {key: value for key, value in data.items() if value is not None}
+                return data
 
             @m.post_load  # type: ignore
             def post_load(self, data: dict[str, Any]) -> Any:
@@ -148,13 +152,11 @@ else:
         return _Schema
 
 
-def _get_field_default(field: dataclasses.Field[_T]) -> _T | Missing:
+def _get_field_default(field: dataclasses.Field[_T]) -> Any:
     default_factory = field.default_factory
     if default_factory is not dataclasses.MISSING:  # type: ignore
         raise ValueError(f"Default factory is not supported for {field}")
-    if field.default is not dataclasses.MISSING:
-        return field.default
-    return MISSING
+    return field.default
 
 
 class _FieldFactory(Generic[_T]):
@@ -163,7 +165,7 @@ class _FieldFactory(Generic[_T]):
         *,
         required: bool,
         name: str,
-        default: _T | Missing,
+        default: Any,
         **kwargs: Any,
     ) -> m.fields.Field:
         ...

@@ -1,13 +1,10 @@
+import dataclasses
 import datetime
-import decimal
 import enum
-import uuid
 from typing import Any, Callable, Iterable, Type, cast
 
 import marshmallow as m
 import marshmallow.validate
-
-from .missing import MISSING, Missing
 
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
 
@@ -15,11 +12,19 @@ _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
 def str_field(
     *,
     required: bool,
-    default: str | None | Missing = MISSING,
+    default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    if default is m.missing:
+        return m.fields.Str(
+            allow_none=not required,
+            validate=validate,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
@@ -29,7 +34,7 @@ def str_field(
     return m.fields.Str(
         allow_none=True,
         validate=validate,
-        **default_fields(None if default is MISSING else default),
+        **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
 
@@ -37,11 +42,19 @@ def str_field(
 def bool_field(
     *,
     required: bool,
-    default: bool | None | Missing = MISSING,
+    default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    if default is m.missing:
+        return m.fields.Bool(
+            allow_none=not required,
+            validate=validate,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
@@ -51,7 +64,7 @@ def bool_field(
     return m.fields.Bool(
         allow_none=True,
         validate=validate,
-        **default_fields(None if default is MISSING else default),
+        **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
 
@@ -59,13 +72,23 @@ def bool_field(
 def decimal_field(
     *,
     required: bool,
-    default: decimal.Decimal | None | Missing = MISSING,
+    default: Any = dataclasses.MISSING,
     name: str | None = None,
     places: int = 2,
     as_string: bool = True,
     validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    if default is m.missing:
+        return m.fields.Decimal(
+            allow_none=not required,
+            as_string=as_string,
+            places=places,
+            validate=validate,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
@@ -78,7 +101,7 @@ def decimal_field(
         as_string=as_string,
         places=places,
         validate=validate,
-        **default_fields(None if default is MISSING else default),
+        **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
 
@@ -86,11 +109,19 @@ def decimal_field(
 def int_field(
     *,
     required: bool,
-    default: int | None | Missing = MISSING,
+    default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    if default is m.missing:
+        return m.fields.Int(
+            allow_none=not required,
+            validate=validate,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
@@ -99,7 +130,7 @@ def int_field(
     return m.fields.Int(
         allow_none=True,
         validate=validate,
-        **default_fields(None if default is MISSING else default),
+        **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
 
@@ -107,11 +138,19 @@ def int_field(
 def float_field(
     *,
     required: bool,
-    default: float | None | Missing = MISSING,
+    default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    if default is m.missing:
+        return m.fields.Float(
+            allow_none=not required,
+            validate=validate,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
@@ -120,7 +159,7 @@ def float_field(
     return m.fields.Float(
         allow_none=True,
         validate=validate,
-        **default_fields(None if default is MISSING else default),
+        **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
 
@@ -128,11 +167,19 @@ def float_field(
 def uuid_field(
     *,
     required: bool,
-    default: uuid.UUID | None | Missing = MISSING,
+    default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    if default is m.missing:
+        return m.fields.UUID(
+            allow_none=not required,
+            validate=validate,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
@@ -141,7 +188,7 @@ def uuid_field(
     return m.fields.UUID(
         allow_none=True,
         validate=validate,
-        **default_fields(None if default is MISSING else default),
+        **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
 
@@ -149,11 +196,19 @@ def uuid_field(
 def datetime_field(
     *,
     required: bool,
-    default: datetime.datetime | None | Missing = MISSING,
+    default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    if default is m.missing:
+        return DateTimeField(
+            allow_none=not required,
+            validate=validate,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
@@ -162,7 +217,7 @@ def datetime_field(
     return DateTimeField(
         allow_none=True,
         validate=validate,
-        **default_fields(None if default is MISSING else default),
+        **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
 
@@ -170,11 +225,19 @@ def datetime_field(
 def date_field(
     *,
     required: bool,
-    default: datetime.date | None | Missing = MISSING,
+    default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    if default is m.missing:
+        return m.fields.Date(
+            allow_none=not required,
+            validate=validate,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
@@ -183,7 +246,7 @@ def date_field(
     return m.fields.Date(
         allow_none=True,
         validate=validate,
-        **default_fields(None if default is MISSING else default),
+        **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
 
@@ -192,7 +255,7 @@ def nested_field(
     nested_schema: Type[m.Schema],
     *,
     required: bool,
-    default: Any | None | Missing = MISSING,
+    default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: Callable[[Any], Any] | None = None,
     **_: Any,
@@ -200,12 +263,20 @@ def nested_field(
     if validate is not None:
         raise ValueError("Validation is not supported")
 
+    if default is m.missing:
+        return m.fields.Nested(
+            nested_schema,
+            allow_none=not required,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
         return m.fields.Nested(nested_schema, required=True, **data_key_fields(name))
 
-    if default is not MISSING and default is not None:
+    if default is not dataclasses.MISSING and default is not None:
         raise ValueError("Default value is not supported for nested field")
 
     return m.fields.Nested(
@@ -220,7 +291,7 @@ def list_field(
     field: m.fields.Field,
     *,
     required: bool,
-    default: Any | None | Missing = MISSING,
+    default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: Callable[[Any], Any] | None = None,
     **_: Any,
@@ -228,12 +299,20 @@ def list_field(
     if validate is not None:
         raise ValueError("Validation is not supported")
 
+    if default is m.missing:
+        return m.fields.List(
+            field,
+            allow_none=not required,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
         return m.fields.List(field, required=True, **data_key_fields(name))
 
-    if default is not MISSING and default is not None:
+    if default is not dataclasses.MISSING and default is not None:
         raise ValueError("Default value is not supported for list field")
 
     return m.fields.List(
@@ -247,7 +326,7 @@ def list_field(
 def dict_field(
     *,
     required: bool,
-    default: Any | None | Missing = MISSING,
+    default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: Callable[[Any], Any] | None = None,
     **_: Any,
@@ -260,7 +339,7 @@ def dict_field(
             raise ValueError("Default value cannot be none")
         return m.fields.Dict(required=True, **data_key_fields(name))
 
-    if default is not MISSING and default is not None:
+    if default is not dataclasses.MISSING and default is not None:
         raise ValueError("Default value is not supported for dict field")
 
     return m.fields.Dict(
@@ -275,9 +354,17 @@ def enum_field(
     *,
     required: bool,
     name: str | None = None,
-    default: Any | None | Missing = MISSING,
+    default: Any = dataclasses.MISSING,
     validate: Callable[[Any], Any] | None = None,
 ) -> marshmallow.fields.Field:
+    if default is m.missing:
+        return EnumField(
+            enum_type=enum_type,
+            allow_none=not required,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
     if validate is not None:
         raise ValueError("Validation is not supported")
 
@@ -293,14 +380,14 @@ def enum_field(
     return EnumField(
         enum_type=enum_type,
         allow_none=True,
-        **default_fields(None if default is MISSING else default),
+        **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
 
 
 def raw_field(
     *,
-    default: Any | None | Missing = MISSING,
+    default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: Callable[[Any], Any] | None = None,
     **_: Any,
@@ -308,7 +395,7 @@ def raw_field(
     return m.fields.Raw(
         allow_none=True,
         validate=validate,
-        **default_fields(None if default is MISSING else default),
+        **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
 
@@ -438,7 +525,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                     raise ValueError(f"There is enum value, which is not a string: {choice}")
 
         @staticmethod
-        def _validate_default(enum_type: Any, default: enum.Enum | None | Missing, allow_none: bool) -> None:
+        def _validate_default(enum_type: Any, default: Any, allow_none: bool) -> None:
             if default is m.missing:
                 return
 
@@ -571,7 +658,7 @@ else:
                     raise ValueError(f"There is enum value, which is not a string: {choice}")
 
         @staticmethod
-        def _validate_default(enum_type: Any, default: enum.Enum | None | Missing, allow_none: bool) -> None:
+        def _validate_default(enum_type: Any, default: Any, allow_none: bool) -> None:
             if default is m.missing:
                 return
 
