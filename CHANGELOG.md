@@ -1,3 +1,8 @@
+## v0.0.11(2022-06-23)
+
+* [Add options, MISSING, none_value_handling](https://github.com/anna-money/marshmallow-recipe/pull/47)
+
+
 ## v0.0.10(2022-06-15)
 
 * [Fix input of load_many](https://github.com/anna-money/marshmallow-recipe/pull/46)
