@@ -25,7 +25,7 @@ from .fields import (
     str_field,
     uuid_field,
 )
-from .naming_case import DEFAULT_CASE, NamingCase
+from .naming_case import NamingCase
 from .options import MarshmallowRecipeOptions, NoneValueHandling, get_options_for
 
 _T = TypeVar("_T")
@@ -35,15 +35,19 @@ _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
 def bake_schema(
     cls: Type[_T],
     *,
-    naming_case: NamingCase = DEFAULT_CASE,
+    naming_case: NamingCase | None = None,
 ) -> Type[m.Schema]:
     if not dataclasses.is_dataclass(cls):
         raise ValueError(f"{cls} is not a dataclass")
 
+    options = get_options_for(cls)
+    if naming_case is None:
+        naming_case = options.naming_case
+
     fields = dataclasses.fields(cls)
     schema_class = type(
         cls.__name__,
-        (_get_base_schema(cls, get_options_for(cls)),),
+        (_get_base_schema(cls, options),),
         {
             field.name: get_field_for(
                 field.type,
