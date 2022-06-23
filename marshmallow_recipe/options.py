@@ -16,12 +16,12 @@ class NoneValueHandling(str, enum.Enum):
 
 
 @dataclasses.dataclass(kw_only=True, slots=True, frozen=True)
-class MarshmallowRecipeOptions:
+class DataclassOptions:
     none_value_handling: NoneValueHandling
     naming_case: NamingCase
 
 
-_DEFAULT_OPTIONS = MarshmallowRecipeOptions(
+_DEFAULT_OPTIONS = DataclassOptions(
     none_value_handling=NoneValueHandling.IGNORE,
     naming_case=DEFAULT_CASE,
 )
@@ -36,7 +36,7 @@ def options(
         setattr(
             cls,
             _OPTIONS,
-            MarshmallowRecipeOptions(
+            DataclassOptions(
                 none_value_handling=none_value_handling,
                 naming_case=naming_case,
             ),
@@ -46,7 +46,7 @@ def options(
     return wrap
 
 
-def get_options_for(type) -> MarshmallowRecipeOptions:
+def get_options_for(type) -> DataclassOptions:
     if not hasattr(type, _OPTIONS):
         return _DEFAULT_OPTIONS
     return getattr(type, _OPTIONS)
