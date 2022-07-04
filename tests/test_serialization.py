@@ -352,3 +352,14 @@ def test_naming_case_in_options() -> None:
 
     dumped = mr.dump(TestFieldContainer(test_field="some_value"))
     assert dumped == {"testField": "some_value"}
+
+
+def test_load_dump_funcs() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class IntValueContainer:
+        value: int
+
+    load = mr.get_load_func(IntValueContainer, naming_case=mr.CAPITAL_CAMEL_CASE)
+    dump = mr.get_dump_func(IntValueContainer, naming_case=mr.CAPITAL_CAMEL_CASE)
+
+    assert IntValueContainer(value=42) == load(dump(IntValueContainer(value=42)))

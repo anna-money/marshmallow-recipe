@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, Type, TypeVar, cast
+from typing import Any, Callable, Type, TypeVar, cast
 
 import marshmallow as m
 
@@ -93,3 +93,17 @@ else:
 
 
 EmptySchema = m.Schema
+
+
+def get_load_func(cls: Type[_T], *, naming_case: NamingCase | None = None) -> Callable[[dict[str, Any]], _T]:
+    def _load(data: dict[str, Any]) -> _T:
+        return load(cls, data, naming_case=naming_case)
+
+    return _load
+
+
+def get_dump_func(_: Type[_T], *, naming_case: NamingCase | None = None) -> Callable[[_T], dict[str, Any]]:
+    def _dump(data: _T) -> dict[str, Any]:
+        return dump(data, naming_case=naming_case)
+
+    return _dump

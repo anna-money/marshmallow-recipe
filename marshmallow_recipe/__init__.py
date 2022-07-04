@@ -7,7 +7,7 @@ from .metadata import decimal_metadata, metadata
 from .missing import MISSING
 from .naming_case import CAMEL_CASE, CAPITAL_CAMEL_CASE, DEFAULT_CASE, CamelCase, CapitalCamelCase, NamingCase
 from .options import NoneValueHandling, options
-from .serialization import EmptySchema, dump, dump_many, load, load_many, schema
+from .serialization import EmptySchema, dump, dump_many, get_dump_func, get_load_func, load, load_many, schema
 
 __all__: tuple[str, ...] = (
     "bake_schema",
@@ -21,10 +21,12 @@ __all__: tuple[str, ...] = (
     "MISSING",
     "NamingCase",
     "DEFAULT_CASE",
-    "load",
-    "load_many",
     "dump",
     "dump_many",
+    "get_dump_func",
+    "get_load_func",
+    "load",
+    "load_many",
     "schema",
     "EmptySchema",
     "metadata",
