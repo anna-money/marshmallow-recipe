@@ -1,6 +1,6 @@
 pytest==7.1.2
 isort==5.10.1
-flake8==4.0.1
+flake8==5.0.4
 black==22.6.0
 mypy==0.971
 marshmallow>=2,<4
