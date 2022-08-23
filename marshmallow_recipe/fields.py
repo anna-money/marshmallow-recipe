@@ -418,7 +418,18 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     class DateTimeFieldV3(m.fields.DateTime):
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
-            result = super()._deserialize(value, attr, data, **kwargs)
+            try:
+                result = super()._deserialize(value, attr, data, **kwargs)
+            except m.ValidationError:
+                if self.format is None:  # type: ignore
+                    raise
+
+                try:
+                    func = self.DESERIALIZATION_FUNCS[self.DEFAULT_FORMAT]  # type: ignore
+                    result = func(value)
+                except (TypeError, AttributeError, ValueError) as error:
+                    raise self.make_error("invalid", input=value, obj_type=self.OBJ_TYPE) from error  # type: ignore
+
             if result.tzinfo is None:
                 return result.replace(tzinfo=datetime.timezone.utc)
             return result.astimezone(datetime.timezone.utc)
@@ -558,7 +569,18 @@ else:
 
     class DateTimeFieldV2(m.fields.DateTime):
         def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:
-            result = super()._deserialize(value, attr, data)
+            try:
+                result = super()._deserialize(value, attr, data)
+            except m.ValidationError:
+                if self.dateformat is None:  # type: ignore
+                    raise
+
+                try:
+                    func = self.DATEFORMAT_DESERIALIZATION_FUNCS[self.DEFAULT_FORMAT]  # type: ignore
+                    result = func(value)
+                except (TypeError, AttributeError, ValueError):
+                    raise self.fail("invalid")
+
             if result.tzinfo is None:
                 return result.replace(tzinfo=datetime.timezone.utc)
             if dateutil_tz_utc_cls is not None and isinstance(result.tzinfo, dateutil_tz_utc_cls):
