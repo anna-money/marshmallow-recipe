@@ -7,8 +7,8 @@ def metadata(
     *,
     name: str = MISSING,
     validate: Callable[[Any], Any] | None = None,
-) -> Mapping[Any, Any]:
-    result: dict[Any, Any] = {}
+) -> Mapping[str, Any]:
+    result: dict[str, Any] = {}
     if name is not MISSING:
         result.update(name=name)
     if validate is not None:
@@ -22,8 +22,8 @@ def decimal_metadata(
     places: int = MISSING,
     as_string: bool = MISSING,
     validate: Callable[[Any], Any] | None = None,
-) -> Mapping[Any, Any]:
-    result: dict[Any, Any] = {}
+) -> Mapping[str, Any]:
+    result: dict[str, Any] = {}
     if name is not MISSING:
         result.update(name=name)
     if places is not MISSING:
@@ -32,4 +32,20 @@ def decimal_metadata(
         result.update(as_string=as_string)
     if validate is not None:
         result.update(validate=validate)
+    return result
+
+
+def datetime_metadata(
+    *,
+    name: str = MISSING,
+    validate: Callable[[Any], Any] | None = None,
+    format: str | None = None,
+) -> Mapping[str, Any]:
+    result: dict[str, Any] = {}
+    if name is not MISSING:
+        result.update(name=name)
+    if validate is not None:
+        result.update(validate=validate)
+    if format is not None:
+        result.update(format=format)
     return result

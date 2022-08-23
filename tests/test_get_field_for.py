@@ -189,18 +189,22 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             datetime.datetime,
-            mr.metadata(name="i"),
-            mr.fields.DateTimeField(required=True, **data_key_fields("i")),
+            mr.datetime_metadata(name="i", format="%Y-%m-%dT%H:%M:%SZ"),
+            mr.fields.DateTimeField(required=True, **data_key_fields("i"), format="%Y-%m-%dT%H:%M:%SZ"),
         ),
         (
             Optional[datetime.datetime],
-            mr.metadata(name="i"),
-            mr.fields.DateTimeField(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.datetime_metadata(name="i", format="%Y-%m-%dT%H:%M:%SZ"),
+            mr.fields.DateTimeField(
+                allow_none=True, **default_fields(None), **data_key_fields("i"), format="%Y-%m-%dT%H:%M:%SZ"
+            ),
         ),
         (
             datetime.datetime | None,
-            mr.metadata(name="i"),
-            mr.fields.DateTimeField(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.datetime_metadata(name="i", format="%Y-%m-%dT%H:%M:%SZ"),
+            mr.fields.DateTimeField(
+                allow_none=True, **default_fields(None), **data_key_fields("i"), format="%Y-%m-%dT%H:%M:%SZ"
+            ),
         ),
         # simple types: date
         (datetime.date, {}, m.fields.Date(required=True)),

@@ -1,3 +1,8 @@
+## v0.0.12(2022-08-23)
+
+* [Add datetime_metadata to allow to specify a custom format](https://github.com/anna-money/marshmallow-recipe/pull/55)
+
+
 ## v0.0.11(2022-06-23)
 
 * [Add options, MISSING, none_value_handling](https://github.com/anna-money/marshmallow-recipe/pull/47)

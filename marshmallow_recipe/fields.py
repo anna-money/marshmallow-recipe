@@ -199,12 +199,14 @@ def datetime_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: Callable[[Any], Any] | None = None,
+    format: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
         return DateTimeField(
             allow_none=not required,
             validate=validate,
+            format=format,
             **default_fields(m.missing),
             **data_key_fields(name),
         )
@@ -212,11 +214,12 @@ def datetime_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return DateTimeField(required=True, validate=validate, **data_key_fields(name))
+        return DateTimeField(required=True, validate=validate, format=format, **data_key_fields(name))
 
     return DateTimeField(
         allow_none=True,
         validate=validate,
+        format=format,
         **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
