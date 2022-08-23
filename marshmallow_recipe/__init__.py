@@ -3,7 +3,7 @@ import re
 import sys
 
 from .bake import bake_schema, get_field_for
-from .metadata import decimal_metadata, metadata, datetime_metadata
+from .metadata import datetime_metadata, decimal_metadata, metadata
 from .missing import MISSING
 from .naming_case import CAMEL_CASE, CAPITAL_CAMEL_CASE, DEFAULT_CASE, CamelCase, CapitalCamelCase, NamingCase
 from .options import NoneValueHandling, options
