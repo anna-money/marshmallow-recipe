@@ -3,7 +3,7 @@ import re
 import sys
 
 from .bake import bake_schema, get_field_for
-from .metadata import decimal_metadata, metadata
+from .metadata import decimal_metadata, metadata, datetime_metadata
 from .missing import MISSING
 from .naming_case import CAMEL_CASE, CAPITAL_CAMEL_CASE, DEFAULT_CASE, CamelCase, CapitalCamelCase, NamingCase
 from .options import NoneValueHandling, options
@@ -29,9 +29,10 @@ __all__: tuple[str, ...] = (
     "EmptySchema",
     "metadata",
     "decimal_metadata",
+    "datetime_metadata",
 )
 
-__version__ = "0.0.11"
+__version__ = "0.0.12"
 
 version = f"{__version__}, Python {sys.version}"
 

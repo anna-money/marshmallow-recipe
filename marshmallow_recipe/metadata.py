@@ -33,3 +33,19 @@ def decimal_metadata(
     if validate is not None:
         result.update(validate=validate)
     return result
+
+
+def datetime_metadata(
+    *,
+    name: str = MISSING,
+    validate: Callable[[Any], Any] | None = None,
+    format: str | None = None,
+) -> Mapping[Any, Any]:
+    result: dict[Any, Any] = {}
+    if name is not MISSING:
+        result.update(name=name)
+    if validate is not None:
+        result.update(validate=validate)
+    if format is not None:
+        result.update(format=format)
+    return result
