@@ -359,6 +359,7 @@ def test_naming_case_in_options() -> None:
     [
         ("  \t   \r\n  some_value  \t   \n \r  ", "some_value"),
         ("", ""),
+        ("   \t \r \n   ", ""),
     ],
 )
 def test_deserialize_string_trims_value(dumped_value: str, loaded_value: str) -> None:
@@ -376,6 +377,7 @@ def test_deserialize_string_trims_value(dumped_value: str, loaded_value: str) ->
     [
         ("  \t   \r\n  some_value  \t   \n \r  ", "some_value"),
         ("", None),
+        ("   \t \r \n   ", None),
         (None, None),
     ],
 )
