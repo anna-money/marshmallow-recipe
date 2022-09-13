@@ -85,19 +85,19 @@ EMPTY_SCHEMA = m.Schema()
             m.fields.Bool(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: str
-        (str, {}, m.fields.Str(required=True)),
-        (Optional[str], {}, m.fields.Str(allow_none=True, **default_fields(None))),
-        (str | None, {}, m.fields.Str(allow_none=True, **default_fields(None))),
-        (str, mr.metadata(name="i"), m.fields.Str(required=True, **data_key_fields("i"))),
+        (str, {}, mr.fields.StringField(required=True)),
+        (Optional[str], {}, mr.fields.StringField(allow_none=True, **default_fields(None))),
+        (str | None, {}, mr.fields.StringField(allow_none=True, **default_fields(None))),
+        (str, mr.metadata(name="i"), mr.fields.StringField(required=True, **data_key_fields("i"))),
         (
             Optional[str],
             mr.metadata(name="i"),
-            m.fields.Str(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.fields.StringField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             str | None,
             mr.metadata(name="i"),
-            m.fields.Str(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.fields.StringField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: int
         (int, {}, m.fields.Int(required=True)),

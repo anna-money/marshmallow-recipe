@@ -352,3 +352,38 @@ def test_naming_case_in_options() -> None:
 
     dumped = mr.dump(TestFieldContainer(test_field="some_value"))
     assert dumped == {"testField": "some_value"}
+
+
+@pytest.mark.parametrize(
+    "dumped_value, loaded_value",
+    [
+        ("  \t   \r\n  some_value  \t   \n \r  ", "some_value"),
+        ("", ""),
+    ],
+)
+def test_deserialize_string_trims_value(dumped_value: str, loaded_value: str) -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @mr.options(naming_case=mr.CAMEL_CASE)
+    class TestFieldContainer:
+        test_field: str
+
+    loaded = mr.load(TestFieldContainer, {"testField": dumped_value})
+    assert loaded == TestFieldContainer(test_field=loaded_value)
+
+
+@pytest.mark.parametrize(
+    "dumped_value, loaded_value",
+    [
+        ("  \t   \r\n  some_value  \t   \n \r  ", "some_value"),
+        ("", None),
+        (None, None),
+    ],
+)
+def test_deserialize_optional_string_trims_value(dumped_value: str | None, loaded_value: str | None) -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @mr.options(naming_case=mr.CAMEL_CASE)
+    class TestFieldContainer:
+        test_field: str | None
+
+    loaded = mr.load(TestFieldContainer, {"testField": dumped_value})
+    assert loaded == TestFieldContainer(test_field=loaded_value)

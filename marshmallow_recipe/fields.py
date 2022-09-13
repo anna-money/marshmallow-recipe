@@ -18,7 +18,7 @@ def str_field(
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
-        return m.fields.Str(
+        return StringField(
             allow_none=not required,
             validate=validate,
             **default_fields(m.missing),
@@ -29,9 +29,9 @@ def str_field(
         if default is None:
             raise ValueError("Default value cannot be none")
 
-        return m.fields.String(required=True, validate=validate, **data_key_fields(name))
+        return StringField(required=True, validate=validate, **data_key_fields(name))
 
-    return m.fields.Str(
+    return StringField(
         allow_none=True,
         validate=validate,
         **default_fields(None if default is dataclasses.MISSING else default),
@@ -405,6 +405,17 @@ def raw_field(
 
 DateTimeField: Type[m.fields.DateTime]
 EnumField: Type[m.fields.String]
+
+
+class StringField(m.fields.String):
+    def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+        result = super()._deserialize(value, attr, data, **kwargs)
+        if result is not None:
+            result = value.strip()
+        if self.allow_none and result == "":
+            result = None
+        return result
+
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
