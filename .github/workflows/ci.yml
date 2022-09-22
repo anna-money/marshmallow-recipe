@@ -18,7 +18,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ["3.10"]
+        python-version: ["3.10", "3.11.0-alpha - 3.11.0"]
         marshmallow: ["marshmallow>=2,<3", "marshmallow[reco]>=2,<3", "marshmallow>=3,<4"]
 
     steps:
