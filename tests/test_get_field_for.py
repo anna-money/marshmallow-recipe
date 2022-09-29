@@ -64,11 +64,11 @@ EMPTY_SCHEMA = m.Schema()
 
 
 @pytest.mark.parametrize(
-    "type, metadata, field",
+    "type, metadata, default_string_value_sanitizing, field",
     [
         # Any
-        (Any, {}, m.fields.Raw(allow_none=True, **default_fields(None))),
-        (Any, mr.metadata(name="i"), m.fields.Raw(allow_none=True, **default_fields(None), **data_key_fields("i"))),
+        (Any, {}, mr.StringValueSanitizing.DISABLED, m.fields.Raw(allow_none=True, **default_fields(None))),
+        (Any, mr.metadata(name="i"), mr.StringValueSanitizing.DISABLED, m.fields.Raw(allow_none=True, **default_fields(None), **data_key_fields("i"))),
         # simple types: bool
         (bool, {}, m.fields.Bool(required=True)),
         (Optional[bool], {}, m.fields.Bool(allow_none=True, **default_fields(None))),
@@ -407,7 +407,8 @@ EMPTY_SCHEMA = m.Schema()
         ),
     ],
 )
-def test_get_field_for(type: type, metadata: dict[str, Any], field: m.fields.Field) -> None:
+def test_get_field_for(type: type, metadata: dict[str, Any], default_string_value_sanitizing: mr.StringValueSanitizing,
+                       field: m.fields.Field) -> None:
     with unittest.mock.patch("marshmallow_recipe.bake.bake_schema") as bake_schema:
         bake_schema.return_value = EMPTY_SCHEMA
-        assert_fields_equal(mr.get_field_for(type, metadata, naming_case=mr.DEFAULT_CASE), field)
+        assert_fields_equal(mr.get_field_for(type, metadata, naming_case=mr.DEFAULT_CASE, string_value_sanitizing=default_string_value_sanitizing), field)

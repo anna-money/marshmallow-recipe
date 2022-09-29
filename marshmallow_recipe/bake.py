@@ -26,7 +26,7 @@ from .fields import (
     uuid_field,
 )
 from .naming_case import NamingCase
-from .options import NoneValueHandling, get_options_for, StringValueSanitizing
+from .options import NoneValueHandling, StringValueSanitizing, get_options_for
 
 _T = TypeVar("_T")
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
@@ -57,6 +57,7 @@ def bake_schema(
                 field.type,
                 _get_metadata(name=naming_case(field.name), default=_get_field_default(field), metadata=field.metadata),
                 naming_case=naming_case,
+                string_value_sanitizing=string_value_sanitizing,
             )
             for field in fields
             if field.init
@@ -70,6 +71,7 @@ def get_field_for(
     metadata: Mapping[str, Any],
     *,
     naming_case: NamingCase,
+    string_value_sanitizing: StringValueSanitizing,
 ) -> m.fields.Field:
     if type is Any:
         return raw_field(**metadata)
@@ -92,6 +94,11 @@ def get_field_for(
     else:
         required = True
 
+    if isinstance(type, str):
+        if "string_value_sanitizing" not in metadata:
+            metadata = string_value_sanitizing
+        return str_field(required=required, **metadata)
+
     field_factory = _SIMPLE_TYPE_FIELD_FACTORIES.get(type)
     if field_factory:
         typed_field_factory = cast(_FieldFactory[_T], field_factory)
@@ -111,7 +118,9 @@ def get_field_for(
         arguments = typing_inspect.get_args(type, True)
         if origin in (list, List):
             return list_field(
-                get_field_for(arguments[0], metadata={}, naming_case=naming_case),
+                get_field_for(
+                    arguments[0], metadata={}, naming_case=naming_case, string_value_sanitizing=string_value_sanitizing
+                ),
                 required=required,
                 **metadata,
             )
@@ -181,7 +190,6 @@ class _FieldFactory(Generic[_T]):
 
 _SIMPLE_TYPE_FIELD_FACTORIES: dict[type, object] = {
     bool: bool_field,
-    str: str_field,
     decimal.Decimal: decimal_field,
     int: int_field,
     float: float_field,
