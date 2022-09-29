@@ -6,6 +6,8 @@ from typing import Any, Callable, Iterable, Type, cast
 import marshmallow as m
 import marshmallow.validate
 
+from .options import StringValueSanitizing
+
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
 
 
@@ -15,10 +17,12 @@ def str_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: Callable[[Any], Any] | None = None,
+    string_value_sanitizing: StringValueSanitizing = StringValueSanitizing.DISABLED,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
         return StringField(
+            string_value_sanitizing=string_value_sanitizing,
             allow_none=not required,
             validate=validate,
             **default_fields(m.missing),
@@ -29,9 +33,15 @@ def str_field(
         if default is None:
             raise ValueError("Default value cannot be none")
 
-        return StringField(required=True, validate=validate, **data_key_fields(name))
+        return StringField(
+            string_value_sanitizing=string_value_sanitizing,
+            required=True,
+            validate=validate,
+            **data_key_fields(name),
+        )
 
     return StringField(
+        string_value_sanitizing=string_value_sanitizing,
         allow_none=True,
         validate=validate,
         **default_fields(None if default is dataclasses.MISSING else default),
@@ -408,13 +418,24 @@ EnumField: Type[m.fields.String]
 
 
 class StringField(m.fields.String):
+    def __init__(self, *args, string_value_sanitizing: StringValueSanitizing, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.string_value_sanitizing = string_value_sanitizing
+
     def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
         result = super()._deserialize(value, attr, data, **kwargs)
-        if result is not None:
-            result = value.strip()
-        if self.allow_none and result == "":
-            result = None
-        return result
+
+        match self.string_value_sanitizing:
+            case StringValueSanitizing.DISABLED:
+                return result
+            case StringValueSanitizing.STRIP:
+                if result is not None:
+                    result = value.strip()
+                if self.allow_none and result == "":
+                    result = None
+                return result
+            case _:
+                raise ValueError(f"Unsupported {self.string_value_sanitizing=}")
 
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:

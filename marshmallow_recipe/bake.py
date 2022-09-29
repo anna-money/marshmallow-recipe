@@ -26,7 +26,7 @@ from .fields import (
     uuid_field,
 )
 from .naming_case import NamingCase
-from .options import NoneValueHandling, get_options_for
+from .options import NoneValueHandling, get_options_for, StringValueSanitizing
 
 _T = TypeVar("_T")
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
@@ -36,6 +36,7 @@ def bake_schema(
     cls: Type[_T],
     *,
     naming_case: NamingCase | None = None,
+    string_value_sanitizing: StringValueSanitizing | None = None,
 ) -> Type[m.Schema]:
     if not dataclasses.is_dataclass(cls):
         raise ValueError(f"{cls} is not a dataclass")
@@ -43,6 +44,9 @@ def bake_schema(
     options = get_options_for(cls)
     if naming_case is None:
         naming_case = options.naming_case
+
+    if string_value_sanitizing is None:
+        string_value_sanitizing = options.string_value_sanitizing
 
     fields = dataclasses.fields(cls)
     schema_class = type(

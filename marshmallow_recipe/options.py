@@ -15,14 +15,24 @@ class NoneValueHandling(str, enum.Enum):
         return self.value
 
 
+class StringValueSanitizing(str, enum.Enum):
+    DISABLED = "DISABLED"
+    STRIP = "STRIP"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 @dataclasses.dataclass(kw_only=True, slots=True, frozen=True)
 class DataclassOptions:
     none_value_handling: NoneValueHandling
+    string_value_sanitizing: StringValueSanitizing
     naming_case: NamingCase
 
 
 _DEFAULT_OPTIONS = DataclassOptions(
     none_value_handling=NoneValueHandling.IGNORE,
+    string_value_sanitizing=StringValueSanitizing.DISABLED,
     naming_case=DEFAULT_CASE,
 )
 
@@ -30,6 +40,7 @@ _DEFAULT_OPTIONS = DataclassOptions(
 def options(
     *,
     none_value_handling: NoneValueHandling = _DEFAULT_OPTIONS.none_value_handling,
+    string_value_sanitizing: StringValueSanitizing = _DEFAULT_OPTIONS.string_value_sanitizing,
     naming_case: NamingCase = _DEFAULT_OPTIONS.naming_case,
 ):
     def wrap(cls: Any):
@@ -38,6 +49,7 @@ def options(
             _OPTIONS,
             DataclassOptions(
                 none_value_handling=none_value_handling,
+                string_value_sanitizing=string_value_sanitizing,
                 naming_case=naming_case,
             ),
         )

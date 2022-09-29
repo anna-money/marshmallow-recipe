@@ -1,6 +1,7 @@
 from typing import Any, Callable, Mapping
 
 from .missing import MISSING
+from .options import StringValueSanitizing
 
 
 def metadata(
@@ -13,6 +14,22 @@ def metadata(
         result.update(name=name)
     if validate is not None:
         result.update(validate=validate)
+    return result
+
+
+def str_metadata(
+    *,
+    name: str = MISSING,
+    validate: Callable[[Any], Any] | None = None,
+    string_value_sanitizing: StringValueSanitizing = MISSING,
+) -> Mapping[str, Any]:
+    result: dict[str, Any] = {}
+    if name is not MISSING:
+        result.update(name=name)
+    if validate is not None:
+        result.update(validate=validate)
+    if string_value_sanitizing is not MISSING:
+        result.update(string_value_sanitizing=string_value_sanitizing)
     return result
 
 

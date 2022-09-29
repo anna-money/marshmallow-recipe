@@ -362,13 +362,14 @@ def test_naming_case_in_options() -> None:
         ("   \t \r \n   ", ""),
     ],
 )
-def test_deserialize_string_trims_value(dumped_value: str, loaded_value: str) -> None:
+def test_deserialize_string_strips_value(dumped_value: str, loaded_value: str) -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    @mr.options(naming_case=mr.CAMEL_CASE)
     class TestFieldContainer:
-        test_field: str
+        test_field: str = dataclasses.field(
+            metadata=mr.str_metadata(string_value_sanitizing=mr.StringValueSanitizing.STRIP)
+        )
 
-    loaded = mr.load(TestFieldContainer, {"testField": dumped_value})
+    loaded = mr.load(TestFieldContainer, {"test_field": dumped_value})
     assert loaded == TestFieldContainer(test_field=loaded_value)
 
 
@@ -383,9 +384,47 @@ def test_deserialize_string_trims_value(dumped_value: str, loaded_value: str) ->
 )
 def test_deserialize_optional_string_trims_value(dumped_value: str | None, loaded_value: str | None) -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    @mr.options(naming_case=mr.CAMEL_CASE)
+    class TestFieldContainer:
+        test_field: str | None = dataclasses.field(
+            metadata=mr.str_metadata(string_value_sanitizing=mr.StringValueSanitizing.STRIP)
+        )
+
+    loaded = mr.load(TestFieldContainer, {"test_field": dumped_value})
+    assert loaded == TestFieldContainer(test_field=loaded_value)
+
+
+@pytest.mark.parametrize(
+    "dumped_value, loaded_value",
+    [
+        ("  \t   \r\n  some_value  \t   \n \r  ", "some_value"),
+        ("", ""),
+        ("   \t \r \n   ", ""),
+    ],
+)
+def test_deserialize_string_strips_value_options(dumped_value: str, loaded_value: str) -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @mr.options(string_value_sanitizing=mr.StringValueSanitizing.STRIP)
+    class TestFieldContainer:
+        test_field: str
+
+    loaded = mr.load(TestFieldContainer, {"test_field": dumped_value})
+    assert loaded == TestFieldContainer(test_field=loaded_value)
+
+
+@pytest.mark.parametrize(
+    "dumped_value, loaded_value",
+    [
+        ("  \t   \r\n  some_value  \t   \n \r  ", "some_value"),
+        ("", None),
+        ("   \t \r \n   ", None),
+        (None, None),
+    ],
+)
+def test_deserialize_optional_string_trims_value_options(dumped_value: str | None, loaded_value: str | None) -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @mr.options(string_value_sanitizing=mr.StringValueSanitizing.STRIP)
     class TestFieldContainer:
         test_field: str | None
 
-    loaded = mr.load(TestFieldContainer, {"testField": dumped_value})
+    loaded = mr.load(TestFieldContainer, {"test_field": dumped_value})
     assert loaded == TestFieldContainer(test_field=loaded_value)
