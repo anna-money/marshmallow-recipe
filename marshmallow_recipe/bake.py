@@ -25,6 +25,7 @@ from .fields import (
     str_field,
     uuid_field,
 )
+from .hooks import get_pre_loads
 from .naming_case import NamingCase
 from .options import NoneValueHandling, get_options_for
 
@@ -137,6 +138,13 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             def post_load(self, data: dict[str, Any], **_: Any) -> Any:
                 return cls(**data)
 
+            @m.pre_load
+            def pre_load(self, data: dict[str, Any], **_: Any) -> Any:
+                result = data
+                for pre_load in get_pre_loads(cls):
+                    result = pre_load(result)
+                return result
+
         return _Schema
 
 else:
@@ -152,6 +160,13 @@ else:
             @m.post_load  # type: ignore
             def post_load(self, data: dict[str, Any]) -> Any:
                 return cls(**data)
+
+            @m.pre_load  # type: ignore
+            def pre_load(self, data: dict[str, Any]) -> Any:
+                result = data
+                for pre_load in get_pre_loads(cls):
+                    result = pre_load(result)
+                return result
 
         return _Schema
 
