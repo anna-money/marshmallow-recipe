@@ -1,3 +1,8 @@
+## v0.0.13(2022-10-14)
+
+* [Add pre_load hooks](https://github.com/anna-money/marshmallow-recipe/pull/62)
+
+
 ## v0.0.12(2022-08-23)
 
 * [Add datetime_metadata to allow to specify a custom format](https://github.com/anna-money/marshmallow-recipe/pull/55)
