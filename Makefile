@@ -21,7 +21,7 @@ test:
 	@python3 -m pytest -vv --rootdir tests .
 
 pyenv:
-	echo marshmallow_recipe > .python-version && pyenv install -s 3.10.2 && pyenv virtualenv -f 3.10.2 marshmallow_recipe
+	echo marshmallow_recipe > .python-version && pyenv install -s 3.11.0 && pyenv virtualenv -f 3.11.0 marshmallow_recipe
 
 pyenv-delete:
 	pyenv virtualenv-delete -f marshmallow_recipe
