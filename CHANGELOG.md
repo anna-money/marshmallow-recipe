@@ -1,3 +1,8 @@
+## v0.0.14(2022-11-14)
+
+* [Do not crash if an unknown arg is passed to enum meta](https://github.com/anna-money/marshmallow-recipe/pull/67)
+
+
 ## v0.0.13(2022-10-14)
 
 * [Add pre_load hooks](https://github.com/anna-money/marshmallow-recipe/pull/62)
