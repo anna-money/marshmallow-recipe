@@ -181,7 +181,7 @@ def test_unknown_field() -> None:
     assert mr.schema(BoolContainer) is mr.schema(BoolContainer)
 
 
-def test_schema_with_default_case():
+def test_schema_with_default_case() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class DataClass:
         str_field: str
@@ -194,7 +194,7 @@ def test_schema_with_default_case():
     assert dumped == origin
 
 
-def test_schema_with_capital_camel_case():
+def test_schema_with_capital_camel_case() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class DataClass:
         str_field: str
@@ -207,7 +207,7 @@ def test_schema_with_capital_camel_case():
     assert dumped == origin
 
 
-def test_schema_with_camel_case():
+def test_schema_with_camel_case() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class DataClass:
         str_field: str
@@ -220,7 +220,7 @@ def test_schema_with_camel_case():
     assert dumped == origin
 
 
-def test_many():
+def test_many() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class BoolContainer:
         bool_field: bool
@@ -234,7 +234,7 @@ def test_many():
     assert mr.schema(BoolContainer) is mr.schema(BoolContainer)
 
 
-def test_many_empty():
+def test_many_empty() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class BoolContainer:
         bool_field: bool
@@ -313,7 +313,7 @@ def test_enum_field_load(value: Parity, raw: str) -> None:
 
 
 @pytest.mark.skip("Bug in marshmallow")
-def test_dump_invalid_int_value():
+def test_dump_invalid_int_value() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class IntContainer:
         int_field: int
@@ -322,7 +322,7 @@ def test_dump_invalid_int_value():
         mr.dump(IntContainer(int_field=cast(int, "invalid")))
 
 
-def test_dump_invalid_value():
+def test_dump_invalid_value() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class UUIDContainer:
         uuid_field: uuid.UUID
@@ -333,7 +333,7 @@ def test_dump_invalid_value():
     assert exc_info.value.messages == {"uuid_field": ["Not a valid UUID."]}
 
 
-def test_dump_many_invalid_value():
+def test_dump_many_invalid_value() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class UUIDContainer:
         uuid_field: uuid.UUID
