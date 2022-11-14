@@ -359,6 +359,7 @@ def enum_field(
     name: str | None = None,
     default: Any = dataclasses.MISSING,
     validate: Callable[[Any], Any] | None = None,
+    **_: Any,
 ) -> marshmallow.fields.Field:
     if default is m.missing:
         return EnumField(
