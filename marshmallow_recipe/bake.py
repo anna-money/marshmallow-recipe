@@ -5,7 +5,7 @@ import enum
 import inspect
 import types
 import uuid
-from typing import Any, Dict, Generic, List, Mapping, Type, TypeVar, cast
+from typing import Any, Dict, List, Mapping, Protocol, Type, TypeVar, cast
 
 import marshmallow as m
 import typing_inspect
@@ -91,7 +91,7 @@ def get_field_for(
 
     field_factory = _SIMPLE_TYPE_FIELD_FACTORIES.get(type)
     if field_factory:
-        typed_field_factory = cast(_FieldFactory[_T], field_factory)
+        typed_field_factory = cast(_FieldFactory, field_factory)
         return typed_field_factory(required=required, **metadata)
 
     if inspect.isclass(type) and issubclass(type, enum.Enum):
@@ -178,7 +178,7 @@ def _get_field_default(field: dataclasses.Field[_T]) -> Any:
     return field.default
 
 
-class _FieldFactory(Generic[_T]):
+class _FieldFactory(Protocol):
     def __call__(
         self,
         *,
