@@ -45,18 +45,27 @@ def bake_schema(
     if naming_case is None:
         naming_case = options.naming_case
 
-    fields = dataclasses.fields(cls)
+    fields_with_metadata = [
+        (field, _get_metadata(name=naming_case(field.name), default=_get_field_default(field), metadata=field.metadata))
+        for field in dataclasses.fields(cls)
+        if field.init
+    ]
+
+    for field, _ in fields_with_metadata:
+        for other_field, metadata in fields_with_metadata:
+            if field is other_field:
+                continue
+
+            other_field_name = metadata["name"]
+            if field.name == other_field_name:
+                raise ValueError(f"Invalid name={other_field_name} in metadata for field={other_field.name}")
+
     schema_class = type(
         cls.__name__,
         (_get_base_schema(cls, options.none_value_handling),),
         {
-            field.name: get_field_for(
-                field.type,
-                _get_metadata(name=naming_case(field.name), default=_get_field_default(field), metadata=field.metadata),
-                naming_case=naming_case,
-            )
-            for field in fields
-            if field.init
+            field.name: get_field_for(field.type, metadata, naming_case=naming_case)
+            for field, metadata in fields_with_metadata
         },
     )
     return cast(Type[m.Schema], schema_class)
