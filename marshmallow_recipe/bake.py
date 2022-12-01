@@ -164,7 +164,7 @@ else:
             @m.pre_load  # type: ignore
             def pre_load(self, data: dict[str, Any]) -> Any:
                 # Exclude unknown fields
-                known_fields = {field.load_from or field.name for field in self.fields.values()}
+                known_fields = {field.load_from or field.name for field in self.fields.values()}  # type: ignore
                 fields = list(data.keys())
                 for key in fields:
                     if key not in known_fields:
