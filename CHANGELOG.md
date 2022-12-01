@@ -1,3 +1,9 @@
+## v0.0.15(2022-12-01)
+
+* [Metadata name should not use others field name](https://github.com/anna-money/marshmallow-recipe/pull/71)
+* [Ignore unknown fields for marshmallow2](https://github.com/anna-money/marshmallow-recipe/pull/70)
+
+
 ## v0.0.14(2022-11-14)
 
 * [Do not crash if an unknown arg is passed to enum meta](https://github.com/anna-money/marshmallow-recipe/pull/67)
