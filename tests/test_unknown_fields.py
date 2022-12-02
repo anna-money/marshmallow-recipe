@@ -1,3 +1,4 @@
+import copy
 import dataclasses
 
 import pytest
@@ -10,8 +11,11 @@ def test_unknown_fields_should_be_excluded() -> None:
     class Example:
         field_1: str = dataclasses.field(metadata=mr.metadata(name="field_2"))
 
-    expected = mr.load(Example, {"field_1": "bad", "field_2": "good"})
+    data = {"field_1": "bad", "field_2": "good"}
+    data_copy = copy.deepcopy(data)
+    expected = mr.load(Example, data_copy)
     assert expected == Example(field_1="good")
+    assert data == data_copy
 
 
 def test_metadata_name_should_not_use_others_field_name() -> None:
