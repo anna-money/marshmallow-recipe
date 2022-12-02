@@ -1,4 +1,3 @@
-import copy
 import dataclasses
 import datetime
 import decimal
@@ -174,14 +173,9 @@ else:
             @m.pre_load  # type: ignore
             def pre_load(self, data: dict[str, Any]) -> Any:
                 # Exclude unknown fields to prevent possible value overlapping
-                data = copy.deepcopy(data)
                 known_fields = {field.load_from or field.name for field in self.fields.values()}  # type: ignore
-                fields = list(data.keys())
-                for key in fields:
-                    if key not in known_fields:
-                        del data[key]
 
-                result = data
+                result = {key: value for key, value in data.items() if key in known_fields}
                 for pre_load in get_pre_loads(cls):
                     result = pre_load(result)
                 return result
