@@ -174,7 +174,6 @@ else:
             def pre_load(self, data: dict[str, Any]) -> Any:
                 # Exclude unknown fields to prevent possible value overlapping
                 known_fields = {field.load_from or field.name for field in self.fields.values()}  # type: ignore
-
                 result = {key: value for key, value in data.items() if key in known_fields}
                 for pre_load in get_pre_loads(cls):
                     result = pre_load(result)
