@@ -1,10 +1,9 @@
+import copy
 import dataclasses
 
 import pytest
 
 import marshmallow_recipe as mr
-
-import copy
 
 
 def test_unknown_fields_should_be_excluded() -> None:
