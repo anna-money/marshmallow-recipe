@@ -1,3 +1,8 @@
+## v0.0.16(2022-12-02)
+
+* [Do not modify input data for marshmallow<3](https://github.com/anna-money/marshmallow-recipe/pull/72)
+
+
 ## v0.0.15(2022-12-01)
 
 * [Metadata name should not use others field name](https://github.com/anna-money/marshmallow-recipe/pull/71)
