@@ -81,6 +81,7 @@ def get_field_for(
         return raw_field(**metadata)
 
     type = _substitute_any_to_open_generic(type)
+    type_from_union = _get_real_type_from_union(type)
 
     if typing_inspect.is_union_type(type):
         type_args = list(set(typing_inspect.get_args(type, True)))
@@ -95,21 +96,28 @@ def get_field_for(
             raise ValueError(f"Unsupported {type=}")
         required = False
         type = next(type_arg for type_arg in type_args if type_arg is not types.NoneType)  # noqa
+    elif "default" in metadata and metadata["default"] is not dataclasses.MISSING:
+        required = False
     else:
         required = True
+    if type_from_union is dataclasses.MISSING:
+        allow_none = False
+    else:
+        allow_none = True
 
     field_factory = _SIMPLE_TYPE_FIELD_FACTORIES.get(type)
     if field_factory:
         typed_field_factory = cast(_FieldFactory, field_factory)
-        return typed_field_factory(required=required, **metadata)
+        return typed_field_factory(required=required, allow_none=allow_none, **metadata)
 
     if inspect.isclass(type) and issubclass(type, enum.Enum):
-        return enum_field(enum_type=type, required=required, **metadata)
+        return enum_field(enum_type=type, required=required, allow_none=allow_none, **metadata)
 
     if dataclasses.is_dataclass(type):
         return nested_field(
             bake_schema(type, naming_case=naming_case),
             required=required,
+            allow_none=allow_none,
             **metadata,
         )
 
@@ -119,11 +127,13 @@ def get_field_for(
             return list_field(
                 get_field_for(arguments[0], metadata={}, naming_case=naming_case),
                 required=required,
+                allow_none=allow_none,
                 **metadata,
             )
         if origin in (dict, Dict) and arguments[0] is str and arguments[1] is Any:
             return dict_field(
                 required=required,
+                allow_none=allow_none,
                 **metadata,
             )
 
@@ -194,6 +204,7 @@ class _FieldFactory(Protocol):
         self,
         *,
         required: bool,
+        allow_none: bool,
         name: str,
         default: Any,
         **kwargs: Any,
@@ -225,3 +236,18 @@ def _substitute_any_to_open_generic(type: type) -> type:
     if type is dict:
         return dict[Any, Any]
     return type
+
+
+def _get_real_type_from_union(type):
+    if typing_inspect.is_union_type(type):
+        type_args = list(set(typing_inspect.get_args(type, True)))
+        if types.NoneType not in type_args or len(type_args) != 2:
+            raise ValueError(f"Unsupported {type=}")
+        return next(type_arg for type_arg in type_args if type_arg is not types.NoneType)  # noqa
+    # to support new union syntax
+    elif isinstance(type, types.UnionType):
+        type_args = list(set(type.__args__))
+        if types.NoneType not in type_args or len(type_args) != 2:
+            raise ValueError(f"Unsupported {type=}")
+        return next(type_arg for type_arg in type_args if type_arg is not types.NoneType)  # noqa
+    return dataclasses.MISSING

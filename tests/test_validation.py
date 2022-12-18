@@ -101,3 +101,18 @@ def test_datetime_validation() -> None:
         mr.load(Holder, dict(value=invalid.isoformat()))
 
     mr.load(Holder, dict(value=datetime.datetime(2001, 1, 2).isoformat()))
+
+
+def test_none_validation_with_default() -> None:
+    @dataclasses.dataclass
+    class Holder:
+        value: str = "default"
+
+    with pytest.raises(m.ValidationError):
+        mr.load(Holder, dict(value=None))
+
+    @dataclasses.dataclass
+    class HolderWithNone:
+        value: str | None = "default"
+
+    mr.load(HolderWithNone, dict(value=None))
