@@ -336,3 +336,6 @@ def test_meaningful_default() -> None:
 
     loaded = mr.load(WithDefault, {"field_str": "str", "field_bool": True, "field_int": 0})
     assert loaded == WithDefault(field_str="str", field_bool=True, field_int=0)
+    assert loaded.field_int_default == 1
+    assert loaded.field_bool_default is False
+    assert loaded.field_str_default == "default"
