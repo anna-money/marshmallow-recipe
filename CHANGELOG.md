@@ -1,3 +1,8 @@
+## v0.0.17(2022-12-20)
+
+* [Non-optional fields with default value might not present in data](https://github.com/anna-money/marshmallow-recipe/pull/76)
+
+
 ## v0.0.16(2022-12-02)
 
 * [Do not modify input data for marshmallow<3](https://github.com/anna-money/marshmallow-recipe/pull/72)
