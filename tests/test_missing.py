@@ -322,3 +322,20 @@ def test_nested_with_missing() -> None:
     dumped = mr.dump(filled_data)
     loaded = mr.load(TypeWithNested, dumped)
     assert loaded == filled_data
+
+
+def test_meaningful_default() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class WithDefault:
+        field_str: str
+        field_bool: bool
+        field_int: int
+        field_str_default: str = "default"
+        field_bool_default: bool = False
+        field_int_default: int = 1
+
+    loaded = mr.load(WithDefault, {"field_str": "str", "field_bool": True, "field_int": 0})
+    assert loaded == WithDefault(field_str="str", field_bool=True, field_int=0)
+    assert loaded.field_int_default == 1
+    assert loaded.field_bool_default is False
+    assert loaded.field_str_default == "default"
