@@ -83,15 +83,14 @@ def get_field_for(
     type = _substitute_any_to_open_generic(type)
 
     if underlying_type_from_optional := _try_get_underlying_type_from_optional(type):
-        required = False
         allow_none = True
         type = underlying_type_from_optional
-    elif metadata.get("default", dataclasses.MISSING) is not dataclasses.MISSING:
-        required = False
+    else:
         allow_none = False
+    if metadata.get("default", dataclasses.MISSING) is not dataclasses.MISSING:
+        required = False
     else:
         required = True
-        allow_none = False
 
     field_factory = _SIMPLE_TYPE_FIELD_FACTORIES.get(type)
     if field_factory:
