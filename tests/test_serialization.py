@@ -352,3 +352,22 @@ def test_naming_case_in_options() -> None:
 
     dumped = mr.dump(TestFieldContainer(test_field="some_value"))
     assert dumped == {"testField": "some_value"}
+
+
+@pytest.mark.parametrize(
+    "input, expected",
+    [
+        ("2022-12-21T13:57:51Z", datetime.datetime(2022, 12, 21, 13, 57, 51, tzinfo=datetime.timezone.utc)),
+        (
+            "2022-12-21T13:57:51.123456Z",
+            datetime.datetime(2022, 12, 21, 13, 57, 51, 123456, tzinfo=datetime.timezone.utc),
+        ),
+    ],
+)
+def test_load_iso_datetime(input: str, expected: datetime.datetime) -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class TestFieldContainer:
+        test_field: datetime.datetime
+
+    container = mr.load(TestFieldContainer, {"test_field": input})
+    assert container.test_field == expected
