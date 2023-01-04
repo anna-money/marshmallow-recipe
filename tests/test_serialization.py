@@ -2,6 +2,7 @@ import dataclasses
 import datetime
 import decimal
 import enum
+import time
 import uuid
 from typing import Any, cast
 
@@ -357,3 +358,53 @@ def test_naming_case_in_options() -> None:
 
     dumped = mr.dump(TestFieldContainer(test_field="some_value"))
     assert dumped == {"testField": "some_value"}
+
+
+def test_default_factory_simple_types() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Cont:
+        field_datetime: datetime.datetime = dataclasses.field(
+            default_factory=lambda: datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
+        )
+        field_date: datetime.date = dataclasses.field(default_factory=datetime.date.today)
+        field_uuid: uuid.UUID = dataclasses.field(default_factory=uuid.uuid4)
+        field_timestamp: float = dataclasses.field(default_factory=time.time)
+
+    raw = Cont()
+    dumped1 = mr.dump(raw)
+    assert dumped1 == {
+        "field_datetime": raw.field_datetime.isoformat(),
+        "field_date": raw.field_date.isoformat(),
+        "field_uuid": str(raw.field_uuid),
+        "field_timestamp": raw.field_timestamp,
+    }
+
+    dumped2 = mr.dump(Cont())
+    assert dumped1 != dumped2
+
+
+def test_default_factory_complex_types() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class ContList:
+        field: list[Any] = dataclasses.field(default_factory=list)
+
+    with pytest.raises(ValueError):
+        mr.dump(ContList())
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class ContDict:
+        field: dict[str, Any] = dataclasses.field(default_factory=dict)
+
+    with pytest.raises(ValueError):
+        mr.dump(ContDict())
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class SubCont:
+        sub_field: int = 1
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class ContNested:
+        field: SubCont = dataclasses.field(default_factory=SubCont)
+
+    with pytest.raises(ValueError):
+        mr.dump(ContNested())
