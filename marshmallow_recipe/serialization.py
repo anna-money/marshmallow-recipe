@@ -4,7 +4,9 @@ from typing import Any, Type, TypeVar, cast
 import marshmallow as m
 
 from .bake import bake_schema
+from .errors import ValidationError
 from .naming_case import NamingCase
+from .schema import Schema
 
 _T = TypeVar("_T")
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
@@ -17,11 +19,11 @@ class _SchemaKey:
     naming_case: NamingCase | None
 
 
-_schemas: dict[_SchemaKey, m.Schema] = {}
+_schemas: dict[_SchemaKey, Schema] = {}
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
-    def schema(cls: Type[_T], *, many: bool = False, naming_case: NamingCase | None = None) -> m.Schema:
+    def schema(cls: Type[_T], *, many: bool = False, naming_case: NamingCase | None = None) -> Schema:
         key = _SchemaKey(cls=cls, many=many, naming_case=naming_case)
         existent_schema = _schemas.get(key)
         if existent_schema is not None:
@@ -46,7 +48,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         data_schema = schema(type(data), naming_case=naming_case)
         dumped: dict[str, Any] = data_schema.dump(data)
         if errors := data_schema.validate(dumped):
-            raise m.ValidationError(errors)
+            raise ValidationError(errors)
         return dumped
 
     def dump_many(data: list[_T], *, naming_case: NamingCase | None = None) -> list[dict[str, Any]]:
@@ -55,12 +57,12 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         data_schema = schema(type(data[0]), many=True, naming_case=naming_case)
         dumped: list[dict[str, Any]] = data_schema.dump(data)
         if errors := data_schema.validate(dumped):
-            raise m.ValidationError(errors)
+            raise ValidationError(errors)
         return dumped
 
 else:
 
-    def schema(cls: Type[_T], *, many: bool = False, naming_case: NamingCase | None = None) -> m.Schema:
+    def schema(cls: Type[_T], *, many: bool = False, naming_case: NamingCase | None = None) -> Schema:
         key = _SchemaKey(cls=cls, many=many, naming_case=naming_case)
         existent_schema = _schemas.get(key)
         if existent_schema is not None:
@@ -92,4 +94,4 @@ else:
         return cast(list[dict[str, Any]], dumped)
 
 
-EmptySchema = m.Schema
+EmptySchema = Schema

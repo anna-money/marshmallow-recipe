@@ -6,6 +6,9 @@ from typing import Any, Callable, Iterable, Type, cast
 import marshmallow as m
 import marshmallow.validate
 
+from .errors import ValidationError
+from .schema import Schema
+
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
 
 
@@ -270,7 +273,7 @@ def date_field(
 
 
 def nested_field(
-    nested_schema: Type[m.Schema],
+    nested_schema: Type[Schema],
     *,
     required: bool,
     allow_none: bool,
@@ -523,10 +526,10 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 return cast(Callable[[str], enum.Enum], self.enum_type)(string_value)
             except ValueError:
                 if self.extendable_default is m.missing:
-                    raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))
+                    raise ValidationError(self.default_error.format(input=value, choices=self.choices))
                 return self.extendable_default
             except Exception:
-                raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))
+                raise ValidationError(self.default_error.format(input=value, choices=self.choices))
 
         @staticmethod
         def _validate_enum(enum_type: Any) -> None:
@@ -656,10 +659,10 @@ else:
                 return cast(Callable[[str], enum.Enum], self.enum_type)(string_value)
             except ValueError:
                 if self.extendable_default is m.missing:
-                    raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))
+                    raise ValidationError(self.default_error.format(input=value, choices=self.choices))
                 return self.extendable_default
             except Exception:
-                raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))
+                raise ValidationError(self.default_error.format(input=value, choices=self.choices))
 
         @staticmethod
         def _validate_enum(enum_type: Any) -> None:

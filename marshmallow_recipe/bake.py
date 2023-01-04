@@ -28,6 +28,7 @@ from .fields import (
 from .hooks import get_pre_loads
 from .naming_case import NamingCase
 from .options import NoneValueHandling, get_options_for
+from .schema import Schema
 
 _T = TypeVar("_T")
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
@@ -37,7 +38,7 @@ def bake_schema(
     cls: Type[_T],
     *,
     naming_case: NamingCase | None = None,
-) -> Type[m.Schema]:
+) -> Type[Schema]:
     if not dataclasses.is_dataclass(cls):
         raise ValueError(f"{cls} is not a dataclass")
 
@@ -68,7 +69,7 @@ def bake_schema(
             for field, metadata in fields_with_metadata
         },
     )
-    return cast(Type[m.Schema], schema_class)
+    return cast(Type[Schema], schema_class)
 
 
 def get_field_for(
@@ -130,8 +131,8 @@ def get_field_for(
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
-    def _get_base_schema(cls: Type[_T], none_value_handling: NoneValueHandling) -> Type[m.Schema]:
-        class _Schema(m.Schema):
+    def _get_base_schema(cls: Type[_T], none_value_handling: NoneValueHandling) -> Type[Schema]:
+        class _Schema(Schema):
             class Meta:
                 unknown = m.EXCLUDE
 
@@ -156,8 +157,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
 else:
 
-    def _get_base_schema(cls: Type[_T], none_value_handling: NoneValueHandling) -> Type[m.Schema]:
-        class _Schema(m.Schema):  # type: ignore
+    def _get_base_schema(cls: Type[_T], none_value_handling: NoneValueHandling) -> Type[Schema]:
+        class _Schema(Schema):  # type: ignore
             @m.post_dump  # type: ignore
             def remove_none_values(self, data: dict[str, Any]) -> dict[str, Any]:
                 if none_value_handling == NoneValueHandling.IGNORE:
