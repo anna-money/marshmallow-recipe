@@ -487,10 +487,10 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
             self.extendable_default = extendable_default
             self._validate_default(self.enum_type, self.extendable_default, allow_none)
-            if "default" in kwargs:
-                self._validate_default(self.enum_type, kwargs["default"], allow_none)
-            if "missing" in kwargs:
-                self._validate_default(self.enum_type, kwargs["missing"], allow_none)
+            if "dump_default" in kwargs:
+                self._validate_default(self.enum_type, kwargs["dump_default"], allow_none)
+            if "load_default" in kwargs:
+                self._validate_default(self.enum_type, kwargs["load_default"], allow_none)
 
             enum_validator = m.validate.OneOf(self.choices, error=self.error)
             if "validate" in kwargs and kwargs["validate"] is not None:
