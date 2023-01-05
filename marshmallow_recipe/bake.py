@@ -186,6 +186,7 @@ def _get_field_default(field: dataclasses.Field[_T]) -> Any:
         origin = typing_inspect.get_origin(field.type) or field.type
         if origin in (list, List, dict, Dict) or dataclasses.is_dataclass(field.type):
             raise ValueError(f"Default factory is not supported for {field}")
+        return default_factory
     return field.default
 
 

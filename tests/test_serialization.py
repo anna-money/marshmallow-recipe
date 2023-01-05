@@ -370,6 +370,11 @@ def test_default_factory_simple_types() -> None:
         field_uuid: uuid.UUID = dataclasses.field(default_factory=uuid.uuid4)
         field_timestamp: float = dataclasses.field(default_factory=time.time)
 
+    schema = mr.schema(Cont)
+    for field_name in ("field_datetime", "field_date", "field_uuid", "field_timestamp"):
+        assert schema.fields[field_name].default is not m.missing
+        assert schema.fields[field_name].dump_default is not m.missing
+        assert schema.fields[field_name].load_default is not m.missing
     raw = Cont()
     dumped1 = mr.dump(raw)
     assert dumped1 == {
@@ -381,6 +386,12 @@ def test_default_factory_simple_types() -> None:
 
     dumped2 = mr.dump(Cont())
     assert dumped1 != dumped2
+
+    loaded = mr.load(Cont, {})
+    assert isinstance(loaded.field_datetime, datetime.datetime)
+    assert isinstance(loaded.field_date, datetime.date)
+    assert isinstance(loaded.field_uuid, uuid.UUID)
+    assert isinstance(loaded.field_timestamp, float)
 
 
 def test_default_factory_complex_types() -> None:
