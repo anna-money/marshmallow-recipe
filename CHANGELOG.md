@@ -1,3 +1,8 @@
+## v0.0.18(2023-01-05)
+
+* [Allow to specify default_factory](https://github.com/anna-money/marshmallow-recipe/pull/82)
+
+
 ## v0.0.17(2022-12-20)
 
 * [Non-optional fields with default value might not present in data](https://github.com/anna-money/marshmallow-recipe/pull/76)
