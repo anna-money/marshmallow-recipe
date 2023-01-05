@@ -298,7 +298,7 @@ def nested_field(
     return m.fields.Nested(
         nested_schema,
         allow_none=allow_none,
-        **default_fields(default),
+        **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
 
@@ -332,7 +332,7 @@ def list_field(
     return m.fields.List(
         field,
         allow_none=allow_none,
-        **default_fields(None),
+        **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
 
@@ -349,6 +349,13 @@ def dict_field(
     if validate is not None:
         raise ValueError("Validation is not supported")
 
+    if default is m.missing:
+        return m.fields.Dict(
+            allow_none=allow_none,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
@@ -356,7 +363,7 @@ def dict_field(
 
     return m.fields.Dict(
         allow_none=allow_none,
-        **default_fields(None),
+        **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
 
