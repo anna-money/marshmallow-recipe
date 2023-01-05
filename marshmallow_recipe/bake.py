@@ -184,7 +184,7 @@ else:
 def _get_field_default(field: dataclasses.Field[_T]) -> Any:
     default_factory = field.default_factory
     if default_factory is not dataclasses.MISSING:  # type: ignore
-        raise ValueError(f"Default factory is not supported for {field}")
+        return default_factory
     return field.default
 
 

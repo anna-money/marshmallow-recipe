@@ -39,7 +39,7 @@ __all__: tuple[str, ...] = (
     "ValidationError",
 )
 
-__version__ = "0.0.17"
+__version__ = "0.0.18"
 
 version = f"{__version__}, Python {sys.version}"
 

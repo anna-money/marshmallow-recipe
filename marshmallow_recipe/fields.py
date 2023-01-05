@@ -298,13 +298,10 @@ def nested_field(
             raise ValueError("Default value cannot be none")
         return m.fields.Nested(nested_schema, required=True, allow_none=allow_none, **data_key_fields(name))
 
-    if default is not dataclasses.MISSING and default is not None:
-        raise ValueError("Default value is not supported for nested field")
-
     return m.fields.Nested(
         nested_schema,
         allow_none=allow_none,
-        **default_fields(None),
+        **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
 
@@ -335,13 +332,10 @@ def list_field(
             raise ValueError("Default value cannot be none")
         return m.fields.List(field, required=True, allow_none=allow_none, **data_key_fields(name))
 
-    if default is not dataclasses.MISSING and default is not None:
-        raise ValueError("Default value is not supported for list field")
-
     return m.fields.List(
         field,
         allow_none=allow_none,
-        **default_fields(None),
+        **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
 
@@ -358,17 +352,21 @@ def dict_field(
     if validate is not None:
         raise ValueError("Validation is not supported")
 
+    if default is m.missing:
+        return m.fields.Dict(
+            allow_none=allow_none,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
         return m.fields.Dict(required=True, allow_none=allow_none, **data_key_fields(name))
 
-    if default is not dataclasses.MISSING and default is not None:
-        raise ValueError("Default value is not supported for dict field")
-
     return m.fields.Dict(
         allow_none=allow_none,
-        **default_fields(None),
+        **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
 
@@ -492,10 +490,10 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
             self.extendable_default = extendable_default
             self._validate_default(self.enum_type, self.extendable_default, allow_none)
-            if "default" in kwargs:
-                self._validate_default(self.enum_type, kwargs["default"], allow_none)
-            if "missing" in kwargs:
-                self._validate_default(self.enum_type, kwargs["missing"], allow_none)
+            if "dump_default" in kwargs:
+                self._validate_default(self.enum_type, kwargs["dump_default"], allow_none)
+            if "load_default" in kwargs:
+                self._validate_default(self.enum_type, kwargs["load_default"], allow_none)
 
             enum_validator = m.validate.OneOf(self.choices, error=self.error)
             if "validate" in kwargs and kwargs["validate"] is not None:
@@ -557,6 +555,9 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 return
 
             if allow_none and default is None:
+                return
+
+            if callable(default):
                 return
 
             if not isinstance(default, enum_type):
@@ -690,6 +691,9 @@ else:
                 return
 
             if allow_none and default is None:
+                return
+
+            if callable(default):
                 return
 
             if not isinstance(default, enum_type):
