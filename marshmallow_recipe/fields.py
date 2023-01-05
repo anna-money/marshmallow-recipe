@@ -554,6 +554,9 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             if allow_none and default is None:
                 return
 
+            if callable(default):
+                return
+
             if not isinstance(default, enum_type):
                 raise ValueError(f"Default should be an instance of enum_type {enum_type}")
 
@@ -685,6 +688,9 @@ else:
                 return
 
             if allow_none and default is None:
+                return
+
+            if callable(default):
                 return
 
             if not isinstance(default, enum_type):
