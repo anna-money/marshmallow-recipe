@@ -2,7 +2,6 @@ import dataclasses
 import datetime
 import decimal
 import enum
-import time
 import uuid
 from typing import Any, cast
 
@@ -10,8 +9,6 @@ import marshmallow as m
 import pytest
 
 import marshmallow_recipe as mr
-
-_MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
 
 
 class Parity(str, enum.Enum):
@@ -41,9 +38,11 @@ def test_simple_types() -> None:
         optional_date_field: datetime.date | None
         dict_field: dict[str, Any]
         optional_dict_field: dict[str, Any] | None
+        list_field: list[str]
+        optional_list_field: list[str] | None
         enum_field: Parity
         optional_enum_field: Parity | None
-
+        # with default
         str_field_with_default: str = "42"
         bool_field_with_default: bool = True
         decimal_field_with_default: decimal.Decimal = decimal.Decimal("42")
@@ -55,65 +54,107 @@ def test_simple_types() -> None:
         )
         date_field_with_default: datetime.date = datetime.date(2022, 2, 20)
         enum_field_with_default: Parity = Parity.ODD
+        # with default factory
+        str_field_with_default_factory: str = dataclasses.field(default_factory=lambda: "42")
+        bool_field_with_default_factory: bool = dataclasses.field(default_factory=lambda: True)
+        decimal_field_with_default_factory: decimal.Decimal = dataclasses.field(
+            default_factory=lambda: decimal.Decimal("42")
+        )
+        int_field_with_default_factory: float = dataclasses.field(default_factory=lambda: 42)
+        float_field_with_default_factory: float = dataclasses.field(default_factory=lambda: 42.0)
+        uuid_field_with_default_factory: uuid.UUID = dataclasses.field(
+            default_factory=lambda: uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05")
+        )
+        datetime_field_with_default_factory: datetime.datetime = dataclasses.field(
+            default_factory=lambda: datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc)
+        )
+        date_field_with_default_factory: datetime.date = dataclasses.field(
+            default_factory=lambda: datetime.date(2022, 2, 20)
+        )
+        dict_field_with_default_factory: dict[str, Any] = dataclasses.field(default_factory=lambda: {})
+        list_field_with_default_factory: list[str] = dataclasses.field(default_factory=lambda: [])
+        enum_field_with_default_factory: Parity = dataclasses.field(default_factory=lambda: Parity.ODD)
 
     raw = dict(
         any_field={},
         str_field="42",
         str_field_with_default="42",
+        str_field_with_default_factory="42",
         optional_str_field="42",
         bool_field=True,
         bool_field_with_default=True,
+        bool_field_with_default_factory=True,
         optional_bool_field=True,
         decimal_field="42.00",
         decimal_field_with_default="42.00",
+        decimal_field_with_default_factory="42.00",
         optional_decimal_field="42.00",
         int_field=42,
         int_field_with_default=42,
+        int_field_with_default_factory=42,
         optional_int_field=42,
         float_field=42.0,
         float_field_with_default=42.0,
+        float_field_with_default_factory=42.0,
         optional_float_field=42.0,
         uuid_field="15f75b02-1c34-46a2-92a5-18363aadea05",
         uuid_field_with_default="15f75b02-1c34-46a2-92a5-18363aadea05",
+        uuid_field_with_default_factory="15f75b02-1c34-46a2-92a5-18363aadea05",
         optional_uuid_field="15f75b02-1c34-46a2-92a5-18363aadea05",
         datetime_field="2022-02-20T11:33:48.607289+00:00",
         datetime_field_with_default="2022-02-20T11:33:48.607289+00:00",
+        datetime_field_with_default_factory="2022-02-20T11:33:48.607289+00:00",
         optional_datetime_field="2022-02-20T11:33:48.607289+00:00",
         date_field="2022-02-20",
         date_field_with_default="2022-02-20",
+        date_field_with_default_factory="2022-02-20",
         optional_date_field="2022-02-20",
         dict_field=dict(key="value"),
+        dict_field_with_default_factory={},
         optional_dict_field=dict(key="value"),
+        list_field=["value"],
+        list_field_with_default_factory=[],
+        optional_list_field=["value"],
         enum_field="odd",
         enum_field_with_default="odd",
+        enum_field_with_default_factory="odd",
         optional_enum_field="even",
     )
 
+    raw_no_defaults = {k: v for k, v in raw.items() if not k.endswith("default") or not k.endswith("default_factory")}
+
     loaded = mr.load(SimpleTypesContainers, raw)
+    loaded_no_defaults = mr.load(SimpleTypesContainers, raw_no_defaults)
     dumped = mr.dump(loaded)
 
-    assert loaded == SimpleTypesContainers(
-        any_field={},
-        str_field="42",
-        optional_str_field="42",
-        bool_field=True,
-        optional_bool_field=True,
-        decimal_field=decimal.Decimal("42.00"),
-        optional_decimal_field=decimal.Decimal("42.00"),
-        int_field=42,
-        optional_int_field=42,
-        float_field=42.0,
-        optional_float_field=42.0,
-        uuid_field=uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05"),
-        optional_uuid_field=uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05"),
-        datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc),
-        optional_datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc),
-        date_field=datetime.date(2022, 2, 20),
-        optional_date_field=datetime.date(2022, 2, 20),
-        dict_field=dict(key="value"),
-        optional_dict_field=dict(key="value"),
-        enum_field=Parity.ODD,
-        optional_enum_field=Parity.EVEN,
+    assert (
+        loaded_no_defaults
+        == loaded
+        == SimpleTypesContainers(
+            any_field={},
+            str_field="42",
+            optional_str_field="42",
+            bool_field=True,
+            optional_bool_field=True,
+            decimal_field=decimal.Decimal("42.00"),
+            optional_decimal_field=decimal.Decimal("42.00"),
+            int_field=42,
+            optional_int_field=42,
+            float_field=42.0,
+            optional_float_field=42.0,
+            uuid_field=uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05"),
+            optional_uuid_field=uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05"),
+            datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc),
+            optional_datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc),
+            date_field=datetime.date(2022, 2, 20),
+            optional_date_field=datetime.date(2022, 2, 20),
+            dict_field=dict(key="value"),
+            optional_dict_field=dict(key="value"),
+            list_field=["value"],
+            optional_list_field=["value"],
+            enum_field=Parity.ODD,
+            optional_enum_field=Parity.EVEN,
+        )
     )
     assert dumped == raw
     assert mr.schema(SimpleTypesContainers) is mr.schema(SimpleTypesContainers)
@@ -127,12 +168,23 @@ def test_nested_dataclass() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class Container:
         bool_container_field: BoolContainer
+        bool_container_field_with_default: BoolContainer = BoolContainer(bool_field=True)
+        bool_container_field_with_default_factory: BoolContainer = dataclasses.field(
+            default_factory=lambda: BoolContainer(bool_field=True)
+        )
 
-    raw = dict(bool_container_field=dict(bool_field=True))
+    raw = dict(
+        bool_container_field=dict(bool_field=True),
+        bool_container_field_with_default=dict(bool_field=True),
+        bool_container_field_with_default_factory=dict(bool_field=True),
+    )
+    raw_no_defaults = {k: v for k, v in raw.items() if not k.endswith("default") or not k.endswith("default_factory")}
+
     loaded = mr.load(Container, raw)
+    loaded_no_defaults = mr.load(Container, raw_no_defaults)
     dumped = mr.dump(loaded)
 
-    assert loaded == Container(bool_container_field=BoolContainer(bool_field=True))
+    assert loaded_no_defaults == loaded == Container(bool_container_field=BoolContainer(bool_field=True))
     assert dumped == raw
 
     assert mr.schema(Container) is mr.schema(Container)
@@ -360,59 +412,3 @@ def test_naming_case_in_options() -> None:
 
     dumped = mr.dump(TestFieldContainer(test_field="some_value"))
     assert dumped == {"testField": "some_value"}
-
-
-def test_default_factory_simple_types() -> None:
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class Cont:
-        field_datetime: datetime.datetime = dataclasses.field(
-            default_factory=lambda: datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
-        )
-        field_date: datetime.date = dataclasses.field(default_factory=datetime.date.today)
-        field_uuid: uuid.UUID = dataclasses.field(default_factory=uuid.uuid4)
-        field_timestamp: float = dataclasses.field(default_factory=time.time)
-
-    schema = mr.schema(Cont)
-    for field_name in ("field_datetime", "field_date", "field_uuid", "field_timestamp"):
-        if _MARSHMALLOW_VERSION_MAJOR >= 3:
-            assert schema.fields[field_name].dump_default is not m.missing
-        else:
-            assert schema.fields[field_name].default is not m.missing
-    raw = Cont()
-    dumped1 = mr.dump(raw)
-    assert dumped1 == {
-        "field_datetime": raw.field_datetime.isoformat(),
-        "field_date": raw.field_date.isoformat(),
-        "field_uuid": str(raw.field_uuid),
-        "field_timestamp": raw.field_timestamp,
-    }
-
-    dumped2 = mr.dump(Cont())
-    assert dumped1 != dumped2
-
-
-def test_default_factory_complex_types() -> None:
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class ContList:
-        field: list[Any] = dataclasses.field(default_factory=list)
-
-    with pytest.raises(ValueError):
-        mr.dump(ContList())
-
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class ContDict:
-        field: dict[str, Any] = dataclasses.field(default_factory=dict)
-
-    with pytest.raises(ValueError):
-        mr.dump(ContDict())
-
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class SubCont:
-        sub_field: int = 1
-
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class ContNested:
-        field: SubCont = dataclasses.field(default_factory=SubCont)
-
-    with pytest.raises(ValueError):
-        mr.dump(ContNested())

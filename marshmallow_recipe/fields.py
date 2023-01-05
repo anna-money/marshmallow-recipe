@@ -295,13 +295,10 @@ def nested_field(
             raise ValueError("Default value cannot be none")
         return m.fields.Nested(nested_schema, required=True, allow_none=allow_none, **data_key_fields(name))
 
-    if default is not dataclasses.MISSING and default is not None:
-        raise ValueError("Default value is not supported for nested field")
-
     return m.fields.Nested(
         nested_schema,
         allow_none=allow_none,
-        **default_fields(None),
+        **default_fields(default),
         **data_key_fields(name),
     )
 
@@ -332,9 +329,6 @@ def list_field(
             raise ValueError("Default value cannot be none")
         return m.fields.List(field, required=True, allow_none=allow_none, **data_key_fields(name))
 
-    if default is not dataclasses.MISSING and default is not None:
-        raise ValueError("Default value is not supported for list field")
-
     return m.fields.List(
         field,
         allow_none=allow_none,
@@ -359,9 +353,6 @@ def dict_field(
         if default is None:
             raise ValueError("Default value cannot be none")
         return m.fields.Dict(required=True, allow_none=allow_none, **data_key_fields(name))
-
-    if default is not dataclasses.MISSING and default is not None:
-        raise ValueError("Default value is not supported for dict field")
 
     return m.fields.Dict(
         allow_none=allow_none,
