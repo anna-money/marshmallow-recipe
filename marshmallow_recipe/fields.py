@@ -279,13 +279,11 @@ def nested_field(
     validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
-    if validate is not None:
-        raise ValueError("Validation is not supported")
-
     if default is m.missing:
         return m.fields.Nested(
             nested_schema,
             allow_none=allow_none,
+            validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
         )
@@ -293,11 +291,14 @@ def nested_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return m.fields.Nested(nested_schema, required=True, allow_none=allow_none, **data_key_fields(name))
+        return m.fields.Nested(
+            nested_schema, required=True, allow_none=allow_none, validate=validate, **data_key_fields(name)
+        )
 
     return m.fields.Nested(
         nested_schema,
         allow_none=allow_none,
+        validate=validate,
         **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
@@ -313,13 +314,11 @@ def list_field(
     validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
-    if validate is not None:
-        raise ValueError("Validation is not supported")
-
     if default is m.missing:
         return m.fields.List(
             field,
             allow_none=allow_none,
+            validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
         )
@@ -327,11 +326,12 @@ def list_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return m.fields.List(field, required=True, allow_none=allow_none, **data_key_fields(name))
+        return m.fields.List(field, required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
 
     return m.fields.List(
         field,
         allow_none=allow_none,
+        validate=validate,
         **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
@@ -346,12 +346,10 @@ def dict_field(
     validate: Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
-    if validate is not None:
-        raise ValueError("Validation is not supported")
-
     if default is m.missing:
         return m.fields.Dict(
             allow_none=allow_none,
+            validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
         )
@@ -359,10 +357,11 @@ def dict_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return m.fields.Dict(required=True, allow_none=allow_none, **data_key_fields(name))
+        return m.fields.Dict(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
 
     return m.fields.Dict(
         allow_none=allow_none,
+        validate=validate,
         **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
@@ -382,12 +381,10 @@ def enum_field(
         return EnumField(
             enum_type=enum_type,
             allow_none=allow_none,
+            validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
         )
-
-    if validate is not None:
-        raise ValueError("Validation is not supported")
 
     if required:
         if default is None:
@@ -396,12 +393,14 @@ def enum_field(
             enum_type=enum_type,
             required=True,
             allow_none=allow_none,
+            validate=validate,
             **data_key_fields(name),
         )
 
     return EnumField(
         enum_type=enum_type,
         allow_none=allow_none,
+        validate=validate,
         **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
