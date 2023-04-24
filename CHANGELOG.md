@@ -1,3 +1,8 @@
+## v0.0.19(2023-04-24)
+
+* [Allow validations for nested/list/dict/enum](https://github.com/anna-money/marshmallow-recipe/pull/94)
+
+
 ## v0.0.18(2023-01-05)
 
 * [Allow to specify default_factory](https://github.com/anna-money/marshmallow-recipe/pull/82)
