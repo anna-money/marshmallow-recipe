@@ -112,11 +112,17 @@ def get_field_for(
     if (origin := typing_inspect.get_origin(type)) is not None:
         arguments = typing_inspect.get_args(type, True)
         if origin in (list, List):
+            list_field_metadata = dict(metadata)
+            if validate_item := list_field_metadata.pop("validate_item", None):
+                item_field_metadata = dict(validate=validate_item)
+            else:
+                item_field_metadata = {}
+
             return list_field(
-                get_field_for(arguments[0], metadata={}, naming_case=naming_case),
+                get_field_for(arguments[0], metadata=item_field_metadata, naming_case=naming_case),
                 required=required,
                 allow_none=allow_none,
-                **metadata,
+                **list_field_metadata,
             )
         if origin in (dict, Dict) and arguments[0] is str and arguments[1] is Any:
             return dict_field(

@@ -4,7 +4,7 @@ import sys
 
 from .bake import bake_schema, get_field_for
 from .hooks import add_pre_load, pre_load
-from .metadata import datetime_metadata, decimal_metadata, metadata
+from .metadata import datetime_metadata, decimal_metadata, list_metadata, metadata
 from .missing import MISSING
 from .naming_case import CAMEL_CASE, CAPITAL_CAMEL_CASE, DEFAULT_CASE, CamelCase, CapitalCamelCase, NamingCase
 from .options import NoneValueHandling, options
@@ -31,6 +31,7 @@ __all__: tuple[str, ...] = (
     "metadata",
     "decimal_metadata",
     "datetime_metadata",
+    "list_metadata",
     "pre_load",
     "add_pre_load",
 )
