@@ -116,3 +116,14 @@ def test_none_validation_with_default() -> None:
         value: str | None = "default"
 
     mr.load(HolderWithNone, dict(value=None))
+
+
+def test_list_item_validation() -> None:
+    @dataclasses.dataclass
+    class Holder:
+        items: list[str] = dataclasses.field(metadata=mr.list_metadata(validate_item=lambda x: bool(x)))
+
+    with pytest.raises(m.ValidationError):
+        mr.load(Holder, dict(items=[""]))
+
+    assert mr.load(Holder, dict(items=["1"])) == Holder(items=["1"])

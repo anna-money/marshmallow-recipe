@@ -49,3 +49,19 @@ def datetime_metadata(
     if format is not None:
         result.update(format=format)
     return result
+
+
+def list_metadata(
+    *,
+    name: str = MISSING,
+    validate: Callable[[Any], Any] | None = None,
+    validate_item: Callable[[Any], Any] | None = None,
+) -> Mapping[str, Any]:
+    result: dict[str, Any] = {}
+    if name is not MISSING:
+        result.update(name=name)
+    if validate is not None:
+        result.update(validate=validate)
+    if validate_item is not None:
+        result.update(validate_item=validate_item)
+    return result
