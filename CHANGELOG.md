@@ -1,3 +1,8 @@
+## v0.0.20(2023-04-25)
+
+* [Allow to validate list item](https://github.com/anna-money/marshmallow-recipe/pull/95)
+
+
 ## v0.0.19(2023-04-24)
 
 * [Allow validations for nested/list/dict/enum](https://github.com/anna-money/marshmallow-recipe/pull/94)
