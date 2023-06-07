@@ -1,3 +1,8 @@
+## v0.0.21a1(2023-06-08)
+
+* [Cache intermediate schema types](https://github.com/anna-money/marshmallow-recipe/pull/98)
+
+
 ## v0.0.20(2023-04-25)
 
 * [Allow to validate list item](https://github.com/anna-money/marshmallow-recipe/pull/95)
