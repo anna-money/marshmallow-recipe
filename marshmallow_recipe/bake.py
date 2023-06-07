@@ -29,8 +29,16 @@ from .hooks import get_pre_loads
 from .naming_case import NamingCase
 from .options import NoneValueHandling, get_options_for
 
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class _SchemaTypeKey:
+    cls: type
+    naming_case: NamingCase | None
+
+
 _T = TypeVar("_T")
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
+_schema_types: dict[_SchemaTypeKey, Type[m.Schema]] = {}
 
 
 def bake_schema(
@@ -40,6 +48,10 @@ def bake_schema(
 ) -> Type[m.Schema]:
     if not dataclasses.is_dataclass(cls):
         raise ValueError(f"{cls} is not a dataclass")
+
+    key = _SchemaTypeKey(cls=cls, naming_case=naming_case)
+    if result := _schema_types.get(key):
+        return result
 
     options = get_options_for(cls)
     if naming_case is None:
@@ -68,7 +80,9 @@ def bake_schema(
             for field, metadata in fields_with_metadata
         },
     )
-    return cast(Type[m.Schema], schema_class)
+    result = cast(Type[m.Schema], schema_class)
+    _schema_types[key] = result
+    return result
 
 
 def get_field_for(
