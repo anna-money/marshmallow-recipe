@@ -334,41 +334,207 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # containers: Dict[str, Any]
-        (dict[str, Any], {}, m.fields.Dict(required=True)),
+        (dict[str, Any], {}, mr.fields.DictField(m.fields.Raw(**default_fields(None)), required=True)),
         (
             dict[str, Any],
             mr.metadata(name="i"),
-            m.fields.Dict(required=True, **data_key_fields("i")),
+            mr.fields.DictField(m.fields.Raw(**default_fields(None)), required=True, **data_key_fields("i")),
         ),
-        (Optional[dict[str, Any]], {}, m.fields.Dict(allow_none=True, **default_fields(None))),
+        (
+            Optional[dict[str, Any]],
+            {},
+            mr.fields.DictField(m.fields.Raw(**default_fields(None)), allow_none=True, **default_fields(None)),
+        ),
         (
             Optional[dict[str, Any]],
             mr.metadata(name="i"),
-            m.fields.Dict(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.fields.DictField(
+                m.fields.Raw(**default_fields(None)), allow_none=True, **default_fields(None), **data_key_fields("i")
+            ),
         ),
-        (dict[str, Any] | None, {}, m.fields.Dict(allow_none=True, **default_fields(None))),
+        (
+            dict[str, Any] | None,
+            {},
+            mr.fields.DictField(m.fields.Raw(**default_fields(None)), allow_none=True, **default_fields(None)),
+        ),
         (
             dict[str, Any] | None,
             mr.metadata(name="i"),
-            m.fields.Dict(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.fields.DictField(
+                m.fields.Raw(**default_fields(None)), allow_none=True, **default_fields(None), **data_key_fields("i")
+            ),
         ),
-        (Dict[str, Any], {}, m.fields.Dict(required=True)),
+        (Dict[str, Any], {}, mr.fields.DictField(m.fields.Raw(**default_fields(None)), required=True)),
         (
             Dict[str, Any],
             mr.metadata(name="i"),
-            m.fields.Dict(required=True, **data_key_fields("i")),
+            mr.fields.DictField(m.fields.Raw(**default_fields(None)), required=True, **data_key_fields("i")),
         ),
-        (Optional[Dict[str, Any]], {}, m.fields.Dict(allow_none=True, **default_fields(None))),
+        (
+            Optional[Dict[str, Any]],
+            {},
+            mr.fields.DictField(m.fields.Raw(**default_fields(None)), allow_none=True, **default_fields(None)),
+        ),
         (
             Optional[Dict[str, Any]],
             mr.metadata(name="i"),
-            m.fields.Dict(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.fields.DictField(
+                m.fields.Raw(**default_fields(None)), allow_none=True, **default_fields(None), **data_key_fields("i")
+            ),
         ),
-        (Dict[str, Any] | None, {}, m.fields.Dict(allow_none=True, **default_fields(None))),
+        (
+            Dict[str, Any] | None,
+            {},
+            mr.fields.DictField(m.fields.Raw(**default_fields(None)), allow_none=True, **default_fields(None)),
+        ),
         (
             Dict[str, Any] | None,
             mr.metadata(name="i"),
-            m.fields.Dict(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.fields.DictField(
+                m.fields.Raw(**default_fields(None)), allow_none=True, **default_fields(None), **data_key_fields("i")
+            ),
+        ),
+        # containers: Dict[str, int]
+        (dict[str, int], {}, mr.fields.DictField(m.fields.Int(required=True), required=True)),
+        (
+            dict[str, int],
+            mr.metadata(name="i"),
+            mr.fields.DictField(m.fields.Int(required=True), required=True, **data_key_fields("i")),
+        ),
+        (
+            Optional[dict[str, int]],
+            {},
+            mr.fields.DictField(m.fields.Int(required=True), allow_none=True, **default_fields(None)),
+        ),
+        (
+            Optional[dict[str, int]],
+            mr.metadata(name="i"),
+            mr.fields.DictField(
+                m.fields.Int(required=True), allow_none=True, **default_fields(None), **data_key_fields("i")
+            ),
+        ),
+        (
+            dict[str, int] | None,
+            {},
+            mr.fields.DictField(m.fields.Int(required=True), allow_none=True, **default_fields(None)),
+        ),
+        (
+            dict[str, int] | None,
+            mr.metadata(name="i"),
+            mr.fields.DictField(
+                m.fields.Int(required=True), allow_none=True, **default_fields(None), **data_key_fields("i")
+            ),
+        ),
+        (Dict[str, int], {}, mr.fields.DictField(m.fields.Int(required=True), required=True)),
+        (
+            Dict[str, int],
+            mr.metadata(name="i"),
+            mr.fields.DictField(m.fields.Int(required=True), required=True, **data_key_fields("i")),
+        ),
+        (
+            Optional[Dict[str, int]],
+            {},
+            mr.fields.DictField(m.fields.Int(required=True), allow_none=True, **default_fields(None)),
+        ),
+        (
+            Optional[Dict[str, int]],
+            mr.metadata(name="i"),
+            mr.fields.DictField(
+                m.fields.Int(required=True), allow_none=True, **default_fields(None), **data_key_fields("i")
+            ),
+        ),
+        (
+            Dict[str, int] | None,
+            {},
+            mr.fields.DictField(m.fields.Int(required=True), allow_none=True, **default_fields(None)),
+        ),
+        (
+            Dict[str, int] | None,
+            mr.metadata(name="i"),
+            mr.fields.DictField(
+                m.fields.Int(required=True), allow_none=True, **default_fields(None), **data_key_fields("i")
+            ),
+        ),
+        # containers: Dict[str, EmptyDataclass]
+        (
+            dict[str, EmptyDataclass],
+            {},
+            mr.fields.DictField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
+        ),
+        (
+            dict[str, EmptyDataclass],
+            mr.metadata(name="i"),
+            mr.fields.DictField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True, **data_key_fields("i")),
+        ),
+        (
+            Optional[dict[str, EmptyDataclass]],
+            {},
+            mr.fields.DictField(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
+        ),
+        (
+            Optional[dict[str, EmptyDataclass]],
+            mr.metadata(name="i"),
+            mr.fields.DictField(
+                m.fields.Nested(EMPTY_SCHEMA, required=True),
+                allow_none=True,
+                **default_fields(None),
+                **data_key_fields("i"),
+            ),
+        ),
+        (
+            dict[str, EmptyDataclass] | None,
+            {},
+            mr.fields.DictField(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
+        ),
+        (
+            dict[str, EmptyDataclass] | None,
+            mr.metadata(name="i"),
+            mr.fields.DictField(
+                m.fields.Nested(EMPTY_SCHEMA, required=True),
+                allow_none=True,
+                **default_fields(None),
+                **data_key_fields("i"),
+            ),
+        ),
+        (
+            Dict[str, EmptyDataclass],
+            {},
+            mr.fields.DictField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
+        ),
+        (
+            Dict[str, EmptyDataclass],
+            mr.metadata(name="i"),
+            mr.fields.DictField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True, **data_key_fields("i")),
+        ),
+        (
+            Optional[Dict[str, EmptyDataclass]],
+            {},
+            mr.fields.DictField(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
+        ),
+        (
+            Optional[Dict[str, EmptyDataclass]],
+            mr.metadata(name="i"),
+            mr.fields.DictField(
+                m.fields.Nested(EMPTY_SCHEMA, required=True),
+                allow_none=True,
+                **default_fields(None),
+                **data_key_fields("i"),
+            ),
+        ),
+        (
+            Dict[str, EmptyDataclass] | None,
+            {},
+            mr.fields.DictField(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
+        ),
+        (
+            Dict[str, EmptyDataclass] | None,
+            mr.metadata(name="i"),
+            mr.fields.DictField(
+                m.fields.Nested(EMPTY_SCHEMA, required=True),
+                allow_none=True,
+                **default_fields(None),
+                **data_key_fields("i"),
+            ),
         ),
     ],
 )

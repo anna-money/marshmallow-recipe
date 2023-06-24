@@ -138,8 +138,9 @@ def get_field_for(
                 allow_none=allow_none,
                 **list_field_metadata,
             )
-        if origin in (dict, Dict) and arguments[0] is str and arguments[1] is Any:
+        if origin in (dict, Dict) and arguments[0] is str:
             return dict_field(
+                get_field_for(arguments[1], metadata={}, naming_case=naming_case),
                 required=required,
                 allow_none=allow_none,
                 **metadata,

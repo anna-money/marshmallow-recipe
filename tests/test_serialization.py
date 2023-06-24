@@ -38,6 +38,8 @@ def test_simple_types() -> None:
         optional_date_field: datetime.date | None
         dict_field: dict[str, Any]
         optional_dict_field: dict[str, Any] | None
+        dict_of_ints_field: dict[str, int]
+        optional_dict_of_ints_field: dict[str, int] | None
         list_field: list[str]
         optional_list_field: list[str] | None
         enum_field: Parity
@@ -72,6 +74,7 @@ def test_simple_types() -> None:
             default_factory=lambda: datetime.date(2022, 2, 20)
         )
         dict_field_with_default_factory: dict[str, Any] = dataclasses.field(default_factory=lambda: {})
+        dict_of_ints_field_with_default_factory: dict[str, int] = dataclasses.field(default_factory=lambda: {})
         list_field_with_default_factory: list[str] = dataclasses.field(default_factory=lambda: [])
         enum_field_with_default_factory: Parity = dataclasses.field(default_factory=lambda: Parity.ODD)
 
@@ -112,6 +115,9 @@ def test_simple_types() -> None:
         dict_field=dict(key="value"),
         dict_field_with_default_factory={},
         optional_dict_field=dict(key="value"),
+        dict_of_ints_field=dict(key=42),
+        dict_of_ints_field_with_default_factory={},
+        optional_dict_of_ints_field=dict(key=42),
         list_field=["value"],
         list_field_with_default_factory=[],
         optional_list_field=["value"],
@@ -150,6 +156,8 @@ def test_simple_types() -> None:
             optional_date_field=datetime.date(2022, 2, 20),
             dict_field=dict(key="value"),
             optional_dict_field=dict(key="value"),
+            dict_of_ints_field=dict(key=42),
+            optional_dict_of_ints_field=dict(key=42),
             list_field=["value"],
             optional_list_field=["value"],
             enum_field=Parity.ODD,
@@ -412,3 +420,37 @@ def test_naming_case_in_options() -> None:
 
     dumped = mr.dump(TestFieldContainer(test_field="some_value"))
     assert dumped == {"testField": "some_value"}
+
+
+def test_dict_with_complex_value():
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class IdContainer:
+        id: uuid.UUID
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Container:
+        values: dict[str, IdContainer]
+
+    id = uuid.uuid4()
+
+    container = Container(values={"key": IdContainer(id=id)})
+
+    dumped = mr.dump(container)
+    assert dumped == {"values": {"key": {"id": str(id)}}}
+
+    assert container == mr.load(Container, dumped)
+
+
+def test_dict_with_complex_value_load_fail():
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class IdContainer:
+        id: uuid.UUID
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Container:
+        values: dict[str, IdContainer]
+
+    with pytest.raises(m.ValidationError) as e:
+        mr.load(Container, {"values": {"key": {"id": 42}}})
+
+    assert e.value.messages == {"values": {"key": {"value": {"id": ["Not a valid UUID."]}}}}
