@@ -36,7 +36,7 @@ __all__: tuple[str, ...] = (
     "add_pre_load",
 )
 
-__version__ = "0.0.21a1"
+__version__ = "0.0.21"
 
 version = f"{__version__}, Python {sys.version}"
 
