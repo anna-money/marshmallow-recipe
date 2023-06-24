@@ -1,7 +1,8 @@
+import collections
 import dataclasses
 import datetime
 import enum
-from typing import Any, Callable, Iterable, Type, cast
+from typing import Any, Callable, Iterable, Mapping, Type, cast
 
 import marshmallow as m
 import marshmallow.validate
@@ -338,6 +339,7 @@ def list_field(
 
 
 def dict_field(
+    field: m.fields.Field,
     *,
     required: bool,
     allow_none: bool,
@@ -347,7 +349,8 @@ def dict_field(
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
-        return m.fields.Dict(
+        return DictField(
+            values=field,
             allow_none=allow_none,
             validate=validate,
             **default_fields(m.missing),
@@ -357,9 +360,10 @@ def dict_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return m.fields.Dict(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+        return DictField(values=field, required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
 
-    return m.fields.Dict(
+    return DictField(
+        values=field,
         allow_none=allow_none,
         validate=validate,
         **default_fields(None if default is dataclasses.MISSING else default),
@@ -423,6 +427,7 @@ def raw_field(
 
 DateTimeField: Type[m.fields.DateTime]
 EnumField: Type[m.fields.String]
+DictField: Type[m.fields.Field]
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
@@ -560,6 +565,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 raise ValueError(f"Default should be an instance of enum_type {enum_type}")
 
     EnumField = EnumFieldV3
+
+    DictField = m.fields.Dict
 else:
     dateutil_tz_utc_cls: Type[datetime.tzinfo] | None
     try:
@@ -696,3 +703,34 @@ else:
                 raise ValueError(f"Default should be an instance of enum_type {enum_type}")
 
     EnumField = EnumFieldV2
+
+    class DictFieldWithTypedValue(m.fields.Dict):
+
+        default_error_messages = {"invalid": "Not a valid mapping type."}
+
+        def __init__(self, values, *args, **kwargs):
+            self.values = values
+            super().__init__(*args, **kwargs)
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            return {key: self.values._serialize(val, key, value) for key, val in value.items()}
+
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            if not isinstance(value, Mapping):
+                self.fail("invalid")
+
+            result = {}
+            errors = collections.defaultdict(dict)  # type: ignore
+
+            for key, val in value.items():
+                try:
+                    result[key] = self.values.deserialize(val, **kwargs)
+                except m.ValidationError as error:
+                    errors[key]["value"] = error.messages
+
+            if errors:
+                raise m.ValidationError(errors)
+
+            return result
+
+    DictField = DictFieldWithTypedValue
