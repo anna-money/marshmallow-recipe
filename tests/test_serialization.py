@@ -422,7 +422,7 @@ def test_naming_case_in_options() -> None:
     assert dumped == {"testField": "some_value"}
 
 
-def test_dict_with_complex_value():
+def test_dict_with_complex_value() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class IdContainer:
         id: uuid.UUID
@@ -441,7 +441,7 @@ def test_dict_with_complex_value():
     assert container == mr.load(Container, dumped)
 
 
-def test_dict_with_complex_value_load_fail():
+def test_dict_with_complex_value_load_fail() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class IdContainer:
         id: uuid.UUID

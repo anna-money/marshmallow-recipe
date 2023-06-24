@@ -427,6 +427,7 @@ def raw_field(
 
 DateTimeField: Type[m.fields.DateTime]
 EnumField: Type[m.fields.String]
+DictField: Type[m.fields.Field]
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
