@@ -1,3 +1,8 @@
+## v0.0.22a2(2023-06-27)
+
+* [Support typed dict key](https://github.com/anna-money/marshmallow-recipe/pull/104)
+
+
 ## v0.0.22a1(2023-06-24)
 
 * [Support typed dict value](https://github.com/anna-money/marshmallow-recipe/pull/101)
