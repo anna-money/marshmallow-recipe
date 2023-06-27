@@ -2,7 +2,7 @@ import collections
 import dataclasses
 import datetime
 import enum
-from typing import Any, Callable, Iterable, Mapping, Type, cast
+from typing import Any, Callable, Iterable, Type, cast
 
 import marshmallow as m
 import marshmallow.validate
@@ -339,7 +339,8 @@ def list_field(
 
 
 def dict_field(
-    field: m.fields.Field,
+    keys_field: m.fields.Field | None,
+    values_field: m.fields.Field | None,
     *,
     required: bool,
     allow_none: bool,
@@ -350,7 +351,8 @@ def dict_field(
 ) -> m.fields.Field:
     if default is m.missing:
         return DictField(
-            values=field,
+            keys=keys_field,
+            values=values_field,
             allow_none=allow_none,
             validate=validate,
             **default_fields(m.missing),
@@ -360,10 +362,18 @@ def dict_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return DictField(values=field, required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+        return DictField(
+            keys=keys_field,
+            values=values_field,
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            **data_key_fields(name),
+        )
 
     return DictField(
-        values=field,
+        keys=keys_field,
+        values=values_field,
         allow_none=allow_none,
         validate=validate,
         **default_fields(None if default is dataclasses.MISSING else default),
@@ -704,33 +714,78 @@ else:
 
     EnumField = EnumFieldV2
 
-    class DictFieldWithTypedValue(m.fields.Dict):
-
+    class TypedDict(m.fields.Field):
         default_error_messages = {"invalid": "Not a valid mapping type."}
 
-        def __init__(self, values, *args, **kwargs):
+        def __init__(self, keys=None, values=None, *args, **kwargs):
+            self.keys = keys
             self.values = values
             super().__init__(*args, **kwargs)
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
-            return {key: self.values._serialize(val, key, value) for key, val in value.items()}
+            if value is None:
+                return None
+            if self.values is None and self.keys is None:
+                return value
 
-        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
-            if not isinstance(value, Mapping):
-                self.fail("invalid")
+            if self.keys is None:
+                keys = {k: k for k in value.keys()}
+            else:
+                keys = {k: self.keys._serialize(k, None, None, **kwargs) for k in value.keys()}
 
             result = {}
+            if self.values is None:
+                for k, v in value.items():
+                    if k in keys:
+                        result[keys[k]] = v
+            else:
+                for k, v in value.items():
+                    result[keys[k]] = self.values._serialize(v, None, None, **kwargs)
+
+            return result
+
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            if not isinstance(value, dict):
+                self.fail("invalid")
+
+            if self.keys is None and self.values is None:
+                return value
+
             errors = collections.defaultdict(dict)  # type: ignore
 
-            for key, val in value.items():
-                try:
-                    result[key] = self.values.deserialize(val, **kwargs)
-                except m.ValidationError as error:
-                    errors[key]["value"] = error.messages
+            if self.keys is None:
+                keys = {k: k for k in value.keys()}
+            else:
+                keys = {}
+                for key in value.keys():
+                    try:
+                        keys[key] = self.keys.deserialize(key, **kwargs)
+                    except m.ValidationError as error:
+                        errors[key]["key"] = error.messages
+
+            result = {}
+            if self.values is None:
+                for k, v in value.items():
+                    if k in keys:
+                        result[keys[k]] = v
+            else:
+                for key, val in value.items():
+                    try:
+                        deserialized_value = self.values.deserialize(val, **kwargs)
+                    except m.ValidationError as error:
+                        errors[key]["value"] = error.messages
+                        if error.data is not None and key in keys:
+                            result[keys[key]] = error.data
+                    else:
+                        if key in keys:
+                            result[keys[key]] = deserialized_value
+
+            if errors:
+                raise m.ValidationError(errors, data=result)
 
             if errors:
                 raise m.ValidationError(errors)
 
             return result
 
-    DictField = DictFieldWithTypedValue
+    DictField = TypedDict

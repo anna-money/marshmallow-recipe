@@ -38,8 +38,8 @@ def test_simple_types() -> None:
         optional_date_field: datetime.date | None
         dict_field: dict[str, Any]
         optional_dict_field: dict[str, Any] | None
-        dict_of_ints_field: dict[str, int]
-        optional_dict_of_ints_field: dict[str, int] | None
+        custom_dict_field: dict[datetime.date, int]
+        optional_custom_dict_field: dict[datetime.date, int] | None
         list_field: list[str]
         optional_list_field: list[str] | None
         enum_field: Parity
@@ -74,7 +74,7 @@ def test_simple_types() -> None:
             default_factory=lambda: datetime.date(2022, 2, 20)
         )
         dict_field_with_default_factory: dict[str, Any] = dataclasses.field(default_factory=lambda: {})
-        dict_of_ints_field_with_default_factory: dict[str, int] = dataclasses.field(default_factory=lambda: {})
+        custom_dict_field_with_default_factory: dict[datetime.date, int] = dataclasses.field(default_factory=lambda: {})
         list_field_with_default_factory: list[str] = dataclasses.field(default_factory=lambda: [])
         enum_field_with_default_factory: Parity = dataclasses.field(default_factory=lambda: Parity.ODD)
 
@@ -115,9 +115,9 @@ def test_simple_types() -> None:
         dict_field=dict(key="value"),
         dict_field_with_default_factory={},
         optional_dict_field=dict(key="value"),
-        dict_of_ints_field=dict(key=42),
-        dict_of_ints_field_with_default_factory={},
-        optional_dict_of_ints_field=dict(key=42),
+        custom_dict_field={"2020-01-01": 42},
+        custom_dict_field_with_default_factory={},
+        optional_custom_dict_field={"2020-01-01": 42},
         list_field=["value"],
         list_field_with_default_factory=[],
         optional_list_field=["value"],
@@ -156,8 +156,8 @@ def test_simple_types() -> None:
             optional_date_field=datetime.date(2022, 2, 20),
             dict_field=dict(key="value"),
             optional_dict_field=dict(key="value"),
-            dict_of_ints_field=dict(key=42),
-            optional_dict_of_ints_field=dict(key=42),
+            custom_dict_field={datetime.date(2020, 1, 1): 42},
+            optional_custom_dict_field={datetime.date(2020, 1, 1): 42},
             list_field=["value"],
             optional_list_field=["value"],
             enum_field=Parity.ODD,
@@ -443,14 +443,20 @@ def test_dict_with_complex_value() -> None:
 
 def test_dict_with_complex_value_load_fail() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class IdContainer:
-        id: uuid.UUID
-
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class Container:
-        values: dict[str, IdContainer]
+        values: dict[datetime.date, decimal.Decimal]
 
     with pytest.raises(m.ValidationError) as e:
-        mr.load(Container, {"values": {"key": {"id": 42}}})
+        mr.load(Container, {"values": {"invalid": "invalid"}})
 
-    assert e.value.messages == {"values": {"key": {"value": {"id": ["Not a valid UUID."]}}}}
+    assert e.value.messages == {"values": {"invalid": {"key": ["Not a valid date."], "value": ["Not a valid number."]}}}
+
+    with pytest.raises(m.ValidationError) as e:
+        mr.load(Container, {"values": None})
+
+    assert e.value.messages == {"values": ["Field may not be null."]}
+
+    with pytest.raises(m.ValidationError) as e:
+        mr.load(Container, {"values": {"invalid": "invalid", "2020-01-01": 42}})
+
+    assert e.value.messages == {"values": {"invalid": {"key": ["Not a valid date."], "value": ["Not a valid number."]}}}
