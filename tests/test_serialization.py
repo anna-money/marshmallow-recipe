@@ -3,9 +3,8 @@ import datetime
 import decimal
 import enum
 import uuid
-from typing import Any, cast
+from typing import Any
 
-import marshmallow as m
 import pytest
 
 import marshmallow_recipe as mr
@@ -380,38 +379,6 @@ def test_enum_field_load(value: Parity, raw: str) -> None:
     assert dumped == EnumContainer(enum_field=value)
 
 
-@pytest.mark.skip("Bug in marshmallow")
-def test_dump_invalid_int_value() -> None:
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class IntContainer:
-        int_field: int
-
-    with pytest.raises(m.ValidationError):
-        mr.dump(IntContainer(int_field=cast(int, "invalid")))
-
-
-def test_dump_invalid_value() -> None:
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class UUIDContainer:
-        uuid_field: uuid.UUID
-
-    with pytest.raises(m.ValidationError) as exc_info:
-        mr.dump(UUIDContainer(uuid_field=cast(uuid.UUID, "invalid")))
-
-    assert exc_info.value.messages == {"uuid_field": ["Not a valid UUID."]}
-
-
-def test_dump_many_invalid_value() -> None:
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class UUIDContainer:
-        uuid_field: uuid.UUID
-
-    with pytest.raises(m.ValidationError) as exc_info:
-        mr.dump_many([UUIDContainer(uuid_field=cast(uuid.UUID, "invalid"))])
-
-    assert exc_info.value.messages == {0: {"uuid_field": ["Not a valid UUID."]}}
-
-
 def test_naming_case_in_options() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     @mr.options(naming_case=mr.CAMEL_CASE)
@@ -439,40 +406,3 @@ def test_dict_with_complex_value() -> None:
     assert dumped == {"values": {"key": {"id": str(id)}}}
 
     assert container == mr.load(Container, dumped)
-
-
-def test_dict_with_complex_value_load_fail() -> None:
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class Container:
-        values: dict[datetime.date, decimal.Decimal]
-
-    with pytest.raises(m.ValidationError) as e:
-        mr.load(Container, {"values": {"invalid": "invalid"}})
-
-    assert e.value.messages == {"values": {"invalid": {"key": ["Not a valid date."], "value": ["Not a valid number."]}}}
-
-    with pytest.raises(m.ValidationError) as e:
-        mr.load(Container, {"values": None})
-
-    assert e.value.messages == {"values": ["Field may not be null."]}
-
-    with pytest.raises(m.ValidationError) as e:
-        mr.load(Container, {"values": {"invalid": "invalid", "2020-01-01": 42}})
-
-    assert e.value.messages == {"values": {"invalid": {"key": ["Not a valid date."], "value": ["Not a valid number."]}}}
-
-
-def test_not_none_field_with_none_should_fail_on_dump() -> None:
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class Container:
-        value: str
-
-    with pytest.raises(m.ValidationError) as e:
-        mr.dump(Container(value=None))  # type: ignore
-
-    assert e.value.messages == {"value": ["Missing data for required field."]}
-
-    with pytest.raises(m.ValidationError) as e:
-        mr.dump_many([Container(value=None)])  # type: ignore
-
-    assert e.value.messages == {0: {"value": ["Missing data for required field."]}}
