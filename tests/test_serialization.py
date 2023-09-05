@@ -460,3 +460,19 @@ def test_dict_with_complex_value_load_fail() -> None:
         mr.load(Container, {"values": {"invalid": "invalid", "2020-01-01": 42}})
 
     assert e.value.messages == {"values": {"invalid": {"key": ["Not a valid date."], "value": ["Not a valid number."]}}}
+
+
+def test_not_none_field_with_none_should_fail_on_dump() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Container:
+        value: str
+
+    with pytest.raises(m.ValidationError) as e:
+        mr.dump(Container(value=None))  # type: ignore
+
+    assert e.value.messages == {"value": ["Missing data for required field."]}
+
+    with pytest.raises(m.ValidationError) as e:
+        mr.dump_many([Container(value=None)])  # type: ignore
+
+    assert e.value.messages == {0: {"value": ["Missing data for required field."]}}

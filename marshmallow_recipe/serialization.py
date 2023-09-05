@@ -82,14 +82,24 @@ else:
         *,
         naming_case: NamingCase | None = None,
     ) -> dict[str, Any]:
-        dumped, _ = schema(type(data), naming_case=naming_case).dump(data)
-        return cast(dict[str, Any], dumped)
+        data_schema = schema(type(data), naming_case=naming_case)
+        dumped, errors = data_schema.dump(data)
+        if errors:
+            raise m.ValidationError(errors)
+        if errors := data_schema.validate(dumped):
+            raise m.ValidationError(errors)
+        return dumped
 
     def dump_many(data: list[_T], *, naming_case: NamingCase | None = None) -> list[dict[str, Any]]:
         if not data:
             return []
-        dumped, _ = schema(type(data[0]), many=True, naming_case=naming_case).dump(data)
-        return cast(list[dict[str, Any]], dumped)
+        data_schema = schema(type(data[0]), many=True, naming_case=naming_case)
+        dumped, errors = data_schema.dump(data)
+        if errors:
+            raise m.ValidationError(errors)
+        if errors := data_schema.validate(dumped):
+            raise m.ValidationError(errors)
+        return dumped
 
 
 EmptySchema = m.Schema
