@@ -165,17 +165,17 @@ def test_dump_many_invalid_value() -> None:
 def test_dump_invalid_value_with_custom_name() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class UUIDContainer:
-        uuid_field: uuid.UUID
+        uuid_field: uuid.UUID = dataclasses.field(metadata=mr.metadata(name="UuidField"))
 
     with pytest.raises(m.ValidationError) as exc_info:
         mr.dump(UUIDContainer(uuid_field=cast(uuid.UUID, "invalid")))
 
-    assert exc_info.value.messages == {"uuid_field": ["Not a valid UUID."]}
+    assert exc_info.value.messages == {"UuidField": ["Not a valid UUID."]}
 
     with pytest.raises(m.ValidationError) as exc_info:
         mr.dump(UUIDContainer(uuid_field=cast(uuid.UUID, None)))
 
-    assert exc_info.value.messages == {"uuid_field": ["Missing data for required field."]}
+    assert exc_info.value.messages == {"UuidField": ["Missing data for required field."]}
 
 
 def test_dump_many_invalid_value_with_custom_name() -> None:
