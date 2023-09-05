@@ -197,7 +197,7 @@ def test_nested_dataclass() -> None:
     assert mr.schema(Container) is mr.schema(Container)
 
 
-def test_custom_name() -> None:
+def test_custom_name_bool() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class BoolContainer:
         bool_field: bool = dataclasses.field(metadata=mr.metadata(name="BoolField"))
@@ -211,6 +211,22 @@ def test_custom_name() -> None:
     assert dumped == raw
 
     assert mr.schema(BoolContainer) is mr.schema(BoolContainer)
+
+
+def test_custom_name_uuid() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class UuidContainer:
+        uuid_field: uuid.UUID = dataclasses.field(metadata=mr.metadata(name="UuidField"))
+
+    raw = {"UuidField": "15f75b02-1c34-46a2-92a5-18363aadea05"}
+
+    loaded = mr.load(UuidContainer, raw)
+    dumped = mr.dump(loaded)
+
+    assert loaded == UuidContainer(uuid_field=uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05"))
+    assert dumped == raw
+
+    assert mr.schema(UuidContainer) is mr.schema(UuidContainer)
 
 
 def test_none() -> None:
