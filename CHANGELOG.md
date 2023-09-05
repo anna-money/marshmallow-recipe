@@ -1,3 +1,8 @@
+## v0.0.23(2023-09-05)
+
+* [Validate dumped data against its schema for marshmallow2](https://github.com/anna-money/marshmallow-recipe/pull/110)
+
+
 ## v0.0.22(2023-06-27)
 
 
