@@ -38,12 +38,5 @@ class CamelCase:
         return word.title()
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class _Default:
-    def __call__(self, name: str) -> str:
-        return name
-
-
 CAPITAL_CAMEL_CASE = CapitalCamelCase(capitalize_words=frozenset())
 CAMEL_CASE = CamelCase(capitalize_words=frozenset())
-DEFAULT_CASE = _Default()

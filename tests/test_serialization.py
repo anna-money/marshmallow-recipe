@@ -265,8 +265,8 @@ def test_schema_with_default_case() -> None:
         str_field: str
 
     origin = dict(str_field="foobar")
-    loaded = mr.load(DataClass, origin, naming_case=mr.DEFAULT_CASE)
-    dumped = mr.dump(loaded, naming_case=mr.DEFAULT_CASE)
+    loaded = mr.load(DataClass, origin)
+    dumped = mr.dump(loaded)
 
     assert loaded == DataClass(str_field="foobar")
     assert dumped == origin
@@ -422,3 +422,22 @@ def test_dict_with_complex_value() -> None:
     assert dumped == {"values": {"key": {"id": str(id)}}}
 
     assert container == mr.load(Container, dumped)
+
+
+def test_bake_schema_should_reuse_already_generated_schemas() -> None:
+    schema_cache = getattr(getattr(mr, "bake"), "_schema_types")
+
+    schema_cache.clear()
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Holder:
+        value: int
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class HolderHolder:
+        holder: Holder
+
+    mr.bake_schema(HolderHolder)
+    mr.bake_schema(Holder)
+
+    assert len(schema_cache) == 2

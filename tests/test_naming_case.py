@@ -52,8 +52,6 @@ def test_naming_cases_equal(first: mr.NamingCase, second: mr.NamingCase) -> None
 @pytest.mark.parametrize(
     "first, second",
     [
-        (mr.CAPITAL_CAMEL_CASE, mr.DEFAULT_CASE),
-        (mr.CAMEL_CASE, mr.DEFAULT_CASE),
         (
             mr.CapitalCamelCase(capitalize_words=frozenset(["foo"])),
             mr.CapitalCamelCase(capitalize_words=frozenset(["bar"])),

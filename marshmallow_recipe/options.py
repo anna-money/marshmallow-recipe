@@ -2,9 +2,9 @@ import dataclasses
 import enum
 from typing import Any
 
-from .naming_case import DEFAULT_CASE, NamingCase
+from .naming_case import NamingCase
 
-_OPTIONS = "__marshmallow_recipe_options_"
+_OPTIONS_KEY = "__marshmallow_recipe_options__"
 
 
 class NoneValueHandling(str, enum.Enum):
@@ -17,25 +17,19 @@ class NoneValueHandling(str, enum.Enum):
 
 @dataclasses.dataclass(kw_only=True, slots=True, frozen=True)
 class DataclassOptions:
-    none_value_handling: NoneValueHandling
-    naming_case: NamingCase
-
-
-_DEFAULT_OPTIONS = DataclassOptions(
-    none_value_handling=NoneValueHandling.IGNORE,
-    naming_case=DEFAULT_CASE,
-)
+    none_value_handling: NoneValueHandling | None = None
+    naming_case: NamingCase | None = None
 
 
 def options(
     *,
-    none_value_handling: NoneValueHandling = _DEFAULT_OPTIONS.none_value_handling,
-    naming_case: NamingCase = _DEFAULT_OPTIONS.naming_case,
+    none_value_handling: NoneValueHandling | None = None,
+    naming_case: NamingCase | None = None,
 ):
     def wrap(cls: Any):
         setattr(
             cls,
-            _OPTIONS,
+            _OPTIONS_KEY,
             DataclassOptions(
                 none_value_handling=none_value_handling,
                 naming_case=naming_case,
@@ -46,5 +40,5 @@ def options(
     return wrap
 
 
-def get_options_for(type) -> DataclassOptions:
-    return getattr(type, _OPTIONS, _DEFAULT_OPTIONS)
+def try_get_options_for(type) -> DataclassOptions | None:
+    return getattr(type, _OPTIONS_KEY, None)

@@ -522,4 +522,4 @@ EMPTY_SCHEMA = m.Schema()
 def test_get_field_for(type: type, metadata: dict[str, Any], field: m.fields.Field) -> None:
     with unittest.mock.patch("marshmallow_recipe.bake.bake_schema") as bake_schema:
         bake_schema.return_value = EMPTY_SCHEMA
-        assert_fields_equal(mr.get_field_for(type, metadata, naming_case=mr.DEFAULT_CASE), field)
+        assert_fields_equal(mr.get_field_for(type, metadata, None, None), field)
