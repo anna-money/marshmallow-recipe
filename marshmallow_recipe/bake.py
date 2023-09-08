@@ -48,13 +48,14 @@ def bake_schema(
     if not dataclasses.is_dataclass(cls):
         raise ValueError(f"{cls} is not a dataclass")
 
-    cls_none_value_handling = none_value_handling
-    cls_naming_case = naming_case
     if options := try_get_options_for(cls):
         cls_none_value_handling = none_value_handling or options.none_value_handling
         cls_naming_case = naming_case or options.naming_case
+    else:
+        cls_none_value_handling = none_value_handling
+        cls_naming_case = naming_case
 
-    key = _SchemaTypeKey(cls=cls, naming_case=naming_case, none_value_handling=none_value_handling)
+    key = _SchemaTypeKey(cls=cls, naming_case=cls_naming_case, none_value_handling=cls_none_value_handling)
     if result := _schema_types.get(key):
         return result
 
