@@ -75,7 +75,8 @@ def bake_schema(
     schema_class = type(
         cls.__name__,
         (_get_base_schema(cls, options.none_value_handling),),
-        {
+        {"__module__": f"{__package__}.auto_generated"}
+        | {
             field.name: get_field_for(field.type, metadata, naming_case=naming_case)
             for field, metadata in fields_with_metadata
         },
