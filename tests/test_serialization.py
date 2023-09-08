@@ -405,6 +405,20 @@ def test_naming_case_in_options() -> None:
     assert dumped == {"testField": "some_value"}
 
 
+def test_naming_case_in_options_should_not_affect_field_schemas() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Container:
+        value: str
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @mr.options(naming_case=mr.CAPITAL_CAMEL_CASE)
+    class ContainerContainer:
+        value: Container
+
+    dumped = mr.dump(ContainerContainer(value=Container(value="some_value")))
+    assert dumped == {"Value": {"value": "some_value"}}
+
+
 def test_dict_with_complex_value() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class IdContainer:
@@ -441,3 +455,21 @@ def test_bake_schema_should_reuse_already_generated_schemas() -> None:
     mr.bake_schema(Holder)
 
     assert len(schema_cache) == 2
+
+
+@pytest.mark.parametrize("naming_case", [mr.CAMEL_CASE, None])
+@pytest.mark.parametrize("none_value_handling", [mr.NoneValueHandling.INCLUDE, None])
+def test_bake_schema_should_generate_schemas_per_parameters(
+    naming_case: mr.NamingCase, none_value_handling: mr.NoneValueHandling
+) -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Holder:
+        value: int
+
+    default_schema = mr.bake_schema(Holder)
+    parametrised_schema = mr.bake_schema(Holder, naming_case=naming_case, none_value_handling=none_value_handling)
+
+    if naming_case is None and none_value_handling is None:
+        assert default_schema is parametrised_schema
+    else:
+        assert default_schema is not parametrised_schema
