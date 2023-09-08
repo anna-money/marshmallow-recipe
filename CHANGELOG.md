@@ -1,3 +1,11 @@
+## v0.0.24(2023-09-08)
+
+* [Set __module__ for auto-generated schemas](https://github.com/anna-money/marshmallow-recipe/pull/112)
+* [Calling bake_schema should reuse already generated schemas](https://github.com/anna-money/marshmallow-recipe/pull/113)
+* [NamingCase should not be propagated through serialisation hierarchy](https://github.com/anna-money/marshmallow-recipe/pull/113)
+* [Removal of DEFAULT_CASE](https://github.com/anna-money/marshmallow-recipe/pull/113)
+
+
 ## v0.0.23(2023-09-05)
 
 * [Validate dumped data against its schema for marshmallow2](https://github.com/anna-money/marshmallow-recipe/pull/110)
