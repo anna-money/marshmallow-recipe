@@ -27,13 +27,14 @@ from .fields import (
 )
 from .hooks import get_pre_loads
 from .naming_case import NamingCase
-from .options import NoneValueHandling, get_options_for
+from .options import NoneValueHandling, try_get_options_for
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class _SchemaTypeKey:
     cls: type
     naming_case: NamingCase | None
+    none_value_handling: NoneValueHandling | None
 
 
 _T = TypeVar("_T")
@@ -42,23 +43,31 @@ _schema_types: dict[_SchemaTypeKey, Type[m.Schema]] = {}
 
 
 def bake_schema(
-    cls: Type[_T],
-    *,
-    naming_case: NamingCase | None = None,
+    cls: Type[_T], *, naming_case: NamingCase | None = None, none_value_handling: NoneValueHandling | None = None
 ) -> Type[m.Schema]:
     if not dataclasses.is_dataclass(cls):
         raise ValueError(f"{cls} is not a dataclass")
 
-    key = _SchemaTypeKey(cls=cls, naming_case=naming_case)
+    if options := try_get_options_for(cls):
+        cls_none_value_handling = none_value_handling or options.none_value_handling
+        cls_naming_case = naming_case or options.naming_case
+    else:
+        cls_none_value_handling = none_value_handling
+        cls_naming_case = naming_case
+
+    key = _SchemaTypeKey(cls=cls, naming_case=cls_naming_case, none_value_handling=cls_none_value_handling)
     if result := _schema_types.get(key):
         return result
 
-    options = get_options_for(cls)
-    if naming_case is None:
-        naming_case = options.naming_case
-
     fields_with_metadata = [
-        (field, _get_metadata(name=naming_case(field.name), default=_get_field_default(field), metadata=field.metadata))
+        (
+            field,
+            _get_metadata(
+                name=field.name if cls_naming_case is None else cls_naming_case(field.name),
+                default=_get_field_default(field),
+                metadata=field.metadata,
+            ),
+        )
         for field in dataclasses.fields(cls)
         if field.init
     ]
@@ -74,10 +83,12 @@ def bake_schema(
 
     schema_class = type(
         cls.__name__,
-        (_get_base_schema(cls, options.none_value_handling),),
+        (_get_base_schema(cls, cls_none_value_handling or NoneValueHandling.IGNORE),),
         {"__module__": f"{__package__}.auto_generated"}
         | {
-            field.name: get_field_for(field.type, metadata, naming_case=naming_case)
+            field.name: get_field_for(
+                field.type, metadata, naming_case=naming_case, none_value_handling=none_value_handling
+            )
             for field, metadata in fields_with_metadata
         },
     )
@@ -89,8 +100,8 @@ def bake_schema(
 def get_field_for(
     type: Type[_T],
     metadata: Mapping[str, Any],
-    *,
-    naming_case: NamingCase,
+    naming_case: NamingCase | None,
+    none_value_handling: NoneValueHandling | None,
 ) -> m.fields.Field:
     if type is Any:
         return raw_field(**metadata)
@@ -118,7 +129,7 @@ def get_field_for(
 
     if dataclasses.is_dataclass(type):
         return nested_field(
-            bake_schema(type, naming_case=naming_case),
+            bake_schema(type, naming_case=naming_case, none_value_handling=none_value_handling),
             required=required,
             allow_none=allow_none,
             **metadata,
@@ -134,17 +145,30 @@ def get_field_for(
                 item_field_metadata = {}
 
             return list_field(
-                get_field_for(arguments[0], metadata=item_field_metadata, naming_case=naming_case),
+                get_field_for(
+                    arguments[0],
+                    metadata=item_field_metadata,
+                    naming_case=naming_case,
+                    none_value_handling=none_value_handling,
+                ),
                 required=required,
                 allow_none=allow_none,
                 **list_field_metadata,
             )
         if origin in (dict, Dict):
             keys_field = (
-                None if arguments[0] is str else get_field_for(arguments[0], metadata={}, naming_case=naming_case)
+                None
+                if arguments[0] is str
+                else get_field_for(
+                    arguments[0], metadata={}, naming_case=naming_case, none_value_handling=none_value_handling
+                )
             )
             values_field = (
-                None if arguments[1] is Any else get_field_for(arguments[1], metadata={}, naming_case=naming_case)
+                None
+                if arguments[1] is Any
+                else get_field_for(
+                    arguments[1], metadata={}, naming_case=naming_case, none_value_handling=none_value_handling
+                )
             )
 
             return dict_field(
