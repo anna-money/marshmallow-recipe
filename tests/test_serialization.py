@@ -45,6 +45,8 @@ def test_simple_types() -> None:
         optional_set_field: set[str] | None
         frozenset_field: frozenset[str]
         optional_frozenset_field: frozenset[str] | None
+        tuple_field: tuple[str, ...]
+        optional_tuple_field: tuple[str, ...] | None
         enum_field: Parity
         optional_enum_field: Parity | None
         # with default
@@ -81,6 +83,7 @@ def test_simple_types() -> None:
         list_field_with_default_factory: list[str] = dataclasses.field(default_factory=lambda: [])
         set_field_with_default_factory: set[str] = dataclasses.field(default_factory=lambda: set())
         frozenset_field_with_default_factory: frozenset[str] = dataclasses.field(default_factory=lambda: frozenset())
+        tuple_field_with_default_factory: tuple[str, ...] = dataclasses.field(default_factory=lambda: tuple())
         enum_field_with_default_factory: Parity = dataclasses.field(default_factory=lambda: Parity.ODD)
 
     raw = dict(
@@ -129,6 +132,9 @@ def test_simple_types() -> None:
         set_field=["value"],
         set_field_with_default_factory=[],
         optional_set_field=["value"],
+        tuple_field=["value"],
+        tuple_field_with_default_factory=[],
+        optional_tuple_field=["value"],
         frozenset_field=["value"],
         frozenset_field_with_default_factory=[],
         optional_frozenset_field=["value"],
@@ -175,6 +181,8 @@ def test_simple_types() -> None:
             optional_set_field={"value"},
             frozenset_field=frozenset({"value"}),
             optional_frozenset_field=frozenset({"value"}),
+            tuple_field=("value",),
+            optional_tuple_field=("value",),
             enum_field=Parity.ODD,
             optional_enum_field=Parity.EVEN,
         )

@@ -5,7 +5,7 @@ import enum
 import inspect
 import types
 import uuid
-from typing import Any, Dict, FrozenSet, List, Mapping, Protocol, Set, Type, TypeVar, cast
+from typing import Any, Dict, FrozenSet, List, Mapping, Protocol, Set, Tuple, Type, TypeVar, cast
 
 import marshmallow as m
 import typing_inspect
@@ -25,6 +25,7 @@ from .fields import (
     raw_field,
     set_field,
     str_field,
+    tuple_field,
     uuid_field,
 )
 from .hooks import get_pre_loads
@@ -219,6 +220,24 @@ def get_field_for(
                 allow_none=allow_none,
                 **metadata,
             )
+        if origin in (tuple, Tuple):
+            unique_arguments = set(arguments)
+            unique_arguments.discard(Ellipsis)  # to support tuple[T, ...]
+
+            if len(unique_arguments) > 1:
+                raise ValueError(f"Unsupported {type=}: tuple should be of the single type, but has {unique_arguments}")
+
+            return tuple_field(
+                get_field_for(
+                    next(x for x in unique_arguments),
+                    metadata={},
+                    naming_case=naming_case,
+                    none_value_handling=none_value_handling,
+                ),
+                required=required,
+                allow_none=allow_none,
+                **metadata,
+            )
 
     raise ValueError(f"Unsupported {type=}")
 
@@ -322,6 +341,8 @@ def _substitute_any_to_open_generic(type: type) -> type:
         return frozenset[Any]
     if type is dict:
         return dict[Any, Any]
+    if type is tuple:
+        return tuple[Any, ...]
     return type
 
 

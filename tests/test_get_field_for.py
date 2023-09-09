@@ -491,6 +491,82 @@ EMPTY_SCHEMA = m.Schema()
                 **default_fields(None),
             ),
         ),
+        # containers: tuple[T, ...]
+        (tuple[bool], {}, marshmallow_recipe.fields.TupleField(m.fields.Bool(required=True), required=True)),
+        (
+            tuple[Optional[bool]],
+            {},
+            marshmallow_recipe.fields.TupleField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+        ),
+        (
+            tuple[bool | None],
+            {},
+            marshmallow_recipe.fields.TupleField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+        ),
+        (
+            Optional[tuple[bool]],
+            {},
+            marshmallow_recipe.fields.TupleField(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
+        ),
+        (
+            Optional[tuple[Optional[bool]]],
+            {},
+            marshmallow_recipe.fields.TupleField(
+                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+            ),
+        ),
+        (
+            tuple[bool | None] | None,
+            {},
+            marshmallow_recipe.fields.TupleField(
+                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+            ),
+        ),
+        # containers: tuple[T, ...] where T: dataclass
+        (
+            tuple[EmptyDataclass],
+            {},
+            marshmallow_recipe.fields.TupleField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
+        ),
+        (
+            tuple[Optional[EmptyDataclass]],
+            {},
+            marshmallow_recipe.fields.TupleField(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True
+            ),
+        ),
+        (
+            tuple[EmptyDataclass | None],
+            {},
+            marshmallow_recipe.fields.TupleField(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True
+            ),
+        ),
+        (
+            Optional[tuple[EmptyDataclass]],
+            {},
+            marshmallow_recipe.fields.TupleField(
+                m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)
+            ),
+        ),
+        (
+            Optional[tuple[Optional[EmptyDataclass]]],
+            {},
+            marshmallow_recipe.fields.TupleField(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                allow_none=True,
+                **default_fields(None),
+            ),
+        ),
+        (
+            tuple[EmptyDataclass | None] | None,
+            {},
+            marshmallow_recipe.fields.TupleField(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                allow_none=True,
+                **default_fields(None),
+            ),
+        ),
         # containers: Dict[str, Any]
         (dict[str, Any], {}, mr.fields.DictField(required=True)),
         (
