@@ -349,6 +349,88 @@ EMPTY_SCHEMA = m.Schema()
                 **default_fields(None),
             ),
         ),
+        # containers: set[T]
+        (set[bool], {}, marshmallow_recipe.fields.SetField(m.fields.Bool(required=True), required=True)),
+        (
+            set[Optional[bool]],
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Bool(allow_none=True, **default_fields(None)), required=True
+            ),
+        ),
+        (
+            set[bool | None],
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Bool(allow_none=True, **default_fields(None)), required=True
+            ),
+        ),
+        (
+            Optional[set[bool]],
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Bool(required=True), allow_none=True, **default_fields(None)
+            ),
+        ),
+        (
+            Optional[set[Optional[bool]]],
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+            ),
+        ),
+        (
+            set[bool | None] | None,
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+            ),
+        ),
+        # containers: set[T] where T: dataclass
+        (
+            set[EmptyDataclass],
+            {},
+            marshmallow_recipe.fields.SetField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
+        ),
+        (
+            set[Optional[EmptyDataclass]],
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True
+            ),
+        ),
+        (
+            set[EmptyDataclass | None],
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True
+            ),
+        ),
+        (
+            Optional[set[EmptyDataclass]],
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)
+            ),
+        ),
+        (
+            Optional[set[Optional[EmptyDataclass]]],
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                allow_none=True,
+                **default_fields(None),
+            ),
+        ),
+        (
+            set[EmptyDataclass | None] | None,
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                allow_none=True,
+                **default_fields(None),
+            ),
+        ),
         # containers: Dict[str, Any]
         (dict[str, Any], {}, mr.fields.DictField(required=True)),
         (
