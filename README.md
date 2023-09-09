@@ -12,7 +12,7 @@ Supported types:
 - `datetime.datetime`, `datetime.date`
 - `decimal.Decimal`
 - `uuid.UUID`
-- collections: `list`, `dict`
+- `list`, `dict` (with typed keys), `tuple` (all elements of the same type)
 
 Example:
 ```python
