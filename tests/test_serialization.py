@@ -41,6 +41,10 @@ def test_simple_types() -> None:
         optional_custom_dict_field: dict[datetime.date, int] | None
         list_field: list[str]
         optional_list_field: list[str] | None
+        set_field: set[str]
+        optional_set_field: set[str] | None
+        frozenset_field: frozenset[str]
+        optional_frozenset_field: frozenset[str] | None
         enum_field: Parity
         optional_enum_field: Parity | None
         # with default
@@ -75,6 +79,8 @@ def test_simple_types() -> None:
         dict_field_with_default_factory: dict[str, Any] = dataclasses.field(default_factory=lambda: {})
         custom_dict_field_with_default_factory: dict[datetime.date, int] = dataclasses.field(default_factory=lambda: {})
         list_field_with_default_factory: list[str] = dataclasses.field(default_factory=lambda: [])
+        set_field_with_default_factory: set[str] = dataclasses.field(default_factory=lambda: set())
+        frozenset_field_with_default_factory: frozenset[str] = dataclasses.field(default_factory=lambda: frozenset())
         enum_field_with_default_factory: Parity = dataclasses.field(default_factory=lambda: Parity.ODD)
 
     raw = dict(
@@ -120,6 +126,12 @@ def test_simple_types() -> None:
         list_field=["value"],
         list_field_with_default_factory=[],
         optional_list_field=["value"],
+        set_field=["value"],
+        set_field_with_default_factory=[],
+        optional_set_field=["value"],
+        frozenset_field=["value"],
+        frozenset_field_with_default_factory=[],
+        optional_frozenset_field=["value"],
         enum_field="odd",
         enum_field_with_default="odd",
         enum_field_with_default_factory="odd",
@@ -159,6 +171,10 @@ def test_simple_types() -> None:
             optional_custom_dict_field={datetime.date(2020, 1, 1): 42},
             list_field=["value"],
             optional_list_field=["value"],
+            set_field={"value"},
+            optional_set_field={"value"},
+            frozenset_field=frozenset({"value"}),
+            optional_frozenset_field=frozenset({"value"}),
             enum_field=Parity.ODD,
             optional_enum_field=Parity.EVEN,
         )

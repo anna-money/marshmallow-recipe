@@ -5,7 +5,7 @@ import enum
 import inspect
 import types
 import uuid
-from typing import Any, Dict, List, Mapping, Protocol, Type, TypeVar, cast
+from typing import Any, Dict, FrozenSet, List, Mapping, Protocol, Set, Type, TypeVar, cast
 
 import marshmallow as m
 import typing_inspect
@@ -18,10 +18,12 @@ from .fields import (
     dict_field,
     enum_field,
     float_field,
+    frozen_set_field,
     int_field,
     list_field,
     nested_field,
     raw_field,
+    set_field,
     str_field,
     uuid_field,
 )
@@ -155,6 +157,45 @@ def get_field_for(
                 allow_none=allow_none,
                 **list_field_metadata,
             )
+
+        if origin in (set, Set):
+            list_field_metadata = dict(metadata)
+            if validate_item := list_field_metadata.pop("validate_item", None):
+                item_field_metadata = dict(validate=validate_item)
+            else:
+                item_field_metadata = {}
+
+            return set_field(
+                get_field_for(
+                    arguments[0],
+                    metadata=item_field_metadata,
+                    naming_case=naming_case,
+                    none_value_handling=none_value_handling,
+                ),
+                required=required,
+                allow_none=allow_none,
+                **list_field_metadata,
+            )
+
+        if origin in (frozenset, FrozenSet):
+            list_field_metadata = dict(metadata)
+            if validate_item := list_field_metadata.pop("validate_item", None):
+                item_field_metadata = dict(validate=validate_item)
+            else:
+                item_field_metadata = {}
+
+            return frozen_set_field(
+                get_field_for(
+                    arguments[0],
+                    metadata=item_field_metadata,
+                    naming_case=naming_case,
+                    none_value_handling=none_value_handling,
+                ),
+                required=required,
+                allow_none=allow_none,
+                **list_field_metadata,
+            )
+
         if origin in (dict, Dict):
             keys_field = (
                 None
@@ -275,6 +316,10 @@ def _get_metadata(*, name: str, default: Any, metadata: Mapping[Any, Any]) -> Ma
 def _substitute_any_to_open_generic(type: type) -> type:
     if type is list:
         return list[Any]
+    if type is set:
+        return set[Any]
+    if type is frozenset:
+        return frozenset[Any]
     if type is dict:
         return dict[Any, Any]
     return type

@@ -267,67 +267,83 @@ EMPTY_SCHEMA = m.Schema()
             mr.metadata(name="i"),
             m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
-        # containers: list[T]
-        (list[bool], {}, m.fields.List(m.fields.Bool(required=True), required=True)),
+        # containers: frozenset[T]
+        (frozenset[bool], {}, marshmallow_recipe.fields.FrozenSetField(m.fields.Bool(required=True), required=True)),
         (
-            list[Optional[bool]],
+            frozenset[Optional[bool]],
             {},
-            m.fields.List(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+            marshmallow_recipe.fields.FrozenSetField(
+                m.fields.Bool(allow_none=True, **default_fields(None)), required=True
+            ),
         ),
         (
-            list[bool | None],
+            frozenset[bool | None],
             {},
-            m.fields.List(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+            marshmallow_recipe.fields.FrozenSetField(
+                m.fields.Bool(allow_none=True, **default_fields(None)), required=True
+            ),
         ),
         (
-            Optional[list[bool]],
+            Optional[frozenset[bool]],
             {},
-            m.fields.List(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
+            marshmallow_recipe.fields.FrozenSetField(
+                m.fields.Bool(required=True), allow_none=True, **default_fields(None)
+            ),
         ),
         (
-            Optional[list[Optional[bool]]],
+            Optional[frozenset[Optional[bool]]],
             {},
-            m.fields.List(
+            marshmallow_recipe.fields.FrozenSetField(
                 m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
         (
-            list[bool | None] | None,
+            frozenset[bool | None] | None,
             {},
-            m.fields.List(
+            marshmallow_recipe.fields.FrozenSetField(
                 m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
-        # containers: list[T] where T: dataclass
-        (list[EmptyDataclass], {}, m.fields.List(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True)),
+        # containers: frozenset[T] where T: dataclass
         (
-            list[Optional[EmptyDataclass]],
+            frozenset[EmptyDataclass],
             {},
-            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+            marshmallow_recipe.fields.FrozenSetField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
         ),
         (
-            list[EmptyDataclass | None],
+            frozenset[Optional[EmptyDataclass]],
             {},
-            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+            marshmallow_recipe.fields.FrozenSetField(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True
+            ),
         ),
         (
-            Optional[list[EmptyDataclass]],
+            frozenset[EmptyDataclass | None],
             {},
-            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
+            marshmallow_recipe.fields.FrozenSetField(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True
+            ),
         ),
         (
-            Optional[list[Optional[EmptyDataclass]]],
+            Optional[frozenset[EmptyDataclass]],
             {},
-            m.fields.List(
+            marshmallow_recipe.fields.FrozenSetField(
+                m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)
+            ),
+        ),
+        (
+            Optional[frozenset[Optional[EmptyDataclass]]],
+            {},
+            marshmallow_recipe.fields.FrozenSetField(
                 m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
             ),
         ),
         (
-            list[EmptyDataclass | None] | None,
+            frozenset[EmptyDataclass | None] | None,
             {},
-            m.fields.List(
+            marshmallow_recipe.fields.FrozenSetField(
                 m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),

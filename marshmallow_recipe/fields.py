@@ -338,6 +338,72 @@ def list_field(
     )
 
 
+def set_field(
+    field: m.fields.Field,
+    *,
+    required: bool,
+    allow_none: bool,
+    default: Any = dataclasses.MISSING,
+    name: str | None = None,
+    validate: Callable[[Any], Any] | None = None,
+    **_: Any,
+) -> m.fields.Field:
+    if default is m.missing:
+        return SetField(
+            field,
+            allow_none=allow_none,
+            validate=validate,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
+    if required:
+        if default is None:
+            raise ValueError("Default value cannot be none")
+        return SetField(field, required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+
+    return SetField(
+        field,
+        allow_none=allow_none,
+        validate=validate,
+        **default_fields(None if default is dataclasses.MISSING else default),
+        **data_key_fields(name),
+    )
+
+
+def frozen_set_field(
+    field: m.fields.Field,
+    *,
+    required: bool,
+    allow_none: bool,
+    default: Any = dataclasses.MISSING,
+    name: str | None = None,
+    validate: Callable[[Any], Any] | None = None,
+    **_: Any,
+) -> m.fields.Field:
+    if default is m.missing:
+        return FrozenSetField(
+            field,
+            allow_none=allow_none,
+            validate=validate,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
+    if required:
+        if default is None:
+            raise ValueError("Default value cannot be none")
+        return FrozenSetField(field, required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+
+    return FrozenSetField(
+        field,
+        allow_none=allow_none,
+        validate=validate,
+        **default_fields(None if default is dataclasses.MISSING else default),
+        **data_key_fields(name),
+    )
+
+
 def dict_field(
     keys_field: m.fields.Field | None,
     values_field: m.fields.Field | None,
@@ -438,6 +504,8 @@ def raw_field(
 DateTimeField: Type[m.fields.DateTime]
 EnumField: Type[m.fields.String]
 DictField: Type[m.fields.Field]
+SetField: Type[m.fields.List]
+FrozenSetField: Type[m.fields.List]
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
@@ -466,6 +534,20 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             return super()._serialize(value, attr, obj, **kwargs)
 
     DateTimeField = DateTimeFieldV3
+
+    class SetFieldV3(m.fields.List):
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            result = super()._deserialize(value, attr, data, **kwargs)
+            return None if None else set(result)
+
+    SetField = SetFieldV3
+
+    class FrozenSetFieldV3(m.fields.List):
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            result = super()._deserialize(value, attr, data, **kwargs)
+            return None if None else frozenset(result)
+
+    FrozenSetField = FrozenSetFieldV3
 
     class EnumFieldV3(m.fields.String):
         default_error = "Not a valid choice: '{input}'. Allowed values: {choices}"
@@ -604,6 +686,20 @@ else:
             return result.astimezone(datetime.timezone.utc)
 
     DateTimeField = DateTimeFieldV2
+
+    class SetFieldV2(m.fields.List):
+        def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:
+            result = super()._deserialize(value, attr, data)
+            return None if None else set(result)
+
+    SetField = SetFieldV2
+
+    class FrozenSetFieldV2(m.fields.List):
+        def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:
+            result = super()._deserialize(value, attr, data)
+            return None if None else frozenset(result)
+
+    FrozenSetField = FrozenSetFieldV2
 
     class EnumFieldV2(m.fields.String):
         default_error = "Not a valid choice: '{input}'. Allowed values: {choices}"
