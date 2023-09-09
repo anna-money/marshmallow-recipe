@@ -267,6 +267,72 @@ EMPTY_SCHEMA = m.Schema()
             mr.metadata(name="i"),
             m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
+        # containers: list[T]
+        (list[bool], {}, m.fields.List(m.fields.Bool(required=True), required=True)),
+        (
+            list[Optional[bool]],
+            {},
+            m.fields.List(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+        ),
+        (
+            list[bool | None],
+            {},
+            m.fields.List(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+        ),
+        (
+            Optional[list[bool]],
+            {},
+            m.fields.List(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
+        ),
+        (
+            Optional[list[Optional[bool]]],
+            {},
+            m.fields.List(
+                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+            ),
+        ),
+        (
+            list[bool | None] | None,
+            {},
+            m.fields.List(
+                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+            ),
+        ),
+        # containers: list[T] where T: dataclass
+        (list[EmptyDataclass], {}, m.fields.List(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True)),
+        (
+            list[Optional[EmptyDataclass]],
+            {},
+            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+        ),
+        (
+            list[EmptyDataclass | None],
+            {},
+            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+        ),
+        (
+            Optional[list[EmptyDataclass]],
+            {},
+            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
+        ),
+        (
+            Optional[list[Optional[EmptyDataclass]]],
+            {},
+            m.fields.List(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                allow_none=True,
+                **default_fields(None),
+            ),
+        ),
+        (
+            list[EmptyDataclass | None] | None,
+            {},
+            m.fields.List(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                allow_none=True,
+                **default_fields(None),
+            ),
+        ),
         # containers: frozenset[T]
         (frozenset[bool], {}, marshmallow_recipe.fields.FrozenSetField(m.fields.Bool(required=True), required=True)),
         (
@@ -354,23 +420,17 @@ EMPTY_SCHEMA = m.Schema()
         (
             set[Optional[bool]],
             {},
-            marshmallow_recipe.fields.SetField(
-                m.fields.Bool(allow_none=True, **default_fields(None)), required=True
-            ),
+            marshmallow_recipe.fields.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             set[bool | None],
             {},
-            marshmallow_recipe.fields.SetField(
-                m.fields.Bool(allow_none=True, **default_fields(None)), required=True
-            ),
+            marshmallow_recipe.fields.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[set[bool]],
             {},
-            marshmallow_recipe.fields.SetField(
-                m.fields.Bool(required=True), allow_none=True, **default_fields(None)
-            ),
+            marshmallow_recipe.fields.SetField(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[set[Optional[bool]]],
