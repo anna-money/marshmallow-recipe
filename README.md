@@ -6,7 +6,15 @@ Also, it helps with:
 2. Using different naming cases(camel and capital camel cases are supported).
 3. Utilizing best practises on fields configuration.
 
+Supported types:
+- `str`, `int`, `float`, `bool`
+- `Optional[T]`, `T | None`
+- `datetime.datetime`, `datetime.date`
+- `decimal.Decimal`
+- `uuid.UUID`
+- collections: `list`, `dict`
 
+Example:
 ```python
 import dataclasses
 import datetime
