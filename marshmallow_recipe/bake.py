@@ -141,7 +141,7 @@ def get_field_for(
 
     if (origin := typing_inspect.get_origin(type)) is not None:
         arguments = typing_inspect.get_args(type, True)
-        if origin is list:
+        if origin is list or origin is collections.abc.Sequence:
             list_field_metadata = dict(metadata)
             if validate_item := list_field_metadata.pop("validate_item", None):
                 item_field_metadata = dict(validate=validate_item)
@@ -160,7 +160,7 @@ def get_field_for(
                 **list_field_metadata,
             )
 
-        if origin is set:
+        if origin is set or origin is collections.abc.Set:
             list_field_metadata = dict(metadata)
             if validate_item := list_field_metadata.pop("validate_item", None):
                 item_field_metadata = dict(validate=validate_item)
@@ -198,7 +198,7 @@ def get_field_for(
                 **list_field_metadata,
             )
 
-        if origin is dict:
+        if origin is dict or origin is collections.abc.Mapping:
             keys_field = (
                 None
                 if arguments[0] is str

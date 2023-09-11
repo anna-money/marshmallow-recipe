@@ -1,3 +1,4 @@
+import collections.abc
 import dataclasses
 import datetime
 import decimal
@@ -5,7 +6,7 @@ import enum
 import inspect
 import unittest.mock
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import marshmallow as m
 import pytest
@@ -333,6 +334,76 @@ EMPTY_SCHEMA = m.Schema()
                 **default_fields(None),
             ),
         ),
+        # containers: collections.abc.Sequence[T]
+        (collections.abc.Sequence[bool], {}, m.fields.List(m.fields.Bool(required=True), required=True)),
+        (
+            collections.abc.Sequence[Optional[bool]],
+            {},
+            m.fields.List(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+        ),
+        (
+            collections.abc.Sequence[bool | None],
+            {},
+            m.fields.List(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+        ),
+        (
+            Optional[collections.abc.Sequence[bool]],
+            {},
+            m.fields.List(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
+        ),
+        (
+            Optional[collections.abc.Sequence[Optional[bool]]],
+            {},
+            m.fields.List(
+                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+            ),
+        ),
+        (
+            collections.abc.Sequence[bool | None] | None,
+            {},
+            m.fields.List(
+                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+            ),
+        ),
+        # containers: collections.abc.Sequence[T] where T: dataclass
+        (
+            collections.abc.Sequence[EmptyDataclass],
+            {},
+            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
+        ),
+        (
+            collections.abc.Sequence[Optional[EmptyDataclass]],
+            {},
+            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+        ),
+        (
+            collections.abc.Sequence[EmptyDataclass | None],
+            {},
+            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+        ),
+        (
+            Optional[collections.abc.Sequence[EmptyDataclass]],
+            {},
+            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
+        ),
+        (
+            Optional[collections.abc.Sequence[Optional[EmptyDataclass]]],
+            {},
+            m.fields.List(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                allow_none=True,
+                **default_fields(None),
+            ),
+        ),
+        (
+            collections.abc.Sequence[EmptyDataclass | None] | None,
+            {},
+            m.fields.List(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                allow_none=True,
+                **default_fields(None),
+            ),
+        ),
         # containers: frozenset[T]
         (frozenset[bool], {}, marshmallow_recipe.fields.FrozenSetField(m.fields.Bool(required=True), required=True)),
         (
@@ -491,6 +562,86 @@ EMPTY_SCHEMA = m.Schema()
                 **default_fields(None),
             ),
         ),
+        # containers: collections.abc.Set[T]
+        (
+            collections.abc.Set[bool],
+            {},
+            marshmallow_recipe.fields.SetField(m.fields.Bool(required=True), required=True),
+        ),
+        (
+            collections.abc.Set[Optional[bool]],
+            {},
+            marshmallow_recipe.fields.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+        ),
+        (
+            collections.abc.Set[bool | None],
+            {},
+            marshmallow_recipe.fields.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+        ),
+        (
+            Optional[collections.abc.Set[bool]],
+            {},
+            marshmallow_recipe.fields.SetField(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
+        ),
+        (
+            Optional[collections.abc.Set[Optional[bool]]],
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+            ),
+        ),
+        (
+            collections.abc.Set[bool | None] | None,
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+            ),
+        ),
+        # containers: collections.abc.Set[T] where T: dataclass
+        (
+            collections.abc.Set[EmptyDataclass],
+            {},
+            marshmallow_recipe.fields.SetField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
+        ),
+        (
+            collections.abc.Set[Optional[EmptyDataclass]],
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True
+            ),
+        ),
+        (
+            collections.abc.Set[EmptyDataclass | None],
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True
+            ),
+        ),
+        (
+            Optional[collections.abc.Set[EmptyDataclass]],
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)
+            ),
+        ),
+        (
+            Optional[collections.abc.Set[Optional[EmptyDataclass]]],
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                allow_none=True,
+                **default_fields(None),
+            ),
+        ),
+        (
+            collections.abc.Set[EmptyDataclass | None] | None,
+            {},
+            marshmallow_recipe.fields.SetField(
+                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                allow_none=True,
+                **default_fields(None),
+            ),
+        ),
         # containers: tuple[T, ...]
         (tuple[bool], {}, marshmallow_recipe.fields.TupleField(m.fields.Bool(required=True), required=True)),
         (
@@ -567,7 +718,7 @@ EMPTY_SCHEMA = m.Schema()
                 **default_fields(None),
             ),
         ),
-        # containers: Dict[str, Any]
+        # containers: dict[str, Any]
         (dict[str, Any], {}, mr.fields.DictField(required=True)),
         (
             dict[str, Any],
@@ -602,19 +753,78 @@ EMPTY_SCHEMA = m.Schema()
                 **data_key_fields("i"),
             ),
         ),
-        (Dict[str, Any], {}, mr.fields.DictField(required=True)),
+        # containers: dict[datetime.date, int]
         (
-            Dict[str, Any],
+            dict[datetime.date, int],
+            {},
+            mr.fields.DictField(keys=m.fields.Date(required=True), values=m.fields.Int(required=True), required=True),
+        ),
+        (
+            dict[datetime.date, int],
+            mr.metadata(name="i"),
+            mr.fields.DictField(
+                keys=m.fields.Date(required=True),
+                values=m.fields.Int(required=True),
+                required=True,
+                **data_key_fields("i"),
+            ),
+        ),
+        (
+            Optional[dict[datetime.date, int]],
+            {},
+            mr.fields.DictField(
+                keys=m.fields.Date(required=True),
+                values=m.fields.Int(required=True),
+                allow_none=True,
+                **default_fields(None),
+            ),
+        ),
+        (
+            Optional[dict[datetime.date, int]],
+            mr.metadata(name="i"),
+            mr.fields.DictField(
+                keys=m.fields.Date(required=True),
+                values=m.fields.Int(required=True),
+                allow_none=True,
+                **default_fields(None),
+                **data_key_fields("i"),
+            ),
+        ),
+        (
+            dict[datetime.date, int] | None,
+            {},
+            mr.fields.DictField(
+                keys=m.fields.Date(required=True),
+                values=m.fields.Int(required=True),
+                allow_none=True,
+                **default_fields(None),
+            ),
+        ),
+        (
+            dict[datetime.date, int] | None,
+            mr.metadata(name="i"),
+            mr.fields.DictField(
+                keys=m.fields.Date(required=True),
+                values=m.fields.Int(required=True),
+                allow_none=True,
+                **default_fields(None),
+                **data_key_fields("i"),
+            ),
+        ),
+        # containers: collections.abc.Mapping[str, Any]
+        (collections.abc.Mapping[str, Any], {}, mr.fields.DictField(required=True)),
+        (
+            collections.abc.Mapping[str, Any],
             mr.metadata(name="i"),
             mr.fields.DictField(required=True, **data_key_fields("i")),
         ),
         (
-            Optional[Dict[str, Any]],
+            Optional[collections.abc.Mapping[str, Any]],
             {},
             mr.fields.DictField(allow_none=True, **default_fields(None)),
         ),
         (
-            Optional[Dict[str, Any]],
+            Optional[collections.abc.Mapping[str, Any]],
             mr.metadata(name="i"),
             mr.fields.DictField(
                 allow_none=True,
@@ -623,12 +833,12 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         (
-            Dict[str, Any] | None,
+            collections.abc.Mapping[str, Any] | None,
             {},
             mr.fields.DictField(allow_none=True, **default_fields(None)),
         ),
         (
-            Dict[str, Any] | None,
+            collections.abc.Mapping[str, Any] | None,
             mr.metadata(name="i"),
             mr.fields.DictField(
                 allow_none=True,
@@ -636,14 +846,14 @@ EMPTY_SCHEMA = m.Schema()
                 **data_key_fields("i"),
             ),
         ),
-        # containers: Dict[datetime.date, int]
+        # containers: collections.abc.Mapping[datetime.date, int]
         (
-            dict[datetime.date, int],
+            collections.abc.Mapping[datetime.date, int],
             {},
             mr.fields.DictField(keys=m.fields.Date(required=True), values=m.fields.Int(required=True), required=True),
         ),
         (
-            dict[datetime.date, int],
+            collections.abc.Mapping[datetime.date, int],
             mr.metadata(name="i"),
             mr.fields.DictField(
                 keys=m.fields.Date(required=True),
@@ -653,7 +863,7 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         (
-            Optional[dict[datetime.date, int]],
+            Optional[collections.abc.Mapping[datetime.date, int]],
             {},
             mr.fields.DictField(
                 keys=m.fields.Date(required=True),
@@ -663,7 +873,7 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         (
-            Optional[dict[datetime.date, int]],
+            Optional[collections.abc.Mapping[datetime.date, int]],
             mr.metadata(name="i"),
             mr.fields.DictField(
                 keys=m.fields.Date(required=True),
@@ -674,7 +884,7 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         (
-            dict[datetime.date, int] | None,
+            collections.abc.Mapping[datetime.date, int] | None,
             {},
             mr.fields.DictField(
                 keys=m.fields.Date(required=True),
@@ -684,64 +894,7 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         (
-            dict[datetime.date, int] | None,
-            mr.metadata(name="i"),
-            mr.fields.DictField(
-                keys=m.fields.Date(required=True),
-                values=m.fields.Int(required=True),
-                allow_none=True,
-                **default_fields(None),
-                **data_key_fields("i"),
-            ),
-        ),
-        (
-            Dict[datetime.date, int],
-            {},
-            mr.fields.DictField(keys=m.fields.Date(required=True), values=m.fields.Int(required=True), required=True),
-        ),
-        (
-            Dict[datetime.date, int],
-            mr.metadata(name="i"),
-            mr.fields.DictField(
-                keys=m.fields.Date(required=True),
-                values=m.fields.Int(required=True),
-                required=True,
-                **data_key_fields("i"),
-            ),
-        ),
-        (
-            Optional[Dict[datetime.date, int]],
-            {},
-            mr.fields.DictField(
-                keys=m.fields.Date(required=True),
-                values=m.fields.Int(required=True),
-                allow_none=True,
-                **default_fields(None),
-            ),
-        ),
-        (
-            Optional[Dict[datetime.date, int]],
-            mr.metadata(name="i"),
-            mr.fields.DictField(
-                keys=m.fields.Date(required=True),
-                values=m.fields.Int(required=True),
-                allow_none=True,
-                **default_fields(None),
-                **data_key_fields("i"),
-            ),
-        ),
-        (
-            Dict[datetime.date, int] | None,
-            {},
-            mr.fields.DictField(
-                keys=m.fields.Date(required=True),
-                values=m.fields.Int(required=True),
-                allow_none=True,
-                **default_fields(None),
-            ),
-        ),
-        (
-            Dict[datetime.date, int] | None,
+            collections.abc.Mapping[datetime.date, int] | None,
             mr.metadata(name="i"),
             mr.fields.DictField(
                 keys=m.fields.Date(required=True),
