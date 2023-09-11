@@ -66,3 +66,38 @@ def list_metadata(
     if validate_item is not None:
         result.update(validate_item=validate_item)
     return result
+
+
+sequence_metadata = list_metadata
+
+
+def set_metadata(
+    *,
+    name: str = MISSING,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate_item: collections.abc.Callable[[Any], Any] | None = None,
+) -> collections.abc.Mapping[str, Any]:
+    result: dict[str, Any] = {}
+    if name is not MISSING:
+        result.update(name=name)
+    if validate is not None:
+        result.update(validate=validate)
+    if validate_item is not None:
+        result.update(validate_item=validate_item)
+    return result
+
+
+def tuple_metadata(
+    *,
+    name: str = MISSING,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate_item: collections.abc.Callable[[Any], Any] | None = None,
+) -> collections.abc.Mapping[str, Any]:
+    result: dict[str, Any] = {}
+    if name is not MISSING:
+        result.update(name=name)
+    if validate is not None:
+        result.update(validate=validate)
+    if validate_item is not None:
+        result.update(validate_item=validate_item)
+    return result

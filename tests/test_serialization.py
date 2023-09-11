@@ -506,6 +506,6 @@ def test_legacy_collection_typings() -> None:
         dict_field: Dict[str, Any]
         set_field: Set[str]
         frozenset_field: FrozenSet[str]
-        tuple_field: Tuple[str]
+        tuple_field: Tuple[str, ...]
 
     assert mr.schema(Container)
