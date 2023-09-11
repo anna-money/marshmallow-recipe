@@ -5,7 +5,7 @@ import enum
 import inspect
 import types
 import uuid
-from typing import Any, Dict, FrozenSet, List, Mapping, Protocol, Set, Tuple, Type, TypeVar, cast
+from typing import Any, Mapping, Protocol, Type, TypeVar, cast
 
 import marshmallow as m
 import typing_inspect
@@ -140,7 +140,7 @@ def get_field_for(
 
     if (origin := typing_inspect.get_origin(type)) is not None:
         arguments = typing_inspect.get_args(type, True)
-        if origin in (list, List):
+        if origin is list:
             list_field_metadata = dict(metadata)
             if validate_item := list_field_metadata.pop("validate_item", None):
                 item_field_metadata = dict(validate=validate_item)
@@ -159,7 +159,7 @@ def get_field_for(
                 **list_field_metadata,
             )
 
-        if origin in (set, Set):
+        if origin is set:
             list_field_metadata = dict(metadata)
             if validate_item := list_field_metadata.pop("validate_item", None):
                 item_field_metadata = dict(validate=validate_item)
@@ -178,7 +178,7 @@ def get_field_for(
                 **list_field_metadata,
             )
 
-        if origin in (frozenset, FrozenSet):
+        if origin is frozenset:
             list_field_metadata = dict(metadata)
             if validate_item := list_field_metadata.pop("validate_item", None):
                 item_field_metadata = dict(validate=validate_item)
@@ -197,7 +197,7 @@ def get_field_for(
                 **list_field_metadata,
             )
 
-        if origin in (dict, Dict):
+        if origin is dict:
             keys_field = (
                 None
                 if arguments[0] is str
@@ -220,7 +220,7 @@ def get_field_for(
                 allow_none=allow_none,
                 **metadata,
             )
-        if origin in (tuple, Tuple):
+        if origin is tuple:
             unique_arguments = set(arguments)
             unique_arguments.discard(Ellipsis)  # to support tuple[T, ...]
 

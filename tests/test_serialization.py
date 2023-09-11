@@ -3,7 +3,7 @@ import datetime
 import decimal
 import enum
 import uuid
-from typing import Any
+from typing import Any, Dict, FrozenSet, List, Set, Tuple
 
 import pytest
 
@@ -497,3 +497,15 @@ def test_bake_schema_should_generate_schemas_per_parameters(
         assert default_schema is parametrised_schema
     else:
         assert default_schema is not parametrised_schema
+
+
+def test_legacy_collection_typings() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Container:
+        list_field: List[int]
+        dict_field: Dict[str, Any]
+        set_field: Set[str]
+        frozenset_field: FrozenSet[str]
+        tuple_field: Tuple[str]
+
+    assert mr.schema(Container)
