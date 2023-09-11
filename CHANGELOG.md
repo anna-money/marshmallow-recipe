@@ -1,6 +1,6 @@
 ## v0.0.25(2023-09-11)
 
-* Support set, set[T], frozenset, frozenset[T], tuple, tuple[T, ...], collections.abc.Set[T], collections.abc.Sequence[T], collections.abc.Mapping[T]]
+* Support set, set[T], frozenset, frozenset[T], tuple, tuple[T, ...], collections.abc.Set[T], collections.abc.Sequence[T], collections.abc.Mapping[K, V]]
 
 
 ## v0.0.24(2023-09-08)
