@@ -1,4 +1,5 @@
-from typing import Any, Callable, Mapping
+import collections.abc
+from typing import Any
 
 from .missing import MISSING
 
@@ -6,8 +7,8 @@ from .missing import MISSING
 def metadata(
     *,
     name: str = MISSING,
-    validate: Callable[[Any], Any] | None = None,
-) -> Mapping[str, Any]:
+    validate: collections.abc.Callable[[Any], Any] | None = None,
+) -> collections.abc.Mapping[str, Any]:
     result: dict[str, Any] = {}
     if name is not MISSING:
         result.update(name=name)
@@ -21,8 +22,8 @@ def decimal_metadata(
     name: str = MISSING,
     places: int = MISSING,
     as_string: bool = MISSING,
-    validate: Callable[[Any], Any] | None = None,
-) -> Mapping[str, Any]:
+    validate: collections.abc.Callable[[Any], Any] | None = None,
+) -> collections.abc.Mapping[str, Any]:
     result: dict[str, Any] = {}
     if name is not MISSING:
         result.update(name=name)
@@ -38,9 +39,9 @@ def decimal_metadata(
 def datetime_metadata(
     *,
     name: str = MISSING,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     format: str | None = None,
-) -> Mapping[str, Any]:
+) -> collections.abc.Mapping[str, Any]:
     result: dict[str, Any] = {}
     if name is not MISSING:
         result.update(name=name)
@@ -54,9 +55,9 @@ def datetime_metadata(
 def list_metadata(
     *,
     name: str = MISSING,
-    validate: Callable[[Any], Any] | None = None,
-    validate_item: Callable[[Any], Any] | None = None,
-) -> Mapping[str, Any]:
+    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate_item: collections.abc.Callable[[Any], Any] | None = None,
+) -> collections.abc.Mapping[str, Any]:
     result: dict[str, Any] = {}
     if name is not MISSING:
         result.update(name=name)
