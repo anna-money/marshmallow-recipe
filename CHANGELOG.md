@@ -1,3 +1,8 @@
+## v0.0.25(2023-09-11)
+
+* Support set, set[T], frozenset, frozenset[T], tuple, tuple[T, ...], collections.abc.Set[T], collections.abc.Sequence[T], collections.abc.Mapping[T]]
+
+
 ## v0.0.24(2023-09-08)
 
 * [Set __module__ for auto-generated schemas](https://github.com/anna-money/marshmallow-recipe/pull/112)
