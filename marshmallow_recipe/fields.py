@@ -1,8 +1,9 @@
 import collections
+import collections.abc
 import dataclasses
 import datetime
 import enum
-from typing import Any, Callable, Iterable, Type, cast
+from typing import Any, Type, cast
 
 import marshmallow as m
 import marshmallow.validate
@@ -16,7 +17,7 @@ def str_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -47,7 +48,7 @@ def bool_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -80,7 +81,7 @@ def decimal_field(
     name: str | None = None,
     places: int = 2,
     as_string: bool = True,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -121,7 +122,7 @@ def int_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -151,7 +152,7 @@ def float_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -181,7 +182,7 @@ def uuid_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -211,7 +212,7 @@ def datetime_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     format: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
@@ -246,7 +247,7 @@ def date_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -277,7 +278,7 @@ def nested_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -312,7 +313,7 @@ def list_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -345,7 +346,7 @@ def set_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -378,7 +379,7 @@ def frozen_set_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -411,7 +412,7 @@ def tuple_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -445,7 +446,7 @@ def dict_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -487,7 +488,7 @@ def enum_field(
     allow_none: bool,
     name: str | None = None,
     default: Any = dataclasses.MISSING,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> marshmallow.fields.Field:
     if default is m.missing:
@@ -523,7 +524,7 @@ def raw_field(
     *,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: Callable[[Any], Any] | None = None,
+    validate: collections.abc.Callable[[Any], Any] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     return m.fields.Raw(
@@ -617,7 +618,9 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             self.error = error or EnumFieldV3.default_error
             self._validate_error(self.error)
 
-            self.choices = [enum_instance.value for enum_instance in cast(Iterable[enum.Enum], enum_type)]
+            self.choices = [
+                enum_instance.value for enum_instance in cast(collections.abc.Iterable[enum.Enum], enum_type)
+            ]
             self._validate_choices(self.choices)
             if allow_none:
                 self.choices.append(None)
@@ -655,7 +658,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 return value
             string_value = super()._deserialize(value, attr, data)
             try:
-                return cast(Callable[[str], enum.Enum], self.enum_type)(string_value)
+                return cast(collections.abc.Callable[[str], enum.Enum], self.enum_type)(string_value)
             except ValueError:
                 if self.extendable_default is m.missing:
                     raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))
@@ -776,7 +779,9 @@ else:
             self.error = error or EnumFieldV2.default_error
             self._validate_error(self.error)
 
-            self.choices = [enum_instance.value for enum_instance in cast(Iterable[enum.Enum], enum_type)]
+            self.choices = [
+                enum_instance.value for enum_instance in cast(collections.abc.Iterable[enum.Enum], enum_type)
+            ]
             self._validate_choices(self.choices)
             if allow_none:
                 self.choices.append(None)
@@ -814,7 +819,7 @@ else:
                 return value
             string_value = super()._deserialize(value, attr, data)
             try:
-                return cast(Callable[[str], enum.Enum], self.enum_type)(string_value)
+                return cast(collections.abc.Callable[[str], enum.Enum], self.enum_type)(string_value)
             except ValueError:
                 if self.extendable_default is m.missing:
                     raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))

@@ -1,3 +1,4 @@
+import collections.abc
 import dataclasses
 import datetime
 import decimal
@@ -5,7 +6,7 @@ import enum
 import inspect
 import types
 import uuid
-from typing import Any, Mapping, Protocol, Type, TypeVar, cast
+from typing import Any, Protocol, Type, TypeVar, cast
 
 import marshmallow as m
 import typing_inspect
@@ -102,7 +103,7 @@ def bake_schema(
 
 def get_field_for(
     type: Type[_T],
-    metadata: Mapping[str, Any],
+    metadata: collections.abc.Mapping[str, Any],
     naming_case: NamingCase | None,
     none_value_handling: NoneValueHandling | None,
 ) -> m.fields.Field:
@@ -326,7 +327,9 @@ _SIMPLE_TYPE_FIELD_FACTORIES: dict[type, object] = {
 }
 
 
-def _get_metadata(*, name: str, default: Any, metadata: Mapping[Any, Any]) -> Mapping[str, Any]:
+def _get_metadata(
+    *, name: str, default: Any, metadata: collections.abc.Mapping[Any, Any]
+) -> collections.abc.Mapping[str, Any]:
     result = dict(name=name, default=default)
     result.update({k: v for k, v in metadata.items() if isinstance(k, str)})
     return result
