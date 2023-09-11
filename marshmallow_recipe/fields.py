@@ -404,6 +404,39 @@ def frozen_set_field(
     )
 
 
+def tuple_field(
+    field: m.fields.Field,
+    *,
+    required: bool,
+    allow_none: bool,
+    default: Any = dataclasses.MISSING,
+    name: str | None = None,
+    validate: Callable[[Any], Any] | None = None,
+    **_: Any,
+) -> m.fields.Field:
+    if default is m.missing:
+        return TupleField(
+            field,
+            allow_none=allow_none,
+            validate=validate,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
+    if required:
+        if default is None:
+            raise ValueError("Default value cannot be none")
+        return TupleField(field, required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+
+    return TupleField(
+        field,
+        allow_none=allow_none,
+        validate=validate,
+        **default_fields(None if default is dataclasses.MISSING else default),
+        **data_key_fields(name),
+    )
+
+
 def dict_field(
     keys_field: m.fields.Field | None,
     values_field: m.fields.Field | None,
@@ -506,6 +539,7 @@ EnumField: Type[m.fields.String]
 DictField: Type[m.fields.Field]
 SetField: Type[m.fields.List]
 FrozenSetField: Type[m.fields.List]
+TupleField: Type[m.fields.List]
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
@@ -548,6 +582,13 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             return None if None else frozenset(result)
 
     FrozenSetField = FrozenSetFieldV3
+
+    class TupleFieldV3(m.fields.List):
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            result = super()._deserialize(value, attr, data, **kwargs)
+            return None if None else tuple(result)
+
+    TupleField = TupleFieldV3
 
     class EnumFieldV3(m.fields.String):
         default_error = "Not a valid choice: '{input}'. Allowed values: {choices}"
@@ -700,6 +741,13 @@ else:
             return None if None else frozenset(result)
 
     FrozenSetField = FrozenSetFieldV2
+
+    class TupleFieldV2(m.fields.List):
+        def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:
+            result = super()._deserialize(value, attr, data)
+            return None if None else tuple(result)
+
+    TupleField = TupleFieldV2
 
     class EnumFieldV2(m.fields.String):
         default_error = "Not a valid choice: '{input}'. Allowed values: {choices}"
