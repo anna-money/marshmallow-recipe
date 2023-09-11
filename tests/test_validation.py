@@ -130,6 +130,28 @@ def test_list_item_validation() -> None:
     assert mr.load(Holder, dict(items=["1"])) == Holder(items=["1"])
 
 
+def test_set_item_validation() -> None:
+    @dataclasses.dataclass
+    class Holder:
+        items: set[str] = dataclasses.field(metadata=mr.set_metadata(validate_item=lambda x: bool(x)))
+
+    with pytest.raises(m.ValidationError):
+        mr.load(Holder, dict(items=[""]))
+
+    assert mr.load(Holder, dict(items=["1"])) == Holder(items={"1"})
+
+
+def test_tuple_item_validation() -> None:
+    @dataclasses.dataclass
+    class Holder:
+        items: tuple[str, ...] = dataclasses.field(metadata=mr.tuple_metadata(validate_item=lambda x: bool(x)))
+
+    with pytest.raises(m.ValidationError):
+        mr.load(Holder, dict(items=[""]))
+
+    assert mr.load(Holder, dict(items=["1"])) == Holder(items=("1",))
+
+
 def test_dump_invalid_value() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class UUIDContainer:

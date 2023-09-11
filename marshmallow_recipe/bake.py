@@ -141,9 +141,10 @@ def get_field_for(
 
     if (origin := typing_inspect.get_origin(type)) is not None:
         arguments = typing_inspect.get_args(type, True)
+
         if origin is list or origin is collections.abc.Sequence:
-            list_field_metadata = dict(metadata)
-            if validate_item := list_field_metadata.pop("validate_item", None):
+            collection_field_metadata = dict(metadata)
+            if validate_item := collection_field_metadata.pop("validate_item", None):
                 item_field_metadata = dict(validate=validate_item)
             else:
                 item_field_metadata = {}
@@ -157,12 +158,12 @@ def get_field_for(
                 ),
                 required=required,
                 allow_none=allow_none,
-                **list_field_metadata,
+                **collection_field_metadata,
             )
 
         if origin is set or origin is collections.abc.Set:
-            list_field_metadata = dict(metadata)
-            if validate_item := list_field_metadata.pop("validate_item", None):
+            collection_field_metadata = dict(metadata)
+            if validate_item := collection_field_metadata.pop("validate_item", None):
                 item_field_metadata = dict(validate=validate_item)
             else:
                 item_field_metadata = {}
@@ -176,12 +177,12 @@ def get_field_for(
                 ),
                 required=required,
                 allow_none=allow_none,
-                **list_field_metadata,
+                **collection_field_metadata,
             )
 
         if origin is frozenset:
-            list_field_metadata = dict(metadata)
-            if validate_item := list_field_metadata.pop("validate_item", None):
+            collection_field_metadata = dict(metadata)
+            if validate_item := collection_field_metadata.pop("validate_item", None):
                 item_field_metadata = dict(validate=validate_item)
             else:
                 item_field_metadata = {}
@@ -195,7 +196,7 @@ def get_field_for(
                 ),
                 required=required,
                 allow_none=allow_none,
-                **list_field_metadata,
+                **collection_field_metadata,
             )
 
         if origin is dict or origin is collections.abc.Mapping:
@@ -221,23 +222,24 @@ def get_field_for(
                 allow_none=allow_none,
                 **metadata,
             )
-        if origin is tuple:
-            unique_arguments = set(arguments)
-            unique_arguments.discard(Ellipsis)  # to support tuple[T, ...]
 
-            if len(unique_arguments) > 1:
-                raise ValueError(f"Unsupported {type=}: tuple should be of the single type, but has {unique_arguments}")
+        if origin is tuple and len(arguments) == 2 and arguments[1] is Ellipsis:
+            collection_field_metadata = dict(metadata)
+            if validate_item := collection_field_metadata.pop("validate_item", None):
+                item_field_metadata = dict(validate=validate_item)
+            else:
+                item_field_metadata = {}
 
             return tuple_field(
                 get_field_for(
-                    next(x for x in unique_arguments),
-                    metadata={},
+                    arguments[0],
+                    metadata=item_field_metadata,
                     naming_case=naming_case,
                     none_value_handling=none_value_handling,
                 ),
                 required=required,
                 allow_none=allow_none,
-                **metadata,
+                **collection_field_metadata,
             )
 
     raise ValueError(f"Unsupported {type=}")
