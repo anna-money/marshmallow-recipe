@@ -248,7 +248,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     def _get_base_schema(cls: type, none_value_handling: NoneValueHandling) -> type[m.Schema]:
         class _Schema(m.Schema):
             class Meta:
-                unknown = m.EXCLUDE
+                unknown = m.EXCLUDE  # type: ignore
 
             @m.post_dump
             def remove_none_values(self, data: dict[str, Any], **_: Any) -> dict[str, Any]:
