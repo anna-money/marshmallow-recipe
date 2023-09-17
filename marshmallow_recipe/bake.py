@@ -6,7 +6,7 @@ import enum
 import inspect
 import types
 import uuid
-from typing import Any, Protocol, Type, TypeVar, cast
+from typing import Any, Protocol, TypeVar
 
 import marshmallow as m
 import typing_inspect
@@ -43,12 +43,12 @@ class _SchemaTypeKey:
 
 _T = TypeVar("_T")
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
-_schema_types: dict[_SchemaTypeKey, Type[m.Schema]] = {}
+_schema_types: dict[_SchemaTypeKey, type[m.Schema]] = {}
 
 
 def bake_schema(
-    cls: Type[_T], *, naming_case: NamingCase | None = None, none_value_handling: NoneValueHandling | None = None
-) -> Type[m.Schema]:
+    cls: type, *, naming_case: NamingCase | None = None, none_value_handling: NoneValueHandling | None = None
+) -> type[m.Schema]:
     if not dataclasses.is_dataclass(cls):
         raise ValueError(f"{cls} is not a dataclass")
 
@@ -85,7 +85,7 @@ def bake_schema(
             if field.name == other_field_name:
                 raise ValueError(f"Invalid name={other_field_name} in metadata for field={other_field.name}")
 
-    schema_class = type(
+    schema_type: type[m.Schema] = type(
         cls.__name__,
         (_get_base_schema(cls, cls_none_value_handling or NoneValueHandling.IGNORE),),
         {"__module__": f"{__package__}.auto_generated"}
@@ -96,13 +96,12 @@ def bake_schema(
             for field, metadata in fields_with_metadata
         },
     )
-    result = cast(Type[m.Schema], schema_class)
-    _schema_types[key] = result
-    return result
+    _schema_types[key] = schema_type
+    return schema_type
 
 
 def get_field_for(
-    type: Type[_T],
+    type: type,
     metadata: collections.abc.Mapping[str, Any],
     naming_case: NamingCase | None,
     none_value_handling: NoneValueHandling | None,
@@ -125,8 +124,7 @@ def get_field_for(
 
     field_factory = _SIMPLE_TYPE_FIELD_FACTORIES.get(type)
     if field_factory:
-        typed_field_factory = cast(_FieldFactory, field_factory)
-        return typed_field_factory(required=required, allow_none=allow_none, **metadata)
+        return field_factory(required=required, allow_none=allow_none, **metadata)
 
     if inspect.isclass(type) and issubclass(type, enum.Enum):
         return enum_field(enum_type=type, required=required, allow_none=allow_none, **metadata)
@@ -247,10 +245,10 @@ def get_field_for(
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
-    def _get_base_schema(cls: Type[_T], none_value_handling: NoneValueHandling) -> Type[m.Schema]:
+    def _get_base_schema(cls: type, none_value_handling: NoneValueHandling) -> type[m.Schema]:
         class _Schema(m.Schema):
             class Meta:
-                unknown = m.EXCLUDE
+                unknown = m.EXCLUDE  # type: ignore
 
             @m.post_dump
             def remove_none_values(self, data: dict[str, Any], **_: Any) -> dict[str, Any]:
@@ -273,7 +271,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
 else:
 
-    def _get_base_schema(cls: Type[_T], none_value_handling: NoneValueHandling) -> Type[m.Schema]:
+    def _get_base_schema(cls: type, none_value_handling: NoneValueHandling) -> type[m.Schema]:
         class _Schema(m.Schema):  # type: ignore
             @m.post_dump  # type: ignore
             def remove_none_values(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -297,7 +295,7 @@ else:
         return _Schema
 
 
-def _get_field_default(field: dataclasses.Field[_T]) -> Any:
+def _get_field_default(field: dataclasses.Field) -> Any:
     default_factory = field.default_factory
     if default_factory is not dataclasses.MISSING:  # type: ignore
         return default_factory
@@ -317,7 +315,7 @@ class _FieldFactory(Protocol):
         ...
 
 
-_SIMPLE_TYPE_FIELD_FACTORIES: dict[type, object] = {
+_SIMPLE_TYPE_FIELD_FACTORIES: dict[type, _FieldFactory] = {
     bool: bool_field,
     str: str_field,
     decimal.Decimal: decimal_field,

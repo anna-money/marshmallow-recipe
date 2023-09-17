@@ -12,7 +12,6 @@ import marshmallow as m
 import pytest
 
 import marshmallow_recipe as mr
-import marshmallow_recipe.fields
 
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
 
@@ -177,33 +176,33 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # simple types: datetime
-        (datetime.datetime, {}, mr.fields.DateTimeField(required=True)),
+        (datetime.datetime, {}, mr.DateTimeField(required=True)),
         (
             Optional[datetime.datetime],
             {},
-            mr.fields.DateTimeField(allow_none=True, **default_fields(None)),
+            mr.DateTimeField(allow_none=True, **default_fields(None)),
         ),
         (
             datetime.datetime | None,
             {},
-            mr.fields.DateTimeField(allow_none=True, **default_fields(None)),
+            mr.DateTimeField(allow_none=True, **default_fields(None)),
         ),
         (
             datetime.datetime,
             mr.datetime_metadata(name="i", format="%Y-%m-%dT%H:%M:%SZ"),
-            mr.fields.DateTimeField(required=True, **data_key_fields("i"), format="%Y-%m-%dT%H:%M:%SZ"),
+            mr.DateTimeField(required=True, **data_key_fields("i"), format="%Y-%m-%dT%H:%M:%SZ"),
         ),
         (
             Optional[datetime.datetime],
             mr.datetime_metadata(name="i", format="%Y-%m-%dT%H:%M:%SZ"),
-            mr.fields.DateTimeField(
+            mr.DateTimeField(
                 allow_none=True, **default_fields(None), **data_key_fields("i"), format="%Y-%m-%dT%H:%M:%SZ"
             ),
         ),
         (
             datetime.datetime | None,
             mr.datetime_metadata(name="i", format="%Y-%m-%dT%H:%M:%SZ"),
-            mr.fields.DateTimeField(
+            mr.DateTimeField(
                 allow_none=True, **default_fields(None), **data_key_fields("i"), format="%Y-%m-%dT%H:%M:%SZ"
             ),
         ),
@@ -235,19 +234,19 @@ EMPTY_SCHEMA = m.Schema()
             m.fields.Date(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # enum
-        (Enum, {}, mr.fields.EnumField(enum_type=Enum, required=True)),
-        (Optional[Enum], {}, mr.fields.EnumField(enum_type=Enum, allow_none=True, **default_fields(None))),
-        (Enum | None, {}, mr.fields.EnumField(enum_type=Enum, allow_none=True, **default_fields(None))),
-        (Enum, mr.metadata(name="i"), mr.fields.EnumField(enum_type=Enum, required=True, **data_key_fields("i"))),
+        (Enum, {}, mr.EnumField(enum_type=Enum, required=True)),
+        (Optional[Enum], {}, mr.EnumField(enum_type=Enum, allow_none=True, **default_fields(None))),
+        (Enum | None, {}, mr.EnumField(enum_type=Enum, allow_none=True, **default_fields(None))),
+        (Enum, mr.metadata(name="i"), mr.EnumField(enum_type=Enum, required=True, **data_key_fields("i"))),
         (
             Optional[Enum],
             mr.metadata(name="i"),
-            mr.fields.EnumField(enum_type=Enum, allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.EnumField(enum_type=Enum, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             Enum | None,
             mr.metadata(name="i"),
-            mr.fields.EnumField(enum_type=Enum, allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.EnumField(enum_type=Enum, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # dataclass
         (EmptyDataclass, {}, m.fields.Nested(EMPTY_SCHEMA, required=True)),
@@ -405,39 +404,33 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # containers: frozenset[T]
-        (frozenset[bool], {}, marshmallow_recipe.fields.FrozenSetField(m.fields.Bool(required=True), required=True)),
+        (frozenset[bool], {}, mr.FrozenSetField(m.fields.Bool(required=True), required=True)),
         (
             frozenset[Optional[bool]],
             {},
-            marshmallow_recipe.fields.FrozenSetField(
-                m.fields.Bool(allow_none=True, **default_fields(None)), required=True
-            ),
+            mr.FrozenSetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             frozenset[bool | None],
             {},
-            marshmallow_recipe.fields.FrozenSetField(
-                m.fields.Bool(allow_none=True, **default_fields(None)), required=True
-            ),
+            mr.FrozenSetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[frozenset[bool]],
             {},
-            marshmallow_recipe.fields.FrozenSetField(
-                m.fields.Bool(required=True), allow_none=True, **default_fields(None)
-            ),
+            mr.FrozenSetField(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[frozenset[Optional[bool]]],
             {},
-            marshmallow_recipe.fields.FrozenSetField(
+            mr.FrozenSetField(
                 m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
         (
             frozenset[bool | None] | None,
             {},
-            marshmallow_recipe.fields.FrozenSetField(
+            mr.FrozenSetField(
                 m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
@@ -445,33 +438,27 @@ EMPTY_SCHEMA = m.Schema()
         (
             frozenset[EmptyDataclass],
             {},
-            marshmallow_recipe.fields.FrozenSetField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
+            mr.FrozenSetField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
         ),
         (
             frozenset[Optional[EmptyDataclass]],
             {},
-            marshmallow_recipe.fields.FrozenSetField(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True
-            ),
+            mr.FrozenSetField(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             frozenset[EmptyDataclass | None],
             {},
-            marshmallow_recipe.fields.FrozenSetField(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True
-            ),
+            mr.FrozenSetField(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[frozenset[EmptyDataclass]],
             {},
-            marshmallow_recipe.fields.FrozenSetField(
-                m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)
-            ),
+            mr.FrozenSetField(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[frozenset[Optional[EmptyDataclass]]],
             {},
-            marshmallow_recipe.fields.FrozenSetField(
+            mr.FrozenSetField(
                 m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
@@ -480,40 +467,40 @@ EMPTY_SCHEMA = m.Schema()
         (
             frozenset[EmptyDataclass | None] | None,
             {},
-            marshmallow_recipe.fields.FrozenSetField(
+            mr.FrozenSetField(
                 m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
             ),
         ),
         # containers: set[T]
-        (set[bool], {}, marshmallow_recipe.fields.SetField(m.fields.Bool(required=True), required=True)),
+        (set[bool], {}, mr.SetField(m.fields.Bool(required=True), required=True)),
         (
             set[Optional[bool]],
             {},
-            marshmallow_recipe.fields.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+            mr.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             set[bool | None],
             {},
-            marshmallow_recipe.fields.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+            mr.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[set[bool]],
             {},
-            marshmallow_recipe.fields.SetField(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
+            mr.SetField(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[set[Optional[bool]]],
             {},
-            marshmallow_recipe.fields.SetField(
+            mr.SetField(
                 m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
         (
             set[bool | None] | None,
             {},
-            marshmallow_recipe.fields.SetField(
+            mr.SetField(
                 m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
@@ -521,33 +508,27 @@ EMPTY_SCHEMA = m.Schema()
         (
             set[EmptyDataclass],
             {},
-            marshmallow_recipe.fields.SetField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
+            mr.SetField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
         ),
         (
             set[Optional[EmptyDataclass]],
             {},
-            marshmallow_recipe.fields.SetField(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True
-            ),
+            mr.SetField(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             set[EmptyDataclass | None],
             {},
-            marshmallow_recipe.fields.SetField(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True
-            ),
+            mr.SetField(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[set[EmptyDataclass]],
             {},
-            marshmallow_recipe.fields.SetField(
-                m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)
-            ),
+            mr.SetField(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[set[Optional[EmptyDataclass]]],
             {},
-            marshmallow_recipe.fields.SetField(
+            mr.SetField(
                 m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
@@ -556,7 +537,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             set[EmptyDataclass | None] | None,
             {},
-            marshmallow_recipe.fields.SetField(
+            mr.SetField(
                 m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
@@ -566,34 +547,34 @@ EMPTY_SCHEMA = m.Schema()
         (
             collections.abc.Set[bool],
             {},
-            marshmallow_recipe.fields.SetField(m.fields.Bool(required=True), required=True),
+            mr.SetField(m.fields.Bool(required=True), required=True),
         ),
         (
             collections.abc.Set[Optional[bool]],
             {},
-            marshmallow_recipe.fields.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+            mr.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             collections.abc.Set[bool | None],
             {},
-            marshmallow_recipe.fields.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+            mr.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[collections.abc.Set[bool]],
             {},
-            marshmallow_recipe.fields.SetField(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
+            mr.SetField(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[collections.abc.Set[Optional[bool]]],
             {},
-            marshmallow_recipe.fields.SetField(
+            mr.SetField(
                 m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
         (
             collections.abc.Set[bool | None] | None,
             {},
-            marshmallow_recipe.fields.SetField(
+            mr.SetField(
                 m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
@@ -601,33 +582,27 @@ EMPTY_SCHEMA = m.Schema()
         (
             collections.abc.Set[EmptyDataclass],
             {},
-            marshmallow_recipe.fields.SetField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
+            mr.SetField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
         ),
         (
             collections.abc.Set[Optional[EmptyDataclass]],
             {},
-            marshmallow_recipe.fields.SetField(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True
-            ),
+            mr.SetField(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             collections.abc.Set[EmptyDataclass | None],
             {},
-            marshmallow_recipe.fields.SetField(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True
-            ),
+            mr.SetField(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[collections.abc.Set[EmptyDataclass]],
             {},
-            marshmallow_recipe.fields.SetField(
-                m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)
-            ),
+            mr.SetField(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[collections.abc.Set[Optional[EmptyDataclass]]],
             {},
-            marshmallow_recipe.fields.SetField(
+            mr.SetField(
                 m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
@@ -636,40 +611,40 @@ EMPTY_SCHEMA = m.Schema()
         (
             collections.abc.Set[EmptyDataclass | None] | None,
             {},
-            marshmallow_recipe.fields.SetField(
+            mr.SetField(
                 m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
             ),
         ),
         # containers: tuple[T, ...]
-        (tuple[bool, ...], {}, marshmallow_recipe.fields.TupleField(m.fields.Bool(required=True), required=True)),
+        (tuple[bool, ...], {}, mr.TupleField(m.fields.Bool(required=True), required=True)),
         (
             tuple[Optional[bool], ...],
             {},
-            marshmallow_recipe.fields.TupleField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+            mr.TupleField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             tuple[bool | None, ...],
             {},
-            marshmallow_recipe.fields.TupleField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+            mr.TupleField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[tuple[bool, ...]],
             {},
-            marshmallow_recipe.fields.TupleField(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
+            mr.TupleField(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[tuple[Optional[bool], ...]],
             {},
-            marshmallow_recipe.fields.TupleField(
+            mr.TupleField(
                 m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
         (
             tuple[bool | None, ...] | None,
             {},
-            marshmallow_recipe.fields.TupleField(
+            mr.TupleField(
                 m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
@@ -677,33 +652,27 @@ EMPTY_SCHEMA = m.Schema()
         (
             tuple[EmptyDataclass, ...],
             {},
-            marshmallow_recipe.fields.TupleField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
+            mr.TupleField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
         ),
         (
             tuple[Optional[EmptyDataclass], ...],
             {},
-            marshmallow_recipe.fields.TupleField(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True
-            ),
+            mr.TupleField(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             tuple[EmptyDataclass | None, ...],
             {},
-            marshmallow_recipe.fields.TupleField(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True
-            ),
+            mr.TupleField(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[tuple[EmptyDataclass, ...]],
             {},
-            marshmallow_recipe.fields.TupleField(
-                m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)
-            ),
+            mr.TupleField(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[tuple[Optional[EmptyDataclass], ...]],
             {},
-            marshmallow_recipe.fields.TupleField(
+            mr.TupleField(
                 m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
@@ -712,28 +681,28 @@ EMPTY_SCHEMA = m.Schema()
         (
             tuple[EmptyDataclass | None, ...] | None,
             {},
-            marshmallow_recipe.fields.TupleField(
+            mr.TupleField(
                 m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
             ),
         ),
         # containers: dict[str, Any]
-        (dict[str, Any], {}, mr.fields.DictField(required=True)),
+        (dict[str, Any], {}, mr.DictField(required=True)),
         (
             dict[str, Any],
             mr.metadata(name="i"),
-            mr.fields.DictField(required=True, **data_key_fields("i")),
+            mr.DictField(required=True, **data_key_fields("i")),
         ),
         (
             Optional[dict[str, Any]],
             {},
-            mr.fields.DictField(allow_none=True, **default_fields(None)),
+            mr.DictField(allow_none=True, **default_fields(None)),
         ),
         (
             Optional[dict[str, Any]],
             mr.metadata(name="i"),
-            mr.fields.DictField(
+            mr.DictField(
                 allow_none=True,
                 **default_fields(None),
                 **data_key_fields("i"),
@@ -742,12 +711,12 @@ EMPTY_SCHEMA = m.Schema()
         (
             dict[str, Any] | None,
             {},
-            mr.fields.DictField(allow_none=True, **default_fields(None)),
+            mr.DictField(allow_none=True, **default_fields(None)),
         ),
         (
             dict[str, Any] | None,
             mr.metadata(name="i"),
-            mr.fields.DictField(
+            mr.DictField(
                 allow_none=True,
                 **default_fields(None),
                 **data_key_fields("i"),
@@ -757,12 +726,12 @@ EMPTY_SCHEMA = m.Schema()
         (
             dict[datetime.date, int],
             {},
-            mr.fields.DictField(keys=m.fields.Date(required=True), values=m.fields.Int(required=True), required=True),
+            mr.DictField(keys=m.fields.Date(required=True), values=m.fields.Int(required=True), required=True),
         ),
         (
             dict[datetime.date, int],
             mr.metadata(name="i"),
-            mr.fields.DictField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 required=True,
@@ -772,7 +741,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             Optional[dict[datetime.date, int]],
             {},
-            mr.fields.DictField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
@@ -782,7 +751,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             Optional[dict[datetime.date, int]],
             mr.metadata(name="i"),
-            mr.fields.DictField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
@@ -793,7 +762,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             dict[datetime.date, int] | None,
             {},
-            mr.fields.DictField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
@@ -803,7 +772,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             dict[datetime.date, int] | None,
             mr.metadata(name="i"),
-            mr.fields.DictField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
@@ -812,21 +781,21 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # containers: collections.abc.Mapping[str, Any]
-        (collections.abc.Mapping[str, Any], {}, mr.fields.DictField(required=True)),
+        (collections.abc.Mapping[str, Any], {}, mr.DictField(required=True)),
         (
             collections.abc.Mapping[str, Any],
             mr.metadata(name="i"),
-            mr.fields.DictField(required=True, **data_key_fields("i")),
+            mr.DictField(required=True, **data_key_fields("i")),
         ),
         (
             Optional[collections.abc.Mapping[str, Any]],
             {},
-            mr.fields.DictField(allow_none=True, **default_fields(None)),
+            mr.DictField(allow_none=True, **default_fields(None)),
         ),
         (
             Optional[collections.abc.Mapping[str, Any]],
             mr.metadata(name="i"),
-            mr.fields.DictField(
+            mr.DictField(
                 allow_none=True,
                 **default_fields(None),
                 **data_key_fields("i"),
@@ -835,12 +804,12 @@ EMPTY_SCHEMA = m.Schema()
         (
             collections.abc.Mapping[str, Any] | None,
             {},
-            mr.fields.DictField(allow_none=True, **default_fields(None)),
+            mr.DictField(allow_none=True, **default_fields(None)),
         ),
         (
             collections.abc.Mapping[str, Any] | None,
             mr.metadata(name="i"),
-            mr.fields.DictField(
+            mr.DictField(
                 allow_none=True,
                 **default_fields(None),
                 **data_key_fields("i"),
@@ -850,12 +819,12 @@ EMPTY_SCHEMA = m.Schema()
         (
             collections.abc.Mapping[datetime.date, int],
             {},
-            mr.fields.DictField(keys=m.fields.Date(required=True), values=m.fields.Int(required=True), required=True),
+            mr.DictField(keys=m.fields.Date(required=True), values=m.fields.Int(required=True), required=True),
         ),
         (
             collections.abc.Mapping[datetime.date, int],
             mr.metadata(name="i"),
-            mr.fields.DictField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 required=True,
@@ -865,7 +834,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             Optional[collections.abc.Mapping[datetime.date, int]],
             {},
-            mr.fields.DictField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
@@ -875,7 +844,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             Optional[collections.abc.Mapping[datetime.date, int]],
             mr.metadata(name="i"),
-            mr.fields.DictField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
@@ -886,7 +855,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             collections.abc.Mapping[datetime.date, int] | None,
             {},
-            mr.fields.DictField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
@@ -896,7 +865,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             collections.abc.Mapping[datetime.date, int] | None,
             mr.metadata(name="i"),
-            mr.fields.DictField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
