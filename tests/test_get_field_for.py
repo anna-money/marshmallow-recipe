@@ -12,7 +12,6 @@ import marshmallow as m
 import pytest
 
 import marshmallow_recipe as mr
-import marshmallow_recipe.fields
 
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
 
@@ -689,21 +688,21 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # containers: dict[str, Any]
-        (dict[str, Any], {}, mr.EnumField(required=True)),
+        (dict[str, Any], {}, mr.DictField(required=True)),
         (
             dict[str, Any],
             mr.metadata(name="i"),
-            mr.EnumField(required=True, **data_key_fields("i")),
+            mr.DictField(required=True, **data_key_fields("i")),
         ),
         (
             Optional[dict[str, Any]],
             {},
-            mr.EnumField(allow_none=True, **default_fields(None)),
+            mr.DictField(allow_none=True, **default_fields(None)),
         ),
         (
             Optional[dict[str, Any]],
             mr.metadata(name="i"),
-            mr.EnumField(
+            mr.DictField(
                 allow_none=True,
                 **default_fields(None),
                 **data_key_fields("i"),
@@ -712,12 +711,12 @@ EMPTY_SCHEMA = m.Schema()
         (
             dict[str, Any] | None,
             {},
-            mr.EnumField(allow_none=True, **default_fields(None)),
+            mr.DictField(allow_none=True, **default_fields(None)),
         ),
         (
             dict[str, Any] | None,
             mr.metadata(name="i"),
-            mr.EnumField(
+            mr.DictField(
                 allow_none=True,
                 **default_fields(None),
                 **data_key_fields("i"),
@@ -727,12 +726,12 @@ EMPTY_SCHEMA = m.Schema()
         (
             dict[datetime.date, int],
             {},
-            mr.EnumField(keys=m.fields.Date(required=True), values=m.fields.Int(required=True), required=True),
+            mr.DictField(keys=m.fields.Date(required=True), values=m.fields.Int(required=True), required=True),
         ),
         (
             dict[datetime.date, int],
             mr.metadata(name="i"),
-            mr.EnumField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 required=True,
@@ -742,7 +741,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             Optional[dict[datetime.date, int]],
             {},
-            mr.EnumField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
@@ -752,7 +751,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             Optional[dict[datetime.date, int]],
             mr.metadata(name="i"),
-            mr.EnumField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
@@ -763,7 +762,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             dict[datetime.date, int] | None,
             {},
-            mr.EnumField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
@@ -773,7 +772,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             dict[datetime.date, int] | None,
             mr.metadata(name="i"),
-            mr.EnumField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
@@ -782,21 +781,21 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # containers: collections.abc.Mapping[str, Any]
-        (collections.abc.Mapping[str, Any], {}, mr.EnumField(required=True)),
+        (collections.abc.Mapping[str, Any], {}, mr.DictField(required=True)),
         (
             collections.abc.Mapping[str, Any],
             mr.metadata(name="i"),
-            mr.EnumField(required=True, **data_key_fields("i")),
+            mr.DictField(required=True, **data_key_fields("i")),
         ),
         (
             Optional[collections.abc.Mapping[str, Any]],
             {},
-            mr.EnumField(allow_none=True, **default_fields(None)),
+            mr.DictField(allow_none=True, **default_fields(None)),
         ),
         (
             Optional[collections.abc.Mapping[str, Any]],
             mr.metadata(name="i"),
-            mr.EnumField(
+            mr.DictField(
                 allow_none=True,
                 **default_fields(None),
                 **data_key_fields("i"),
@@ -805,12 +804,12 @@ EMPTY_SCHEMA = m.Schema()
         (
             collections.abc.Mapping[str, Any] | None,
             {},
-            mr.EnumField(allow_none=True, **default_fields(None)),
+            mr.DictField(allow_none=True, **default_fields(None)),
         ),
         (
             collections.abc.Mapping[str, Any] | None,
             mr.metadata(name="i"),
-            mr.EnumField(
+            mr.DictField(
                 allow_none=True,
                 **default_fields(None),
                 **data_key_fields("i"),
@@ -820,12 +819,12 @@ EMPTY_SCHEMA = m.Schema()
         (
             collections.abc.Mapping[datetime.date, int],
             {},
-            mr.EnumField(keys=m.fields.Date(required=True), values=m.fields.Int(required=True), required=True),
+            mr.DictField(keys=m.fields.Date(required=True), values=m.fields.Int(required=True), required=True),
         ),
         (
             collections.abc.Mapping[datetime.date, int],
             mr.metadata(name="i"),
-            mr.EnumField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 required=True,
@@ -835,7 +834,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             Optional[collections.abc.Mapping[datetime.date, int]],
             {},
-            mr.EnumField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
@@ -845,7 +844,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             Optional[collections.abc.Mapping[datetime.date, int]],
             mr.metadata(name="i"),
-            mr.EnumField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
@@ -856,7 +855,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             collections.abc.Mapping[datetime.date, int] | None,
             {},
-            mr.EnumField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
@@ -866,7 +865,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             collections.abc.Mapping[datetime.date, int] | None,
             mr.metadata(name="i"),
-            mr.EnumField(
+            mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
