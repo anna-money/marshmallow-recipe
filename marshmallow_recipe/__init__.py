@@ -61,7 +61,7 @@ __all__: tuple[str, ...] = (
     "EmptySchema",
 )
 
-__version__ = "0.0.25"
+__version__ = "0.0.26"
 
 version = f"{__version__}, Python {sys.version}"
 

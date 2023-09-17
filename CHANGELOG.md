@@ -1,3 +1,8 @@
+## v0.0.26(2023-09-18)
+
+* [Support python 3.12](https://github.com/anna-money/marshmallow-recipe/pull/121)
+
+
 ## v0.0.25(2023-09-11)
 
 * Support set, set[T], frozenset, frozenset[T], tuple, tuple[T, ...], collections.abc.Set[T], collections.abc.Sequence[T], collections.abc.Mapping[K, V]
