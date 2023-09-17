@@ -12,10 +12,10 @@ isort:
 flake8:
 	@flake8 --max-line-length 120 --ignore C901,C812,E203 --extend-ignore W503 marshmallow_recipe tests
 
-mypy:
-	@mypy --ignore-missing-imports marshmallow_recipe tests
+pyright:
+	@pyright
 
-lint: black isort flake8 mypy
+lint: black isort flake8 pyright
 
 test:
 	@python3 -m pytest -vv --rootdir tests .

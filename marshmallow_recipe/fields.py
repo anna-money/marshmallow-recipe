@@ -3,7 +3,7 @@ import collections.abc
 import dataclasses
 import datetime
 import enum
-from typing import Any, Type, cast
+from typing import Any
 
 import marshmallow as m
 import marshmallow.validate
@@ -272,7 +272,7 @@ def date_field(
 
 
 def nested_field(
-    nested_schema: Type[m.Schema],
+    nested_schema: type[m.Schema],
     *,
     required: bool,
     allow_none: bool,
@@ -482,7 +482,7 @@ def dict_field(
 
 
 def enum_field(
-    enum_type: Type[enum.Enum],
+    enum_type: type[enum.Enum],
     *,
     required: bool,
     allow_none: bool,
@@ -535,12 +535,12 @@ def raw_field(
     )
 
 
-DateTimeField: Type[m.fields.DateTime]
-EnumField: Type[m.fields.String]
-DictField: Type[m.fields.Field]
-SetField: Type[m.fields.List]
-FrozenSetField: Type[m.fields.List]
-TupleField: Type[m.fields.List]
+DateTimeField: type[m.fields.DateTime]
+EnumField: type[m.fields.String]
+DictField: type[m.fields.Field]
+SetField: type[m.fields.List]
+FrozenSetField: type[m.fields.List]
+TupleField: type[m.fields.List]
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
@@ -597,7 +597,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         def __init__(
             self,
             *args: Any,
-            enum_type: Type[enum.Enum],
+            enum_type: type[enum.Enum],
             error: str | None = None,
             extendable_default: Any = m.missing,
             **kwargs: Any,
@@ -618,9 +618,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             self.error = error or EnumFieldV3.default_error
             self._validate_error(self.error)
 
-            self.choices = [
-                enum_instance.value for enum_instance in cast(collections.abc.Iterable[enum.Enum], enum_type)
-            ]
+            self.choices = [enum_instance.value for enum_instance in enum_type]
             self._validate_choices(self.choices)
             if allow_none:
                 self.choices.append(None)
@@ -632,7 +630,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             if "load_default" in kwargs:
                 self._validate_default(self.enum_type, kwargs["load_default"], allow_none)
 
-            enum_validator = m.validate.OneOf(self.choices, error=self.error)
+            enum_validator = m.validate.OneOf(self.choices, error=self.error)  # type: ignore
             if "validate" in kwargs and kwargs["validate"] is not None:
                 validators = kwargs["validate"]
                 if not isinstance(validators, list):
@@ -648,7 +646,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             if value is None:
                 return None
             if isinstance(value, self.enum_type):
-                return cast(enum.Enum, value).value
+                return value.value
             return super()._serialize(value, attr, obj)
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
@@ -658,7 +656,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 return value
             string_value = super()._deserialize(value, attr, data)
             try:
-                return cast(collections.abc.Callable[[str], enum.Enum], self.enum_type)(string_value)
+                return self.enum_type(string_value)
             except ValueError:
                 if self.extendable_default is m.missing:
                     raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))
@@ -704,7 +702,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     DictField = m.fields.Dict
 else:
-    dateutil_tz_utc_cls: Type[datetime.tzinfo] | None
+    dateutil_tz_utc_cls: type[datetime.tzinfo] | None
     try:
         import dateutil.tz  # type: ignore
 
@@ -758,7 +756,7 @@ else:
         def __init__(
             self,
             *args: Any,
-            enum_type: Type[enum.Enum],
+            enum_type: type[enum.Enum],
             error: str | None = None,
             extendable_default: Any = m.missing,
             **kwargs: Any,
@@ -779,9 +777,7 @@ else:
             self.error = error or EnumFieldV2.default_error
             self._validate_error(self.error)
 
-            self.choices = [
-                enum_instance.value for enum_instance in cast(collections.abc.Iterable[enum.Enum], enum_type)
-            ]
+            self.choices = [enum_instance.value for enum_instance in enum_type]
             self._validate_choices(self.choices)
             if allow_none:
                 self.choices.append(None)
@@ -793,7 +789,7 @@ else:
             if "missing" in kwargs:
                 self._validate_default(self.enum_type, kwargs["missing"], allow_none)
 
-            enum_validator = m.validate.OneOf(self.choices, error=self.error)
+            enum_validator = m.validate.OneOf(self.choices, error=self.error)  # type: ignore
             if "validate" in kwargs and kwargs["validate"] is not None:
                 validators = kwargs["validate"]
                 if not isinstance(validators, list):
@@ -809,7 +805,7 @@ else:
             if value is None:
                 return None
             if isinstance(value, self.enum_type):
-                return cast(enum.Enum, value).value
+                return value.value
             return super()._serialize(value, attr, obj)
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
@@ -819,7 +815,7 @@ else:
                 return value
             string_value = super()._deserialize(value, attr, data)
             try:
-                return cast(collections.abc.Callable[[str], enum.Enum], self.enum_type)(string_value)
+                return self.enum_type(string_value)
             except ValueError:
                 if self.extendable_default is m.missing:
                     raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))

@@ -1,6 +1,5 @@
 import dataclasses
 import enum
-from typing import Any
 
 from .naming_case import NamingCase
 
@@ -26,7 +25,7 @@ def options(
     none_value_handling: NoneValueHandling | None = None,
     naming_case: NamingCase | None = None,
 ):
-    def wrap(cls: Any):
+    def wrap(cls: type) -> type:
         setattr(
             cls,
             _OPTIONS_KEY,
@@ -40,5 +39,5 @@ def options(
     return wrap
 
 
-def try_get_options_for(type) -> DataclassOptions | None:
+def try_get_options_for(type: type) -> DataclassOptions | None:
     return getattr(type, _OPTIONS_KEY, None)
