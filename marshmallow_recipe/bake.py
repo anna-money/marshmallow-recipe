@@ -6,7 +6,7 @@ import enum
 import inspect
 import types
 import uuid
-from typing import Any, Protocol, TypeVar, get_origin, get_args, Union
+from typing import Annotated, Any, Protocol, TypeVar, Union, get_args, get_origin
 
 import marshmallow as m
 
@@ -237,6 +237,14 @@ def get_field_for(
                 required=required,
                 allow_none=allow_none,
                 **collection_field_metadata,
+            )
+
+        if origin is Annotated:
+            return get_field_for(
+                arguments[0],
+                metadata=metadata,
+                naming_case=naming_case,
+                none_value_handling=none_value_handling,
             )
 
     raise ValueError(f"Unsupported {type=}")

@@ -9,6 +9,7 @@ Also, it helps with:
 Supported types:
 - `str`, `int`, `float`, `bool`, `datetime.datetime`, `datetime.date`, `decimal.Decimal`, `uuid.UUID`
 - `Optional[T]`, `T | None`
+- `Annotated`
 - `list`, `dict` (with typed keys and values), `tuple` (only when all elements of the same type), `set`, `frozenset`
 - `Mapping` (with typed keys and values), `Set`, `Sequence`
 

@@ -3,7 +3,7 @@ import datetime
 import decimal
 import enum
 import uuid
-from typing import Any, Dict, FrozenSet, List, Set, Tuple
+from typing import Annotated, Any, Dict, FrozenSet, List, Set, Tuple
 
 import pytest
 
@@ -19,6 +19,7 @@ def test_simple_types() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class SimpleTypesContainers:
         any_field: Any
+        annotated_any_field: Annotated[Any, 0]
         str_field: str
         optional_str_field: str | None
         bool_field: bool
@@ -88,6 +89,7 @@ def test_simple_types() -> None:
 
     raw = dict(
         any_field={},
+        annotated_any_field={},
         str_field="42",
         str_field_with_default="42",
         str_field_with_default_factory="42",
@@ -155,6 +157,7 @@ def test_simple_types() -> None:
         == loaded
         == SimpleTypesContainers(
             any_field={},
+            annotated_any_field={},
             str_field="42",
             optional_str_field="42",
             bool_field=True,
