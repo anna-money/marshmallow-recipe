@@ -4,7 +4,6 @@ flake8==6.1.0
 black==23.9.1
 pyright==1.1.327
 marshmallow>=2,<4
-typing_inspect>=0.7.1
 
 setuptools
 wheel

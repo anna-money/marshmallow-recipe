@@ -6,10 +6,9 @@ import enum
 import inspect
 import types
 import uuid
-from typing import Any, Protocol, TypeVar
+from typing import Any, Protocol, TypeVar, get_origin, get_args, Union
 
 import marshmallow as m
-import typing_inspect
 
 from .fields import (
     bool_field,
@@ -137,8 +136,8 @@ def get_field_for(
             **metadata,
         )
 
-    if (origin := typing_inspect.get_origin(type)) is not None:
-        arguments = typing_inspect.get_args(type, True)
+    if (origin := get_origin(type)) is not None:
+        arguments = get_args(type)
 
         if origin is list or origin is collections.abc.Sequence:
             collection_field_metadata = dict(metadata)
@@ -350,15 +349,9 @@ def _substitute_any_to_open_generic(type: type) -> type:
 
 
 def _try_get_underlying_type_from_optional(type: type) -> type | None:
-    if typing_inspect.is_union_type(type):
-        type_args = list(set(typing_inspect.get_args(type, True)))
-        if types.NoneType not in type_args or len(type_args) != 2:
-            raise ValueError(f"Unsupported {type=}")
-        return next(type_arg for type_arg in type_args if type_arg is not types.NoneType)  # noqa
-
-    # to support new union syntax
-    if isinstance(type, types.UnionType):
-        type_args = list(set(type.__args__))
+    # to support Union[int, None] and int | None
+    if get_origin(type) is Union or isinstance(type, types.UnionType):
+        type_args = list(set(get_args(type)))
         if types.NoneType not in type_args or len(type_args) != 2:
             raise ValueError(f"Unsupported {type=}")
         return next(type_arg for type_arg in type_args if type_arg is not types.NoneType)  # noqa
