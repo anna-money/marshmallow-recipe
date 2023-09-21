@@ -6,7 +6,7 @@ import enum
 import inspect
 import unittest.mock
 import uuid
-from typing import Any, Optional
+from typing import Annotated, Any, Optional
 
 import marshmallow as m
 import pytest
@@ -69,6 +69,13 @@ EMPTY_SCHEMA = m.Schema()
         # Any
         (Any, {}, m.fields.Raw(allow_none=True, **default_fields(None))),
         (Any, mr.metadata(name="i"), m.fields.Raw(allow_none=True, **default_fields(None), **data_key_fields("i"))),
+        # Annotated[Any]
+        (Annotated[Any, "$"], {}, m.fields.Raw(allow_none=True, **default_fields(None))),
+        (
+            Annotated[Any, "$"],
+            mr.metadata(name="i"),
+            m.fields.Raw(allow_none=True, **default_fields(None), **data_key_fields("i")),
+        ),
         # simple types: bool
         (bool, {}, m.fields.Bool(required=True)),
         (Optional[bool], {}, m.fields.Bool(allow_none=True, **default_fields(None))),
