@@ -8,6 +8,7 @@ import types
 import uuid
 from typing import Annotated, Any, Protocol, TypeVar, Union, get_args, get_origin
 
+import immutables
 import marshmallow as m
 
 from .fields import (
@@ -240,8 +241,12 @@ def get_field_for(
             )
 
         if origin is Annotated:
+            underlying_type, *annotations = arguments
+            annotated_metadata = next((x for x in annotations if isinstance(x, immutables.Map)), immutables.Map())
+            metadata = dict(metadata, **annotated_metadata)
+
             return get_field_for(
-                arguments[0],
+                underlying_type,
                 metadata=metadata,
                 naming_case=naming_case,
                 none_value_handling=none_value_handling,
