@@ -1,5 +1,8 @@
+import collections
+import collections.abc
 import dataclasses
 import enum
+from typing import TypeVar
 
 from .naming_case import NamingCase
 
@@ -20,12 +23,15 @@ class DataclassOptions:
     naming_case: NamingCase | None = None
 
 
+_T = TypeVar("_T")
+
+
 def options(
     *,
     none_value_handling: NoneValueHandling | None = None,
     naming_case: NamingCase | None = None,
-):
-    def wrap(cls: type) -> type:
+) -> collections.abc.Callable[[type[_T]], type[_T]]:
+    def wrap(cls: type[_T]) -> type[_T]:
         setattr(
             cls,
             _OPTIONS_KEY,
