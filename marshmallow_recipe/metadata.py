@@ -4,12 +4,16 @@ from typing import Any
 from .missing import MISSING
 
 
+class Metadata(dict[str, Any]):
+    pass
+
+
 def metadata(
     *,
     name: str = MISSING,
     validate: collections.abc.Callable[[Any], Any] | None = None,
-) -> collections.abc.Mapping[str, Any]:
-    result: dict[str, Any] = {}
+) -> Metadata:
+    result = Metadata()
     if name is not MISSING:
         result.update(name=name)
     if validate is not None:
@@ -23,8 +27,8 @@ def decimal_metadata(
     places: int = MISSING,
     as_string: bool = MISSING,
     validate: collections.abc.Callable[[Any], Any] | None = None,
-) -> collections.abc.Mapping[str, Any]:
-    result: dict[str, Any] = {}
+) -> Metadata:
+    result = Metadata()
     if name is not MISSING:
         result.update(name=name)
     if places is not MISSING:
@@ -41,8 +45,8 @@ def datetime_metadata(
     name: str = MISSING,
     validate: collections.abc.Callable[[Any], Any] | None = None,
     format: str | None = None,
-) -> collections.abc.Mapping[str, Any]:
-    result: dict[str, Any] = {}
+) -> Metadata:
+    result = Metadata()
     if name is not MISSING:
         result.update(name=name)
     if validate is not None:
@@ -57,8 +61,8 @@ def list_metadata(
     name: str = MISSING,
     validate: collections.abc.Callable[[Any], Any] | None = None,
     validate_item: collections.abc.Callable[[Any], Any] | None = None,
-) -> collections.abc.Mapping[str, Any]:
-    result: dict[str, Any] = {}
+) -> Metadata:
+    result = Metadata()
     if name is not MISSING:
         result.update(name=name)
     if validate is not None:
@@ -76,8 +80,8 @@ def set_metadata(
     name: str = MISSING,
     validate: collections.abc.Callable[[Any], Any] | None = None,
     validate_item: collections.abc.Callable[[Any], Any] | None = None,
-) -> collections.abc.Mapping[str, Any]:
-    result: dict[str, Any] = {}
+) -> Metadata:
+    result = Metadata()
     if name is not MISSING:
         result.update(name=name)
     if validate is not None:
@@ -92,8 +96,8 @@ def tuple_metadata(
     name: str = MISSING,
     validate: collections.abc.Callable[[Any], Any] | None = None,
     validate_item: collections.abc.Callable[[Any], Any] | None = None,
-) -> collections.abc.Mapping[str, Any]:
-    result: dict[str, Any] = {}
+) -> Metadata:
+    result = Metadata()
     if name is not MISSING:
         result.update(name=name)
     if validate is not None:

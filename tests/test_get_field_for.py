@@ -76,6 +76,11 @@ EMPTY_SCHEMA = m.Schema()
             mr.metadata(name="i"),
             m.fields.Raw(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
+        (
+            Annotated[Any, mr.metadata(name="i")],
+            {},
+            m.fields.Raw(allow_none=True, **default_fields(None), **data_key_fields("i")),
+        ),
         # simple types: bool
         (bool, {}, m.fields.Bool(required=True)),
         (Optional[bool], {}, m.fields.Bool(allow_none=True, **default_fields(None))),

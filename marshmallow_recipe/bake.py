@@ -29,6 +29,7 @@ from .fields import (
     uuid_field,
 )
 from .hooks import get_pre_loads
+from .metadata import Metadata
 from .naming_case import NamingCase
 from .options import NoneValueHandling, try_get_options_for
 
@@ -120,10 +121,6 @@ def get_field_for(
     else:
         required = True
         allow_none = False
-
-    field_factory = _SIMPLE_TYPE_FIELD_FACTORIES.get(type)
-    if field_factory:
-        return field_factory(required=required, allow_none=allow_none, **metadata)
 
     if inspect.isclass(type) and issubclass(type, enum.Enum):
         return enum_field(enum_type=type, required=required, allow_none=allow_none, **metadata)
@@ -240,12 +237,20 @@ def get_field_for(
             )
 
         if origin is Annotated:
+            underlying_type, *annotations = arguments
+            annotated_metadata = next((x for x in annotations if isinstance(x, Metadata)), Metadata())
+            metadata = dict(metadata, **annotated_metadata)
+
             return get_field_for(
-                arguments[0],
+                underlying_type,
                 metadata=metadata,
                 naming_case=naming_case,
                 none_value_handling=none_value_handling,
             )
+
+    field_factory = _SIMPLE_TYPE_FIELD_FACTORIES.get(type)
+    if field_factory:
+        return field_factory(required=required, allow_none=allow_none, **metadata)
 
     raise ValueError(f"Unsupported {type=}")
 
