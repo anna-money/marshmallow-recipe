@@ -1,22 +1,24 @@
 import collections.abc
 from typing import Any
 
-import immutables
-
 from .missing import MISSING
+
+
+class Metadata(dict[str, Any]):
+    pass
 
 
 def metadata(
     *,
     name: str = MISSING,
     validate: collections.abc.Callable[[Any], Any] | None = None,
-) -> immutables.Map[str, Any]:
-    result: dict[str, Any] = {}
+) -> Metadata:
+    result = Metadata()
     if name is not MISSING:
         result.update(name=name)
     if validate is not None:
         result.update(validate=validate)
-    return immutables.Map(**result)
+    return result
 
 
 def decimal_metadata(
@@ -25,8 +27,8 @@ def decimal_metadata(
     places: int = MISSING,
     as_string: bool = MISSING,
     validate: collections.abc.Callable[[Any], Any] | None = None,
-) -> immutables.Map[str, Any]:
-    result: dict[str, Any] = {}
+) -> Metadata:
+    result = Metadata()
     if name is not MISSING:
         result.update(name=name)
     if places is not MISSING:
@@ -35,7 +37,7 @@ def decimal_metadata(
         result.update(as_string=as_string)
     if validate is not None:
         result.update(validate=validate)
-    return immutables.Map(**result)
+    return result
 
 
 def datetime_metadata(
@@ -43,15 +45,15 @@ def datetime_metadata(
     name: str = MISSING,
     validate: collections.abc.Callable[[Any], Any] | None = None,
     format: str | None = None,
-) -> immutables.Map[str, Any]:
-    result: dict[str, Any] = {}
+) -> Metadata:
+    result = Metadata()
     if name is not MISSING:
         result.update(name=name)
     if validate is not None:
         result.update(validate=validate)
     if format is not None:
         result.update(format=format)
-    return immutables.Map(**result)
+    return result
 
 
 def list_metadata(
@@ -59,15 +61,15 @@ def list_metadata(
     name: str = MISSING,
     validate: collections.abc.Callable[[Any], Any] | None = None,
     validate_item: collections.abc.Callable[[Any], Any] | None = None,
-) -> immutables.Map[str, Any]:
-    result: dict[str, Any] = {}
+) -> Metadata:
+    result = Metadata()
     if name is not MISSING:
         result.update(name=name)
     if validate is not None:
         result.update(validate=validate)
     if validate_item is not None:
         result.update(validate_item=validate_item)
-    return immutables.Map(**result)
+    return result
 
 
 sequence_metadata = list_metadata
@@ -78,15 +80,15 @@ def set_metadata(
     name: str = MISSING,
     validate: collections.abc.Callable[[Any], Any] | None = None,
     validate_item: collections.abc.Callable[[Any], Any] | None = None,
-) -> immutables.Map[str, Any]:
-    result: dict[str, Any] = {}
+) -> Metadata:
+    result = Metadata()
     if name is not MISSING:
         result.update(name=name)
     if validate is not None:
         result.update(validate=validate)
     if validate_item is not None:
         result.update(validate_item=validate_item)
-    return immutables.Map(**result)
+    return result
 
 
 def tuple_metadata(
@@ -94,12 +96,12 @@ def tuple_metadata(
     name: str = MISSING,
     validate: collections.abc.Callable[[Any], Any] | None = None,
     validate_item: collections.abc.Callable[[Any], Any] | None = None,
-) -> immutables.Map[str, Any]:
-    result: dict[str, Any] = {}
+) -> Metadata:
+    result = Metadata()
     if name is not MISSING:
         result.update(name=name)
     if validate is not None:
         result.update(validate=validate)
     if validate_item is not None:
         result.update(validate_item=validate_item)
-    return immutables.Map(**result)
+    return result
