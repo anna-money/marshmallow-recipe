@@ -6,7 +6,7 @@ from setuptools import setup
 install_requires = ("marshmallow>=2,<4",)
 
 
-def read(*parts):
+def read(*parts: str):
     return Path(__file__).resolve().parent.joinpath(*parts).read_text().strip()
 
 

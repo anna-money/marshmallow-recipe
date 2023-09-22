@@ -65,7 +65,7 @@ __version__ = "0.0.27"
 
 version = f"{__version__}, Python {sys.version}"
 
-VersionInfo = collections.namedtuple("VersionInfo", "major minor micro release_level serial")
+VersionInfo = collections.namedtuple("VersionInfo", "major minor micro release_level serial")  # type: ignore
 
 
 def _parse_version(v: str) -> VersionInfo:

@@ -862,7 +862,9 @@ else:
     class TypedDict(m.fields.Field):
         default_error_messages = {"invalid": "Not a valid mapping type."}
 
-        def __init__(self, keys=None, values=None, *args, **kwargs):
+        def __init__(
+            self, keys: m.fields.Field | None = None, values: m.fields.Field | None = None, *args: Any, **kwargs: Any
+        ):
             self.keys = keys
             self.values = values
             super().__init__(*args, **kwargs)

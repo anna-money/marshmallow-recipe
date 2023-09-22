@@ -487,7 +487,7 @@ def test_bake_schema_should_reuse_already_generated_schemas() -> None:
 @pytest.mark.parametrize("naming_case", [mr.CAMEL_CASE, None])
 @pytest.mark.parametrize("none_value_handling", [mr.NoneValueHandling.INCLUDE, None])
 def test_bake_schema_should_generate_schemas_per_parameters(
-    naming_case: mr.NamingCase, none_value_handling: mr.NoneValueHandling
+    naming_case: mr.NamingCase | None, none_value_handling: mr.NoneValueHandling | None
 ) -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class Holder:
