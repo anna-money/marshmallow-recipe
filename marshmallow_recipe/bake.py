@@ -254,7 +254,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def _get_base_schema(cls: type, none_value_handling: NoneValueHandling) -> type[m.Schema]:
         class _Schema(m.Schema):
-            class Meta:
+            class Meta:  # type: ignore
                 unknown = m.EXCLUDE  # type: ignore
 
             @m.post_dump
