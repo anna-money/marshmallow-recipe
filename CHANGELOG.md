@@ -1,3 +1,8 @@
+## v0.0.28(2023-09-22)
+
+* [Fix options decorator](https://github.com/anna-money/marshmallow-recipe/pull/125)
+
+
 ## v0.0.27(2023-09-22)
 
 * [Basic support of Annotated fields](https://github.com/anna-money/marshmallow-recipe/pull/123)
