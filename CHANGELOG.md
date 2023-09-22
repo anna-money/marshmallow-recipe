@@ -1,3 +1,9 @@
+## v0.0.27(2023-09-22)
+
+* [Basic support of Annotated fields](https://github.com/anna-money/marshmallow-recipe/pull/123)
+* [Stop using typing_inspect](https://github.com/anna-money/marshmallow-recipe/pull/122)
+
+
 ## v0.0.26(2023-09-18)
 
 * [Support python 3.12](https://github.com/anna-money/marshmallow-recipe/pull/121)
