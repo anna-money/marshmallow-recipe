@@ -29,7 +29,7 @@ from .fields import (
     uuid_field,
 )
 from .hooks import get_pre_loads
-from .metadata import Metadata
+from .metadata import EMPTY_METADATA, Metadata, is_metadata
 from .naming_case import NamingCase
 from .options import NoneValueHandling, try_get_options_for
 
@@ -102,7 +102,7 @@ def bake_schema(
 
 def get_field_for(
     type: type,
-    metadata: collections.abc.Mapping[str, Any],
+    metadata: Metadata,
     naming_case: NamingCase | None,
     none_value_handling: NoneValueHandling | None,
 ) -> m.fields.Field:
@@ -139,9 +139,9 @@ def get_field_for(
         if origin is list or origin is collections.abc.Sequence:
             collection_field_metadata = dict(metadata)
             if validate_item := collection_field_metadata.pop("validate_item", None):
-                item_field_metadata = dict(validate=validate_item)
+                item_field_metadata = Metadata(dict(validate=validate_item))
             else:
-                item_field_metadata = {}
+                item_field_metadata = EMPTY_METADATA
 
             return list_field(
                 get_field_for(
@@ -158,9 +158,9 @@ def get_field_for(
         if origin is set or origin is collections.abc.Set:
             collection_field_metadata = dict(metadata)
             if validate_item := collection_field_metadata.pop("validate_item", None):
-                item_field_metadata = dict(validate=validate_item)
+                item_field_metadata = Metadata(dict(validate=validate_item))
             else:
-                item_field_metadata = {}
+                item_field_metadata = EMPTY_METADATA
 
             return set_field(
                 get_field_for(
@@ -177,9 +177,9 @@ def get_field_for(
         if origin is frozenset:
             collection_field_metadata = dict(metadata)
             if validate_item := collection_field_metadata.pop("validate_item", None):
-                item_field_metadata = dict(validate=validate_item)
+                item_field_metadata = Metadata(dict(validate=validate_item))
             else:
-                item_field_metadata = {}
+                item_field_metadata = EMPTY_METADATA
 
             return frozen_set_field(
                 get_field_for(
@@ -198,14 +198,20 @@ def get_field_for(
                 None
                 if arguments[0] is str
                 else get_field_for(
-                    arguments[0], metadata={}, naming_case=naming_case, none_value_handling=none_value_handling
+                    arguments[0],
+                    metadata=EMPTY_METADATA,
+                    naming_case=naming_case,
+                    none_value_handling=none_value_handling,
                 )
             )
             values_field = (
                 None
                 if arguments[1] is Any
                 else get_field_for(
-                    arguments[1], metadata={}, naming_case=naming_case, none_value_handling=none_value_handling
+                    arguments[1],
+                    metadata=EMPTY_METADATA,
+                    naming_case=naming_case,
+                    none_value_handling=none_value_handling,
                 )
             )
 
@@ -220,9 +226,9 @@ def get_field_for(
         if origin is tuple and len(arguments) == 2 and arguments[1] is Ellipsis:
             collection_field_metadata = dict(metadata)
             if validate_item := collection_field_metadata.pop("validate_item", None):
-                item_field_metadata = dict(validate=validate_item)
+                item_field_metadata = Metadata(dict(validate=validate_item))
             else:
-                item_field_metadata = {}
+                item_field_metadata = EMPTY_METADATA
 
             return tuple_field(
                 get_field_for(
@@ -238,8 +244,10 @@ def get_field_for(
 
         if origin is Annotated:
             underlying_type, *annotations = arguments
-            annotated_metadata = next((x for x in annotations if isinstance(x, Metadata)), Metadata())
-            metadata = dict(metadata, **annotated_metadata)
+            annotated_metadata = next(
+                (annotation for annotation in annotations if is_metadata(annotation)), EMPTY_METADATA
+            )
+            metadata = Metadata(dict(metadata, **annotated_metadata))
 
             return get_field_for(
                 underlying_type,
@@ -339,12 +347,10 @@ _SIMPLE_TYPE_FIELD_FACTORIES: dict[type, _FieldFactory] = {
 }
 
 
-def _get_metadata(
-    *, name: str, default: Any, metadata: collections.abc.Mapping[Any, Any]
-) -> collections.abc.Mapping[str, Any]:
-    result = dict(name=name, default=default)
-    result.update({k: v for k, v in metadata.items() if isinstance(k, str)})
-    return result
+def _get_metadata(*, name: str, default: Any, metadata: collections.abc.Mapping[Any, Any]) -> Metadata:
+    values = dict(name=name, default=default)
+    values.update({k: v for k, v in metadata.items() if isinstance(k, str)})
+    return Metadata(values)
 
 
 def _substitute_any_to_open_generic(type: type) -> type:
