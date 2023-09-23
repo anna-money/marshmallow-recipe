@@ -92,9 +92,6 @@ def list_metadata(
     return Metadata(values)
 
 
-sequence_metadata = list_metadata
-
-
 def set_metadata(
     *,
     name: str = MISSING,
@@ -125,3 +122,15 @@ def tuple_metadata(
     if validate_item is not None:
         values.update(validate_item=validate_item)
     return Metadata(values)
+
+
+sequence_metadata = list_metadata
+
+# shortcuts
+meta = metadata
+decimal_meta = decimal_metadata
+datetime_meta = datetime_metadata
+list_meta = list_metadata
+set_meta = set_metadata
+sequence_meta = sequence_metadata
+tuple_meta = tuple_metadata
