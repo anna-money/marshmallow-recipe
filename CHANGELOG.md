@@ -1,3 +1,8 @@
+## v0.0.29(2023-09-23)
+
+* Allow to use metadata as part of Annotated: [#126](https://github.com/anna-money/marshmallow-recipe/pull/126) and  [#127](https://github.com/anna-money/marshmallow-recipe/pull/127). 
+
+
 ## v0.0.28(2023-09-22)
 
 * [Fix options decorator](https://github.com/anna-money/marshmallow-recipe/pull/125)
