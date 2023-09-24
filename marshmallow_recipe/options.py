@@ -1,4 +1,3 @@
-import collections
 import collections.abc
 import dataclasses
 import enum
