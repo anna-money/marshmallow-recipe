@@ -8,6 +8,8 @@ from typing import Any
 import marshmallow as m
 import marshmallow.validate
 
+from .validator import ValidationFunc
+
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
 
 
@@ -17,7 +19,7 @@ def str_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -48,7 +50,7 @@ def bool_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -81,7 +83,7 @@ def decimal_field(
     name: str | None = None,
     places: int = 2,
     as_string: bool = True,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -122,7 +124,7 @@ def int_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -152,7 +154,7 @@ def float_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -182,7 +184,7 @@ def uuid_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -212,7 +214,7 @@ def datetime_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     format: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
@@ -247,7 +249,7 @@ def date_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -278,7 +280,7 @@ def nested_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -313,7 +315,7 @@ def list_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -346,7 +348,7 @@ def set_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -379,7 +381,7 @@ def frozen_set_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -412,7 +414,7 @@ def tuple_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -446,7 +448,7 @@ def dict_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -488,7 +490,7 @@ def enum_field(
     allow_none: bool,
     name: str | None = None,
     default: Any = dataclasses.MISSING,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
 ) -> marshmallow.fields.Field:
     if default is m.missing:
@@ -524,7 +526,7 @@ def raw_field(
     *,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     return m.fields.Raw(
