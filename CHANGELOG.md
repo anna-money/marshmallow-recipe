@@ -1,3 +1,9 @@
+## v0.0.30(2023-09-25)
+
+* [Improve validation support: expose ValidationError to raise it from validators, allow to pass a sequence of validators](https://github.com/anna-money/marshmallow-recipe/pull/129) 
+* [Add meta shortcuts to metadata methods](https://github.com/anna-money/marshmallow-recipe/pull/128)
+
+
 ## v0.0.29(2023-09-23)
 
 * Allow to use metadata as part of Annotated: [#126](https://github.com/anna-money/marshmallow-recipe/pull/126) and  [#127](https://github.com/anna-money/marshmallow-recipe/pull/127). 
