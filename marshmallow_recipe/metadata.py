@@ -32,7 +32,7 @@ def is_metadata(value: Any) -> TypeGuard[Metadata]:
 def metadata(
     *,
     name: str = MISSING,
-    validate: ValidationFunc | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -47,7 +47,7 @@ def decimal_metadata(
     name: str = MISSING,
     places: int = MISSING,
     as_string: bool = MISSING,
-    validate: ValidationFunc | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -64,7 +64,7 @@ def decimal_metadata(
 def datetime_metadata(
     *,
     name: str = MISSING,
-    validate: ValidationFunc | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     format: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
@@ -80,8 +80,8 @@ def datetime_metadata(
 def list_metadata(
     *,
     name: str = MISSING,
-    validate: ValidationFunc | None = None,
-    validate_item: ValidationFunc | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    validate_item: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -96,8 +96,8 @@ def list_metadata(
 def set_metadata(
     *,
     name: str = MISSING,
-    validate: ValidationFunc | None = None,
-    validate_item: ValidationFunc | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    validate_item: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -112,8 +112,8 @@ def set_metadata(
 def tuple_metadata(
     *,
     name: str = MISSING,
-    validate: ValidationFunc | None = None,
-    validate_item: ValidationFunc | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    validate_item: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
