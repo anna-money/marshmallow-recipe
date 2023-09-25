@@ -2,6 +2,7 @@ import collections.abc
 from typing import Any, TypeGuard, final
 
 from .missing import MISSING
+from .validator import ValidationFunc
 
 
 @final
@@ -31,7 +32,7 @@ def is_metadata(value: Any) -> TypeGuard[Metadata]:
 def metadata(
     *,
     name: str = MISSING,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -46,7 +47,7 @@ def decimal_metadata(
     name: str = MISSING,
     places: int = MISSING,
     as_string: bool = MISSING,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -63,7 +64,7 @@ def decimal_metadata(
 def datetime_metadata(
     *,
     name: str = MISSING,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | None = None,
     format: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
@@ -79,8 +80,8 @@ def datetime_metadata(
 def list_metadata(
     *,
     name: str = MISSING,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
-    validate_item: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | None = None,
+    validate_item: ValidationFunc | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -95,8 +96,8 @@ def list_metadata(
 def set_metadata(
     *,
     name: str = MISSING,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
-    validate_item: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | None = None,
+    validate_item: ValidationFunc | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -111,8 +112,8 @@ def set_metadata(
 def tuple_metadata(
     *,
     name: str = MISSING,
-    validate: collections.abc.Callable[[Any], Any] | None = None,
-    validate_item: collections.abc.Callable[[Any], Any] | None = None,
+    validate: ValidationFunc | None = None,
+    validate_item: ValidationFunc | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
