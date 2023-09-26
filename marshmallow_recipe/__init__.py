@@ -90,7 +90,7 @@ __all__: tuple[str, ...] = (
     "ValidationFunc",
 )
 
-__version__ = "0.0.30"
+__version__ = "0.0.31"
 
 version = f"{__version__}, Python {sys.version}"
 

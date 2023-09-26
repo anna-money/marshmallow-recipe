@@ -1,3 +1,9 @@
+## v0.0.31(2023-09-26)
+
+* [Allow to strip whitespaces on load/dump for str fields](https://github.com/anna-money/marshmallow-recipe/pull/130) 
+* [Allow to provide post_load delegate for str fields](https://github.com/anna-money/marshmallow-recipe/pull/131)
+
+
 ## v0.0.30(2023-09-25)
 
 * [Improve validation support: expose ValidationError to raise it from validators, allow to pass a sequence of validators](https://github.com/anna-money/marshmallow-recipe/pull/129) 
