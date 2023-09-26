@@ -592,9 +592,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             if result is not None:
                 if self.strip_whitespaces:
                     result = result.strip()
-
-                if self.allow_none and len(result) == 0:
-                    return None
+                    if self.allow_none and len(result) == 0:
+                        return None
 
                 if self.post_load is not None:
                     result = self.post_load(result)
