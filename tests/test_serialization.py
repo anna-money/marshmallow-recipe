@@ -530,3 +530,12 @@ def test_str_strip_whitespaces() -> None:
     assert OptionalStrContainer(value=None) == mr.load(OptionalStrContainer, {"value": None})
     assert mr.dump(OptionalStrContainer(value="")) == {}
     assert mr.dump(OptionalStrContainer(value=None)) == {}
+
+
+def test_str_post_load() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class StrContainer:
+        value: Annotated[str, mr.str_meta(post_load=lambda x: x.replace("-", ""))]
+
+    assert StrContainer(value="111111") == mr.load(StrContainer, {"value": "11-11-11"})
+    assert mr.dump(StrContainer(value="11-11-11")) == {"value": "11-11-11"}
