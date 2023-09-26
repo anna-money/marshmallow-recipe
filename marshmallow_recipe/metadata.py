@@ -1,5 +1,5 @@
 import collections.abc
-from typing import Any, Callable, TypeGuard, final
+from typing import Any, TypeGuard, final
 
 from .missing import MISSING
 from .validator import ValidationFunc
@@ -47,7 +47,7 @@ def str_metadata(
     name: str = MISSING,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     strip_whitespaces: bool | None = None,
-    post_load: Callable[[str], str] | None = None,
+    post_load: collections.abc.Callable[[str], str] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
