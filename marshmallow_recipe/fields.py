@@ -20,12 +20,14 @@ def str_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    strip_whitespaces: bool = False,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
-        return m.fields.Str(
+        return StrField(
             allow_none=allow_none,
             validate=validate,
+            strip_whitespaces=strip_whitespaces,
             **default_fields(m.missing),
             **data_key_fields(name),
         )
@@ -34,11 +36,18 @@ def str_field(
         if default is None:
             raise ValueError("Default value cannot be none")
 
-        return m.fields.String(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+        return StrField(
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            strip_whitespaces=strip_whitespaces,
+            **data_key_fields(name),
+        )
 
-    return m.fields.Str(
+    return StrField(
         allow_none=allow_none,
         validate=validate,
+        strip_whitespaces=strip_whitespaces,
         **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
@@ -543,6 +552,7 @@ DictField: type[m.fields.Field]
 SetField: type[m.fields.List]
 FrozenSetField: type[m.fields.List]
 TupleField: type[m.fields.List]
+StrField: type[m.fields.Str]
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
@@ -553,6 +563,29 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def default_fields(value: Any) -> dict[str, Any]:
         return dict(dump_default=value, load_default=value)
+
+    class StrFieldV3(m.fields.Str):
+        def __init__(self, strip_whitespaces: bool = False, **kwargs: Any):
+            super().__init__(**kwargs)
+            self.strip_whitespaces = strip_whitespaces
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            result = super()._serialize(value, attr, obj, **kwargs)
+            if self.strip_whitespaces and result is not None:
+                result = result.strip()
+                if self.allow_none and len(result) == 0:
+                    result = None
+            return result
+
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            result = super()._deserialize(value, attr, data, **kwargs)
+            if self.strip_whitespaces and result is not None:
+                result = result.strip()
+                if self.allow_none and len(result) == 0:
+                    result = None
+            return result
+
+    StrField = StrFieldV3
 
     class DateTimeFieldV3(m.fields.DateTime):
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
@@ -719,6 +752,29 @@ else:
 
     def default_fields(value: Any) -> dict[str, Any]:
         return dict(missing=value, default=value)
+
+    class StrFieldV2(m.fields.Str):
+        def __init__(self, strip_whitespaces: bool = False, **kwargs: Any):
+            super().__init__(**kwargs)
+            self.strip_whitespaces = strip_whitespaces
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **_: Any) -> Any:
+            result = super()._serialize(value, attr, obj)
+            if self.strip_whitespaces and result is not None:
+                result = result.strip()
+                if self.allow_none and len(result) == 0:
+                    result = None
+            return result
+
+        def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:
+            result = super()._deserialize(value, attr, data)
+            if self.strip_whitespaces and result is not None:
+                result = result.strip()
+                if self.allow_none and len(result) == 0:
+                    result = None
+            return result
+
+    StrField = StrFieldV2
 
     class DateTimeFieldV2(m.fields.DateTime):
         def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:

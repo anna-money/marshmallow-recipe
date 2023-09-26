@@ -512,3 +512,21 @@ def test_legacy_collection_typings() -> None:
         tuple_field: Tuple[str, ...]
 
     assert mr.schema(Container)
+
+
+def test_str_strip_whitespaces() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class StrContainer:
+        value: Annotated[str, mr.str_meta(strip_whitespaces=True)]
+
+    assert StrContainer(value="some_value") == mr.load(StrContainer, {"value": " some_value "})
+    assert mr.dump(StrContainer(value=" some_value ")) == {"value": "some_value"}
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class OptionalStrContainer:
+        value: Annotated[str | None, mr.str_meta(strip_whitespaces=True)]
+
+    assert OptionalStrContainer(value=None) == mr.load(OptionalStrContainer, {"value": ""})
+    assert OptionalStrContainer(value=None) == mr.load(OptionalStrContainer, {"value": None})
+    assert mr.dump(OptionalStrContainer(value="")) == {}
+    assert mr.dump(OptionalStrContainer(value=None)) == {}
