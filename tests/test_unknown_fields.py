@@ -9,7 +9,7 @@ import marshmallow_recipe as mr
 def test_unknown_fields_should_be_excluded() -> None:
     @dataclasses.dataclass
     class Example:
-        field_1: str = dataclasses.field(metadata=mr.metadata(name="field_2"))
+        field_1: str = dataclasses.field(metadata=mr.meta(name="field_2"))
 
     data = {"field_1": "bad", "field_2": "good"}
     data_copy = copy.deepcopy(data)
@@ -21,7 +21,7 @@ def test_unknown_fields_should_be_excluded() -> None:
 def test_metadata_name_should_not_use_others_field_name() -> None:
     @dataclasses.dataclass
     class Example:
-        field_1: str = dataclasses.field(metadata=mr.metadata(name="field_2"))
+        field_1: str = dataclasses.field(metadata=mr.meta(name="field_2"))
         field_2: str
 
     with pytest.raises(ValueError) as e:

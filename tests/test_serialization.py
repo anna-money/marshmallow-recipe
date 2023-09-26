@@ -227,7 +227,7 @@ def test_nested_dataclass() -> None:
 def test_custom_name_bool() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class BoolContainer:
-        bool_field: bool = dataclasses.field(metadata=mr.metadata(name="BoolField"))
+        bool_field: bool = dataclasses.field(metadata=mr.meta(name="BoolField"))
 
     raw = dict(BoolField=False)
 
@@ -243,7 +243,7 @@ def test_custom_name_bool() -> None:
 def test_custom_name_uuid() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class UuidContainer:
-        uuid_field: uuid.UUID = dataclasses.field(metadata=mr.metadata(name="UuidField"))
+        uuid_field: uuid.UUID = dataclasses.field(metadata=mr.meta(name="UuidField"))
 
     raw = {"UuidField": "15f75b02-1c34-46a2-92a5-18363aadea05"}
 

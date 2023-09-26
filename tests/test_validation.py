@@ -13,7 +13,7 @@ import marshmallow_recipe as mr
 def test_int_validation() -> None:
     @dataclasses.dataclass
     class Holder:
-        value: int = dataclasses.field(metadata=mr.metadata(validate=lambda x: x != 0))
+        value: int = dataclasses.field(metadata=mr.meta(validate=lambda x: x != 0))
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(value=0))
@@ -24,7 +24,7 @@ def test_int_validation() -> None:
 def test_float_validation() -> None:
     @dataclasses.dataclass
     class Holder:
-        value: float = dataclasses.field(metadata=mr.metadata(validate=lambda x: x != 0))
+        value: float = dataclasses.field(metadata=mr.meta(validate=lambda x: x != 0))
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(value=0))
@@ -35,7 +35,7 @@ def test_float_validation() -> None:
 def test_decimal_validation() -> None:
     @dataclasses.dataclass
     class Holder:
-        value: decimal.Decimal = dataclasses.field(metadata=mr.metadata(validate=lambda x: x != 0))
+        value: decimal.Decimal = dataclasses.field(metadata=mr.meta(validate=lambda x: x != 0))
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(value="0"))
@@ -46,7 +46,7 @@ def test_decimal_validation() -> None:
 def test_str_validation() -> None:
     @dataclasses.dataclass
     class Holder:
-        value: str = dataclasses.field(metadata=mr.metadata(validate=lambda x: x != ""))
+        value: str = dataclasses.field(metadata=mr.meta(validate=lambda x: x != ""))
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(value=""))
@@ -57,7 +57,7 @@ def test_str_validation() -> None:
 def test_bool_validation() -> None:
     @dataclasses.dataclass
     class Holder:
-        value: bool = dataclasses.field(metadata=mr.metadata(validate=lambda x: x is True))
+        value: bool = dataclasses.field(metadata=mr.meta(validate=lambda x: x is True))
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(value="False"))
@@ -70,7 +70,7 @@ def test_uuid_validation() -> None:
 
     @dataclasses.dataclass
     class Holder:
-        value: uuid.UUID = dataclasses.field(metadata=mr.metadata(validate=lambda x: x != invalid))
+        value: uuid.UUID = dataclasses.field(metadata=mr.meta(validate=lambda x: x != invalid))
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(value=str(invalid)))
@@ -83,7 +83,7 @@ def test_date_validation() -> None:
 
     @dataclasses.dataclass
     class Holder:
-        value: datetime.date = dataclasses.field(metadata=mr.metadata(validate=lambda x: x != invalid))
+        value: datetime.date = dataclasses.field(metadata=mr.meta(validate=lambda x: x != invalid))
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(value=invalid.isoformat()))
@@ -96,7 +96,7 @@ def test_datetime_validation() -> None:
 
     @dataclasses.dataclass
     class Holder:
-        value: datetime.datetime = dataclasses.field(metadata=mr.metadata(validate=lambda x: x != invalid))
+        value: datetime.datetime = dataclasses.field(metadata=mr.meta(validate=lambda x: x != invalid))
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(value=invalid.isoformat()))
@@ -122,7 +122,7 @@ def test_none_validation_with_default() -> None:
 def test_list_item_validation() -> None:
     @dataclasses.dataclass
     class Holder:
-        items: list[str] = dataclasses.field(metadata=mr.list_metadata(validate_item=lambda x: bool(x)))
+        items: list[str] = dataclasses.field(metadata=mr.list_meta(validate_item=lambda x: bool(x)))
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(items=[""]))
@@ -133,7 +133,7 @@ def test_list_item_validation() -> None:
 def test_set_item_validation() -> None:
     @dataclasses.dataclass
     class Holder:
-        items: set[str] = dataclasses.field(metadata=mr.set_metadata(validate_item=lambda x: bool(x)))
+        items: set[str] = dataclasses.field(metadata=mr.set_meta(validate_item=lambda x: bool(x)))
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(items=[""]))
@@ -144,7 +144,7 @@ def test_set_item_validation() -> None:
 def test_tuple_item_validation() -> None:
     @dataclasses.dataclass
     class Holder:
-        items: tuple[str, ...] = dataclasses.field(metadata=mr.tuple_metadata(validate_item=lambda x: bool(x)))
+        items: tuple[str, ...] = dataclasses.field(metadata=mr.tuple_meta(validate_item=lambda x: bool(x)))
 
     with pytest.raises(m.ValidationError):
         mr.load(Holder, dict(items=[""]))
@@ -187,7 +187,7 @@ def test_dump_many_invalid_value() -> None:
 def test_dump_invalid_value_with_custom_name() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class UUIDContainer:
-        uuid_field: uuid.UUID = dataclasses.field(metadata=mr.metadata(name="UuidField"))
+        uuid_field: uuid.UUID = dataclasses.field(metadata=mr.meta(name="UuidField"))
 
     with pytest.raises(m.ValidationError) as exc_info:
         mr.dump(UUIDContainer(uuid_field=cast(uuid.UUID, "invalid")))
@@ -203,7 +203,7 @@ def test_dump_invalid_value_with_custom_name() -> None:
 def test_dump_many_invalid_value_with_custom_name() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class UUIDContainer:
-        uuid_field: uuid.UUID = dataclasses.field(metadata=mr.metadata(name="UuidField"))
+        uuid_field: uuid.UUID = dataclasses.field(metadata=mr.meta(name="UuidField"))
 
     with pytest.raises(m.ValidationError) as exc_info:
         mr.dump_many([UUIDContainer(uuid_field=cast(uuid.UUID, "invalid"))])

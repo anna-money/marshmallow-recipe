@@ -68,16 +68,16 @@ EMPTY_SCHEMA = m.Schema()
     [
         # Any
         (Any, {}, m.fields.Raw(allow_none=True, **default_fields(None))),
-        (Any, mr.metadata(name="i"), m.fields.Raw(allow_none=True, **default_fields(None), **data_key_fields("i"))),
+        (Any, mr.meta(name="i"), m.fields.Raw(allow_none=True, **default_fields(None), **data_key_fields("i"))),
         # Annotated[Any]
         (Annotated[Any, "$"], {}, m.fields.Raw(allow_none=True, **default_fields(None))),
         (
             Annotated[Any, "$"],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.Raw(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
-            Annotated[Any, mr.metadata(name="i")],
+            Annotated[Any, mr.meta(name="i")],
             {},
             m.fields.Raw(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
@@ -85,75 +85,75 @@ EMPTY_SCHEMA = m.Schema()
         (bool, {}, m.fields.Bool(required=True)),
         (Optional[bool], {}, m.fields.Bool(allow_none=True, **default_fields(None))),
         (bool | None, {}, m.fields.Bool(allow_none=True, **default_fields(None))),
-        (bool, mr.metadata(name="i"), m.fields.Bool(required=True, **data_key_fields("i"))),
+        (bool, mr.meta(name="i"), m.fields.Bool(required=True, **data_key_fields("i"))),
         (
             Optional[bool],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.Bool(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             bool | None,
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.Bool(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: str
         (str, {}, m.fields.Str(required=True)),
         (Optional[str], {}, m.fields.Str(allow_none=True, **default_fields(None))),
         (str | None, {}, m.fields.Str(allow_none=True, **default_fields(None))),
-        (str, mr.metadata(name="i"), m.fields.Str(required=True, **data_key_fields("i"))),
+        (str, mr.meta(name="i"), m.fields.Str(required=True, **data_key_fields("i"))),
         (
             Optional[str],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.Str(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             str | None,
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.Str(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: int
         (int, {}, m.fields.Int(required=True)),
         (Optional[int], {}, m.fields.Int(allow_none=True, **default_fields(None))),
         (int | None, {}, m.fields.Int(allow_none=True, **default_fields(None))),
-        (int, mr.metadata(name="i"), m.fields.Int(required=True, **data_key_fields("i"))),
+        (int, mr.meta(name="i"), m.fields.Int(required=True, **data_key_fields("i"))),
         (
             Optional[int],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.Int(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             int | None,
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.Int(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: float
         (float, {}, m.fields.Float(required=True)),
         (Optional[float], {}, m.fields.Float(allow_none=True, **default_fields(None))),
         (float | None, {}, m.fields.Float(allow_none=True, **default_fields(None))),
-        (float, mr.metadata(name="i"), m.fields.Float(required=True, **data_key_fields("i"))),
+        (float, mr.meta(name="i"), m.fields.Float(required=True, **data_key_fields("i"))),
         (
             Optional[float],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.Float(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             float | None,
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.Float(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: uuid
         (uuid.UUID, {}, m.fields.UUID(required=True)),
         (Optional[uuid.UUID], {}, m.fields.UUID(allow_none=True, **default_fields(None))),
         (uuid.UUID | None, {}, m.fields.UUID(allow_none=True, **default_fields(None))),
-        (uuid.UUID, mr.metadata(name="i"), m.fields.UUID(required=True, **data_key_fields("i"))),
+        (uuid.UUID, mr.meta(name="i"), m.fields.UUID(required=True, **data_key_fields("i"))),
         (
             Optional[uuid.UUID],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.UUID(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             uuid.UUID | None,
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.UUID(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: decimal
@@ -170,19 +170,19 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             decimal.Decimal,
-            mr.decimal_metadata(name="i", places=4, as_string=False),
+            mr.decimal_meta(name="i", places=4, as_string=False),
             m.fields.Decimal(required=True, **data_key_fields("i"), places=4, as_string=False),
         ),
         (
             Optional[decimal.Decimal],
-            mr.decimal_metadata(name="i", places=4, as_string=False),
+            mr.decimal_meta(name="i", places=4, as_string=False),
             m.fields.Decimal(
                 allow_none=True, **default_fields(None), places=4, as_string=False, **data_key_fields("i")
             ),
         ),
         (
             decimal.Decimal | None,
-            mr.decimal_metadata(name="i", places=4, as_string=False),
+            mr.decimal_meta(name="i", places=4, as_string=False),
             m.fields.Decimal(
                 allow_none=True, **default_fields(None), places=4, as_string=False, **data_key_fields("i")
             ),
@@ -201,19 +201,19 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             datetime.datetime,
-            mr.datetime_metadata(name="i", format="%Y-%m-%dT%H:%M:%SZ"),
+            mr.datetime_meta(name="i", format="%Y-%m-%dT%H:%M:%SZ"),
             mr.DateTimeField(required=True, **data_key_fields("i"), format="%Y-%m-%dT%H:%M:%SZ"),
         ),
         (
             Optional[datetime.datetime],
-            mr.datetime_metadata(name="i", format="%Y-%m-%dT%H:%M:%SZ"),
+            mr.datetime_meta(name="i", format="%Y-%m-%dT%H:%M:%SZ"),
             mr.DateTimeField(
                 allow_none=True, **default_fields(None), **data_key_fields("i"), format="%Y-%m-%dT%H:%M:%SZ"
             ),
         ),
         (
             datetime.datetime | None,
-            mr.datetime_metadata(name="i", format="%Y-%m-%dT%H:%M:%SZ"),
+            mr.datetime_meta(name="i", format="%Y-%m-%dT%H:%M:%SZ"),
             mr.DateTimeField(
                 allow_none=True, **default_fields(None), **data_key_fields("i"), format="%Y-%m-%dT%H:%M:%SZ"
             ),
@@ -232,32 +232,32 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             datetime.date,
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.Date(required=True, **data_key_fields("i")),
         ),
         (
             Optional[datetime.date],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.Date(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             datetime.date | None,
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.Date(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # enum
         (Enum, {}, mr.EnumField(enum_type=Enum, required=True)),
         (Optional[Enum], {}, mr.EnumField(enum_type=Enum, allow_none=True, **default_fields(None))),
         (Enum | None, {}, mr.EnumField(enum_type=Enum, allow_none=True, **default_fields(None))),
-        (Enum, mr.metadata(name="i"), mr.EnumField(enum_type=Enum, required=True, **data_key_fields("i"))),
+        (Enum, mr.meta(name="i"), mr.EnumField(enum_type=Enum, required=True, **data_key_fields("i"))),
         (
             Optional[Enum],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             mr.EnumField(enum_type=Enum, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             Enum | None,
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             mr.EnumField(enum_type=Enum, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # dataclass
@@ -266,17 +266,17 @@ EMPTY_SCHEMA = m.Schema()
         (EmptyDataclass | None, {}, m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
         (
             EmptyDataclass,
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.Nested(EMPTY_SCHEMA, required=True, **data_key_fields("i")),
         ),
         (
             Optional[EmptyDataclass],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             EmptyDataclass | None,
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # containers: list[T]
@@ -703,7 +703,7 @@ EMPTY_SCHEMA = m.Schema()
         (dict[str, Any], {}, mr.DictField(required=True)),
         (
             dict[str, Any],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             mr.DictField(required=True, **data_key_fields("i")),
         ),
         (
@@ -713,7 +713,7 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             Optional[dict[str, Any]],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             mr.DictField(
                 allow_none=True,
                 **default_fields(None),
@@ -727,7 +727,7 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             dict[str, Any] | None,
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             mr.DictField(
                 allow_none=True,
                 **default_fields(None),
@@ -742,7 +742,7 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             dict[datetime.date, int],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
@@ -762,7 +762,7 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             Optional[dict[datetime.date, int]],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
@@ -783,7 +783,7 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             dict[datetime.date, int] | None,
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
@@ -796,7 +796,7 @@ EMPTY_SCHEMA = m.Schema()
         (collections.abc.Mapping[str, Any], {}, mr.DictField(required=True)),
         (
             collections.abc.Mapping[str, Any],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             mr.DictField(required=True, **data_key_fields("i")),
         ),
         (
@@ -806,7 +806,7 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             Optional[collections.abc.Mapping[str, Any]],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             mr.DictField(
                 allow_none=True,
                 **default_fields(None),
@@ -820,7 +820,7 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             collections.abc.Mapping[str, Any] | None,
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             mr.DictField(
                 allow_none=True,
                 **default_fields(None),
@@ -835,7 +835,7 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             collections.abc.Mapping[datetime.date, int],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
@@ -855,7 +855,7 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             Optional[collections.abc.Mapping[datetime.date, int]],
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
@@ -876,7 +876,7 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             collections.abc.Mapping[datetime.date, int] | None,
-            mr.metadata(name="i"),
+            mr.meta(name="i"),
             mr.DictField(
                 keys=m.fields.Date(required=True),
                 values=m.fields.Int(required=True),
