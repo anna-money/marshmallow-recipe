@@ -21,6 +21,7 @@ def str_field(
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     strip_whitespaces: bool = False,
+    post_load: collections.abc.Callable[[str], str] | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -28,6 +29,7 @@ def str_field(
             allow_none=allow_none,
             validate=validate,
             strip_whitespaces=strip_whitespaces,
+            post_load=post_load,
             **default_fields(m.missing),
             **data_key_fields(name),
         )
@@ -41,6 +43,7 @@ def str_field(
             allow_none=allow_none,
             validate=validate,
             strip_whitespaces=strip_whitespaces,
+            post_load=post_load,
             **data_key_fields(name),
         )
 
@@ -48,6 +51,7 @@ def str_field(
         allow_none=allow_none,
         validate=validate,
         strip_whitespaces=strip_whitespaces,
+        post_load=post_load,
         **default_fields(None if default is dataclasses.MISSING else default),
         **data_key_fields(name),
     )
@@ -565,8 +569,14 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         return dict(dump_default=value, load_default=value)
 
     class StrFieldV3(m.fields.Str):
-        def __init__(self, strip_whitespaces: bool = False, **kwargs: Any):
+        def __init__(
+            self,
+            strip_whitespaces: bool = False,
+            post_load: collections.abc.Callable[[str], str] | None = None,
+            **kwargs: Any,
+        ):
             super().__init__(**kwargs)
+            self.post_load = post_load
             self.strip_whitespaces = strip_whitespaces
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
@@ -579,10 +589,15 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             result = super()._deserialize(value, attr, data, **kwargs)
-            if self.strip_whitespaces and result is not None:
-                result = result.strip()
-                if self.allow_none and len(result) == 0:
-                    result = None
+            if result is not None:
+                if self.strip_whitespaces:
+                    result = result.strip()
+                    if self.allow_none and len(result) == 0:
+                        return None
+
+                if self.post_load is not None:
+                    result = self.post_load(result)
+
             return result
 
     StrField = StrFieldV3
@@ -754,8 +769,14 @@ else:
         return dict(missing=value, default=value)
 
     class StrFieldV2(m.fields.Str):
-        def __init__(self, strip_whitespaces: bool = False, **kwargs: Any):
+        def __init__(
+            self,
+            strip_whitespaces: bool = False,
+            post_load: collections.abc.Callable[[str], str] | None = None,
+            **kwargs: Any,
+        ):
             super().__init__(**kwargs)
+            self.post_load = post_load
             self.strip_whitespaces = strip_whitespaces
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **_: Any) -> Any:
@@ -768,10 +789,16 @@ else:
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:
             result = super()._deserialize(value, attr, data)
-            if self.strip_whitespaces and result is not None:
-                result = result.strip()
-                if self.allow_none and len(result) == 0:
-                    result = None
+
+            if result is not None:
+                if self.strip_whitespaces:
+                    result = result.strip()
+                    if self.allow_none and len(result) == 0:
+                        return None
+
+                if self.post_load is not None:
+                    result = self.post_load(result)
+
             return result
 
     StrField = StrFieldV2
