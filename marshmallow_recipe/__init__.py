@@ -3,7 +3,7 @@ import re
 import sys
 
 from .bake import bake_schema, get_field_for
-from .fields import DateTimeField, DictField, EnumField, FrozenSetField, SetField, TupleField
+from .fields import DateTimeField, DictField, EnumField, FrozenSetField, SetField, StrField, TupleField
 from .hooks import add_pre_load, pre_load
 from .metadata import (
     EMPTY_METADATA,
@@ -21,6 +21,8 @@ from .metadata import (
     sequence_metadata,
     set_meta,
     set_metadata,
+    str_meta,
+    str_metadata,
     tuple_meta,
     tuple_metadata,
 )
@@ -43,6 +45,7 @@ __all__: tuple[str, ...] = (
     "FrozenSetField",
     "EnumField",
     "SetField",
+    "StrField",
     "TupleField",
     # metadata.py
     "Metadata",
@@ -60,6 +63,8 @@ __all__: tuple[str, ...] = (
     "sequence_meta",
     "set_metadata",
     "set_meta",
+    "str_metadata",
+    "str_meta",
     "tuple_metadata",
     "tuple_meta",
     # missing.py

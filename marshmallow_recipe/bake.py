@@ -47,7 +47,10 @@ _schema_types: dict[_SchemaTypeKey, type[m.Schema]] = {}
 
 
 def bake_schema(
-    cls: type, *, naming_case: NamingCase | None = None, none_value_handling: NoneValueHandling | None = None
+    cls: type,
+    *,
+    naming_case: NamingCase | None = None,
+    none_value_handling: NoneValueHandling | None = None,
 ) -> type[m.Schema]:
     if not dataclasses.is_dataclass(cls):
         raise ValueError(f"{cls} is not a dataclass")
@@ -59,7 +62,11 @@ def bake_schema(
         cls_none_value_handling = none_value_handling
         cls_naming_case = naming_case
 
-    key = _SchemaTypeKey(cls=cls, naming_case=cls_naming_case, none_value_handling=cls_none_value_handling)
+    key = _SchemaTypeKey(
+        cls=cls,
+        naming_case=cls_naming_case,
+        none_value_handling=cls_none_value_handling,
+    )
     if result := _schema_types.get(key):
         return result
 
@@ -91,7 +98,10 @@ def bake_schema(
         {"__module__": f"{__package__}.auto_generated"}
         | {
             field.name: get_field_for(
-                field.type, metadata, naming_case=naming_case, none_value_handling=none_value_handling
+                field.type,
+                metadata,
+                naming_case=naming_case,
+                none_value_handling=none_value_handling,
             )
             for field, metadata in fields_with_metadata
         },
@@ -348,7 +358,7 @@ _SIMPLE_TYPE_FIELD_FACTORIES: dict[type, _FieldFactory] = {
 
 
 def _get_metadata(*, name: str, default: Any, metadata: collections.abc.Mapping[Any, Any]) -> Metadata:
-    values = dict(name=name, default=default)
+    values: dict[str, Any] = dict(name=name, default=default)
     values.update({k: v for k, v in metadata.items() if isinstance(k, str)})
     return Metadata(values)
 

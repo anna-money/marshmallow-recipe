@@ -97,19 +97,23 @@ EMPTY_SCHEMA = m.Schema()
             m.fields.Bool(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: str
-        (str, {}, m.fields.Str(required=True)),
-        (Optional[str], {}, m.fields.Str(allow_none=True, **default_fields(None))),
-        (str | None, {}, m.fields.Str(allow_none=True, **default_fields(None))),
-        (str, mr.meta(name="i"), m.fields.Str(required=True, **data_key_fields("i"))),
+        (str, {}, mr.StrField(required=True)),
+        (Optional[str], {}, mr.StrField(allow_none=True, **default_fields(None))),
+        (str | None, {}, mr.StrField(allow_none=True, **default_fields(None))),
+        (
+            str,
+            mr.str_meta(name="i", strip_whitespaces=True),
+            mr.StrField(required=True, strip_whitespaces=True, **data_key_fields("i")),
+        ),
         (
             Optional[str],
-            mr.meta(name="i"),
-            m.fields.Str(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.str_meta(name="i", strip_whitespaces=True),
+            mr.StrField(allow_none=True, strip_whitespaces=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             str | None,
-            mr.meta(name="i"),
-            m.fields.Str(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.str_meta(name="i", strip_whitespaces=True),
+            mr.StrField(allow_none=True, strip_whitespaces=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: int
         (int, {}, m.fields.Int(required=True)),

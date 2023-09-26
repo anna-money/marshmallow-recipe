@@ -42,6 +42,22 @@ def metadata(
     return Metadata(values)
 
 
+def str_metadata(
+    *,
+    name: str = MISSING,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    strip_whitespaces: bool | None = None,
+) -> Metadata:
+    values = dict[str, Any]()
+    if name is not MISSING:
+        values.update(name=name)
+    if validate is not None:
+        values.update(validate=validate)
+    if strip_whitespaces is not None:
+        values.update(strip_whitespaces=strip_whitespaces)
+    return Metadata(values)
+
+
 def decimal_metadata(
     *,
     name: str = MISSING,
@@ -134,4 +150,5 @@ datetime_meta = datetime_metadata
 list_meta = list_metadata
 set_meta = set_metadata
 sequence_meta = sequence_metadata
+str_meta = str_metadata
 tuple_meta = tuple_metadata
