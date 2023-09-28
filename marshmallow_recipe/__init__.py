@@ -30,7 +30,7 @@ from .missing import MISSING
 from .naming_case import CAMEL_CASE, CAPITAL_CAMEL_CASE, CamelCase, CapitalCamelCase, NamingCase
 from .options import NoneValueHandling, options
 from .serialization import EmptySchema, dump, dump_many, load, load_many, schema
-from .validator import ValidationError, ValidationFunc
+from .validation import ValidationFunc, regexp_validate
 
 __all__: tuple[str, ...] = (
     # bake.py
@@ -85,9 +85,9 @@ __all__: tuple[str, ...] = (
     "dump_many",
     "schema",
     "EmptySchema",
-    # validator.py
-    "ValidationError",
+    # validation.py
     "ValidationFunc",
+    "regexp_validate",
 )
 
 __version__ = "0.0.31"
