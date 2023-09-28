@@ -12,10 +12,13 @@ def regexp_validate(regexp: re.Pattern | str, *, error: str | None) -> Validatio
 
 
 def validate(validator: ValidationFunc, *, error: str | None) -> ValidationFunc:
+    if error is None:
+        return validator
+
     def _validator_with_custom_error(value: Any) -> Any:
         result = validator(value)
         if result is False:
             raise marshmallow.ValidationError(error)
         return result
 
-    return _validator_with_custom_error if error is not None else validator
+    return _validator_with_custom_error
