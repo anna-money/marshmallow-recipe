@@ -8,7 +8,7 @@ from typing import Any
 import marshmallow as m
 import marshmallow.validate
 
-from .validator import ValidationFunc
+from .validation import ValidationFunc
 
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
 

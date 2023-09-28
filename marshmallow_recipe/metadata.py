@@ -2,7 +2,7 @@ import collections.abc
 from typing import Any, TypeGuard, final
 
 from .missing import MISSING
-from .validator import ValidationFunc
+from .validation import ValidationFunc
 
 
 @final

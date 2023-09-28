@@ -2,7 +2,7 @@ import dataclasses
 import datetime
 import decimal
 import uuid
-from typing import cast
+from typing import Annotated, cast
 
 import marshmallow as m
 import pytest
@@ -245,3 +245,36 @@ def test_dump_invalid_int_value() -> None:
 
     with pytest.raises(m.ValidationError):
         mr.dump(IntContainer(int_field=cast(int, "invalid")))
+
+
+def test_regexp_validate() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class StrContainer:
+        value1: Annotated[str, mr.str_meta(validate=mr.regexp_validate(r"^[a-z]+$"))]
+        value2: Annotated[
+            str, mr.str_meta(validate=mr.regexp_validate(r"^[a-z]+$", error="String does not match ^[a-z]+$."))
+        ]
+
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.dump(StrContainer(value1="42", value2="100500"))
+
+    assert exc_info.value.messages == {
+        "value1": ["String does not match expected pattern."],
+        "value2": ["String does not match ^[a-z]+$."],
+    }
+
+
+def test_validate() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class IntContainer:
+        value: Annotated[
+            int,
+            mr.str_meta(
+                validate=mr.validate(lambda x: x < 0, error="Should be negative."),
+            ),
+        ]
+
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.dump(IntContainer(value=42))
+
+    assert exc_info.value.messages == {"value": ["Should be negative."]}
