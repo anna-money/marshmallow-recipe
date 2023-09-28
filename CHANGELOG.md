@@ -1,3 +1,8 @@
+## v0.0.32(2023-09-28)
+
+* [Validate by regexp/Validate with a custom error](https://github.com/anna-money/marshmallow-recipe/pull/132) 
+
+
 ## v0.0.31(2023-09-26)
 
 * [Allow to strip whitespaces on load/dump for str fields](https://github.com/anna-money/marshmallow-recipe/pull/130) 
