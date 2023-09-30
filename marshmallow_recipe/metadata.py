@@ -21,6 +21,12 @@ class Metadata(collections.abc.Mapping[str, Any]):
     def __len__(self) -> int:
         return len(self.__values)
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.__values})"
+
+    def __str__(self) -> str:
+        return str(self.__values)
+
 
 EMPTY_METADATA = Metadata({})
 
