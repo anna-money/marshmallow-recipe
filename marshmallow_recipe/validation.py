@@ -53,7 +53,7 @@ def __get_field_errors_from_normalized_messages(normalized_messages: dict[Any, A
         elif isinstance(value, str):
             errors.append(ValidationFieldError(name=str(key), error=value))
         elif isinstance(value, list) and all([isinstance(item, str) for item in value]):
-            errors.append(ValidationFieldError(name=str(key), error=str.join("; ", value)))
+            errors.append(ValidationFieldError(name=str(key), error="; ".join(value)))
 
     errors.sort(key=lambda x: x.name)
 
