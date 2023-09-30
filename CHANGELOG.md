@@ -1,3 +1,8 @@
+## v0.0.33(2023-09-30)
+
+* Add validation field errors: [#133](https://github.com/anna-money/marshmallow-recipe/pull/133), [9f13f05](https://github.com/anna-money/marshmallow-recipe/commit/9f13f058f9c2e26ab91e482431a38e755a7efcee)
+
+
 ## v0.0.32(2023-09-28)
 
 * [Validate by regexp/Validate with a custom error](https://github.com/anna-money/marshmallow-recipe/pull/132) 
