@@ -278,3 +278,40 @@ def test_validate() -> None:
         mr.dump(IntContainer(value=42))
 
     assert exc_info.value.messages == {"value": ["Should be negative."]}
+
+
+def test_get_field_errors() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class NestedContainer:
+        value: int
+        values: list[int]
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Container:
+        value: int
+        values: list[int]
+        nested: NestedContainer
+
+    with pytest.raises(mr.ValidationError) as exc_info:
+        mr.load(
+            Container,
+            {"value": "invalid", "values": ["invalid"], "nested": {"value": "invalid", "values": ["invalid"]}},
+        )
+
+    assert mr.get_field_errors(exc_info.value) == [
+        mr.ValidationFieldError(
+            name="nested",
+            nested_errors=[
+                mr.ValidationFieldError(name="value", error="Not a valid integer."),
+                mr.ValidationFieldError(
+                    name="values",
+                    nested_errors=[mr.ValidationFieldError(name="0", error="Not a valid integer.")],
+                ),
+            ],
+        ),
+        mr.ValidationFieldError(name="value", error="Not a valid integer."),
+        mr.ValidationFieldError(
+            name="values",
+            nested_errors=[mr.ValidationFieldError(name="0", error="Not a valid integer.")],
+        ),
+    ]
