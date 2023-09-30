@@ -280,7 +280,7 @@ def test_validate() -> None:
     assert exc_info.value.messages == {"value": ["Should be negative."]}
 
 
-def test_get_normalized_messages() -> None:
+def test_get_field_errors() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class NestedContainer:
         value: int
