@@ -28,7 +28,7 @@ def validate(validator: ValidationFunc, *, error: str | None = None) -> Validati
 ValidationError = marshmallow.ValidationError
 
 
-@dataclasses.dataclass(kw_only=True, frozen=True, slots=True)
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class ValidationFieldError:
     name: str
     error: str | None = None
@@ -40,21 +40,27 @@ def get_field_errors(exc: ValidationError) -> list[ValidationFieldError]:
 
 
 def __get_field_errors_from_normalized_messages(normalized_messages: dict[Any, Any]) -> list[ValidationFieldError]:
-    errors: list["ValidationFieldError"] = []
+    field_errors: list[ValidationFieldError] = []
 
     for key, value in normalized_messages.items():
         if not isinstance(key, (str, int)):
             continue
 
+        name = str(key)
+        error: str | None = None
+        nested_errors: list[ValidationFieldError] | None = None
+
         if isinstance(value, dict):
-            errors.append(
-                ValidationFieldError(name=str(key), nested_errors=__get_field_errors_from_normalized_messages(value))
-            )
+            nested_errors = __get_field_errors_from_normalized_messages(value)
         elif isinstance(value, str):
-            errors.append(ValidationFieldError(name=str(key), error=value))
+            error = value
         elif isinstance(value, list) and all([isinstance(item, str) for item in value]):
-            errors.append(ValidationFieldError(name=str(key), error="; ".join(value)))
+            error = "; ".join(value)
+        else:
+            continue
 
-    errors.sort(key=lambda x: x.name)
+        field_errors.append(ValidationFieldError(name=name, error=error, nested_errors=nested_errors))
 
-    return errors
+    field_errors.sort(key=lambda x: x.name)
+
+    return field_errors
