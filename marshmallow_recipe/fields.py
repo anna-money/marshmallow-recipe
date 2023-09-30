@@ -560,12 +560,12 @@ StrField: type[m.fields.Str]
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
-    def data_key_fields(name: str | None) -> dict[str, Any]:
+    def data_key_fields(name: str | None) -> collections.abc.Mapping[str, Any]:
         if name is None:
             return {}
         return dict(data_key=name)
 
-    def default_fields(value: Any) -> dict[str, Any]:
+    def default_fields(value: Any) -> collections.abc.Mapping[str, Any]:
         return dict(dump_default=value, load_default=value)
 
     class StrFieldV3(m.fields.Str):
@@ -760,12 +760,12 @@ else:
     except ImportError:
         dateutil_tz_utc_cls = None
 
-    def data_key_fields(name: str | None) -> dict[str, Any]:
+    def data_key_fields(name: str | None) -> collections.abc.Mapping[str, Any]:
         if name is None:
             return {}
         return dict(dump_to=name, load_from=name)
 
-    def default_fields(value: Any) -> dict[str, Any]:
+    def default_fields(value: Any) -> collections.abc.Mapping[str, Any]:
         return dict(missing=value, default=value)
 
     class StrFieldV2(m.fields.Str):
