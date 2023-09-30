@@ -298,7 +298,7 @@ def test_get_field_errors() -> None:
             {"value": "invalid", "values": ["invalid"], "nested": {"value": "invalid", "values": ["invalid"]}},
         )
 
-    assert mr.get_field_errors(exc_info.value) == [
+    assert mr.get_validation_field_errors(exc_info.value) == [
         mr.ValidationFieldError(
             name="nested",
             nested_errors=[

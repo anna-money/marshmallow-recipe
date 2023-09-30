@@ -35,7 +35,7 @@ class ValidationFieldError:
     nested_errors: list["ValidationFieldError"] | None = None
 
 
-def get_field_errors(exc: ValidationError) -> list[ValidationFieldError]:
+def get_validation_field_errors(exc: ValidationError) -> list[ValidationFieldError]:
     return __get_field_errors_from_normalized_messages(exc.normalized_messages())
 
 
