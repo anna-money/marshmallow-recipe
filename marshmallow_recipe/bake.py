@@ -25,6 +25,7 @@ from .fields import (
     raw_field,
     set_field,
     str_field,
+    time_field,
     tuple_field,
     uuid_field,
 )
@@ -354,6 +355,7 @@ _SIMPLE_TYPE_FIELD_FACTORIES: dict[type, _FieldFactory] = {
     uuid.UUID: uuid_field,
     datetime.datetime: datetime_field,
     datetime.date: date_field,
+    datetime.time: time_field,
 }
 
 

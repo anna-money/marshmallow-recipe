@@ -222,6 +222,33 @@ EMPTY_SCHEMA = m.Schema()
                 allow_none=True, **default_fields(None), **data_key_fields("i"), format="%Y-%m-%dT%H:%M:%SZ"
             ),
         ),
+        # simple types: time
+        (datetime.time, {}, m.fields.Time(required=True)),
+        (
+            Optional[datetime.time],
+            {},
+            m.fields.Time(allow_none=True, **default_fields(None)),
+        ),
+        (
+            datetime.time | None,
+            {},
+            m.fields.Time(allow_none=True, **default_fields(None)),
+        ),
+        (
+            datetime.time,
+            mr.datetime_meta(name="i"),
+            m.fields.Time(required=True, **data_key_fields("i")),
+        ),
+        (
+            Optional[datetime.time],
+            mr.datetime_meta(name="i"),
+            m.fields.Time(allow_none=True, **default_fields(None), **data_key_fields("i")),
+        ),
+        (
+            datetime.time | None,
+            mr.time_metadata(name="i"),
+            m.fields.Time(allow_none=True, **default_fields(None), **data_key_fields("i")),
+        ),
         # simple types: date
         (datetime.date, {}, m.fields.Date(required=True)),
         (

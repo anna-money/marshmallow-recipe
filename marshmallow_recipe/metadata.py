@@ -102,6 +102,19 @@ def datetime_metadata(
     return Metadata(values)
 
 
+def time_metadata(
+    *,
+    name: str = MISSING,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+) -> Metadata:
+    values = dict[str, Any]()
+    if name is not MISSING:
+        values.update(name=name)
+    if validate is not None:
+        values.update(validate=validate)
+    return Metadata(values)
+
+
 def list_metadata(
     *,
     name: str = MISSING,

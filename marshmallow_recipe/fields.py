@@ -256,6 +256,36 @@ def datetime_field(
     )
 
 
+def time_field(
+    *,
+    required: bool,
+    allow_none: bool,
+    default: Any = dataclasses.MISSING,
+    name: str | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    **_: Any,
+) -> m.fields.Field:
+    if default is m.missing:
+        return m.fields.Time(
+            allow_none=allow_none,
+            validate=validate,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
+    if required:
+        if default is None:
+            raise ValueError("Default value cannot be none")
+        return m.fields.Time(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+
+    return m.fields.Time(
+        allow_none=allow_none,
+        validate=validate,
+        **default_fields(None if default is dataclasses.MISSING else default),
+        **data_key_fields(name),
+    )
+
+
 def date_field(
     *,
     required: bool,
