@@ -1,3 +1,8 @@
+## unreleased
+
+* Support datetime.time: [#137](https://github.com/anna-money/marshmallow-recipe/pull/137)
+
+
 ## v0.0.33(2023-09-30)
 
 * Add validation field errors: [#133](https://github.com/anna-money/marshmallow-recipe/pull/133), [9f13f05](https://github.com/anna-money/marshmallow-recipe/commit/9f13f058f9c2e26ab91e482431a38e755a7efcee)

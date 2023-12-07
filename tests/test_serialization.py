@@ -34,6 +34,8 @@ def test_simple_types() -> None:
         optional_uuid_field: uuid.UUID | None
         datetime_field: datetime.datetime
         optional_datetime_field: datetime.datetime | None
+        time_field: datetime.time
+        optional_time_field: datetime.time | None
         date_field: datetime.date
         optional_date_field: datetime.date | None
         dict_field: dict[str, Any]
@@ -60,6 +62,7 @@ def test_simple_types() -> None:
         datetime_field_with_default: datetime.datetime = datetime.datetime(
             2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc
         )
+        time_field_with_default: datetime.time = datetime.time(11, 33, 48)
         date_field_with_default: datetime.date = datetime.date(2022, 2, 20)
         enum_field_with_default: Parity = Parity.ODD
         # with default factory
@@ -75,6 +78,9 @@ def test_simple_types() -> None:
         )
         datetime_field_with_default_factory: datetime.datetime = dataclasses.field(
             default_factory=lambda: datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc)
+        )
+        time_field_with_default_factory: datetime.time = dataclasses.field(
+            default_factory=lambda: datetime.time(11, 33, 48)
         )
         date_field_with_default_factory: datetime.date = dataclasses.field(
             default_factory=lambda: datetime.date(2022, 2, 20)
@@ -114,10 +120,14 @@ def test_simple_types() -> None:
         uuid_field_with_default="15f75b02-1c34-46a2-92a5-18363aadea05",
         uuid_field_with_default_factory="15f75b02-1c34-46a2-92a5-18363aadea05",
         optional_uuid_field="15f75b02-1c34-46a2-92a5-18363aadea05",
-        datetime_field="2022-02-20T11:33:48.607289+00:00",
+        datetime_field="2022-02-20T11:33:48+00:00",
         datetime_field_with_default="2022-02-20T11:33:48.607289+00:00",
         datetime_field_with_default_factory="2022-02-20T11:33:48.607289+00:00",
         optional_datetime_field="2022-02-20T11:33:48.607289+00:00",
+        time_field="11:33:48.607289",
+        time_field_with_default="11:33:48",
+        time_field_with_default_factory="11:33:48",
+        optional_time_field="11:33:48",
         date_field="2022-02-20",
         date_field_with_default="2022-02-20",
         date_field_with_default_factory="2022-02-20",
@@ -170,8 +180,10 @@ def test_simple_types() -> None:
             optional_float_field=42.0,
             uuid_field=uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05"),
             optional_uuid_field=uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05"),
-            datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc),
+            datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 0, datetime.timezone.utc),
             optional_datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc),
+            time_field=datetime.time(11, 33, 48, 607289),
+            optional_time_field=datetime.time(11, 33, 48),
             date_field=datetime.date(2022, 2, 20),
             optional_date_field=datetime.date(2022, 2, 20),
             dict_field=dict(key="value"),
@@ -190,6 +202,7 @@ def test_simple_types() -> None:
             optional_enum_field=Parity.EVEN,
         )
     )
+
     assert dumped == raw
     assert mr.schema(SimpleTypesContainers) is mr.schema(SimpleTypesContainers)
 

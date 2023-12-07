@@ -23,6 +23,7 @@ from .metadata import (
     set_metadata,
     str_meta,
     str_metadata,
+    time_metadata,
     tuple_meta,
     tuple_metadata,
 )
@@ -72,6 +73,7 @@ __all__: tuple[str, ...] = (
     "set_meta",
     "str_metadata",
     "str_meta",
+    "time_metadata",
     "tuple_metadata",
     "tuple_meta",
     # missing.py
