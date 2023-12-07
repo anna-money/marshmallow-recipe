@@ -7,7 +7,7 @@ Also, it helps with:
 3. Utilizing best practises on fields configuration.
 
 Supported types:
-- `str`, `int`, `float`, `bool`, `datetime.datetime`, `datetime.date`, `decimal.Decimal`, `uuid.UUID`
+- `str`, `int`, `float`, `bool`, `datetime.datetime`, `datetime.date`, `datetime.time`, `decimal.Decimal`, `uuid.UUID`
 - `Optional[T]`, `T | None`
 - `Annotated`
 - `list`, `dict` (with typed keys and values), `tuple` (only when all elements of the same type), `set`, `frozenset`

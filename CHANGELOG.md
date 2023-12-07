@@ -1,4 +1,4 @@
-## unreleased
+## v0.0.34(2023-12-07)
 
 * Support datetime.time: [#137](https://github.com/anna-money/marshmallow-recipe/pull/137)
 
