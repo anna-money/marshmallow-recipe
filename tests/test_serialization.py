@@ -548,10 +548,21 @@ def test_str_strip_whitespaces() -> None:
     assert mr.dump(OptionalStrContainer(value1=None, value2=None)) == {}
 
 
+def test_list_str_strip_whitespaces() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class StrContainer:
+        value1: list[Annotated[str, mr.str_meta(strip_whitespaces=True)]]
+        value2: list[Annotated[str, mr.str_meta(strip_whitespaces=True)]] | None
+
+    assert StrContainer(value1=["some_value"], value2=None) == mr.load(StrContainer, {"value1": [" some_value "]})
+    assert mr.dump(StrContainer(value1=[" some_value "], value2=None)) == {"value1": ["some_value"]}
+
+
 def test_str_post_load() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class StrContainer:
-        value: Annotated[str, mr.str_meta(post_load=lambda x: x.replace("-", ""))]
+        value1: Annotated[str, mr.str_meta(post_load=lambda x: x.replace("-", ""))]
+        value2: Annotated[str | None, mr.str_meta(post_load=lambda x: x.replace("-", ""))]
 
-    assert StrContainer(value="111111") == mr.load(StrContainer, {"value": "11-11-11"})
-    assert mr.dump(StrContainer(value="11-11-11")) == {"value": "11-11-11"}
+    assert StrContainer(value1="111111", value2=None) == mr.load(StrContainer, {"value1": "11-11-11"})
+    assert mr.dump(StrContainer(value1="11-11-11", value2=None)) == {"value1": "11-11-11"}
