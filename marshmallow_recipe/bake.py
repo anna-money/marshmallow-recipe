@@ -382,7 +382,7 @@ def _substitute_any_to_open_generic(type: type) -> type:
 def _try_get_underlying_type_from_optional(type: type) -> type | None:
     # to support Union[int, None] and int | None
     if get_origin(type) is Union or isinstance(type, types.UnionType):
-        type_args = list(set(get_args(type)))
+        type_args = get_args(type)
         if types.NoneType not in type_args or len(type_args) != 2:
             raise ValueError(f"Unsupported {type=}")
         return next(type_arg for type_arg in type_args if type_arg is not types.NoneType)  # noqa
