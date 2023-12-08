@@ -1,4 +1,4 @@
-## v0.0.35(2023-12-08)
+## v0.0.36(2023-12-08)
 
 * [Fix nullable with nested annotation](https://github.com/anna-money/marshmallow-recipe/pull/139)
 
