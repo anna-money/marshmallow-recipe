@@ -634,8 +634,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     StrField = StrFieldV3
 
     class DateTimeFieldV3(m.fields.DateTime):
-        DATEFORMAT_SERIALIZATION_FUNCS = {
-            **m.fields.DateTime.DATEFORMAT_SERIALIZATION_FUNCS,
+        SERIALIZATION_FUNCS = {
+            **m.fields.DateTime.SERIALIZATION_FUNCS,  # type: ignore
             **(
                 {
                     "iso": datetime.datetime.isoformat,
@@ -645,8 +645,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 else {}
             ),
         }
-        DATEFORMAT_DESERIALIZATION_FUNCS = {
-            **m.fields.DateTime.DATEFORMAT_DESERIALIZATION_FUNCS,
+        DESERIALIZATION_FUNCS = {
+            **m.fields.DateTime.DESERIALIZATION_FUNCS,  # type: ignore
             **(
                 {
                     "iso": datetime.datetime.fromisoformat,
@@ -865,7 +865,7 @@ else:
             return datetime.datetime.isoformat(v)
 
         DATEFORMAT_SERIALIZATION_FUNCS = {
-            **m.fields.DateTime.DATEFORMAT_SERIALIZATION_FUNCS,
+            **m.fields.DateTime.DATEFORMAT_SERIALIZATION_FUNCS,  # type: ignore
             **(
                 {
                     "iso": __isoformat,
@@ -876,7 +876,7 @@ else:
             ),
         }
         DATEFORMAT_DESERIALIZATION_FUNCS = {
-            **m.fields.DateTime.DATEFORMAT_DESERIALIZATION_FUNCS,
+            **m.fields.DateTime.DATEFORMAT_DESERIALIZATION_FUNCS,  # type: ignore
             **(
                 {
                     "iso": datetime.datetime.fromisoformat,
