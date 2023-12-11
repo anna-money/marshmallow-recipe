@@ -1,3 +1,8 @@
+## unreleased
+
+* [Use native isoformat/fromisoformat](https://github.com/anna-money/marshmallow-recipe/pull/141)
+
+
 ## v0.0.37(2023-12-11)
 
 * [Cache get_pre_loads results](https://github.com/anna-money/marshmallow-recipe/pull/140)
