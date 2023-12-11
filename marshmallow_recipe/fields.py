@@ -3,6 +3,7 @@ import collections.abc
 import dataclasses
 import datetime
 import enum
+import sys
 from typing import Any
 
 import marshmallow as m
@@ -633,6 +634,29 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     StrField = StrFieldV3
 
     class DateTimeFieldV3(m.fields.DateTime):
+        DATEFORMAT_SERIALIZATION_FUNCS = {
+            **m.fields.DateTime.DATEFORMAT_SERIALIZATION_FUNCS,
+            **(
+                {
+                    "iso": datetime.datetime.isoformat,
+                    "iso8601": datetime.datetime.isoformat,
+                }
+                if sys.version_info >= (3, 11)
+                else {}
+            ),
+        }
+        DATEFORMAT_DESERIALIZATION_FUNCS = {
+            **m.fields.DateTime.DATEFORMAT_DESERIALIZATION_FUNCS,
+            **(
+                {
+                    "iso": datetime.datetime.fromisoformat,
+                    "iso8601": datetime.datetime.fromisoformat,
+                }
+                if sys.version_info >= (3, 11)
+                else {}
+            ),
+        }
+
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             result = super()._deserialize(value, attr, data, **kwargs)
             if result.tzinfo is None:
@@ -834,10 +858,50 @@ else:
     StrField = StrFieldV2
 
     class DateTimeFieldV2(m.fields.DateTime):
+        @staticmethod
+        def __isoformat(v: datetime.datetime, *, localtime: bool = False, **kwargs: Any) -> str:
+            assert not localtime
+            assert not kwargs
+            return datetime.datetime.isoformat(v)
+
+        DATEFORMAT_SERIALIZATION_FUNCS = {
+            **m.fields.DateTime.DATEFORMAT_SERIALIZATION_FUNCS,
+            **(
+                {
+                    "iso": __isoformat,
+                    "iso8601": __isoformat,
+                }
+                if sys.version_info >= (3, 11)
+                else {}
+            ),
+        }
+        DATEFORMAT_DESERIALIZATION_FUNCS = {
+            **m.fields.DateTime.DATEFORMAT_DESERIALIZATION_FUNCS,
+            **(
+                {
+                    "iso": datetime.datetime.fromisoformat,
+                    "iso8601": datetime.datetime.fromisoformat,
+                }
+                if sys.version_info >= (3, 11)
+                else {}
+            ),
+        }
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            if value is None:
+                return None
+
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=datetime.timezone.utc)
+
+            return super()._serialize(value, attr, obj, **kwargs)
+
         def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:
             result = super()._deserialize(value, attr, data)
             if result.tzinfo is None:
                 return result.replace(tzinfo=datetime.timezone.utc)
+            if result.tzinfo == datetime.timezone.utc:
+                return result
             if dateutil_tz_utc_cls is not None and isinstance(result.tzinfo, dateutil_tz_utc_cls):
                 return result.replace(tzinfo=datetime.timezone.utc)
             return result.astimezone(datetime.timezone.utc)
