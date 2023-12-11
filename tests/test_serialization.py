@@ -156,7 +156,7 @@ def test_simple_types() -> None:
         optional_enum_field="even",
     )
 
-    raw_no_defaults = {k: v for k, v in raw.items() if not k.endswith("default") or not k.endswith("default_factory")}
+    raw_no_defaults = {k: v for k, v in raw.items() if not k.endswith("default") and not k.endswith("default_factory")}
 
     loaded = mr.load(SimpleTypesContainers, raw)
     loaded_no_defaults = mr.load(SimpleTypesContainers, raw_no_defaults)
