@@ -568,3 +568,15 @@ def test_str_post_load() -> None:
 
     assert StrContainer(value1="111111", value2=None) == mr.load(StrContainer, {"value1": "11-11-11"})
     assert mr.dump(StrContainer(value1="11-11-11", value2=None)) == {"value1": "11-11-11"}
+
+
+def test_nested_default() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class IntContainer:
+        value: int = 42
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class RootContainer:
+        int_container: IntContainer = dataclasses.field(default_factory=IntContainer)
+
+    assert mr.load(RootContainer, {}) == RootContainer()
