@@ -661,6 +661,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             result = super()._deserialize(value, attr, data, **kwargs)
             if result.tzinfo is None:
                 return result.replace(tzinfo=datetime.timezone.utc)
+            if result.tzinfo == datetime.timezone.utc:
+                return result
             return result.astimezone(datetime.timezone.utc)
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
