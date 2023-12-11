@@ -1,3 +1,8 @@
+## unreleased
+
+* [Cache get_pre_loads results](https://github.com/anna-money/marshmallow-recipe/pull/140)
+
+
 ## v0.0.36(2023-12-08)
 
 * [Fix nullable with nested annotation](https://github.com/anna-money/marshmallow-recipe/pull/139)
