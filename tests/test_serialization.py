@@ -374,6 +374,7 @@ def test_many_empty() -> None:
         ("2022-02-20T11:33:48", datetime.datetime(2022, 2, 20, 11, 33, 48, 0, datetime.timezone.utc)),
         ("2022-02-20T11:33:48.607289Z", datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc)),
         ("2022-02-20T11:33:48Z", datetime.datetime(2022, 2, 20, 11, 33, 48, 0, datetime.timezone.utc)),
+        ("2022-02-20", datetime.datetime(2022, 2, 20, 0, 0, 0, 0, datetime.timezone.utc)),
     ],
 )
 def test_datetime_field_load(raw: str, dt: datetime.datetime) -> None:
@@ -392,6 +393,7 @@ def test_datetime_field_load(raw: str, dt: datetime.datetime) -> None:
         (datetime.datetime(2022, 2, 20, 11, 33, 48, 0, datetime.timezone.utc), "2022-02-20T11:33:48+00:00"),
         (datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, None), "2022-02-20T11:33:48.607289+00:00"),
         (datetime.datetime(2022, 2, 20, 11, 33, 48, 0, None), "2022-02-20T11:33:48+00:00"),
+        (datetime.datetime(2022, 2, 20, 0, 0, 0, 0, None), "2022-02-20T00:00:00+00:00"),
     ],
 )
 def test_datetime_field_dump(dt: datetime.datetime, raw: str) -> None:
