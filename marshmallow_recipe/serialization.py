@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, Protocol, TypeVar, cast
+from typing import Any, Protocol, TypeVar
 
 import marshmallow as m
 
@@ -114,13 +114,13 @@ else:
 
     def load_v2(cls: type[_T], data: dict[str, Any], *, naming_case: NamingCase | None = None) -> _T:
         loaded, _ = schema_v2(cls, naming_case=naming_case).load(data)  # type: ignore
-        return cast(_T, loaded)
+        return loaded  # type: ignore[return-value]
 
     load = load_v2
 
     def load_many_v2(cls: type[_T], data: list[dict[str, Any]], *, naming_case: NamingCase | None = None) -> list[_T]:
         loaded, _ = schema_v2(cls, many=True, naming_case=naming_case).load(data)  # type: ignore
-        return cast(list[_T], loaded)
+        return loaded  # type: ignore[return-value]
 
     load_many = load_many_v2
 
