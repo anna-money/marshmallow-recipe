@@ -1,4 +1,5 @@
 import collections.abc
+import functools
 import inspect
 from typing import Any
 
@@ -11,6 +12,7 @@ def pre_load(fn: collections.abc.Callable[..., Any]) -> collections.abc.Callable
     return fn
 
 
+@functools.cache
 def get_pre_loads(cls: type) -> list[collections.abc.Callable[..., Any]]:
     result = []
     for _, method in inspect.getmembers(cls):
