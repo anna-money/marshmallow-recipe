@@ -1,4 +1,4 @@
-## unreleased
+## v0.0.38a1(2023-12-11)
 
 * [Use native isoformat/fromisoformat](https://github.com/anna-money/marshmallow-recipe/pull/141)
 
