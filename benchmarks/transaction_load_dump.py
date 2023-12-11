@@ -19,7 +19,7 @@ class Transaction:
 
 transaction = Transaction(
     id=uuid.uuid4(),
-    created_at=datetime.datetime.utcnow(),
+    created_at=datetime.datetime.now(datetime.timezone.utc),
     processed_at=None,
     amount=decimal.Decimal(42),
     transaction_amount=decimal.Decimal(42),
