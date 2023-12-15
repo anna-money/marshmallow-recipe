@@ -1,6 +1,11 @@
-## v0.0.38a1(2023-12-11)
+## v0.0.38a2(2023-12-15)
 
-* [Use native isoformat/fromisoformat](https://github.com/anna-money/marshmallow-recipe/pull/141)
+* [Almost stop using marshmallow defaults (except Nones)](https://github.com/anna-money/marshmallow-recipe/pull/143)
+
+
+**## v0.0.38a1(2023-12-11)
+
+* [Use native isoformat/fromisoformat](https://github.com/anna-money/marshmallow-recipe/pull/141)**
 
 
 ## v0.0.37(2023-12-11)
