@@ -53,7 +53,7 @@ def str_field(
         validate=validate,
         strip_whitespaces=strip_whitespaces,
         post_load=post_load,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 
@@ -84,7 +84,7 @@ def bool_field(
     return m.fields.Bool(
         allow_none=allow_none,
         validate=validate,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 
@@ -127,7 +127,7 @@ def decimal_field(
         as_string=as_string,
         places=places,
         validate=validate,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 
@@ -157,7 +157,7 @@ def int_field(
     return m.fields.Int(
         allow_none=allow_none,
         validate=validate,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 
@@ -187,7 +187,7 @@ def float_field(
     return m.fields.Float(
         allow_none=allow_none,
         validate=validate,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 
@@ -217,7 +217,7 @@ def uuid_field(
     return m.fields.UUID(
         allow_none=allow_none,
         validate=validate,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 
@@ -252,7 +252,7 @@ def datetime_field(
         allow_none=allow_none,
         validate=validate,
         format=format,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 
@@ -282,7 +282,7 @@ def time_field(
     return m.fields.Time(
         allow_none=allow_none,
         validate=validate,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 
@@ -312,7 +312,7 @@ def date_field(
     return m.fields.Date(
         allow_none=allow_none,
         validate=validate,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 
@@ -347,7 +347,7 @@ def nested_field(
         nested_schema,
         allow_none=allow_none,
         validate=validate,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 
@@ -380,7 +380,7 @@ def list_field(
         field,
         allow_none=allow_none,
         validate=validate,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 
@@ -413,7 +413,7 @@ def set_field(
         field,
         allow_none=allow_none,
         validate=validate,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 
@@ -446,7 +446,7 @@ def frozen_set_field(
         field,
         allow_none=allow_none,
         validate=validate,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 
@@ -479,7 +479,7 @@ def tuple_field(
         field,
         allow_none=allow_none,
         validate=validate,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 
@@ -522,7 +522,7 @@ def dict_field(
         values=values_field,
         allow_none=allow_none,
         validate=validate,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 
@@ -561,7 +561,7 @@ def enum_field(
         enum_type=enum_type,
         allow_none=allow_none,
         validate=validate,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 
@@ -576,7 +576,7 @@ def raw_field(
     return m.fields.Raw(
         allow_none=True,
         validate=validate,
-        **default_fields(None if default is dataclasses.MISSING else default),
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
     )
 

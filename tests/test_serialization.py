@@ -156,7 +156,7 @@ def test_simple_types() -> None:
         optional_enum_field="even",
     )
 
-    raw_no_defaults = {k: v for k, v in raw.items() if not k.endswith("default") or not k.endswith("default_factory")}
+    raw_no_defaults = {k: v for k, v in raw.items() if not k.endswith("default") and not k.endswith("default_factory")}
 
     loaded = mr.load(SimpleTypesContainers, raw)
     loaded_no_defaults = mr.load(SimpleTypesContainers, raw_no_defaults)
@@ -568,3 +568,15 @@ def test_str_post_load() -> None:
 
     assert StrContainer(value1="111111", value2=None) == mr.load(StrContainer, {"value1": "11-11-11"})
     assert mr.dump(StrContainer(value1="11-11-11", value2=None)) == {"value1": "11-11-11"}
+
+
+def test_nested_default() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class IntContainer:
+        value: int = 42
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class RootContainer:
+        int_container: IntContainer = dataclasses.field(default_factory=IntContainer)
+
+    assert mr.load(RootContainer, {}) == RootContainer()
