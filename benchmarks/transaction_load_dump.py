@@ -2,10 +2,9 @@ import cProfile
 import dataclasses
 import datetime
 import decimal
-import marshmallow_recipe as mr
 import uuid
 
-from typing import Annotated
+import marshmallow_recipe as mr
 
 
 @dataclasses.dataclass(frozen=True)
@@ -13,8 +12,8 @@ class Transaction:
     id: uuid.UUID
     created_at: datetime.datetime
     processed_at: datetime.datetime | None
-    amount: decimal.Decimal = dataclasses.field(metadata=mr.decimal_metadata(places=4))
-    transaction_amount: Annotated[decimal.Decimal, mr.decimal_metadata(places=4)]
+    amount: decimal.Decimal
+    transaction_amount: decimal.Decimal
 
 
 transaction = Transaction(
@@ -25,7 +24,8 @@ transaction = Transaction(
     transaction_amount=decimal.Decimal(42),
  )
 
-# to warm up the lib caches
-assert mr.load_many(Transaction, mr.dump_many([transaction] * 1024))
 
-cProfile.run("mr.load_many(Transaction, mr.dump_many([transaction] * 1024))", sort='tottime')
+assert mr.load_many(Transaction, mr.dump_many([transaction] * 128))
+assert mr.load_slim_many(Transaction, mr.dump_slim_many([transaction] * 128))
+cProfile.run("mr.load_slim_many(Transaction, mr.dump_slim_many([transaction] * 128))", sort='tottime')
+cProfile.run("mr.load_many(Transaction, mr.dump_many([transaction] * 128))", sort='tottime')
