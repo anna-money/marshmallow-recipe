@@ -23,9 +23,10 @@ transaction = Transaction(
     amount=decimal.Decimal(42),
     transaction_amount=decimal.Decimal(42),
  )
+transactions = [transaction] * 1024
 
 
-assert mr.load_many(Transaction, mr.dump_many([transaction] * 128))
-assert mr.load_slim_many(Transaction, mr.dump_slim_many([transaction] * 128))
-cProfile.run("mr.load_slim_many(Transaction, mr.dump_slim_many([transaction] * 128))", sort='tottime')
-cProfile.run("mr.load_many(Transaction, mr.dump_many([transaction] * 128))", sort='tottime')
+assert mr.load_many(Transaction, mr.dump_many(transactions))
+assert mr.load_slim_many(Transaction, mr.dump_slim_many(transactions))
+cProfile.run("mr.load_slim_many(Transaction, mr.dump_slim_many(transactions))", sort='tottime')
+cProfile.run("mr.load_many(Transaction, mr.dump_many(transactions))", sort='tottime')
