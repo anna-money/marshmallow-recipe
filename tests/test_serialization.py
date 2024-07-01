@@ -3,7 +3,7 @@ import datetime
 import decimal
 import enum
 import uuid
-from typing import Annotated, Any, Dict, FrozenSet, List, Set, Tuple
+from typing import Annotated, Any, Dict, FrozenSet, Generic, List, Set, Tuple, TypeVar
 
 import pytest
 
@@ -580,3 +580,27 @@ def test_nested_default() -> None:
         int_container: IntContainer = dataclasses.field(default_factory=IntContainer)
 
     assert mr.load(RootContainer, {}) == RootContainer()
+
+
+def test_generic() -> None:
+    TItem = TypeVar("TItem")
+
+    @dataclasses.dataclass(frozen=True, kw_only=True)
+    class GenericContainer(Generic[TItem]):
+        items: list[TItem]
+
+    container = GenericContainer[int](items=[1, 2, 3])
+    dumped = mr.dump(container)
+
+    assert dumped == {"items": [1, 2, 3]}
+    assert mr.load(GenericContainer[int], dumped) == container
+
+
+def test_generic_default() -> None:
+    TItem = TypeVar("TItem")
+
+    @dataclasses.dataclass(frozen=True, kw_only=True)
+    class GenericContainer(Generic[TItem]):
+        items: list[TItem] = dataclasses.field(default_factory=list)
+
+    assert mr.load(GenericContainer[int], {}) == GenericContainer[int](items=[])
