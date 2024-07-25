@@ -1,4 +1,5 @@
 import dataclasses
+import importlib.metadata
 from typing import Any, Protocol, TypeVar
 
 import marshmallow as m
@@ -7,7 +8,7 @@ from .bake import bake_schema
 from .naming_case import NamingCase
 
 _T = TypeVar("_T")
-_MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
+_MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
