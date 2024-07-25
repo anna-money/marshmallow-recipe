@@ -1,3 +1,8 @@
+## v0.0.39(2024-07-25)
+
+* [Suppress deprecation warning because of version detection](https://github.com/anna-money/marshmallow-recipe/pull/153)
+
+
 ## v0.0.38(2024-01-05)
 
 * [Min support marshmallow is 2.20.5](https://github.com/anna-money/marshmallow-recipe/pull/145)
