@@ -93,7 +93,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         if not data:
             return []
         data_schema = schema_v3(type(data[0]), many=True, naming_case=naming_case)
-        dumped: list[dict[str, Any]] = data_schema.dump(data)
+        dumped: list[dict[str, Any]] = data_schema.dump(data)  # type: ignore
         if errors := data_schema.validate(dumped):
             raise m.ValidationError(errors)
         return dumped

@@ -1,3 +1,8 @@
+## unreleased
+
+* [Add support of python 3.13](https://github.com/anna-money/marshmallow-recipe/pull/158)
+
+
 ## v0.0.39(2024-07-25)
 
 * [Suppress deprecation warning because of version detection](https://github.com/anna-money/marshmallow-recipe/pull/153)
