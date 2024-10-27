@@ -874,7 +874,7 @@ else:
 
     class DateTimeFieldV2(m.fields.DateTime):
         @staticmethod
-        def __isoformat(v: datetime.datetime, *, localtime: bool = False, **kwargs: Any) -> str:
+        def __isoformat(v: datetime.datetime, *, localtime: bool = False, **kwargs: Any) -> str:  # type: ignore
             assert not localtime
             assert not kwargs
             return datetime.datetime.isoformat(v)
