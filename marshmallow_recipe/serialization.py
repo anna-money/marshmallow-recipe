@@ -1,4 +1,5 @@
 import dataclasses
+import importlib.metadata
 from typing import Any, Protocol, TypeVar
 
 import marshmallow as m
@@ -7,7 +8,7 @@ from .bake import bake_schema
 from .naming_case import NamingCase
 
 _T = TypeVar("_T")
-_MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
+_MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -21,28 +22,25 @@ _schemas: dict[_SchemaKey, m.Schema] = {}
 
 
 class SchemaFunction(Protocol):
-    def __call__(self, cls: type, *, many: bool = False, naming_case: NamingCase | None = None) -> m.Schema:
-        ...
+    def __call__(self, cls: type, *, many: bool = False, naming_case: NamingCase | None = None) -> m.Schema: ...
 
 
 class LoadFunction(Protocol):
-    def __call__(self, cls: type[_T], data: dict[str, Any], *, naming_case: NamingCase | None = None) -> _T:
-        ...
+    def __call__(self, cls: type[_T], data: dict[str, Any], *, naming_case: NamingCase | None = None) -> _T: ...
 
 
 class LoadManyFunction(Protocol):
-    def __call__(self, cls: type[_T], data: list[dict[str, Any]], *, naming_case: NamingCase | None = None) -> list[_T]:
-        ...
+    def __call__(
+        self, cls: type[_T], data: list[dict[str, Any]], *, naming_case: NamingCase | None = None
+    ) -> list[_T]: ...
 
 
 class DumpFunction(Protocol):
-    def __call__(self, data: Any, *, naming_case: NamingCase | None = None) -> dict[str, Any]:
-        ...
+    def __call__(self, data: Any, *, naming_case: NamingCase | None = None) -> dict[str, Any]: ...
 
 
 class DumpManyFunction(Protocol):
-    def __call__(self, data: list[Any], *, naming_case: NamingCase | None = None) -> list[dict[str, Any]]:
-        ...
+    def __call__(self, data: list[Any], *, naming_case: NamingCase | None = None) -> list[dict[str, Any]]: ...
 
 
 schema: SchemaFunction
@@ -92,7 +90,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         if not data:
             return []
         data_schema = schema_v3(type(data[0]), many=True, naming_case=naming_case)
-        dumped: list[dict[str, Any]] = data_schema.dump(data)
+        dumped: list[dict[str, Any]] = data_schema.dump(data)  # type: ignore
         if errors := data_schema.validate(dumped):
             raise m.ValidationError(errors)
         return dumped

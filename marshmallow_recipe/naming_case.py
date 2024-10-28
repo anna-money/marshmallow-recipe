@@ -3,8 +3,7 @@ from typing import Protocol
 
 
 class NamingCase(Protocol):
-    def __call__(self, name: str) -> str:
-        ...
+    def __call__(self, name: str) -> str: ...
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
