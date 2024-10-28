@@ -3,7 +3,6 @@ import collections.abc
 import dataclasses
 import datetime
 import enum
-import sys
 from typing import Any
 
 import marshmallow as m
