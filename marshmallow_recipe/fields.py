@@ -3,7 +3,6 @@ import collections.abc
 import dataclasses
 import datetime
 import enum
-import sys
 from typing import Any
 
 import marshmallow as m
@@ -636,38 +635,12 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     class DateTimeFieldV3(m.fields.DateTime):
         SERIALIZATION_FUNCS = {
             **m.fields.DateTime.SERIALIZATION_FUNCS,  # type: ignore
-            **(
-                {
-                    "iso": datetime.datetime.isoformat,
-                    "iso8601": datetime.datetime.isoformat,
-                }
-                if sys.version_info >= (3, 11)
-                else {}
-            ),
+            **{"iso": datetime.datetime.isoformat, "iso8601": datetime.datetime.isoformat}
         }
-
-        @staticmethod
-        def __fromisoformat_py310_fix(
-            format: str, value: str
-        ) -> datetime.datetime:  # pyright: ignore[reportUnusedFunction]
-            try:
-                return m.fields.DateTime.DESERIALIZATION_FUNCS[format](value)  # type: ignore
-            except ValueError:
-                return datetime.datetime.strptime(value, "%Y-%m-%d")
 
         DESERIALIZATION_FUNCS = {
             **m.fields.DateTime.DESERIALIZATION_FUNCS,  # type: ignore
-            **(
-                {
-                    "iso": datetime.datetime.fromisoformat,
-                    "iso8601": datetime.datetime.fromisoformat,
-                }
-                if sys.version_info >= (3, 11)
-                else {
-                    "iso": lambda x: DateTimeFieldV3.__fromisoformat_py310_fix("iso", x),
-                    "iso8601": lambda x: DateTimeFieldV3.__fromisoformat_py310_fix("iso8601", x),
-                }
-            ),
+            **{"iso": datetime.datetime.fromisoformat, "iso8601": datetime.datetime.fromisoformat}
         }
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
@@ -881,38 +854,12 @@ else:
 
         DATEFORMAT_SERIALIZATION_FUNCS = {
             **m.fields.DateTime.DATEFORMAT_SERIALIZATION_FUNCS,  # type: ignore
-            **(
-                {
-                    "iso": __isoformat,
-                    "iso8601": __isoformat,
-                }
-                if sys.version_info >= (3, 11)
-                else {}
-            ),
+            **{"iso": __isoformat, "iso8601": __isoformat}
         }
-
-        @staticmethod
-        def __fromisoformat_py310_fix(
-            format: str, value: str
-        ) -> datetime.datetime:  # pyright: ignore[reportUnusedFunction]
-            try:
-                return m.fields.DateTime.DATEFORMAT_DESERIALIZATION_FUNCS[format](value)  # type: ignore
-            except ValueError:
-                return datetime.datetime.strptime(value, "%Y-%m-%d")
 
         DATEFORMAT_DESERIALIZATION_FUNCS = {
             **m.fields.DateTime.DATEFORMAT_DESERIALIZATION_FUNCS,  # type: ignore
-            **(
-                {
-                    "iso": datetime.datetime.fromisoformat,
-                    "iso8601": datetime.datetime.fromisoformat,
-                }
-                if sys.version_info >= (3, 11)
-                else {
-                    "iso": lambda x: DateTimeFieldV2.__fromisoformat_py310_fix("iso", x),
-                    "iso8601": lambda x: DateTimeFieldV2.__fromisoformat_py310_fix("iso8601", x),
-                }
-            ),
+            **{"iso": datetime.datetime.fromisoformat, "iso8601": datetime.datetime.fromisoformat}
         }
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
