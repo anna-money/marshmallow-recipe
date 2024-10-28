@@ -619,7 +619,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             result = super()._deserialize(value, attr, data, **kwargs)
-            if result is not None:
+            if result is not None:  # type: ignore
                 if self.strip_whitespaces:
                     result = result.strip()
                     if self.allow_none and len(result) == 0:
@@ -832,7 +832,7 @@ else:
         def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:
             result = super()._deserialize(value, attr, data)
 
-            if result is not None:
+            if result is not None:  # type: ignore
                 if self.strip_whitespaces:
                     result = result.strip()
                     if self.allow_none and len(result) == 0:
