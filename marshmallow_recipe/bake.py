@@ -99,7 +99,7 @@ def bake_schema(
         {"__module__": f"{__package__}.auto_generated"}
         | {
             field.name: get_field_for(
-                field.type,
+                field.type,  # type: ignore
                 metadata,
                 naming_case=naming_case,
                 none_value_handling=none_value_handling,
@@ -342,8 +342,7 @@ class _FieldFactory(Protocol):
         name: str,
         default: Any,
         **kwargs: Any,
-    ) -> m.fields.Field:
-        ...
+    ) -> m.fields.Field: ...
 
 
 _SIMPLE_TYPE_FIELD_FACTORIES: dict[type, _FieldFactory] = {
@@ -381,7 +380,7 @@ def _substitute_any_to_open_generic(type: type) -> type:
 
 def _try_get_underlying_type_from_optional(type: type) -> type | None:
     # to support Union[int, None] and int | None
-    if get_origin(type) is Union or isinstance(type, types.UnionType):
+    if get_origin(type) is Union or isinstance(type, types.UnionType):  # type: ignore
         type_args = get_args(type)
         if types.NoneType not in type_args or len(type_args) != 2:
             raise ValueError(f"Unsupported {type=}")

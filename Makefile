@@ -10,7 +10,7 @@ isort:
 	@isort --line-length 120 --use-parentheses --multi-line 3 --combine-as --trailing-comma marshmallow_recipe tests
 
 flake8:
-	@flake8 --max-line-length 120 --ignore C901,C812,E203 --extend-ignore W503 marshmallow_recipe tests
+	@flake8 --max-line-length 120 --ignore C901,C812,E203,E704 --extend-ignore W503 marshmallow_recipe tests
 
 pyright:
 	@pyright
