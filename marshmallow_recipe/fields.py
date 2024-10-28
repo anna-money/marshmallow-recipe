@@ -635,12 +635,12 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     class DateTimeFieldV3(m.fields.DateTime):
         SERIALIZATION_FUNCS = {
             **m.fields.DateTime.SERIALIZATION_FUNCS,  # type: ignore
-            **{"iso": datetime.datetime.isoformat, "iso8601": datetime.datetime.isoformat}
+            **{"iso": datetime.datetime.isoformat, "iso8601": datetime.datetime.isoformat},
         }
 
         DESERIALIZATION_FUNCS = {
             **m.fields.DateTime.DESERIALIZATION_FUNCS,  # type: ignore
-            **{"iso": datetime.datetime.fromisoformat, "iso8601": datetime.datetime.fromisoformat}
+            **{"iso": datetime.datetime.fromisoformat, "iso8601": datetime.datetime.fromisoformat},
         }
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
@@ -854,12 +854,12 @@ else:
 
         DATEFORMAT_SERIALIZATION_FUNCS = {
             **m.fields.DateTime.DATEFORMAT_SERIALIZATION_FUNCS,  # type: ignore
-            **{"iso": __isoformat, "iso8601": __isoformat}
+            **{"iso": __isoformat, "iso8601": __isoformat},
         }
 
         DATEFORMAT_DESERIALIZATION_FUNCS = {
             **m.fields.DateTime.DATEFORMAT_DESERIALIZATION_FUNCS,  # type: ignore
-            **{"iso": datetime.datetime.fromisoformat, "iso8601": datetime.datetime.fromisoformat}
+            **{"iso": datetime.datetime.fromisoformat, "iso8601": datetime.datetime.fromisoformat},
         }
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
