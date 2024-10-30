@@ -581,7 +581,7 @@ def raw_field(
 
 
 DateTimeField: type[m.fields.DateTime]
-EnumField: type[m.fields.String]
+EnumField: type[m.fields.Field]
 DictField: type[m.fields.Field]
 SetField: type[m.fields.List]
 FrozenSetField: type[m.fields.List]
@@ -683,7 +683,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     TupleField = TupleFieldV3
 
-    class EnumFieldV3(m.fields.String):
+    class EnumFieldV3(m.fields.Field):
         default_error = "Not a valid choice: '{input}'. Allowed values: {choices}"
 
         def __init__(
@@ -705,13 +705,13 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             )
 
             self.enum_type = enum_type
-            self._validate_enum(self.enum_type)
+            enum_value_type = self._extract_enum_value_type(self.enum_type)
 
             self.error = error or EnumFieldV3.default_error
             self._validate_error(self.error)
 
             self.choices = [enum_instance.value for enum_instance in enum_type]
-            self._validate_choices(self.choices)
+            self._validate_choices(self.choices, enum_value_type)
             if allow_none:
                 self.choices.append(None)
 
@@ -746,9 +746,9 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 return None
             if isinstance(value, self.enum_type):
                 return value
-            string_value = super()._deserialize(value, attr, data)
+            enum_value = super()._deserialize(value, attr, data)
             try:
-                return self.enum_type(string_value)
+                return self.enum_type(enum_value)
             except ValueError:
                 if self.extendable_default is m.missing:
                     raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))
@@ -757,11 +757,14 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))
 
         @staticmethod
-        def _validate_enum(enum_type: Any) -> None:
+        def _extract_enum_value_type(enum_type: Any) -> type[str | int]:
             if not issubclass(enum_type, enum.Enum):
                 raise ValueError(f"Enum type {enum_type} should be subtype of Enum")
-            if not issubclass(enum_type, str):
-                raise ValueError(f"Enum type {enum_type} should be subtype of str")
+            if issubclass(enum_type, str):
+                return str
+            if issubclass(enum_type, int):
+                return int
+            raise ValueError(f"Enum type {enum_type} should be subtype of str or int")
 
         @staticmethod
         def _validate_error(error: str) -> None:
@@ -771,10 +774,10 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 raise ValueError("Error should contain only {{input}} and {{choices}}'")
 
         @staticmethod
-        def _validate_choices(choices: list) -> None:
+        def _validate_choices(choices: list, enum_value_type: type[str | int]) -> None:
             for choice in choices:
-                if not isinstance(choice, str):
-                    raise ValueError(f"There is enum value, which is not a string: {choice}")
+                if not isinstance(choice, enum_value_type):
+                    raise ValueError(f"There is enum value, which is not isinstance of {enum_value_type}: {choice}")
 
         @staticmethod
         def _validate_default(enum_type: Any, default: Any, allow_none: bool) -> None:
@@ -904,7 +907,7 @@ else:
 
     TupleField = TupleFieldV2
 
-    class EnumFieldV2(m.fields.String):
+    class EnumFieldV2(m.fields.Field):
         default_error = "Not a valid choice: '{input}'. Allowed values: {choices}"
 
         def __init__(
@@ -926,13 +929,13 @@ else:
             )
 
             self.enum_type = enum_type
-            self._validate_enum(self.enum_type)
+            enum_value_type = self._extract_enum_value_type(self.enum_type)
 
             self.error = error or EnumFieldV2.default_error
             self._validate_error(self.error)
 
             self.choices = [enum_instance.value for enum_instance in enum_type]
-            self._validate_choices(self.choices)
+            self._validate_choices(self.choices, enum_value_type)
             if allow_none:
                 self.choices.append(None)
 
@@ -967,9 +970,9 @@ else:
                 return None
             if isinstance(value, self.enum_type):
                 return value
-            string_value = super()._deserialize(value, attr, data)
+            enum_value = super()._deserialize(value, attr, data)
             try:
-                return self.enum_type(string_value)
+                return self.enum_type(enum_value)
             except ValueError:
                 if self.extendable_default is m.missing:
                     raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))
@@ -978,11 +981,14 @@ else:
                 raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))
 
         @staticmethod
-        def _validate_enum(enum_type: Any) -> None:
+        def _extract_enum_value_type(enum_type: Any) -> type[str | int]:
             if not issubclass(enum_type, enum.Enum):
                 raise ValueError(f"Enum type {enum_type} should be subtype of Enum")
-            if not issubclass(enum_type, str):
-                raise ValueError(f"Enum type {enum_type} should be subtype of str")
+            if issubclass(enum_type, str):
+                return str
+            if issubclass(enum_type, int):
+                return int
+            raise ValueError(f"Enum type {enum_type} should be subtype of str or int")
 
         @staticmethod
         def _validate_error(error: str) -> None:
@@ -992,10 +998,10 @@ else:
                 raise ValueError("Error should contain only {{input}} and {{choices}}'")
 
         @staticmethod
-        def _validate_choices(choices: list) -> None:
+        def _validate_choices(choices: list, enum_value_type: type[str | int]) -> None:
             for choice in choices:
-                if not isinstance(choice, str):
-                    raise ValueError(f"There is enum value, which is not a string: {choice}")
+                if not isinstance(choice, enum_value_type):
+                    raise ValueError(f"There is enum value, which is not isinstance of {enum_value_type}: {choice}")
 
         @staticmethod
         def _validate_default(enum_type: Any, default: Any, allow_none: bool) -> None:

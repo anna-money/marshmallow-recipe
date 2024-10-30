@@ -15,6 +15,11 @@ class Parity(str, enum.Enum):
     EVEN = "even"
 
 
+class Bit(int, enum.Enum):
+    Zero = 0
+    One = 1
+
+
 def test_simple_types() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class SimpleTypesContainers:
@@ -50,8 +55,10 @@ def test_simple_types() -> None:
         optional_frozenset_field: frozenset[str] | None
         tuple_field: tuple[str, ...]
         optional_tuple_field: tuple[str, ...] | None
-        enum_field: Parity
-        optional_enum_field: Parity | None
+        enum_str_field: Parity
+        optional_enum_str_field: Parity | None
+        enum_int_field: Bit
+        optional_enum_int_field: Bit | None
         # with default
         str_field_with_default: str = "42"
         bool_field_with_default: bool = True
@@ -64,7 +71,8 @@ def test_simple_types() -> None:
         )
         time_field_with_default: datetime.time = datetime.time(11, 33, 48)
         date_field_with_default: datetime.date = datetime.date(2022, 2, 20)
-        enum_field_with_default: Parity = Parity.ODD
+        enum_str_field_with_default: Parity = Parity.ODD
+        enum_int_field_with_default: Bit = Bit.Zero
         # with default factory
         str_field_with_default_factory: str = dataclasses.field(default_factory=lambda: "42")
         bool_field_with_default_factory: bool = dataclasses.field(default_factory=lambda: True)
@@ -91,7 +99,8 @@ def test_simple_types() -> None:
         set_field_with_default_factory: set[str] = dataclasses.field(default_factory=lambda: set())
         frozenset_field_with_default_factory: frozenset[str] = dataclasses.field(default_factory=lambda: frozenset())
         tuple_field_with_default_factory: tuple[str, ...] = dataclasses.field(default_factory=lambda: tuple())
-        enum_field_with_default_factory: Parity = dataclasses.field(default_factory=lambda: Parity.ODD)
+        enum_str_field_with_default_factory: Parity = dataclasses.field(default_factory=lambda: Parity.ODD)
+        enum_int_field_with_default_factory: Bit = dataclasses.field(default_factory=lambda: Bit.Zero)
 
     raw = dict(
         any_field={},
@@ -150,10 +159,14 @@ def test_simple_types() -> None:
         frozenset_field=["value"],
         frozenset_field_with_default_factory=[],
         optional_frozenset_field=["value"],
-        enum_field="odd",
-        enum_field_with_default="odd",
-        enum_field_with_default_factory="odd",
-        optional_enum_field="even",
+        enum_str_field="odd",
+        enum_str_field_with_default="odd",
+        enum_str_field_with_default_factory="odd",
+        optional_enum_str_field="even",
+        enum_int_field=0,
+        enum_int_field_with_default=0,
+        enum_int_field_with_default_factory=0,
+        optional_enum_int_field=1,
     )
 
     raw_no_defaults = {k: v for k, v in raw.items() if not k.endswith("default") and not k.endswith("default_factory")}
@@ -198,8 +211,10 @@ def test_simple_types() -> None:
             optional_frozenset_field=frozenset({"value"}),
             tuple_field=("value",),
             optional_tuple_field=("value",),
-            enum_field=Parity.ODD,
-            optional_enum_field=Parity.EVEN,
+            enum_str_field=Parity.ODD,
+            optional_enum_str_field=Parity.EVEN,
+            enum_int_field=Bit.Zero,
+            optional_enum_int_field=Bit.One,
         )
     )
 
@@ -412,7 +427,7 @@ def test_datetime_field_dump(dt: datetime.datetime, raw: str) -> None:
         (Parity.EVEN, "even"),
     ],
 )
-def test_enum_field_dump(value: Parity, raw: str) -> None:
+def test_enum_str_field_dump(value: Parity, raw: str) -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class EnumContainer:
         enum_field: Parity
@@ -428,10 +443,42 @@ def test_enum_field_dump(value: Parity, raw: str) -> None:
         ("even", Parity.EVEN),
     ],
 )
-def test_enum_field_load(value: Parity, raw: str) -> None:
+def test_enum_str_field_load(value: Parity, raw: str) -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class EnumContainer:
         enum_field: Parity
+
+    dumped = mr.load(EnumContainer, dict(enum_field=raw))
+    assert dumped == EnumContainer(enum_field=value)
+
+
+@pytest.mark.parametrize(
+    "value, raw",
+    [
+        (Bit.Zero, 0),
+        (Bit.One, 1),
+    ],
+)
+def test_enum_int_field_dump(value: Bit, raw: str) -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class EnumContainer:
+        enum_field: Bit
+
+    dumped = mr.dump(EnumContainer(enum_field=value))
+    assert dumped == dict(enum_field=raw)
+
+
+@pytest.mark.parametrize(
+    "raw, value",
+    [
+        (0, Bit.Zero),
+        (1, Bit.One),
+    ],
+)
+def test_enum_int_field_load(value: Bit, raw: str) -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class EnumContainer:
+        enum_field: Bit
 
     dumped = mr.load(EnumContainer, dict(enum_field=raw))
     assert dumped == EnumContainer(enum_field=value)
