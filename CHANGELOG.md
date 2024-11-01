@@ -1,4 +1,4 @@
-## unreleased
+## v0.0.40(2024-10-28)
 
 * [Add support of python 3.13](https://github.com/anna-money/marshmallow-recipe/pull/158)
 * [Ditch support of python 3.10](https://github.com/anna-money/marshmallow-recipe/pull/160)
