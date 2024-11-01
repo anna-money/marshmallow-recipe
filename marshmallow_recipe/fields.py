@@ -691,7 +691,6 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             *args: Any,
             enum_type: type[enum.Enum],
             error: str | None = None,
-            extendable_default: Any = m.missing,
             **kwargs: Any,
         ):
             """
@@ -715,8 +714,6 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             if allow_none:
                 self.choices.append(None)
 
-            self.extendable_default = extendable_default
-            self._validate_default(self.enum_type, self.extendable_default, allow_none)
             if "dump_default" in kwargs:
                 self._validate_default(self.enum_type, kwargs["dump_default"], allow_none)
             if "load_default" in kwargs:
@@ -750,10 +747,6 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             try:
                 return self.enum_type(enum_value)
             except ValueError:
-                if self.extendable_default is m.missing:
-                    raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))
-                return self.extendable_default
-            except Exception:
                 raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))
 
         @staticmethod
@@ -915,7 +908,6 @@ else:
             *args: Any,
             enum_type: type[enum.Enum],
             error: str | None = None,
-            extendable_default: Any = m.missing,
             **kwargs: Any,
         ):
             """
@@ -939,8 +931,6 @@ else:
             if allow_none:
                 self.choices.append(None)
 
-            self.extendable_default = extendable_default
-            self._validate_default(self.enum_type, self.extendable_default, allow_none)
             if "default" in kwargs:
                 self._validate_default(self.enum_type, kwargs["default"], allow_none)
             if "missing" in kwargs:
@@ -974,10 +964,6 @@ else:
             try:
                 return self.enum_type(enum_value)
             except ValueError:
-                if self.extendable_default is m.missing:
-                    raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))
-                return self.extendable_default
-            except Exception:
                 raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))
 
         @staticmethod
