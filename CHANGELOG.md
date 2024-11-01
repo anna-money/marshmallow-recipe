@@ -1,6 +1,7 @@
 # unreleased
 
 * [Int enum support](https://github.com/anna-money/marshmallow-recipe/pull/161)
+* [Remove unused extendable_default](https://github.com/anna-money/marshmallow-recipe/commit/e45280d5567c12acf6b82f88a34972a482ed3805)
 
 
 ## v0.0.40(2024-10-28)
