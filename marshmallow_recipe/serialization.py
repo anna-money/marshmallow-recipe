@@ -50,8 +50,9 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         /,
         *,
         naming_case: NamingCase | None = None,
+        t: type | None = None,
     ) -> dict[str, Any]:
-        data_schema = schema_v3(type(data), naming_case=naming_case)
+        data_schema = schema_v3(t or type(data), naming_case=naming_case)
         dumped: dict[str, Any] = data_schema.dump(data)  # type: ignore
         if errors := data_schema.validate(dumped):
             raise m.ValidationError(errors)
@@ -102,8 +103,9 @@ else:
         /,
         *,
         naming_case: NamingCase | None = None,
+        t: type | None = None,
     ) -> dict[str, Any]:
-        data_schema = schema_v2(type(data), naming_case=naming_case)
+        data_schema = schema_v2(t or type(data), naming_case=naming_case)
         dumped, errors = data_schema.dump(data)
         if errors:
             raise m.ValidationError(errors)
