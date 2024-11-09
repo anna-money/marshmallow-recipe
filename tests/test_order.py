@@ -1,5 +1,6 @@
-import marshmallow_recipe as mr
 import dataclasses
+
+import marshmallow_recipe as mr
 
 
 def test_order():

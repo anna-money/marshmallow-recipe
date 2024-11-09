@@ -284,7 +284,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
             @property
             def set_class(self) -> type:
-                return m.schema.OrderedSet
+                return m.schema.OrderedSet  # type: ignore
 
             @m.post_dump
             def remove_none_values(self, data: dict[str, Any], **_: Any) -> dict[str, Any]:
@@ -311,7 +311,7 @@ else:
         class _Schema(m.Schema):  # type: ignore
             @property
             def set_class(self) -> type:
-                return m.schema.OrderedSet
+                return m.schema.OrderedSet  # type: ignore
 
             @m.post_dump  # type: ignore
             def remove_none_values(self, data: dict[str, Any]) -> dict[str, Any]:
