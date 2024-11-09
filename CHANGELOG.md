@@ -1,4 +1,4 @@
-## unreleased
+## v0.0.42(2024-11-09)
 
 * [Preserve declaration order](https://github.com/anna-money/marshmallow-recipe/pull/164)
 
