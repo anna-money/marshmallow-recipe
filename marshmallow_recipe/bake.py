@@ -309,9 +309,6 @@ else:
 
     def _get_base_schema(cls: type, none_value_handling: NoneValueHandling) -> type[m.Schema]:
         class _Schema(m.Schema):  # type: ignore
-            class Meta:  # type: ignore
-                ordered = True  # type: ignore
-
             @property
             def set_class(self) -> type:
                 return m.schema.OrderedSet
