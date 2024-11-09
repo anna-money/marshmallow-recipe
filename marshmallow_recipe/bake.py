@@ -44,7 +44,6 @@ class _SchemaTypeKey:
 
 _T = TypeVar("_T")
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
-_MARSHMALLOW_VERSION_MINOR = int(m.__version__.split(".")[1])
 
 _schema_types: dict[_SchemaTypeKey, type[m.Schema]] = {}
 
