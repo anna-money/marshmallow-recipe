@@ -44,6 +44,7 @@ class _SchemaTypeKey:
 
 _T = TypeVar("_T")
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
+
 _schema_types: dict[_SchemaTypeKey, type[m.Schema]] = {}
 
 
@@ -281,6 +282,10 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             class Meta:  # type: ignore
                 unknown = m.EXCLUDE  # type: ignore
 
+            @property
+            def set_class(self) -> type:
+                return m.schema.OrderedSet  # type: ignore
+
             @m.post_dump
             def remove_none_values(self, data: dict[str, Any], **_: Any) -> dict[str, Any]:
                 if none_value_handling == NoneValueHandling.IGNORE:
@@ -304,6 +309,10 @@ else:
 
     def _get_base_schema(cls: type, none_value_handling: NoneValueHandling) -> type[m.Schema]:
         class _Schema(m.Schema):  # type: ignore
+            @property
+            def set_class(self) -> type:
+                return m.schema.OrderedSet  # type: ignore
+
             @m.post_dump  # type: ignore
             def remove_none_values(self, data: dict[str, Any]) -> dict[str, Any]:
                 if none_value_handling == NoneValueHandling.IGNORE:
