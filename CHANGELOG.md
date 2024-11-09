@@ -1,3 +1,8 @@
+## unreleased
+
+* [Preserve declaration order](https://github.com/anna-money/marshmallow-recipe/pull/164)
+
+
 ## v0.0.41(2024-11-01)
 
 * [Int enum support](https://github.com/anna-money/marshmallow-recipe/pull/161)
