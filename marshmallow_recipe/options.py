@@ -8,12 +8,9 @@ from .naming_case import NamingCase
 _OPTIONS_KEY = "__marshmallow_recipe_options__"
 
 
-class NoneValueHandling(str, enum.Enum):
-    IGNORE = "IGNORE"
-    INCLUDE = "INCLUDE"
-
-    def __str__(self) -> str:
-        return self.value
+class NoneValueHandling(enum.StrEnum):
+    IGNORE = enum.auto()
+    INCLUDE = enum.auto()
 
 
 @dataclasses.dataclass(kw_only=True, slots=True, frozen=True)
