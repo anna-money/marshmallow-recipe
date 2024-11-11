@@ -1,3 +1,9 @@
+## v0.0.43(2024-11-11)
+
+* [Fix python_requires to be >=3.11](https://github.com/anna-money/marshmallow-recipe/commit/ab1eca29324569dbcc712f589078eee9980f9b10)
+* [Switch to StrEnum](https://github.com/anna-money/marshmallow-recipe/commit/e732d5a6c96f3316f7d33d903f15680f83b63fbe)
+
+
 ## v0.0.42(2024-11-09)
 
 * [Preserve declaration order](https://github.com/anna-money/marshmallow-recipe/pull/164)
