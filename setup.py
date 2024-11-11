@@ -38,7 +38,7 @@ setup(
     long_description_content_type="text/markdown",
     platforms=["macOS", "POSIX", "Windows"],
     author="Yury Pliner",
-    python_requires=">=3.10",
+    python_requires=">=3.11",
     project_urls={},
     url="https://github.com/Pliner/marshmallow-recipe",
     author_email="yury.pliner@gmail.com",
