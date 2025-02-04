@@ -4,6 +4,7 @@ import enum
 from typing import TypeVar
 
 from .naming_case import NamingCase
+from .shared import sentinel
 
 _OPTIONS_KEY = "__marshmallow_recipe_options__"
 
@@ -17,6 +18,7 @@ class NoneValueHandling(enum.StrEnum):
 class DataclassOptions:
     none_value_handling: NoneValueHandling | None = None
     naming_case: NamingCase | None = None
+    decimal_places: int | None = sentinel
 
 
 _T = TypeVar("_T")
@@ -26,14 +28,14 @@ def options(
     *,
     none_value_handling: NoneValueHandling | None = None,
     naming_case: NamingCase | None = None,
+    decimal_places: int | None = sentinel,
 ) -> collections.abc.Callable[[type[_T]], type[_T]]:
     def wrap(cls: type[_T]) -> type[_T]:
         setattr(
             cls,
             _OPTIONS_KEY,
             DataclassOptions(
-                none_value_handling=none_value_handling,
-                naming_case=naming_case,
+                none_value_handling=none_value_handling, naming_case=naming_case, decimal_places=decimal_places
             ),
         )
         return cls

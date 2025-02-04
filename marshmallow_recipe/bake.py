@@ -6,7 +6,7 @@ import enum
 import inspect
 import types
 import uuid
-from typing import Annotated, Any, Protocol, TypeVar, Union, get_args, get_origin
+from typing import Annotated, Any, TypeVar, Union, get_args, get_origin
 
 import marshmallow as m
 
@@ -33,6 +33,7 @@ from .hooks import get_pre_loads
 from .metadata import EMPTY_METADATA, Metadata, is_metadata
 from .naming_case import NamingCase
 from .options import NoneValueHandling, try_get_options_for
+from .shared import sentinel
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -40,6 +41,7 @@ class _SchemaTypeKey:
     cls: type
     naming_case: NamingCase | None
     none_value_handling: NoneValueHandling | None
+    decimal_places: int | None
 
 
 _T = TypeVar("_T")
@@ -53,6 +55,7 @@ def bake_schema(
     *,
     naming_case: NamingCase | None = None,
     none_value_handling: NoneValueHandling | None = None,
+    decimal_places: int | None = sentinel,
 ) -> type[m.Schema]:
     if not dataclasses.is_dataclass(cls):
         raise ValueError(f"{cls} is not a dataclass")
@@ -60,14 +63,17 @@ def bake_schema(
     if options := try_get_options_for(cls):
         cls_none_value_handling = none_value_handling or options.none_value_handling
         cls_naming_case = naming_case or options.naming_case
+        cls_decimal_places = decimal_places if decimal_places is not sentinel else options.decimal_places
     else:
         cls_none_value_handling = none_value_handling
         cls_naming_case = naming_case
+        cls_decimal_places = decimal_places
 
     key = _SchemaTypeKey(
         cls=cls,
         naming_case=cls_naming_case,
         none_value_handling=cls_none_value_handling,
+        decimal_places=cls_decimal_places,
     )
     if result := _schema_types.get(key):
         return result
@@ -104,6 +110,7 @@ def bake_schema(
                 metadata,
                 naming_case=naming_case,
                 none_value_handling=none_value_handling,
+                decimal_places=decimal_places,
             )
             for field, metadata in fields_with_metadata
         },
@@ -117,6 +124,7 @@ def get_field_for(
     metadata: Metadata,
     naming_case: NamingCase | None,
     none_value_handling: NoneValueHandling | None,
+    decimal_places: int | None = sentinel,
 ) -> m.fields.Field:
     if type is Any:
         return raw_field(**metadata)
@@ -139,7 +147,9 @@ def get_field_for(
 
     if dataclasses.is_dataclass(type):
         return nested_field(
-            bake_schema(type, naming_case=naming_case, none_value_handling=none_value_handling),
+            bake_schema(
+                type, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
+            ),
             required=required,
             allow_none=allow_none,
             **metadata,
@@ -161,6 +171,7 @@ def get_field_for(
                     metadata=item_field_metadata,
                     naming_case=naming_case,
                     none_value_handling=none_value_handling,
+                    decimal_places=decimal_places,
                 ),
                 required=required,
                 allow_none=allow_none,
@@ -180,6 +191,7 @@ def get_field_for(
                     metadata=item_field_metadata,
                     naming_case=naming_case,
                     none_value_handling=none_value_handling,
+                    decimal_places=decimal_places,
                 ),
                 required=required,
                 allow_none=allow_none,
@@ -199,6 +211,7 @@ def get_field_for(
                     metadata=item_field_metadata,
                     naming_case=naming_case,
                     none_value_handling=none_value_handling,
+                    decimal_places=decimal_places,
                 ),
                 required=required,
                 allow_none=allow_none,
@@ -214,6 +227,7 @@ def get_field_for(
                     metadata=EMPTY_METADATA,
                     naming_case=naming_case,
                     none_value_handling=none_value_handling,
+                    decimal_places=decimal_places,
                 )
             )
             values_field = (
@@ -224,6 +238,7 @@ def get_field_for(
                     metadata=EMPTY_METADATA,
                     naming_case=naming_case,
                     none_value_handling=none_value_handling,
+                    decimal_places=decimal_places,
                 )
             )
 
@@ -248,6 +263,7 @@ def get_field_for(
                     metadata=item_field_metadata,
                     naming_case=naming_case,
                     none_value_handling=none_value_handling,
+                    decimal_places=decimal_places,
                 ),
                 required=required,
                 allow_none=allow_none,
@@ -266,11 +282,35 @@ def get_field_for(
                 metadata=metadata,
                 naming_case=naming_case,
                 none_value_handling=none_value_handling,
+                decimal_places=decimal_places,
             )
 
-    field_factory = _SIMPLE_TYPE_FIELD_FACTORIES.get(type)
-    if field_factory:
-        return field_factory(required=required, allow_none=allow_none, **metadata)
+    if type is bool:
+        return bool_field(required=required, allow_none=allow_none, **metadata)
+
+    if type is str:
+        return str_field(required=required, allow_none=allow_none, **metadata)
+
+    if type is decimal.Decimal:
+        return decimal_field(required=required, allow_none=allow_none, places=decimal_places, **metadata)
+
+    if type is int:
+        return int_field(required=required, allow_none=allow_none, **metadata)
+
+    if type is float:
+        return float_field(required=required, allow_none=allow_none, **metadata)
+
+    if type is uuid.UUID:
+        return uuid_field(required=required, allow_none=allow_none, **metadata)
+
+    if type is datetime.datetime:
+        return datetime_field(required=required, allow_none=allow_none, **metadata)
+
+    if type is datetime.date:
+        return date_field(required=required, allow_none=allow_none, **metadata)
+
+    if type is datetime.time:
+        return time_field(required=required, allow_none=allow_none, **metadata)
 
     raise ValueError(f"Unsupported {type=}")
 
@@ -340,31 +380,6 @@ def _get_field_default(field: dataclasses.Field) -> Any:
     if default_factory is not dataclasses.MISSING:  # type: ignore
         return default_factory
     return field.default
-
-
-class _FieldFactory(Protocol):
-    def __call__(
-        self,
-        *,
-        required: bool,
-        allow_none: bool,
-        name: str,
-        default: Any,
-        **kwargs: Any,
-    ) -> m.fields.Field: ...
-
-
-_SIMPLE_TYPE_FIELD_FACTORIES: dict[type, _FieldFactory] = {
-    bool: bool_field,
-    str: str_field,
-    decimal.Decimal: decimal_field,
-    int: int_field,
-    float: float_field,
-    uuid.UUID: uuid_field,
-    datetime.datetime: datetime_field,
-    datetime.date: date_field,
-    datetime.time: time_field,
-}
 
 
 def _get_metadata(*, name: str, default: Any, metadata: collections.abc.Mapping[Any, Any]) -> Metadata:

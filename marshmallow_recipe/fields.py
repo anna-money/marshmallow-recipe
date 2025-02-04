@@ -8,6 +8,7 @@ from typing import Any
 import marshmallow as m
 import marshmallow.validate
 
+from .shared import sentinel
 from .validation import ValidationFunc
 
 _MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
@@ -94,7 +95,7 @@ def decimal_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    places: int = 2,
+    places: int,
     as_string: bool = True,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
@@ -103,7 +104,7 @@ def decimal_field(
         return m.fields.Decimal(
             allow_none=allow_none,
             as_string=as_string,
-            places=places,
+            places=2 if places is sentinel else places,
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
@@ -116,7 +117,7 @@ def decimal_field(
             required=True,
             allow_none=allow_none,
             as_string=as_string,
-            places=places,
+            places=2 if places is sentinel else places,
             validate=validate,
             **data_key_fields(name),
         )
@@ -124,7 +125,7 @@ def decimal_field(
     return m.fields.Decimal(
         allow_none=allow_none,
         as_string=as_string,
-        places=places,
+        places=2 if places is sentinel else places,
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),

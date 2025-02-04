@@ -1,7 +1,7 @@
 import collections.abc
 from typing import Any, TypeGuard, final
 
-from .missing import MISSING
+from .shared import sentinel
 from .validation import ValidationFunc
 
 
@@ -37,11 +37,11 @@ def is_metadata(value: Any) -> TypeGuard[Metadata]:
 
 def metadata(
     *,
-    name: str = MISSING,
+    name: str = sentinel,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
-    if name is not MISSING:
+    if name is not sentinel:
         values.update(name=name)
     if validate is not None:
         values.update(validate=validate)
@@ -50,13 +50,13 @@ def metadata(
 
 def str_metadata(
     *,
-    name: str = MISSING,
+    name: str = sentinel,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     strip_whitespaces: bool | None = None,
     post_load: collections.abc.Callable[[str], str] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
-    if name is not MISSING:
+    if name is not sentinel:
         values.update(name=name)
     if validate is not None:
         values.update(validate=validate)
@@ -69,17 +69,17 @@ def str_metadata(
 
 def decimal_metadata(
     *,
-    name: str = MISSING,
-    places: int = MISSING,
-    as_string: bool = MISSING,
+    name: str = sentinel,
+    places: int | None = sentinel,
+    as_string: bool = sentinel,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
-    if name is not MISSING:
+    if name is not sentinel:
         values.update(name=name)
-    if places is not MISSING:
+    if places is not sentinel:
         values.update(places=places)
-    if as_string is not MISSING:
+    if as_string is not sentinel:
         values.update(as_string=as_string)
     if validate is not None:
         values.update(validate=validate)
@@ -88,12 +88,12 @@ def decimal_metadata(
 
 def datetime_metadata(
     *,
-    name: str = MISSING,
+    name: str = sentinel,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     format: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
-    if name is not MISSING:
+    if name is not sentinel:
         values.update(name=name)
     if validate is not None:
         values.update(validate=validate)
@@ -104,11 +104,11 @@ def datetime_metadata(
 
 def time_metadata(
     *,
-    name: str = MISSING,
+    name: str = sentinel,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
-    if name is not MISSING:
+    if name is not sentinel:
         values.update(name=name)
     if validate is not None:
         values.update(validate=validate)
@@ -117,12 +117,12 @@ def time_metadata(
 
 def list_metadata(
     *,
-    name: str = MISSING,
+    name: str = sentinel,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     validate_item: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
-    if name is not MISSING:
+    if name is not sentinel:
         values.update(name=name)
     if validate is not None:
         values.update(validate=validate)
@@ -133,12 +133,12 @@ def list_metadata(
 
 def set_metadata(
     *,
-    name: str = MISSING,
+    name: str = sentinel,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     validate_item: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
-    if name is not MISSING:
+    if name is not sentinel:
         values.update(name=name)
     if validate is not None:
         values.update(validate=validate)
@@ -149,12 +149,12 @@ def set_metadata(
 
 def tuple_metadata(
     *,
-    name: str = MISSING,
+    name: str = sentinel,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     validate_item: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
-    if name is not MISSING:
+    if name is not sentinel:
         values.update(name=name)
     if validate is not None:
         values.update(validate=validate)
