@@ -1,3 +1,8 @@
+## v0.0.44(2025-02-04)
+
+* [Fix strip whitespaces with validation](https://github.com/anna-money/marshmallow-recipe/pull/168)
+
+
 ## v0.0.43(2024-11-11)
 
 * [Fix python_requires to be >=3.11](https://github.com/anna-money/marshmallow-recipe/commit/ab1eca29324569dbcc712f589078eee9980f9b10)
