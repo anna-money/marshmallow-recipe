@@ -630,10 +630,10 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
             return result
 
-        def _validate(self, output: Any) -> None:
-            if self.allow_none and output is None:
+        def _validate(self, value: Any) -> None:
+            if self.allow_none and value is None:
                 return
-            super()._validate(output)
+            super()._validate(value)
 
     StrField = StrFieldV3
 
@@ -844,10 +844,10 @@ else:
 
             return result
 
-        def _validate(self, output: Any) -> None:
-            if self.allow_none and output is None:
+        def _validate(self, value: Any) -> None:
+            if self.allow_none and value is None:
                 return
-            super()._validate(output)
+            super()._validate(value)
 
     StrField = StrFieldV2
 
