@@ -630,6 +630,11 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
             return result
 
+        def _validate(self, output: Any) -> None:
+            if self.allow_none and output is None:
+                return
+            super()._validate(output)
+
     StrField = StrFieldV3
 
     class DateTimeFieldV3(m.fields.DateTime):
@@ -838,6 +843,11 @@ else:
                     result = self.post_load(result)
 
             return result
+
+        def _validate(self, output: Any) -> None:
+            if self.allow_none and output is None:
+                return
+            super()._validate(output)
 
     StrField = StrFieldV2
 
