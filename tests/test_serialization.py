@@ -627,3 +627,11 @@ def test_nested_default() -> None:
         int_container: IntContainer = dataclasses.field(default_factory=IntContainer)
 
     assert mr.load(RootContainer, {}) == RootContainer()
+
+
+def test_str_strip_whitespace_with_validation() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class StrContainer:
+        value: Annotated[str | None, mr.str_meta(strip_whitespaces=True, validate=lambda x: len(x) > 0)]
+
+    mr.load(StrContainer, {"value": ""})
