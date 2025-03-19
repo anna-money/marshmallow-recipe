@@ -3,6 +3,7 @@ import dataclasses
 import datetime
 import decimal
 import enum
+import importlib.metadata
 import inspect
 import types
 import uuid
@@ -43,7 +44,7 @@ class _SchemaTypeKey:
 
 
 _T = TypeVar("_T")
-_MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
+_MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 _schema_types: dict[_SchemaTypeKey, type[m.Schema]] = {}
 
