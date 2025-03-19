@@ -7,10 +7,11 @@ from typing import Any
 
 import marshmallow as m
 import marshmallow.validate
+import importlib.metadata
 
 from .validation import ValidationFunc
 
-_MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
+_MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 
 def str_field(
