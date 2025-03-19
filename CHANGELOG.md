@@ -1,3 +1,8 @@
+## v0.0.45(2025-03-19)
+
+* [Get marshmallow version using importlib.metadata](https://github.com/anna-money/marshmallow-recipe/pull/170)
+
+
 ## v0.0.44(2025-02-04)
 
 * [Fix strip whitespaces with validation](https://github.com/anna-money/marshmallow-recipe/pull/168)
