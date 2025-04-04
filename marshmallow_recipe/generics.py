@@ -1,14 +1,10 @@
 import dataclasses
 import types
 import typing
-from typing import TYPE_CHECKING, Annotated, Any, Generic, TypeAlias, TypeVar, Union, get_args, get_origin
+from typing import Annotated, Any, Generic, TypeAlias, TypeVar, Union, get_args, get_origin
 
 _GenericAlias: TypeAlias = typing._GenericAlias  # type: ignore
 
-if TYPE_CHECKING:
-    from _typeshed import DataclassInstance
-else:
-    DataclassInstance: TypeAlias = type
 
 TypeLike: TypeAlias = type | TypeVar | types.UnionType | types.GenericAlias | _GenericAlias
 FieldsTypeMap: TypeAlias = dict[str, TypeLike]
@@ -48,7 +44,10 @@ def get_fields_type_map(cls: type) -> FieldsTypeMap:
     }
 
 
-def get_fields_class_map(cls: type[DataclassInstance]) -> FieldsClassMap:
+def get_fields_class_map(cls: type) -> FieldsClassMap:
+    if not dataclasses.is_dataclass(cls):
+        raise ValueError(f"{cls} is not a dataclass")
+
     names: dict[str, dataclasses.Field] = {}
     result: FieldsClassMap = {}
 
