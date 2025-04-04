@@ -3,11 +3,11 @@ import collections.abc
 import dataclasses
 import datetime
 import enum
+import importlib.metadata
 from typing import Any
 
 import marshmallow as m
 import marshmallow.validate
-import importlib.metadata
 
 from .validation import ValidationFunc
 
