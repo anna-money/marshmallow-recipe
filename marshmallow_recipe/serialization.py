@@ -1,6 +1,6 @@
 import dataclasses
 import importlib.metadata
-from typing import Any, Protocol, TypeVar
+from typing import Any, TypeVar, overload
 
 import marshmallow as m
 
@@ -20,40 +20,6 @@ class _SchemaKey:
 
 
 _schemas: dict[_SchemaKey, m.Schema] = {}
-
-
-class SchemaFunction(Protocol):
-    def __call__(self, cls: type, *, many: bool = False, naming_case: NamingCase | None = None) -> m.Schema: ...
-
-
-class LoadFunction(Protocol):
-    def __call__(self, cls: type[_T], data: dict[str, Any], *, naming_case: NamingCase | None = None) -> _T: ...
-
-
-class LoadManyFunction(Protocol):
-    def __call__(
-        self, cls: type[_T], data: list[dict[str, Any]], *, naming_case: NamingCase | None = None
-    ) -> list[_T]: ...
-
-
-class DumpFunction(Protocol):
-    def __call__(
-        self, data: Any, *, naming_case: NamingCase | None = None, cls: type | None = None
-    ) -> dict[str, Any]: ...
-
-
-class DumpManyFunction(Protocol):
-    def __call__(
-        self, data: list[Any], *, naming_case: NamingCase | None = None, cls: type | None = None
-    ) -> list[dict[str, Any]]: ...
-
-
-schema: SchemaFunction
-load: LoadFunction
-load_many: LoadManyFunction
-dump: DumpFunction
-dump_many: DumpManyFunction
-
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
@@ -78,17 +44,17 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     load_many = load_many_v3
 
-    def dump_v3(data: Any, *, naming_case: NamingCase | None = None, cls: type | None = None) -> dict[str, Any]:
+    def dump_v3(cls: type | None, data: Any, *, naming_case: NamingCase | None = None) -> dict[str, Any]:
         data_schema = schema_v3(extract_type(data, cls), naming_case=naming_case)
         dumped: dict[str, Any] = data_schema.dump(data)  # type: ignore
         if errors := data_schema.validate(dumped):
             raise m.ValidationError(errors)
         return dumped
 
-    dump = dump_v3
+    dump_impl = dump_v3
 
     def dump_many_v3(
-        data: list[Any], *, naming_case: NamingCase | None = None, cls: type | None = None
+        cls: type | None, data: list[Any], *, naming_case: NamingCase | None = None
     ) -> list[dict[str, Any]]:
         if not data:
             return []
@@ -98,7 +64,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             raise m.ValidationError(errors)
         return dumped
 
-    dump_many = dump_many_v3
+    dump_many_impl = dump_many_v3
 
 else:
 
@@ -125,7 +91,7 @@ else:
 
     load_many = load_many_v2
 
-    def dump_v2(data: Any, *, naming_case: NamingCase | None = None, cls: type | None = None) -> dict[str, Any]:
+    def dump_v2(cls: type | None, data: Any, *, naming_case: NamingCase | None = None) -> dict[str, Any]:
         data_schema = schema_v2(extract_type(data, cls), naming_case=naming_case)
         dumped, errors = data_schema.dump(data)
         if errors:
@@ -134,10 +100,10 @@ else:
             raise m.ValidationError(errors)
         return dumped
 
-    dump = dump_v2
+    dump_impl = dump_v2
 
     def dump_many_v2(
-        data: list[Any], *, naming_case: NamingCase | None = None, cls: type | None = None
+        cls: type | None, data: list[Any], *, naming_case: NamingCase | None = None
     ) -> list[dict[str, Any]]:
         if not data:
             return []
@@ -149,6 +115,52 @@ else:
             raise m.ValidationError(errors)
         return dumped
 
-    dump_many = dump_many_v2
+    dump_many_impl = dump_many_v2
 
 EmptySchema = m.Schema
+
+
+@overload
+def dump(
+    data: Any,
+    *,
+    naming_case: NamingCase | None = None,
+) -> dict[str, Any]: ...
+
+
+@overload
+def dump(
+    cls: type,
+    data: Any,
+    *,
+    naming_case: NamingCase | None = None,
+) -> dict[str, Any]: ...
+
+
+def dump(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    if len(args) == 1:
+        return dump_impl(None, *args, **kwargs)
+    return dump_impl(*args, **kwargs)
+
+
+@overload
+def dump_many(
+    data: list[Any],
+    *,
+    naming_case: NamingCase | None = None,
+) -> list[dict[str, Any]]: ...
+
+
+@overload
+def dump_many(
+    cls: type,
+    data: list[Any],
+    *,
+    naming_case: NamingCase | None = None,
+) -> list[dict[str, Any]]: ...
+
+
+def dump_many(*args: Any, **kwargs: Any) -> list[dict[str, Any]]:
+    if len(args) == 1:
+        return dump_many_impl(None, *args, **kwargs)
+    return dump_many_impl(*args, **kwargs)
