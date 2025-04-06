@@ -669,12 +669,20 @@ def test_generic_extract_type_on_dump(
 
     instance = Data[int](value=123)
     with context:
-        dumped = mr.dump(instance, cls=get_type(Data[int]))
+        type = get_type(Data[int])
+        if type is None:
+            dumped = mr.dump(instance)
+        else:
+            dumped = mr.dump(type, instance)
         assert dumped == {"value": 123}
 
     instance_many = [Data[int](value=123), Data[int](value=456)]
     with context:
-        dumped = mr.dump_many(instance_many, cls=get_type(Data[int]))
+        type = get_type(Data[int])
+        if type is None:
+            dumped = mr.dump_many(instance_many)
+        else:
+            dumped = mr.dump_many(type, instance_many)
         assert dumped == [{"value": 123}, {"value": 456}]
 
 
@@ -698,12 +706,20 @@ def test_non_generic_extract_type_on_dump(
 
     instance = Data(value=123)
     with context:
-        dumped = mr.dump(instance, cls=get_type(Data))
+        type = get_type(Data)
+        if type is None:
+            dumped = mr.dump(instance)
+        else:
+            dumped = mr.dump(type, instance)
         assert dumped == {"value": 123}
 
     instance_many = [Data(value=123), Data(value=456)]
     with context:
-        dumped = mr.dump_many(instance_many, cls=get_type(Data))
+        type = get_type(Data)
+        if type is None:
+            dumped = mr.dump_many(instance_many)
+        else:
+            dumped = mr.dump_many(type, instance_many)
         assert dumped == [{"value": 123}, {"value": 456}]
 
 
@@ -744,7 +760,7 @@ def test_generic_type_var_with_reuse() -> None:
 
     instance = T2[str](t1=1, t2="2")
 
-    dumped = mr.dump(instance, cls=T2[str])
+    dumped = mr.dump(T2[str], instance)
 
     assert dumped == {"t1": 1, "t2": "2"}
     assert mr.load(T2[str], dumped) == instance
@@ -774,7 +790,7 @@ def test_generic_with_field_override() -> None:
 
     instance = T2[Value2, int](value=Value2(v1="aaa", v2="bbb"), iterable=set([3, 4, 5]))
 
-    dumped = mr.dump(instance, cls=T2[Value2, int])
+    dumped = mr.dump(T2[Value2, int], instance)
 
     assert dumped == {"value": {"v1": "aaa", "v2": "bbb"}, "iterable": [3, 4, 5]}
     assert mr.load(T2[Value2, int], dumped) == instance
@@ -788,13 +804,13 @@ def test_generic_reuse_with_different_args() -> None:
         items: list[_TItem]
 
     container_int = GenericContainer[int](items=[1, 2, 3])
-    dumped = mr.dump(container_int, cls=GenericContainer[int])
+    dumped = mr.dump(GenericContainer[int], container_int)
 
     assert dumped == {"items": [1, 2, 3]}
     assert mr.load(GenericContainer[int], dumped) == container_int
 
     container_str = GenericContainer[str](items=["q", "w", "e"])
-    dumped = mr.dump(container_str, cls=GenericContainer[str])
+    dumped = mr.dump(GenericContainer[str], container_str)
 
     assert dumped == {"items": ["q", "w", "e"]}
     assert mr.load(GenericContainer[str], dumped) == container_str
@@ -818,13 +834,13 @@ def test_sdfdfsd():
     class Frozen(Generic[T]):
         value: T
 
-    mr.dump(Frozen[int](value=123), cls=Frozen[int])  # cls required generic frozen
+    mr.dump(Frozen[int], Frozen[int](value=123))  # cls required generic frozen
 
-    @dataclasses.dataclass(slots=True)
+    @dataclasses.dataclass(slots=True, kw_only=True)
     class Slots(Generic[T]):
         value: T
 
-    mr.dump(Slots[int](value=123), cls=Slots[int])  # cls required for generic with slots
+    mr.dump(Slots[int], Slots[int](value=123))
 
     @dataclasses.dataclass(slots=True)
     class SlotsNonGeneric(Slots[int]):
