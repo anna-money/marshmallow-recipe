@@ -98,7 +98,7 @@ else:
             raise m.ValidationError(errors)
         if errors := data_schema.validate(dumped):
             raise m.ValidationError(errors)
-        return dumped
+        return dumped  # type: ignore
 
     dump_impl = dump_v2
 
@@ -113,7 +113,7 @@ else:
             raise m.ValidationError(errors)
         if errors := data_schema.validate(dumped):
             raise m.ValidationError(errors)
-        return dumped
+        return dumped  # type: ignore
 
     dump_many_impl = dump_many_v2
 
