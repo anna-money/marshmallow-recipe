@@ -1,3 +1,8 @@
+## v0.0.46(2025-04-07)
+
+* [Make cls/data positional arguments only](https://github.com/anna-money/marshmallow-recipe/commit/ef4e41a105c08876a9cf9d3f13c1e5f9c2fbb37b)
+
+
 ## v0.0.45(2025-03-19)
 
 * [Get marshmallow version using importlib.metadata](https://github.com/anna-money/marshmallow-recipe/pull/170)
