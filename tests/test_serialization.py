@@ -612,6 +612,14 @@ def test_str_strip_whitespaces() -> None:
     assert mr.dump(OptionalStrContainer(value1=None, value2=None)) == {}
 
 
+def test_str_strip_whitespace_with_validation() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class StrContainer:
+        value: Annotated[str | None, mr.str_meta(strip_whitespaces=True, validate=lambda x: len(x) > 0)]
+
+    mr.load(StrContainer, {"value": ""})
+
+
 def test_list_str_strip_whitespaces() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class StrContainer:
@@ -814,11 +822,3 @@ def test_generic_reuse_with_different_args() -> None:
 
     assert dumped == {"items": ["q", "w", "e"]}
     assert mr.load(GenericContainer[str], dumped) == container_str
-
-
-def test_str_strip_whitespace_with_validation() -> None:
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class StrContainer:
-        value: Annotated[str | None, mr.str_meta(strip_whitespaces=True, validate=lambda x: len(x) > 0)]
-
-    mr.load(StrContainer, {"value": ""})
