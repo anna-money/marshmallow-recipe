@@ -2,7 +2,7 @@ pytest==8.3.4
 isort==5.13.2
 flake8==7.1.1
 black==24.10.0
-pyright==1.1.391
+pyright==1.1.398
 marshmallow>=2,<4
 
 setuptools
