@@ -1,4 +1,4 @@
-## unreleased
+## v0.0.48(2025-04-23)
 
 * [Allow to set no places for decimal](https://github.com/anna-money/marshmallow-recipe/pull/175)
 
