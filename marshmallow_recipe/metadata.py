@@ -70,7 +70,7 @@ def str_metadata(
 def decimal_metadata(
     *,
     name: str = MISSING,
-    places: int = MISSING,
+    places: int | None = MISSING,
     as_string: bool = MISSING,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
 ) -> Metadata:

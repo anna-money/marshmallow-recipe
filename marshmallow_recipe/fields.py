@@ -95,7 +95,7 @@ def decimal_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
-    places: int = 2,
+    places: int | None = 2,
     as_string: bool = True,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     **_: Any,
