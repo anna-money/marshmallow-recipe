@@ -1,3 +1,8 @@
+## unreleased
+
+* [Allow to set no places for decimal](https://github.com/anna-money/marshmallow-recipe/pull/175)
+
+
 ## v0.0.47(2025-04-07)
 
 * [Support generics](https://github.com/anna-money/marshmallow-recipe/pull/163)
