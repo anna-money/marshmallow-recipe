@@ -626,15 +626,25 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         if validate is None:
             return None
         if isinstance(validate, collections.abc.Sequence):
-            return [fix_validate(v) for v in validate]
+            results = []
+            for sub_validate in validate:
 
-        def _validator(value: Any) -> Any:
+                def _validate(value: Any) -> Any:
+                    result = sub_validate(value)
+                    if result is False:
+                        raise m.ValidationError("Invalid value.")
+                    return result
+
+                results.append(_validate)
+            return results
+
+        def _validate(value: Any) -> Any:
             result = validate(value)
             if result is False:
                 raise m.ValidationError("Invalid value.")
             return result
 
-        return _validator
+        return _validate
 
     def data_key_fields(name: str | None) -> collections.abc.Mapping[str, Any]:
         if name is None:
