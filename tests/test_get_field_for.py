@@ -3,7 +3,7 @@ import dataclasses
 import datetime
 import decimal
 import enum
-import importlib
+import importlib.metadata
 import inspect
 import unittest.mock
 import uuid
