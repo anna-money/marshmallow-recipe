@@ -1,5 +1,10 @@
 # marshmallow-recipe
 
+[![PyPI version](https://badge.fury.io/py/marshmallow-recipe.svg)](https://badge.fury.io/py/marshmallow-recipe)
+[![Python Versions](https://img.shields.io/pypi/pyversions/marshmallow-recipe.svg)](https://pypi.org/project/marshmallow-recipe/)
+
+Library for convenient serialization/deserialization of Python dataclasses using marshmallow.
+
 Originally developed as an abstraction layer over marshmallow to facilitate migration from v2 to v3 for codebases with extensive dataclass usage, 
 this library has evolved into a powerful tool offering a more concise approach to serialization. 
 It can be seamlessly integrated into any codebase, providing the following benefits:
