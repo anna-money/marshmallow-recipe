@@ -14,6 +14,7 @@ from typing import (
     Generic,
     Iterable,
     List,
+    Mapping,
     Set,
     Tuple,
     TypeVar,
@@ -822,3 +823,34 @@ def test_generic_reuse_with_different_args() -> None:
 
     assert dumped == {"items": ["q", "w", "e"]}
     assert mr.load(GenericContainer[str], dumped) == container_str
+
+
+def test_unsubscripted_collections() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Collections:
+        l: list
+        s: set
+        fs: frozenset
+        d: dict
+        m: Mapping
+        t: tuple
+
+    dumped = mr.dump(
+        Collections(
+            l=["str", 123, {"a": "s"}],
+            s={"se", 55},
+            fs=frozenset(["fs", 77]),
+            d={1: 2, "dd": "va"},
+            m={3: 4, "mm": "va"},
+            t=(99, "xx"),
+        )
+    )
+
+    assert dumped == {
+        "l": ["str", 123, {"a": "s"}],
+        "s": list({"se", 55}),
+        "fs": list(frozenset(["fs", 77])),
+        "d": {1: 2, "dd": "va"},
+        "m": {3: 4, "mm": "va"},
+        "t": [99, "xx"],
+    }
