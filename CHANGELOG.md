@@ -1,3 +1,8 @@
+## v0.0.49(2025-05-03)
+
+* [Fix support of unsubscripted Mapping](https://github.com/anna-money/marshmallow-recipe/pull/178)
+
+
 ## v0.0.48(2025-04-23)
 
 * [Allow to set no places for decimal](https://github.com/anna-money/marshmallow-recipe/pull/175)
