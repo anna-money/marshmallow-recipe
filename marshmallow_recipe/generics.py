@@ -1,7 +1,7 @@
 import dataclasses
 import types
 import typing
-from typing import Annotated, Any, Generic, TypeAlias, TypeVar, Union, get_args, get_origin
+from typing import Annotated, Any, Generic, Mapping, TypeAlias, TypeVar, Union, get_args, get_origin
 
 _GenericAlias: TypeAlias = typing._GenericAlias  # type: ignore
 
@@ -144,6 +144,8 @@ def _subscript_with_any(t: TypeLike) -> TypeLike:
         return frozenset[Any]
     if t is dict:
         return dict[Any, Any]
+    if t is Mapping:
+        return Mapping[Any, Any]
     if t is tuple:
         return tuple[Any, ...]
     return t
