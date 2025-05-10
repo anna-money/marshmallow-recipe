@@ -6,7 +6,7 @@ from .validation import ValidationFunc
 
 
 @final
-class Metadata(collections.abc.Mapping[str, Any]):
+class Metadata(collections.abc.Mapping[str, Any], collections.abc.Hashable):
     __slots__ = ("__values",)
 
     def __init__(self, values: collections.abc.Mapping[str, Any]) -> None:
@@ -26,6 +26,15 @@ class Metadata(collections.abc.Mapping[str, Any]):
 
     def __str__(self) -> str:
         return str(self.__values)
+
+    def __hash__(self) -> int:
+        result = 0
+        for key in self.__values:
+            result ^= hash(key)
+        return result ^ len(self.__values)
+
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, Metadata) and self.__values == other.__values
 
 
 EMPTY_METADATA = Metadata({})
