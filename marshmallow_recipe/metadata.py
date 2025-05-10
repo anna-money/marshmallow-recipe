@@ -7,11 +7,10 @@ from .validation import ValidationFunc
 
 @final
 class Metadata(collections.abc.Mapping[str, Any], Hashable):
-    __slots__ = ("__values", "__hash")
+    __slots__ = ("__values",)
 
     def __init__(self, values: collections.abc.Mapping[str, Any]) -> None:
         self.__values = values
-        self.__hash: int | None = None
 
     def __getitem__(self, key: str) -> Any:
         return self.__values[key]
@@ -29,17 +28,13 @@ class Metadata(collections.abc.Mapping[str, Any], Hashable):
         return str(self.__values)
 
     def __hash__(self) -> int:
-        if self.__hash is None:
-            h = 0
-            for key in sorted(self.__values):
-                h ^= hash(key)
-            self.__hash = h ^ len(self.__values)
-        return self.__hash
+        result = 0
+        for key in self.__values:
+            result ^= hash(key)
+        return result ^ len(self.__values)
 
     def __eq__(self, other: Any) -> bool:
-        if isinstance(other, Metadata):
-            return self.__values == other.__values
-        return False
+        return isinstance(other, Metadata) and self.__values == other.__values
 
 
 EMPTY_METADATA = Metadata({})
