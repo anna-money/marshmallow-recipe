@@ -1,3 +1,8 @@
+## v0.0.50(2025-05-10)
+
+* [Make Metadata hashable](https://github.com/anna-money/marshmallow-recipe/pull/180)
+
+
 ## v0.0.49(2025-05-03)
 
 * [Fix support of unsubscripted Mapping](https://github.com/anna-money/marshmallow-recipe/pull/178)
