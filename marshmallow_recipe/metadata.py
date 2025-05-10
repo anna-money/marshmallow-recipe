@@ -1,12 +1,12 @@
 import collections.abc
-from typing import Any, Hashable, TypeGuard, final
+from typing import Any, TypeGuard, final
 
 from .missing import MISSING
 from .validation import ValidationFunc
 
 
 @final
-class Metadata(collections.abc.Mapping[str, Any], Hashable):
+class Metadata(collections.abc.Mapping[str, Any], collections.abc.Hashable):
     __slots__ = ("__values",)
 
     def __init__(self, values: collections.abc.Mapping[str, Any]) -> None:
