@@ -65,6 +65,7 @@ It can be seamlessly integrated into any codebase, providing the following benef
   - `typing.Annotated[T, _]`
 - special types
   - `typing.Any`
+  - `typing.NewType(_, T)`
 
 
 ## Examples

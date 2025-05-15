@@ -15,6 +15,7 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    NewType,
     Set,
     Tuple,
     TypeVar,
@@ -24,6 +25,8 @@ from typing import (
 import pytest
 
 import marshmallow_recipe as mr
+
+NewInt = NewType("NewInt", int)
 
 
 class Parity(str, enum.Enum):
@@ -49,6 +52,8 @@ def test_simple_types() -> None:
         optional_decimal_field: decimal.Decimal | None
         int_field: int
         optional_int_field: int | None
+        new_int_field: NewInt
+        optional_new_int_field: NewInt | None
         float_field: float
         optional_float_field: float | None
         uuid_field: uuid.UUID
@@ -137,6 +142,8 @@ def test_simple_types() -> None:
         int_field_with_default=42,
         int_field_with_default_factory=42,
         optional_int_field=42,
+        new_int_field=42,
+        optional_new_int_field=42,
         float_field=42.0,
         float_field_with_default=42.0,
         float_field_with_default_factory=42.0,
@@ -205,6 +212,8 @@ def test_simple_types() -> None:
             optional_decimal_field=decimal.Decimal("42.00"),
             int_field=42,
             optional_int_field=42,
+            new_int_field=NewInt(42),
+            optional_new_int_field=NewInt(42),
             float_field=42.0,
             optional_float_field=42.0,
             uuid_field=uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05"),
