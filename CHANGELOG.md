@@ -1,3 +1,8 @@
+## v0.0.51(2025-05-15)
+
+* [Support typing.NewType](https://github.com/anna-money/marshmallow-recipe/pull/181)
+
+
 ## v0.0.50(2025-05-10)
 
 * [Make Metadata hashable](https://github.com/anna-money/marshmallow-recipe/pull/180)
