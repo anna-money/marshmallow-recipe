@@ -6,7 +6,7 @@ import enum
 import inspect
 import unittest.mock
 import uuid
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any, NewType, Optional
 
 import marshmallow as m
 import pytest
@@ -50,16 +50,21 @@ def assert_fields_equal(a: m.fields.Field, b: m.fields.Field) -> None:
     assert attrs(a) == attrs(b)
 
 
+NewInt = NewType("NewInt", int)
+
+
 @dataclasses.dataclass
 class EmptyDataclass:
     pass
+
+
+NewDataclass = NewType("NewDataclass", EmptyDataclass)
 
 
 class Enum(str, enum.Enum):
     pass
 
 
-EMPTY = EmptyDataclass()
 EMPTY_SCHEMA = m.Schema()
 
 
@@ -127,6 +132,21 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             int | None,
+            mr.meta(name="i"),
+            m.fields.Int(allow_none=True, **default_fields(None), **data_key_fields("i")),
+        ),
+        # simple types: NewType(..., int)
+        (NewInt, {}, m.fields.Int(required=True)),
+        (Optional[NewInt], {}, m.fields.Int(allow_none=True, **default_fields(None))),
+        (NewInt | None, {}, m.fields.Int(allow_none=True, **default_fields(None))),
+        (NewInt, mr.meta(name="i"), m.fields.Int(required=True, **data_key_fields("i"))),
+        (
+            Optional[NewInt],
+            mr.meta(name="i"),
+            m.fields.Int(allow_none=True, **default_fields(None), **data_key_fields("i")),
+        ),
+        (
+            NewInt | None,
             mr.meta(name="i"),
             m.fields.Int(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
@@ -307,6 +327,25 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             EmptyDataclass | None,
+            mr.meta(name="i"),
+            m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
+        ),
+        # dataclass NewType(..., EmptyDataclass)
+        (NewDataclass, {}, m.fields.Nested(EMPTY_SCHEMA, required=True)),
+        (Optional[NewDataclass], {}, m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
+        (NewDataclass | None, {}, m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
+        (
+            NewDataclass,
+            mr.meta(name="i"),
+            m.fields.Nested(EMPTY_SCHEMA, required=True, **data_key_fields("i")),
+        ),
+        (
+            Optional[NewDataclass],
+            mr.meta(name="i"),
+            m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
+        ),
+        (
+            NewDataclass | None,
             mr.meta(name="i"),
             m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),

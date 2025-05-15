@@ -1,12 +1,12 @@
 import dataclasses
 import types
 import typing
-from typing import Annotated, Any, Generic, Mapping, TypeAlias, TypeVar, Union, get_args, get_origin
+from typing import Annotated, Any, Generic, Mapping, NewType, TypeAlias, TypeVar, Union, get_args, get_origin
 
 _GenericAlias: TypeAlias = typing._GenericAlias  # type: ignore
 
 
-TypeLike: TypeAlias = type | TypeVar | types.UnionType | types.GenericAlias | _GenericAlias
+TypeLike: TypeAlias = type | TypeVar | types.UnionType | types.GenericAlias | _GenericAlias | NewType
 FieldsTypeMap: TypeAlias = dict[str, TypeLike]
 TypeVarMap: TypeAlias = dict[TypeVar, TypeLike]
 FieldsClassMap: TypeAlias = dict[str, TypeLike]

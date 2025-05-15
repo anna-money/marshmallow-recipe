@@ -7,7 +7,7 @@ import importlib.metadata
 import inspect
 import types
 import uuid
-from typing import Annotated, Any, NamedTuple, Protocol, TypeVar, Union, cast, get_args, get_origin
+from typing import Annotated, Any, NamedTuple, NewType, Protocol, TypeVar, Union, cast, get_args, get_origin
 
 import marshmallow as m
 
@@ -142,6 +142,9 @@ def get_field_for(
     else:
         required = True
         allow_none = False
+
+    if isinstance(t, NewType):
+        t = t.__supertype__
 
     if inspect.isclass(t) and issubclass(t, enum.Enum):
         return enum_field(enum_type=t, required=required, allow_none=allow_none, **metadata)
