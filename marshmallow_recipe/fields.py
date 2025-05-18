@@ -4,7 +4,7 @@ import dataclasses
 import datetime
 import enum
 import importlib.metadata
-from typing import Any, Mapping
+from typing import Any
 
 import marshmallow as m
 import marshmallow.validate
@@ -837,7 +837,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     DictField = m.fields.Dict
 
     class UnionFieldV3(m.fields.Field):
-        def __init__(self, fields: Mapping[type, m.fields.Field], **kwargs: Any):
+        def __init__(self, fields: dict[type, m.fields.Field], **kwargs: Any):
             self.fields = fields
             super().__init__(**kwargs)
 
@@ -1165,7 +1165,7 @@ else:
     DictField = TypedDict
 
     class UnionFieldV2(m.fields.Field):
-        def __init__(self, fields: Mapping[type, m.fields.Field], **kwargs: Any):
+        def __init__(self, fields: dict[type, m.fields.Field], **kwargs: Any):
             self.fields = fields
             super().__init__(**kwargs)
 
@@ -1191,6 +1191,5 @@ else:
                 except m.ValidationError as exc:
                     errors.append(exc.messages)
             raise m.ValidationError(message=errors, field_name=attr)
-
 
     UnionField = UnionFieldV2
