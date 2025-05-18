@@ -841,7 +841,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             self.fields = fields
             super().__init__(**kwargs)
 
-        def _serialize(self, value: Any, attr: str, obj: str, **kwargs: Any) -> Any:
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
             errors = []
             for type, field in self.fields.items():
                 if not isinstance(value, type):
@@ -1169,7 +1169,7 @@ else:
             self.fields = fields
             super().__init__(**kwargs)
 
-        def _serialize(self, value: Any, attr: str, obj: str, **kwargs: Any) -> Any:
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
             errors = []
             for type, field in self.fields.items():
                 if not isinstance(value, type):
