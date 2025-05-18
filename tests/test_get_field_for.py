@@ -970,8 +970,8 @@ EMPTY_SCHEMA = m.Schema()
             {},
             mr.UnionField(
                 fields={int: m.fields.Int(required=True), str: mr.StrField(required=True)},
-                required=False,
                 allow_none=True,
+                **default_fields(None),
             ),
         ),
     ],
