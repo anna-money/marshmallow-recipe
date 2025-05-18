@@ -911,6 +911,10 @@ def test_union_priority_str_int() -> None:
     assert dumped == {"value": "123"}
     assert mr.load(ContainerStrInt, dumped) == ContainerStrInt(value=123)
 
+    instance = ContainerStrInt(value="abc")
+    dumped = mr.dump(ContainerStrInt, instance)
+    assert dumped == {"value": "abc"}
+    assert mr.load(ContainerStrInt, dumped) == ContainerStrInt(value="abc")
 
 def test_union_str_parametrised_dict() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
