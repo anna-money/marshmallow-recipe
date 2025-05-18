@@ -4,7 +4,7 @@ import dataclasses
 import datetime
 import enum
 import importlib.metadata
-from typing import Any
+from typing import Any, Mapping
 
 import marshmallow as m
 import marshmallow.validate
@@ -582,7 +582,7 @@ def raw_field(
 
 
 def union_field(
-    fields: list[m.fields.Field],
+    fields: dict[type, m.fields.Field],
     *,
     required: bool,
     allow_none: bool,
@@ -837,13 +837,15 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     DictField = m.fields.Dict
 
     class UnionFieldV3(m.fields.Field):
-        def __init__(self, fields: list[m.fields.Field], **kwargs: Any):
-            self._fields = fields
+        def __init__(self, fields: Mapping[type, m.fields.Field], **kwargs: Any):
+            self.fields = fields
             super().__init__(**kwargs)
 
         def _serialize(self, value: Any, attr: str, obj: str, **kwargs: Any) -> Any:
             errors = []
-            for field in self._fields:
+            for type, field in self.fields.items():
+                if not isinstance(value, type):
+                    continue
                 try:
                     return field._serialize(value, attr, obj, **kwargs)
                 except m.ValidationError as e:
@@ -852,9 +854,12 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             errors = []
-            for field in reversed(self._fields):
+            for type, field in reversed(self.fields.items()):
                 try:
-                    return field.deserialize(value, attr, data, **kwargs)
+                    result = field.deserialize(value, attr, data, **kwargs)
+                    if not isinstance(result, type):
+                        errors.append(f"Expected type {type}, got {type(result)}")
+                    return result
                 except m.ValidationError as exc:
                     errors.append(exc.messages)
             raise m.ValidationError(message=errors, field_name=attr)
@@ -1160,13 +1165,15 @@ else:
     DictField = TypedDict
 
     class UnionFieldV2(m.fields.Field):
-        def __init__(self, fields: list[m.fields.Field], **kwargs: Any):
-            self._fields = fields
+        def __init__(self, fields: Mapping[type, m.fields.Field], **kwargs: Any):
+            self.fields = fields
             super().__init__(**kwargs)
 
         def _serialize(self, value: Any, attr: str, obj: str, **kwargs: Any) -> Any:
             errors = []
-            for field in self._fields:
+            for type, field in self.fields.items():
+                if not isinstance(value, type):
+                    continue
                 try:
                     return field._serialize(value, attr, obj, **kwargs)
                 except m.ValidationError as e:
@@ -1175,11 +1182,15 @@ else:
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             errors = []
-            for field in reversed(self._fields):
+            for type, field in reversed(self.fields.items()):
                 try:
-                    return field.deserialize(value, attr, data, **kwargs)
+                    result = field.deserialize(value, attr, data, **kwargs)
+                    if not isinstance(result, type):
+                        errors.append(f"Expected type {type}, got {type(result)}")
+                    return result
                 except m.ValidationError as exc:
                     errors.append(exc.messages)
             raise m.ValidationError(message=errors, field_name=attr)
+
 
     UnionField = UnionFieldV2
