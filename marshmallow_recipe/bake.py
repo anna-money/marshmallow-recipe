@@ -28,6 +28,7 @@ from .fields import (
     str_field,
     time_field,
     tuple_field,
+    union_field,
     uuid_field,
 )
 from .generics import TypeLike, get_fields_type_map
@@ -132,16 +133,42 @@ def get_field_for(
     if t is Any:
         return raw_field(**metadata)
 
-    if underlying_type_from_optional := _try_get_underlying_type_from_optional(t):
+    underlying_union_types = _try_get_underlying_types_from_union(t)
+    # Optional is a union with None
+    if underlying_union_types is not None and any(t is types.NoneType for t in underlying_union_types):
         required = False
         allow_none = True
-        t = underlying_type_from_optional
     elif metadata.get("default", dataclasses.MISSING) is not dataclasses.MISSING:
         required = False
         allow_none = False
     else:
         required = True
         allow_none = False
+
+    #
+    if underlying_union_types is not None:
+        effective_underlying_union_types = [t for t in underlying_union_types if t is not types.NoneType]
+        if not effective_underlying_union_types:
+            raise ValueError("Union must contain at least one type other than NoneType")
+        if len(effective_underlying_union_types) == 1:
+            t = effective_underlying_union_types[0]
+        else:
+            underlying_union_fields = []
+            for underlying_type in underlying_union_types:
+                underlying_union_fields.append(
+                    get_field_for(
+                        underlying_type,
+                        metadata=metadata,
+                        naming_case=naming_case,
+                        none_value_handling=none_value_handling,
+                    )
+                )
+            return union_field(
+                fields=underlying_union_fields,
+                required=required,
+                allow_none=allow_none,
+                **metadata,
+            )
 
     if isinstance(t, NewType):
         t = t.__supertype__
@@ -385,12 +412,8 @@ def _get_metadata(*, name: str, default: Any, metadata: collections.abc.Mapping[
     return Metadata(values)
 
 
-def _try_get_underlying_type_from_optional(t: TypeLike) -> TypeLike | None:
+def _try_get_underlying_types_from_union(t: TypeLike) -> tuple[TypeLike, ...] | None:
     # to support Union[int, None] and int | None
-    if get_origin(t) is Union or isinstance(t, types.UnionType):  # type: ignore
-        type_args = get_args(t)
-        if types.NoneType not in type_args or len(type_args) != 2:
-            raise ValueError(f"Unsupported {t=}")
-        return next(type_arg for type_arg in type_args if type_arg is not types.NoneType)  # noqa
-
-    return None
+    if not get_origin(t) is Union and not isinstance(t, types.UnionType):  # type: ignore
+        return None
+    return get_args(t)
