@@ -80,6 +80,8 @@ def test_simple_types() -> None:
         optional_enum_str_field: Parity | None
         enum_int_field: Bit
         optional_enum_int_field: Bit | None
+        str_int_union: int | str
+        optional_str_int_union: int | str | None
         # with default
         str_field_with_default: str = "42"
         bool_field_with_default: bool = True
@@ -94,6 +96,7 @@ def test_simple_types() -> None:
         date_field_with_default: datetime.date = datetime.date(2022, 2, 20)
         enum_str_field_with_default: Parity = Parity.ODD
         enum_int_field_with_default: Bit = Bit.Zero
+        str_int_union_with_default: int | str = 42
         # with default factory
         str_field_with_default_factory: str = dataclasses.field(default_factory=lambda: "42")
         bool_field_with_default_factory: bool = dataclasses.field(default_factory=lambda: True)
@@ -122,6 +125,7 @@ def test_simple_types() -> None:
         tuple_field_with_default_factory: tuple[str, ...] = dataclasses.field(default_factory=lambda: tuple())
         enum_str_field_with_default_factory: Parity = dataclasses.field(default_factory=lambda: Parity.ODD)
         enum_int_field_with_default_factory: Bit = dataclasses.field(default_factory=lambda: Bit.Zero)
+        str_int_union_with_default_factory: int | str = dataclasses.field(default_factory=lambda: 42)
 
     raw = dict(
         any_field={},
@@ -175,6 +179,10 @@ def test_simple_types() -> None:
         optional_list_field=["value"],
         set_field=["value"],
         set_field_with_default_factory=[],
+        str_int_union=42,
+        optional_str_int_union=42,
+        str_int_union_with_default=42,
+        str_int_union_with_default_factory=42,
         optional_set_field=["value"],
         tuple_field=["value"],
         tuple_field_with_default_factory=[],
@@ -240,6 +248,10 @@ def test_simple_types() -> None:
             optional_enum_str_field=Parity.EVEN,
             enum_int_field=Bit.Zero,
             optional_enum_int_field=Bit.One,
+            str_int_union=42,
+            optional_str_int_union=42,
+            str_int_union_with_default=42,
+            str_int_union_with_default_factory=42,
         )
     )
 

@@ -145,7 +145,6 @@ def get_field_for(
         required = True
         allow_none = False
 
-    #
     if underlying_union_types is not None:
         effective_underlying_union_types = [t for t in underlying_union_types if t is not types.NoneType]
         if not effective_underlying_union_types:
@@ -153,16 +152,15 @@ def get_field_for(
         if len(effective_underlying_union_types) == 1:
             t = effective_underlying_union_types[0]
         else:
-            underlying_union_fields = []
-            for underlying_type in underlying_union_types:
-                underlying_union_fields.append(
-                    get_field_for(
-                        underlying_type,
-                        metadata=metadata,
-                        naming_case=naming_case,
-                        none_value_handling=none_value_handling,
-                    )
+            underlying_union_fields = {}
+            for underlying_type in effective_underlying_union_types:
+                underlying_union_fields[underlying_type] = get_field_for(
+                    underlying_type,
+                    metadata=EMPTY_METADATA,
+                    naming_case=naming_case,
+                    none_value_handling=none_value_handling,
                 )
+
             return union_field(
                 fields=underlying_union_fields,
                 required=required,
