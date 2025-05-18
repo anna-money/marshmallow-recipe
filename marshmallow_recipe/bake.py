@@ -363,6 +363,8 @@ else:
 
             @m.pre_load  # type: ignore
             def pre_load(self, data: dict[str, Any]) -> Any:
+                if not isinstance(data, dict):  # type: ignore
+                    return data
                 # Exclude unknown fields to prevent possible value overlapping
                 known_fields = {field.load_from or field.name for field in self.fields.values()}  # type: ignore
                 result = {key: value for key, value in data.items() if key in known_fields}
