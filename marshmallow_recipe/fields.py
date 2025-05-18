@@ -581,6 +581,45 @@ def raw_field(
     )
 
 
+def union_field(
+    fields: list[m.fields.Field],
+    *,
+    required: bool,
+    allow_none: bool,
+    default: Any = dataclasses.MISSING,
+    name: str | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    **_: Any,
+) -> m.fields.Field:
+    if default is m.missing:
+        return UnionField(
+            fields=fields,
+            allow_none=allow_none,
+            validate=validate,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
+    if required:
+        if default is None:
+            raise ValueError("Default value cannot be none")
+        return UnionField(
+            fields=fields,
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            **data_key_fields(name),
+        )
+
+    return UnionField(
+        fields=fields,
+        allow_none=allow_none,
+        validate=validate,
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
+        **data_key_fields(name),
+    )
+
+
 DateTimeField: type[m.fields.DateTime]
 EnumField: type[m.fields.Field]
 DictField: type[m.fields.Field]
@@ -588,6 +627,7 @@ SetField: type[m.fields.List]
 FrozenSetField: type[m.fields.List]
 TupleField: type[m.fields.List]
 StrField: type[m.fields.Str]
+UnionField: type[m.fields.Field]
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
@@ -795,6 +835,31 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     EnumField = EnumFieldV3
 
     DictField = m.fields.Dict
+
+    class UnionFieldV3(m.fields.Field):
+        def __init__(self, fields: list[m.fields.Field], **kwargs: Any):
+            self._fields = fields
+            super().__init__(**kwargs)
+
+        def _serialize(self, value: Any, attr: str, obj: str, **kwargs: Any) -> Any:
+            errors = []
+            for field in self._fields:
+                try:
+                    return field._serialize(value, attr, obj, **kwargs)
+                except m.ValidationError as e:
+                    errors.append(e.messages)
+            raise m.ValidationError(message=errors, field_name=attr)
+
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            errors = []
+            for field in reversed(self._fields):
+                try:
+                    return field.deserialize(value, attr, data, **kwargs)
+                except m.ValidationError as exc:
+                    errors.append(exc.messages)
+            raise m.ValidationError(message=errors, field_name=attr)
+
+    UnionField = UnionFieldV3
 else:
     dateutil_tz_utc_cls: type[datetime.tzinfo] | None
     try:
@@ -1093,3 +1158,28 @@ else:
             return result
 
     DictField = TypedDict
+
+    class UnionFieldV2(m.fields.Field):
+        def __init__(self, fields: list[m.fields.Field], **kwargs: Any):
+            self._fields = fields
+            super().__init__(**kwargs)
+
+        def _serialize(self, value: Any, attr: str, obj: str, **kwargs: Any) -> Any:
+            errors = []
+            for field in self._fields:
+                try:
+                    return field._serialize(value, attr, obj, **kwargs)
+                except m.ValidationError as e:
+                    errors.append(e.messages)
+            raise m.ValidationError(message=errors, field_name=attr)
+
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            errors = []
+            for field in reversed(self._fields):
+                try:
+                    return field.deserialize(value, attr, data, **kwargs)
+                except m.ValidationError as exc:
+                    errors.append(exc.messages)
+            raise m.ValidationError(message=errors, field_name=attr)
+
+    UnionField = UnionFieldV2
