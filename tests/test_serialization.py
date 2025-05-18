@@ -27,6 +27,7 @@ import pytest
 import marshmallow_recipe as mr
 
 NewInt = NewType("NewInt", int)
+T = TypeVar("T")
 
 
 class Parity(str, enum.Enum):
@@ -911,7 +912,7 @@ def test_union_priority_str_int() -> None:
     assert mr.load(ContainerStrInt, dumped) == ContainerStrInt(value=123)
 
 
-def test_union_str_or_dict() -> None:
+def test_union_str_parametrised_dict() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class ContainerStrDict:
         value: str | dict[str, Any]
@@ -925,3 +926,91 @@ def test_union_str_or_dict() -> None:
     dumped = mr.dump(ContainerStrDict, instance)
     assert dumped == {"value": {"key": "value"}}
     assert mr.load(ContainerStrDict, dumped) == instance
+
+
+def test_union_parametrised_dict_str() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class ContainerDictStr:
+        value: dict[str, Any] | str
+
+    instance = ContainerDictStr(value="str")
+    dumped = mr.dump(ContainerDictStr, instance)
+    assert dumped == {"value": "str"}
+    assert mr.load(ContainerDictStr, dumped) == instance
+
+    instance = ContainerDictStr(value={"key": "value"})
+    dumped = mr.dump(ContainerDictStr, instance)
+    assert dumped == {"value": {"key": "value"}}
+    assert mr.load(ContainerDictStr, dumped) == instance
+
+
+def test_union_str_dict() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class ContainerStrDict:
+        value: str | dict
+
+    instance = ContainerStrDict(value="str")
+    dumped = mr.dump(ContainerStrDict, instance)
+    assert dumped == {"value": "str"}
+    assert mr.load(ContainerStrDict, dumped) == instance
+
+    instance = ContainerStrDict(value={"key": "value"})
+    dumped = mr.dump(ContainerStrDict, instance)
+    assert dumped == {"value": {"key": "value"}}
+    assert mr.load(ContainerStrDict, dumped) == instance
+
+
+def test_union_dict_str() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class ContainerDictStr:
+        value: dict | str
+
+    instance = ContainerDictStr(value="str")
+    dumped = mr.dump(ContainerDictStr, instance)
+    assert dumped == {"value": "str"}
+    assert mr.load(ContainerDictStr, dumped) == instance
+
+    instance = ContainerDictStr(value={"key": "value"})
+    dumped = mr.dump(ContainerDictStr, instance)
+    assert dumped == {"value": {"key": "value"}}
+    assert mr.load(ContainerDictStr, dumped) == instance
+
+
+def test_union_str_generic() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class GenericContainer(Generic[T]):
+        value: T
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class ContainerStrGeneric:
+        value: str | GenericContainer[str]
+
+    instance = ContainerStrGeneric(value="str")
+    dumped = mr.dump(ContainerStrGeneric, instance)
+    assert dumped == {"value": "str"}
+    assert mr.load(ContainerStrGeneric, dumped) == instance
+
+    instance = ContainerStrGeneric(value=GenericContainer(value="str"))
+    dumped = mr.dump(ContainerStrGeneric, instance)
+    assert dumped == {"value": {"value": "str"}}
+    assert mr.load(ContainerStrGeneric, dumped) == instance
+
+
+def test_union_generic_str() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class GenericContainer(Generic[T]):
+        value: T
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class ContainerGenericStr:
+        value: GenericContainer[str] | str
+
+    instance = ContainerGenericStr(value="str")
+    dumped = mr.dump(ContainerGenericStr, instance)
+    assert dumped == {"value": "str"}
+    assert mr.load(ContainerGenericStr, dumped) == instance
+
+    instance = ContainerGenericStr(value=GenericContainer(value="str"))
+    dumped = mr.dump(ContainerGenericStr, instance)
+    assert dumped == {"value": {"value": "str"}}
+    assert mr.load(ContainerGenericStr, dumped) == instance
