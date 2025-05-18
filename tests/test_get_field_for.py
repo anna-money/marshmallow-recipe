@@ -966,12 +966,31 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         (
+            int | str,
+            mr.meta(name="i"),
+            mr.UnionField(
+                fields={int: m.fields.Int(required=True), str: mr.StrField(required=True)},
+                required=True,
+                **data_key_fields("i"),
+            ),
+        ),
+        (
             int | str | None,
             {},
             mr.UnionField(
                 fields={int: m.fields.Int(required=True), str: mr.StrField(required=True)},
                 allow_none=True,
                 **default_fields(None),
+            ),
+        ),
+        (
+            int | str | None,
+            mr.meta(name="i"),
+            mr.UnionField(
+                fields={int: m.fields.Int(required=True), str: mr.StrField(required=True)},
+                allow_none=True,
+                **default_fields(None),
+                **data_key_fields("i"),
             ),
         ),
     ],
