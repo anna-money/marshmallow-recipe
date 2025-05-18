@@ -875,3 +875,53 @@ def test_unsubscripted_collections() -> None:
         "m": {3: 4, "mm": "va"},
         "t": [99, "xx"],
     }
+
+
+def test_union_priority_int_str() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class ContainerIntStr:
+        value: int | str
+
+    instance = ContainerIntStr(value=123)
+    dumped = mr.dump(ContainerIntStr, instance)
+
+    assert dumped == {"value": 123}
+    assert mr.load(ContainerIntStr, dumped) == instance
+
+    instance = ContainerIntStr(value="123")
+    dumped = mr.dump(ContainerIntStr, instance)
+
+    assert dumped == {"value": "123"}
+    assert mr.load(ContainerIntStr, dumped) == instance
+
+
+def test_union_priority_str_int() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class ContainerStrInt:
+        value: str | int
+
+    instance = ContainerStrInt(value=123)
+    dumped = mr.dump(ContainerStrInt, instance)
+    assert dumped == {"value": 123}
+    assert mr.load(ContainerStrInt, dumped) == instance
+
+    instance = ContainerStrInt(value="123")
+    dumped = mr.dump(ContainerStrInt, instance)
+    assert dumped == {"value": "123"}
+    assert mr.load(ContainerStrInt, dumped) == ContainerStrInt(value=123)
+
+
+def test_union_str_or_dict() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class ContainerStrDict:
+        value: str | dict[str, Any]
+
+    instance = ContainerStrDict(value="str")
+    dumped = mr.dump(ContainerStrDict, instance)
+    assert dumped == {"value": "str"}
+    assert mr.load(ContainerStrDict, dumped) == instance
+
+    instance = ContainerStrDict(value={"key": "value"})
+    dumped = mr.dump(ContainerStrDict, instance)
+    assert dumped == {"value": {"key": "value"}}
+    assert mr.load(ContainerStrDict, dumped) == instance
