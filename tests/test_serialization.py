@@ -887,13 +887,18 @@ def test_union_priority_int_str() -> None:
     dumped = mr.dump(ContainerIntStr, instance)
 
     assert dumped == {"value": 123}
-    assert mr.load(ContainerIntStr, dumped) == instance
+    assert mr.load(ContainerIntStr, dumped) == ContainerIntStr(value=123)
 
     instance = ContainerIntStr(value="123")
     dumped = mr.dump(ContainerIntStr, instance)
 
     assert dumped == {"value": "123"}
-    assert mr.load(ContainerIntStr, dumped) == instance
+    assert mr.load(ContainerIntStr, dumped) == ContainerIntStr(value=123)
+
+    instance = ContainerIntStr(value="abc")
+    dumped = mr.dump(ContainerIntStr, instance)
+    assert dumped == {"value": "abc"}
+    assert mr.load(ContainerIntStr, dumped) == ContainerIntStr(value="abc")
 
 
 def test_union_priority_str_int() -> None:
@@ -904,17 +909,12 @@ def test_union_priority_str_int() -> None:
     instance = ContainerStrInt(value=123)
     dumped = mr.dump(ContainerStrInt, instance)
     assert dumped == {"value": 123}
-    assert mr.load(ContainerStrInt, dumped) == instance
+    assert mr.load(ContainerStrInt, dumped) == ContainerStrInt(value=123)
 
     instance = ContainerStrInt(value="123")
     dumped = mr.dump(ContainerStrInt, instance)
     assert dumped == {"value": "123"}
-    assert mr.load(ContainerStrInt, dumped) == ContainerStrInt(value=123)
-
-    instance = ContainerStrInt(value="abc")
-    dumped = mr.dump(ContainerStrInt, instance)
-    assert dumped == {"value": "abc"}
-    assert mr.load(ContainerStrInt, dumped) == ContainerStrInt(value="abc")
+    assert mr.load(ContainerStrInt, dumped) == ContainerStrInt(value="123")
 
 
 def test_union_str_parametrised_dict() -> None:
