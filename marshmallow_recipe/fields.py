@@ -854,7 +854,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             errors = []
-            for type, field in reversed(self.fields.items()):
+            for type, field in self.fields.items():
                 try:
                     result = field.deserialize(value, attr, data, **kwargs)
                     if not isinstance(result, type):
@@ -1182,7 +1182,7 @@ else:
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             errors = []
-            for type, field in reversed(self.fields.items()):
+            for type, field in self.fields.items():
                 try:
                     result = field.deserialize(value, attr, data, **kwargs)
                     if not isinstance(result, type):
