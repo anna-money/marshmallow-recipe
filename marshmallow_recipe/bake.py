@@ -154,8 +154,8 @@ def get_field_for(
         else:
             underlying_union_fields = {}
             for underlying_type in effective_underlying_union_types:
-                affective_underlying_type = get_origin(underlying_type) or underlying_type
-                underlying_union_fields[affective_underlying_type] = get_field_for(
+                effective_underlying_type = get_origin(underlying_type) or underlying_type
+                underlying_union_fields[effective_underlying_type] = get_field_for(
                     underlying_type,
                     metadata=EMPTY_METADATA,
                     naming_case=naming_case,
