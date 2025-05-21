@@ -35,6 +35,21 @@ def test_camel_case(name: str, expected: str) -> None:
 
 
 @pytest.mark.parametrize(
+    "name, expected",
+    [
+        ("hello", "HELLO"),
+        ("hello_world", "HELLO_WORLD"),
+        ("answer_is_42", "ANSWER_IS_42"),
+        ("hello__world", "HELLO__WORLD"),
+        ("foo_bar", "FOO_BAR"),
+    ],
+)
+def test_upper_snake_case(name: str, expected: str) -> None:
+    upper_snake_case = mr.UpperSnakeCase()
+    assert expected == upper_snake_case(name)
+
+
+@pytest.mark.parametrize(
     "first, second",
     [
         (mr.CAPITAL_CAMEL_CASE, mr.CAPITAL_CAMEL_CASE),

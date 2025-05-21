@@ -28,7 +28,15 @@ from .metadata import (
     tuple_metadata,
 )
 from .missing import MISSING
-from .naming_case import CAMEL_CASE, CAPITAL_CAMEL_CASE, CamelCase, CapitalCamelCase, NamingCase
+from .naming_case import (
+    CAMEL_CASE,
+    CAPITAL_CAMEL_CASE,
+    UPPER_SNAKE_CASE,
+    CamelCase,
+    CapitalCamelCase,
+    NamingCase,
+    UpperSnakeCase,
+)
 from .options import NoneValueHandling, options
 from .serialization import EmptySchema, dump, dump_many, load, load_many, schema
 from .validation import (
@@ -84,6 +92,8 @@ __all__: tuple[str, ...] = (
     "CamelCase",
     "CapitalCamelCase",
     "NamingCase",
+    "UPPER_SNAKE_CASE",
+    "UpperSnakeCase",
     # options.py
     "options",
     "NoneValueHandling",
