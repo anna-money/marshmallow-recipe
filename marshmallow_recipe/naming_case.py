@@ -37,5 +37,12 @@ class CamelCase:
         return word.title()
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class UpperSnakeCase:
+    def __call__(self, name: str) -> str:
+        return name.upper()
+
+
 CAPITAL_CAMEL_CASE = CapitalCamelCase(capitalize_words=frozenset())
 CAMEL_CASE = CamelCase(capitalize_words=frozenset())
+UPPER_SNAKE_CASE = UpperSnakeCase()
