@@ -1171,9 +1171,7 @@ else:
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
             errors = []
-            for type, field in self.fields.items():
-                if not isinstance(value, type):
-                    continue
+            for field in self.fields.values():
                 try:
                     return field._serialize(value, attr, obj, **kwargs)
                 except m.ValidationError as e:
@@ -1182,12 +1180,9 @@ else:
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             errors = []
-            for type, field in self.fields.items():
+            for field in self.fields.values():
                 try:
-                    result = field.deserialize(value, attr, data, **kwargs)
-                    if not isinstance(result, type):
-                        errors.append(f"Expected type {type}, got {type(result)}")
-                    return result
+                    return field.deserialize(value, attr, data, **kwargs)
                 except m.ValidationError as exc:
                     errors.append(exc.messages)
             raise m.ValidationError(message=errors, field_name=attr)
