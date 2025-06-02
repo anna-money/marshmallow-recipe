@@ -39,6 +39,7 @@ from .naming_case import (
 )
 from .options import NoneValueHandling, options
 from .serialization import EmptySchema, dump, dump_many, load, load_many, schema
+from .serialization_slim import dump_slim, dump_slim_many, load_slim, load_slim_many
 from .validation import (
     ValidationError,
     ValidationFieldError,
@@ -99,9 +100,13 @@ __all__: tuple[str, ...] = (
     "NoneValueHandling",
     # serialization.py
     "load",
+    "load_slim",
     "load_many",
+    "load_slim_many",
     "dump",
+    "dump_slim",
     "dump_many",
+    "dump_slim_many",
     "schema",
     "EmptySchema",
     # validation.py
