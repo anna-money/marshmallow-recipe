@@ -961,7 +961,7 @@ EMPTY_SCHEMA = m.Schema()
             int | str,
             {},
             mr.UnionField(
-                fields={int: m.fields.Int(required=True), str: mr.StrField(required=True)},
+                fields=[m.fields.Int(required=True), mr.StrField(required=True)],
                 required=True,
             ),
         ),
@@ -969,7 +969,7 @@ EMPTY_SCHEMA = m.Schema()
             int | str,
             mr.meta(name="i"),
             mr.UnionField(
-                fields={int: m.fields.Int(required=True), str: mr.StrField(required=True)},
+                fields=[m.fields.Int(required=True), mr.StrField(required=True)],
                 required=True,
                 **data_key_fields("i"),
             ),
@@ -978,7 +978,7 @@ EMPTY_SCHEMA = m.Schema()
             int | str | None,
             {},
             mr.UnionField(
-                fields={int: m.fields.Int(required=True), str: mr.StrField(required=True)},
+                fields=[m.fields.Int(required=True), mr.StrField(required=True)],
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -987,7 +987,7 @@ EMPTY_SCHEMA = m.Schema()
             int | str | None,
             mr.meta(name="i"),
             mr.UnionField(
-                fields={int: m.fields.Int(required=True), str: mr.StrField(required=True)},
+                fields=[m.fields.Int(required=True), mr.StrField(required=True)],
                 allow_none=True,
                 **default_fields(None),
                 **data_key_fields("i"),

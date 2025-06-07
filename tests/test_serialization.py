@@ -1014,8 +1014,8 @@ def test_union_generic_str() -> None:
     dumped = mr.dump(ContainerGenericStr, instance)
     assert dumped == {"value": "str"}
     assert mr.load(ContainerGenericStr, dumped) == instance
-
     instance = ContainerGenericStr(value=GenericContainer(value="str"))
     dumped = mr.dump(ContainerGenericStr, instance)
+    assert isinstance(instance.value, GenericContainer)
     assert dumped == {"value": {"value": "str"}}
     assert mr.load(ContainerGenericStr, dumped) == instance

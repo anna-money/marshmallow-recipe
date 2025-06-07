@@ -160,7 +160,7 @@ def test_dump_invalid_value() -> None:
     with pytest.raises(m.ValidationError) as exc_info:
         mr.dump(UUIDContainer(uuid_field=cast(uuid.UUID, "invalid")))
 
-    assert exc_info.value.messages == {"uuid_field": ["Not a valid UUID."]}
+    assert exc_info.value.messages == {"uuid_field": ["Invalid value."]}
 
     with pytest.raises(m.ValidationError) as exc_info:
         mr.dump(UUIDContainer(uuid_field=cast(uuid.UUID, None)))
@@ -176,7 +176,7 @@ def test_dump_many_invalid_value() -> None:
     with pytest.raises(m.ValidationError) as exc_info:
         mr.dump_many([UUIDContainer(uuid_field=cast(uuid.UUID, "invalid"))])
 
-    assert exc_info.value.messages == {0: {"uuid_field": ["Not a valid UUID."]}}
+    assert exc_info.value.messages == {0: {"uuid_field": ["Invalid value."]}}
 
     with pytest.raises(m.ValidationError) as exc_info:
         mr.dump_many([UUIDContainer(uuid_field=cast(uuid.UUID, None))])
@@ -192,7 +192,7 @@ def test_dump_invalid_value_with_custom_name() -> None:
     with pytest.raises(m.ValidationError) as exc_info:
         mr.dump(UUIDContainer(uuid_field=cast(uuid.UUID, "invalid")))
 
-    assert exc_info.value.messages == {"UuidField": ["Not a valid UUID."]}
+    assert exc_info.value.messages == {"UuidField": ["Invalid value."]}
 
     with pytest.raises(m.ValidationError) as exc_info:
         mr.dump(UUIDContainer(uuid_field=cast(uuid.UUID, None)))
@@ -208,7 +208,7 @@ def test_dump_many_invalid_value_with_custom_name() -> None:
     with pytest.raises(m.ValidationError) as exc_info:
         mr.dump_many([UUIDContainer(uuid_field=cast(uuid.UUID, "invalid"))])
 
-    assert exc_info.value.messages == {0: {"UuidField": ["Not a valid UUID."]}}
+    assert exc_info.value.messages == {0: {"UuidField": ["Invalid value."]}}
 
     with pytest.raises(m.ValidationError) as exc_info:
         mr.dump_many([UUIDContainer(uuid_field=cast(uuid.UUID, None))])
