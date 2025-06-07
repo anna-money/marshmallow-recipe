@@ -651,7 +651,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 or is_dataclass
                 and not dataclasses.is_dataclass(value)
             ):
-                raise self.make_error(fail_key)
+                raise self.make_error(fail_key)  # type: ignore
             return old(value, attr, obj, **kwargs)
 
         field._serialize = types.MethodType(_serialize_with_validate, field)  # type: ignore
@@ -907,7 +907,7 @@ else:
                 or is_dataclass
                 and not dataclasses.is_dataclass(value)
             ):
-                self.fail(fail_key)
+                self.fail(fail_key)  # type: ignore
             return old(value, attr, obj, **kwargs)
 
         field._serialize = types.MethodType(_serialize_with_validate, field)  # type: ignore
