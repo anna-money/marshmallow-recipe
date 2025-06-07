@@ -3,6 +3,7 @@ import dataclasses
 import datetime
 import decimal
 import enum
+import importlib.metadata
 import inspect
 import unittest.mock
 import uuid
@@ -13,7 +14,7 @@ import pytest
 
 import marshmallow_recipe as mr
 
-_MARSHMALLOW_VERSION_MAJOR = int(m.__version__.split(".")[0])
+_MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
