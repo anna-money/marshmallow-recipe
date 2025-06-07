@@ -4,7 +4,8 @@ import dataclasses
 import datetime
 import enum
 import importlib.metadata
-from typing import Any
+import types
+from typing import Any, TypeVar
 
 import marshmallow as m
 import marshmallow.validate
@@ -12,6 +13,9 @@ import marshmallow.validate
 from .validation import ValidationFunc
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
+
+
+TField = TypeVar("TField", bound=m.fields.Field)
 
 
 def str_field(
@@ -79,7 +83,7 @@ def bool_field(
         if default is None:
             raise ValueError("Default value cannot be none")
 
-        return m.fields.Boolean(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+        return m.fields.Bool(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
 
     return m.fields.Bool(
         allow_none=allow_none,
@@ -581,6 +585,45 @@ def raw_field(
     )
 
 
+def union_field(
+    fields: list[m.fields.Field],
+    *,
+    required: bool,
+    allow_none: bool,
+    default: Any = dataclasses.MISSING,
+    name: str | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    **_: Any,
+) -> m.fields.Field:
+    if default is m.missing:
+        return UnionField(
+            fields=fields,
+            allow_none=allow_none,
+            validate=validate,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+        )
+
+    if required:
+        if default is None:
+            raise ValueError("Default value cannot be none")
+        return UnionField(
+            fields=fields,
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            **data_key_fields(name),
+        )
+
+    return UnionField(
+        fields=fields,
+        allow_none=allow_none,
+        validate=validate,
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
+        **data_key_fields(name),
+    )
+
+
 DateTimeField: type[m.fields.DateTime]
 EnumField: type[m.fields.Field]
 DictField: type[m.fields.Field]
@@ -588,8 +631,34 @@ SetField: type[m.fields.List]
 FrozenSetField: type[m.fields.List]
 TupleField: type[m.fields.List]
 StrField: type[m.fields.Str]
+UnionField: type[m.fields.Field]
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
+
+    def validate_value_v3(
+        field: TField,
+        type_guards: type | tuple[type, ...] | None = None,
+        is_dataclass: bool = False,
+    ) -> TField:
+        fail_key = "invalid" if "invalid" in field.default_error_messages else "validator_failed"
+
+        old = field._serialize  # type: ignore
+
+        def _serialize_with_validate(self: TField, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            if value is not None and (
+                type_guards is not None
+                and not isinstance(value, type_guards)
+                or is_dataclass
+                and not dataclasses.is_dataclass(value)
+            ):
+                raise self.make_error(fail_key)  # type: ignore
+            return old(value, attr, obj, **kwargs)
+
+        field._serialize = types.MethodType(_serialize_with_validate, field)  # type: ignore
+
+        return field
+
+    validate_value = validate_value_v3
 
     def data_key_fields(name: str | None) -> collections.abc.Mapping[str, Any]:
         if name is None:
@@ -795,7 +864,58 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     EnumField = EnumFieldV3
 
     DictField = m.fields.Dict
+
+    class UnionFieldV3(m.fields.Field):
+        def __init__(self, fields: list[m.fields.Field], **kwargs: Any):
+            self.fields = fields
+            super().__init__(**kwargs)
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            errors = []
+            for field in self.fields:
+                try:
+                    return field._serialize(value, attr, obj, **kwargs)
+                except m.ValidationError as e:
+                    errors.append(e.messages)
+            raise m.ValidationError(message=errors, field_name=attr)
+
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            errors = []
+            for field in self.fields:
+                try:
+                    return field.deserialize(value, attr, data, **kwargs)
+                except m.ValidationError as exc:
+                    errors.append(exc.messages)
+            raise m.ValidationError(message=errors, field_name=attr)
+
+    UnionField = UnionFieldV3
 else:
+
+    def validate_value_v2(
+        field: TField,
+        type_guards: type | tuple[type, ...] | None = None,
+        is_dataclass: bool = False,
+    ) -> TField:
+        fail_key = "invalid" if "invalid" in field.default_error_messages else "validator_failed"
+
+        old = field._serialize  # type: ignore
+
+        def _serialize_with_validate(self: TField, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            if value is not None and (
+                type_guards is not None
+                and not isinstance(value, type_guards)
+                or is_dataclass
+                and not dataclasses.is_dataclass(value)
+            ):
+                self.fail(fail_key)  # type: ignore
+            return old(value, attr, obj, **kwargs)
+
+        field._serialize = types.MethodType(_serialize_with_validate, field)  # type: ignore
+
+        return field
+
+    validate_value = validate_value_v2
+
     dateutil_tz_utc_cls: type[datetime.tzinfo] | None
     try:
         import dateutil.tz  # type: ignore
@@ -1093,3 +1213,28 @@ else:
             return result
 
     DictField = TypedDict
+
+    class UnionFieldV2(m.fields.Field):
+        def __init__(self, fields: list[m.fields.Field], **kwargs: Any):
+            self.fields = fields
+            super().__init__(**kwargs)
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            errors = []
+            for field in self.fields:
+                try:
+                    return field._serialize(value, attr, obj, **kwargs)
+                except m.ValidationError as e:
+                    errors.append(e.messages)
+            raise m.ValidationError(message=errors, field_name=attr)
+
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            errors = []
+            for field in self.fields:
+                try:
+                    return field.deserialize(value, attr, data, **kwargs)
+                except m.ValidationError as exc:
+                    errors.append(exc.messages)
+            raise m.ValidationError(message=errors, field_name=attr)
+
+    UnionField = UnionFieldV2
