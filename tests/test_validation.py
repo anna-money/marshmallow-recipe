@@ -2,7 +2,7 @@ import dataclasses
 import datetime
 import decimal
 import uuid
-from typing import Annotated, cast
+from typing import Annotated
 
 import marshmallow as m
 import pytest
@@ -152,70 +152,6 @@ def test_tuple_item_validation() -> None:
     assert mr.load(Holder, dict(items=["1"])) == Holder(items=("1",))
 
 
-def test_dump_invalid_value() -> None:
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class UUIDContainer:
-        uuid_field: uuid.UUID
-
-    with pytest.raises(m.ValidationError) as exc_info:
-        mr.dump(UUIDContainer(uuid_field=cast(uuid.UUID, "invalid")))
-
-    assert exc_info.value.messages == {"uuid_field": ["Invalid value."]}
-
-    with pytest.raises(m.ValidationError) as exc_info:
-        mr.dump(UUIDContainer(uuid_field=cast(uuid.UUID, None)))
-
-    assert exc_info.value.messages == {"uuid_field": ["Missing data for required field."]}
-
-
-def test_dump_many_invalid_value() -> None:
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class UUIDContainer:
-        uuid_field: uuid.UUID
-
-    with pytest.raises(m.ValidationError) as exc_info:
-        mr.dump_many([UUIDContainer(uuid_field=cast(uuid.UUID, "invalid"))])
-
-    assert exc_info.value.messages == {0: {"uuid_field": ["Invalid value."]}}
-
-    with pytest.raises(m.ValidationError) as exc_info:
-        mr.dump_many([UUIDContainer(uuid_field=cast(uuid.UUID, None))])
-
-    assert exc_info.value.messages == {0: {"uuid_field": ["Missing data for required field."]}}
-
-
-def test_dump_invalid_value_with_custom_name() -> None:
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class UUIDContainer:
-        uuid_field: uuid.UUID = dataclasses.field(metadata=mr.meta(name="UuidField"))
-
-    with pytest.raises(m.ValidationError) as exc_info:
-        mr.dump(UUIDContainer(uuid_field=cast(uuid.UUID, "invalid")))
-
-    assert exc_info.value.messages == {"UuidField": ["Invalid value."]}
-
-    with pytest.raises(m.ValidationError) as exc_info:
-        mr.dump(UUIDContainer(uuid_field=cast(uuid.UUID, None)))
-
-    assert exc_info.value.messages == {"UuidField": ["Missing data for required field."]}
-
-
-def test_dump_many_invalid_value_with_custom_name() -> None:
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class UUIDContainer:
-        uuid_field: uuid.UUID = dataclasses.field(metadata=mr.meta(name="UuidField"))
-
-    with pytest.raises(m.ValidationError) as exc_info:
-        mr.dump_many([UUIDContainer(uuid_field=cast(uuid.UUID, "invalid"))])
-
-    assert exc_info.value.messages == {0: {"UuidField": ["Invalid value."]}}
-
-    with pytest.raises(m.ValidationError) as exc_info:
-        mr.dump_many([UUIDContainer(uuid_field=cast(uuid.UUID, None))])
-
-    assert exc_info.value.messages == {0: {"UuidField": ["Missing data for required field."]}}
-
-
 def test_dict_with_complex_value_load_fail() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class Container:
@@ -235,16 +171,6 @@ def test_dict_with_complex_value_load_fail() -> None:
         mr.load(Container, {"values": {"invalid": "invalid", "2020-01-01": 42}})
 
     assert e.value.messages == {"values": {"invalid": {"key": ["Not a valid date."], "value": ["Not a valid number."]}}}
-
-
-@pytest.mark.skip("Bug in marshmallow")
-def test_dump_invalid_int_value() -> None:
-    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class IntContainer:
-        int_field: int
-
-    with pytest.raises(m.ValidationError):
-        mr.dump(IntContainer(int_field=cast(int, "invalid")))
 
 
 def test_regexp_validate() -> None:

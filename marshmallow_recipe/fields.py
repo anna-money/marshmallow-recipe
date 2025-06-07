@@ -18,30 +18,6 @@ _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split
 TField = TypeVar("TField", bound=m.fields.Field)
 
 
-def validate_value(
-    field: TField,
-    type_guards: type | tuple[type, ...] | None = None,
-    is_dataclass: bool = False,
-) -> TField:
-    fail_key = "invalid" if "invalid" in field.default_error_messages else "validator_failed"
-
-    old = field._serialize  # type: ignore
-
-    def _serialize_with_validate(self: TField, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
-        if value is not None and (
-            type_guards is not None
-            and not isinstance(value, type_guards)
-            or is_dataclass
-            and not dataclasses.is_dataclass(value)
-        ):
-            self.fail(fail_key)
-        return old(value, attr, obj, **kwargs)
-
-    field._serialize = types.MethodType(_serialize_with_validate, field)  # type: ignore
-
-    return field
-
-
 def str_field(
     *,
     required: bool,
@@ -107,7 +83,7 @@ def bool_field(
         if default is None:
             raise ValueError("Default value cannot be none")
 
-        return m.fields.Boolean(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+        return m.fields.Bool(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
 
     return m.fields.Bool(
         allow_none=allow_none,
@@ -659,6 +635,31 @@ UnionField: type[m.fields.Field]
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
+    def validate_value_v3(
+        field: TField,
+        type_guards: type | tuple[type, ...] | None = None,
+        is_dataclass: bool = False,
+    ) -> TField:
+        fail_key = "invalid" if "invalid" in field.default_error_messages else "validator_failed"
+
+        old = field._serialize  # type: ignore
+
+        def _serialize_with_validate(self: TField, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            if value is not None and (
+                type_guards is not None
+                and not isinstance(value, type_guards)
+                or is_dataclass
+                and not dataclasses.is_dataclass(value)
+            ):
+                raise self.make_error(fail_key)
+            return old(value, attr, obj, **kwargs)
+
+        field._serialize = types.MethodType(_serialize_with_validate, field)  # type: ignore
+
+        return field
+
+    validate_value = validate_value_v3
+
     def data_key_fields(name: str | None) -> collections.abc.Mapping[str, Any]:
         if name is None:
             return {}
@@ -889,6 +890,32 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     UnionField = UnionFieldV3
 else:
+
+    def validate_value_v2(
+        field: TField,
+        type_guards: type | tuple[type, ...] | None = None,
+        is_dataclass: bool = False,
+    ) -> TField:
+        fail_key = "invalid" if "invalid" in field.default_error_messages else "validator_failed"
+
+        old = field._serialize  # type: ignore
+
+        def _serialize_with_validate(self: TField, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            if value is not None and (
+                type_guards is not None
+                and not isinstance(value, type_guards)
+                or is_dataclass
+                and not dataclasses.is_dataclass(value)
+            ):
+                self.fail(fail_key)
+            return old(value, attr, obj, **kwargs)
+
+        field._serialize = types.MethodType(_serialize_with_validate, field)  # type: ignore
+
+        return field
+
+    validate_value = validate_value_v2
+
     dateutil_tz_utc_cls: type[datetime.tzinfo] | None
     try:
         import dateutil.tz  # type: ignore
