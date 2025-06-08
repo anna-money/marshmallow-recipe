@@ -635,7 +635,7 @@ UnionField: type[m.fields.Field]
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
-    def validate_value_v3(field: TField, type_guards: type | tuple[type, ...]) -> TField:
+    def with_type_checks_on_serialize_v3(field: TField, type_guards: type | tuple[type, ...]) -> TField:
         fail_key = "invalid" if "invalid" in field.default_error_messages else "validator_failed"
 
         old = field._serialize  # type: ignore
@@ -649,7 +649,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
         return field
 
-    validate_value = validate_value_v3
+    with_type_checks_on_serialize = with_type_checks_on_serialize_v3
 
     def data_key_fields(name: str | None) -> collections.abc.Mapping[str, Any]:
         if name is None:
@@ -882,7 +882,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     UnionField = UnionFieldV3
 else:
 
-    def validate_value_v2(field: TField, type_guards: type | tuple[type, ...]) -> TField:
+    def with_type_checks_on_serialize_v2(field: TField, type_guards: type | tuple[type, ...]) -> TField:
         fail_key = "invalid" if "invalid" in field.default_error_messages else "validator_failed"
 
         old = field._serialize  # type: ignore
@@ -896,7 +896,7 @@ else:
 
         return field
 
-    validate_value = validate_value_v2
+    with_type_checks_on_serialize = with_type_checks_on_serialize_v2
 
     dateutil_tz_utc_cls: type[datetime.tzinfo] | None
     try:

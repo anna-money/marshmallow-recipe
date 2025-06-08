@@ -30,7 +30,7 @@ from .fields import (
     tuple_field,
     union_field,
     uuid_field,
-    validate_value,
+    with_type_checks_on_serialize,
 )
 from .generics import TypeLike, get_fields_type_map
 from .hooks import get_pre_loads
@@ -177,7 +177,7 @@ def get_field_for(
         return enum_field(enum_type=t, required=required, allow_none=allow_none, **metadata)
 
     if (unsubscripted_type := get_origin(t) or t) and dataclasses.is_dataclass(unsubscripted_type):
-        return validate_value(
+        return with_type_checks_on_serialize(
             nested_field(
                 bake_schema(cast(type, t), naming_case=naming_case, none_value_handling=none_value_handling),
                 required=required,
@@ -197,7 +197,7 @@ def get_field_for(
             else:
                 item_field_metadata = EMPTY_METADATA
 
-            return validate_value(
+            return with_type_checks_on_serialize(
                 list_field(
                     get_field_for(
                         arguments[0],
@@ -219,7 +219,7 @@ def get_field_for(
             else:
                 item_field_metadata = EMPTY_METADATA
 
-            return validate_value(
+            return with_type_checks_on_serialize(
                 set_field(
                     get_field_for(
                         arguments[0],
@@ -241,7 +241,7 @@ def get_field_for(
             else:
                 item_field_metadata = EMPTY_METADATA
 
-            return validate_value(
+            return with_type_checks_on_serialize(
                 frozen_set_field(
                     get_field_for(
                         arguments[0],
@@ -277,7 +277,7 @@ def get_field_for(
                     none_value_handling=none_value_handling,
                 )
             )
-            return validate_value(
+            return with_type_checks_on_serialize(
                 dict_field(keys_field, values_field, required=required, allow_none=allow_none, **metadata),
                 type_guards=dict,
             )
@@ -289,7 +289,7 @@ def get_field_for(
             else:
                 item_field_metadata = EMPTY_METADATA
 
-            return validate_value(
+            return with_type_checks_on_serialize(
                 tuple_field(
                     get_field_for(
                         arguments[0],
@@ -320,7 +320,9 @@ def get_field_for(
 
     if t in _SIMPLE_TYPE_FIELD_FACTORIES:
         field_factory = _SIMPLE_TYPE_FIELD_FACTORIES[t]
-        return validate_value(field_factory(required=required, allow_none=allow_none, **metadata), type_guards=t)
+        return with_type_checks_on_serialize(
+            field_factory(required=required, allow_none=allow_none, **metadata), type_guards=t
+        )
 
     raise ValueError(f"Unsupported {t=}")
 
