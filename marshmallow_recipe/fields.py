@@ -635,22 +635,13 @@ UnionField: type[m.fields.Field]
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
-    def validate_value_v3(
-        field: TField,
-        type_guards: type | tuple[type, ...] | None = None,
-        is_dataclass: bool = False,
-    ) -> TField:
+    def validate_value_v3(field: TField, type_guards: type | tuple[type, ...]) -> TField:
         fail_key = "invalid" if "invalid" in field.default_error_messages else "validator_failed"
 
         old = field._serialize  # type: ignore
 
         def _serialize_with_validate(self: TField, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
-            if value is not None and (
-                type_guards is not None
-                and not isinstance(value, type_guards)
-                or is_dataclass
-                and not dataclasses.is_dataclass(value)
-            ):
+            if value is not None and not isinstance(value, type_guards):
                 raise self.make_error(fail_key)  # type: ignore
             return old(value, attr, obj, **kwargs)
 
@@ -891,22 +882,13 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     UnionField = UnionFieldV3
 else:
 
-    def validate_value_v2(
-        field: TField,
-        type_guards: type | tuple[type, ...] | None = None,
-        is_dataclass: bool = False,
-    ) -> TField:
+    def validate_value_v2(field: TField, type_guards: type | tuple[type, ...]) -> TField:
         fail_key = "invalid" if "invalid" in field.default_error_messages else "validator_failed"
 
         old = field._serialize  # type: ignore
 
         def _serialize_with_validate(self: TField, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
-            if value is not None and (
-                type_guards is not None
-                and not isinstance(value, type_guards)
-                or is_dataclass
-                and not dataclasses.is_dataclass(value)
-            ):
+            if value is not None and not isinstance(value, type_guards):
                 self.fail(fail_key)  # type: ignore
             return old(value, attr, obj, **kwargs)
 

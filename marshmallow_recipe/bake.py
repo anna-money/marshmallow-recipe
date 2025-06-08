@@ -185,7 +185,6 @@ def get_field_for(
                 **metadata,
             ),
             type_guards=unsubscripted_type,  # type: ignore
-            is_dataclass=True,
         )
 
     if (origin := get_origin(t)) is not None:
