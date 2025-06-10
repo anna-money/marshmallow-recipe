@@ -956,6 +956,43 @@ EMPTY_SCHEMA = m.Schema()
                 **data_key_fields("i"),
             ),
         ),
+        # unions...
+        (
+            int | str,
+            {},
+            mr.UnionField(
+                fields=[m.fields.Int(required=True), mr.StrField(required=True)],
+                required=True,
+            ),
+        ),
+        (
+            int | str,
+            mr.meta(name="i"),
+            mr.UnionField(
+                fields=[m.fields.Int(required=True), mr.StrField(required=True)],
+                required=True,
+                **data_key_fields("i"),
+            ),
+        ),
+        (
+            int | str | None,
+            {},
+            mr.UnionField(
+                fields=[m.fields.Int(required=True), mr.StrField(required=True)],
+                allow_none=True,
+                **default_fields(None),
+            ),
+        ),
+        (
+            int | str | None,
+            mr.meta(name="i"),
+            mr.UnionField(
+                fields=[m.fields.Int(required=True), mr.StrField(required=True)],
+                allow_none=True,
+                **default_fields(None),
+                **data_key_fields("i"),
+            ),
+        ),
     ],
 )
 def test_get_field_for(type: type, metadata: dict[str, Any], field: m.fields.Field) -> None:
