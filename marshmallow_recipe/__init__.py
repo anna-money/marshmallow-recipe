@@ -114,7 +114,7 @@ __all__: tuple[str, ...] = (
     "get_validation_field_errors",
 )
 
-__version__ = "0.0.52"
+__version__ = "0.0.53a1"
 
 version = f"{__version__}, Python {sys.version}"
 
