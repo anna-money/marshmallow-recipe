@@ -1019,3 +1019,19 @@ def test_union_generic_str() -> None:
     assert isinstance(instance.value, GenericContainer)
     assert dumped == {"value": {"value": "str"}}
     assert mr.load(ContainerGenericStr, dumped) == instance
+
+
+def test_union_int_float() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class ContainerIntFloat:
+        value: int | float
+
+    instance = ContainerIntFloat(value=13)
+    dumped = mr.dump(ContainerIntFloat, instance)
+    assert dumped == {"value": 13}
+    assert mr.load(ContainerIntFloat, dumped) == instance
+
+    instance = ContainerIntFloat(value=13.7)
+    dumped = mr.dump(ContainerIntFloat, instance)
+    assert dumped == {"value": 13.7}
+    assert mr.load(ContainerIntFloat, dumped) == instance
