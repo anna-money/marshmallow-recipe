@@ -146,24 +146,24 @@ def int_field(
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
-        return m.fields.Int(
+        field = m.fields.Int(
             allow_none=allow_none,
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
         )
-
-    if required:
+    elif required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return m.fields.Int(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
-
-    return m.fields.Int(
-        allow_none=allow_none,
-        validate=validate,
-        **(default_fields(None) if default is dataclasses.MISSING else {}),
-        **data_key_fields(name),
-    )
+        field = m.fields.Int(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+    else:
+        field = m.fields.Int(
+            allow_none=allow_none,
+            validate=validate,
+            **(default_fields(None) if default is dataclasses.MISSING else {}),
+            **data_key_fields(name),
+        )
+    return with_type_checks_on_validated(field, (int, str))
 
 
 def float_field(
@@ -651,6 +651,25 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     with_type_checks_on_serialize = with_type_checks_on_serialize_v3
 
+    def with_type_checks_on_validated_v3(field: TField, type_guards: type | tuple[type, ...]) -> TField:
+        if not hasattr(field, "_validated"):
+            raise TypeError("Field doesn't have _validated method")
+
+        fail_key = "invalid" if "invalid" in field.default_error_messages else "validator_failed"
+
+        old = field._validated  # type: ignore
+
+        def _validated(self: TField, value: Any) -> Any:
+            if not isinstance(value, type_guards):
+                raise self.make_error(fail_key)  # type: ignore
+            return old(value)
+
+        field._validated = types.MethodType(_validated, field)  # type: ignore
+
+        return field
+
+    with_type_checks_on_validated = with_type_checks_on_validated_v3
+
     def data_key_fields(name: str | None) -> collections.abc.Mapping[str, Any]:
         if name is None:
             return {}
@@ -897,6 +916,25 @@ else:
         return field
 
     with_type_checks_on_serialize = with_type_checks_on_serialize_v2
+
+    def with_type_checks_on_validated_v2(field: TField, type_guards: type | tuple[type, ...]) -> TField:
+        if not hasattr(field, "_validated"):
+            raise TypeError("Field doesn't have _validated method")
+
+        fail_key = "invalid" if "invalid" in field.default_error_messages else "validator_failed"
+
+        old = field._validated  # type: ignore
+
+        def _validated(self: TField, value: Any) -> Any:
+            if value not in (None, m.missing) and not isinstance(value, type_guards):
+                raise self.fail(fail_key)  # type: ignore
+            return old(value)
+
+        field._validated = types.MethodType(_validated, field)  # type: ignore
+
+        return field
+
+    with_type_checks_on_validated = with_type_checks_on_validated_v2
 
     dateutil_tz_utc_cls: type[datetime.tzinfo] | None
     try:
