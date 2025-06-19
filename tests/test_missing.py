@@ -26,6 +26,8 @@ def test_simple_types() -> None:
         bool_field: bool = mr.MISSING
         float_field: float = mr.MISSING
         enum_field: EnumType = mr.MISSING
+        int_float_union: int | float = mr.MISSING
+        str_bool_union: str | bool = mr.MISSING
 
     dumped = mr.dump(TypeWithMissing())
     assert dumped == {}
