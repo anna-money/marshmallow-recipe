@@ -28,7 +28,9 @@ from .fields import (
     str_field,
     time_field,
     tuple_field,
+    union_field,
     uuid_field,
+    with_type_checks_on_serialize,
 )
 from .generics import TypeLike, get_fields_type_map
 from .hooks import get_pre_loads
@@ -132,10 +134,11 @@ def get_field_for(
     if t is Any:
         return raw_field(**metadata)
 
-    if underlying_type_from_optional := _try_get_underlying_type_from_optional(t):
+    underlying_union_types = _try_get_underlying_types_from_union(t)
+    # Optional is a union with None
+    if underlying_union_types is not None and any(t is types.NoneType for t in underlying_union_types):
         required = False
         allow_none = True
-        t = underlying_type_from_optional
     elif metadata.get("default", dataclasses.MISSING) is not dataclasses.MISSING:
         required = False
         allow_none = False
@@ -143,18 +146,45 @@ def get_field_for(
         required = True
         allow_none = False
 
+    if underlying_union_types is not None:
+        effective_underlying_union_types = [t for t in underlying_union_types if t is not types.NoneType]
+        if not effective_underlying_union_types:
+            raise ValueError("Union must contain at least one type other than NoneType")
+        if len(effective_underlying_union_types) == 1:
+            t = effective_underlying_union_types[0]
+        else:
+            underlying_union_fields = []
+            for underlying_type in effective_underlying_union_types:
+                underlying_union_fields.append(
+                    get_field_for(
+                        underlying_type,
+                        metadata=EMPTY_METADATA,
+                        naming_case=naming_case,
+                        none_value_handling=none_value_handling,
+                    )
+                )
+            return union_field(
+                fields=underlying_union_fields,
+                required=required,
+                allow_none=allow_none,
+                **metadata,
+            )
+
     if isinstance(t, NewType):
         t = t.__supertype__
 
     if inspect.isclass(t) and issubclass(t, enum.Enum):
         return enum_field(enum_type=t, required=required, allow_none=allow_none, **metadata)
 
-    if dataclasses.is_dataclass(get_origin(t) or t):
-        return nested_field(
-            bake_schema(cast(type, t), naming_case=naming_case, none_value_handling=none_value_handling),
-            required=required,
-            allow_none=allow_none,
-            **metadata,
+    if (unsubscripted_type := get_origin(t) or t) and dataclasses.is_dataclass(unsubscripted_type):
+        return with_type_checks_on_serialize(
+            nested_field(
+                bake_schema(cast(type, t), naming_case=naming_case, none_value_handling=none_value_handling),
+                required=required,
+                allow_none=allow_none,
+                **metadata,
+            ),
+            type_guards=unsubscripted_type,  # type: ignore
         )
 
     if (origin := get_origin(t)) is not None:
@@ -167,16 +197,19 @@ def get_field_for(
             else:
                 item_field_metadata = EMPTY_METADATA
 
-            return list_field(
-                get_field_for(
-                    arguments[0],
-                    metadata=item_field_metadata,
-                    naming_case=naming_case,
-                    none_value_handling=none_value_handling,
+            return with_type_checks_on_serialize(
+                list_field(
+                    get_field_for(
+                        arguments[0],
+                        metadata=item_field_metadata,
+                        naming_case=naming_case,
+                        none_value_handling=none_value_handling,
+                    ),
+                    required=required,
+                    allow_none=allow_none,
+                    **collection_field_metadata,
                 ),
-                required=required,
-                allow_none=allow_none,
-                **collection_field_metadata,
+                type_guards=list,
             )
 
         if origin is set or origin is collections.abc.Set:
@@ -186,16 +219,19 @@ def get_field_for(
             else:
                 item_field_metadata = EMPTY_METADATA
 
-            return set_field(
-                get_field_for(
-                    arguments[0],
-                    metadata=item_field_metadata,
-                    naming_case=naming_case,
-                    none_value_handling=none_value_handling,
+            return with_type_checks_on_serialize(
+                set_field(
+                    get_field_for(
+                        arguments[0],
+                        metadata=item_field_metadata,
+                        naming_case=naming_case,
+                        none_value_handling=none_value_handling,
+                    ),
+                    required=required,
+                    allow_none=allow_none,
+                    **collection_field_metadata,
                 ),
-                required=required,
-                allow_none=allow_none,
-                **collection_field_metadata,
+                type_guards=set,
             )
 
         if origin is frozenset:
@@ -205,16 +241,19 @@ def get_field_for(
             else:
                 item_field_metadata = EMPTY_METADATA
 
-            return frozen_set_field(
-                get_field_for(
-                    arguments[0],
-                    metadata=item_field_metadata,
-                    naming_case=naming_case,
-                    none_value_handling=none_value_handling,
+            return with_type_checks_on_serialize(
+                frozen_set_field(
+                    get_field_for(
+                        arguments[0],
+                        metadata=item_field_metadata,
+                        naming_case=naming_case,
+                        none_value_handling=none_value_handling,
+                    ),
+                    required=required,
+                    allow_none=allow_none,
+                    **collection_field_metadata,
                 ),
-                required=required,
-                allow_none=allow_none,
-                **collection_field_metadata,
+                type_guards=frozenset,
             )
 
         if origin is dict or origin is collections.abc.Mapping:
@@ -238,13 +277,9 @@ def get_field_for(
                     none_value_handling=none_value_handling,
                 )
             )
-
-            return dict_field(
-                keys_field,
-                values_field,
-                required=required,
-                allow_none=allow_none,
-                **metadata,
+            return with_type_checks_on_serialize(
+                dict_field(keys_field, values_field, required=required, allow_none=allow_none, **metadata),
+                type_guards=dict,
             )
 
         if origin is tuple and len(arguments) == 2 and arguments[1] is Ellipsis:
@@ -254,16 +289,19 @@ def get_field_for(
             else:
                 item_field_metadata = EMPTY_METADATA
 
-            return tuple_field(
-                get_field_for(
-                    arguments[0],
-                    metadata=item_field_metadata,
-                    naming_case=naming_case,
-                    none_value_handling=none_value_handling,
+            return with_type_checks_on_serialize(
+                tuple_field(
+                    get_field_for(
+                        arguments[0],
+                        metadata=item_field_metadata,
+                        naming_case=naming_case,
+                        none_value_handling=none_value_handling,
+                    ),
+                    required=required,
+                    allow_none=allow_none,
+                    **collection_field_metadata,
                 ),
-                required=required,
-                allow_none=allow_none,
-                **collection_field_metadata,
+                type_guards=tuple,
             )
 
         if origin is Annotated:
@@ -282,7 +320,9 @@ def get_field_for(
 
     if t in _SIMPLE_TYPE_FIELD_FACTORIES:
         field_factory = _SIMPLE_TYPE_FIELD_FACTORIES[t]
-        return field_factory(required=required, allow_none=allow_none, **metadata)
+        return with_type_checks_on_serialize(
+            field_factory(required=required, allow_none=allow_none, **metadata), type_guards=t
+        )
 
     raise ValueError(f"Unsupported {t=}")
 
@@ -337,6 +377,8 @@ else:
 
             @m.pre_load  # type: ignore
             def pre_load(self, data: dict[str, Any]) -> Any:
+                if not isinstance(data, dict):  # type: ignore
+                    return data
                 # Exclude unknown fields to prevent possible value overlapping
                 known_fields = {field.load_from or field.name for field in self.fields.values()}  # type: ignore
                 result = {key: value for key, value in data.items() if key in known_fields}
@@ -385,12 +427,8 @@ def _get_metadata(*, name: str, default: Any, metadata: collections.abc.Mapping[
     return Metadata(values)
 
 
-def _try_get_underlying_type_from_optional(t: TypeLike) -> TypeLike | None:
+def _try_get_underlying_types_from_union(t: TypeLike) -> tuple[TypeLike, ...] | None:
     # to support Union[int, None] and int | None
-    if get_origin(t) is Union or isinstance(t, types.UnionType):  # type: ignore
-        type_args = get_args(t)
-        if types.NoneType not in type_args or len(type_args) != 2:
-            raise ValueError(f"Unsupported {t=}")
-        return next(type_arg for type_arg in type_args if type_arg is not types.NoneType)  # noqa
-
-    return None
+    if not get_origin(t) is Union and not isinstance(t, types.UnionType):  # type: ignore
+        return None
+    return get_args(t)

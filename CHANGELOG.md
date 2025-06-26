@@ -1,3 +1,8 @@
+## v0.0.53(2025-06-26)
+
+* [Support unions](https://github.com/anna-money/marshmallow-recipe/pull/182)
+
+
 ## v0.0.52(2025-05-21)
 
 * [Support upper snake case](https://github.com/anna-money/marshmallow-recipe/pull/183)
