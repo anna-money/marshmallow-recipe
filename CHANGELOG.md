@@ -1,3 +1,8 @@
+## v0.0.54(2025-07-18)
+
+* [Float field should consume int](https://github.com/anna-money/marshmallow-recipe/pull/186)
+
+
 ## v0.0.53(2025-06-26)
 
 * [Support unions](https://github.com/anna-money/marshmallow-recipe/pull/182)
