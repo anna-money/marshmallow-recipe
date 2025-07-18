@@ -321,7 +321,8 @@ def get_field_for(
     if t in _SIMPLE_TYPE_FIELD_FACTORIES:
         field_factory = _SIMPLE_TYPE_FIELD_FACTORIES[t]
         return with_type_checks_on_serialize(
-            field_factory(required=required, allow_none=allow_none, **metadata), type_guards=t
+            field_factory(required=required, allow_none=allow_none, **metadata),
+            type_guards=(float, int) if t == float else t,
         )
 
     raise ValueError(f"Unsupported {t=}")

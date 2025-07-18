@@ -1051,3 +1051,14 @@ def test_union_float_int() -> None:
     dumped = mr.dump(ContainerIntFloat, instance)
     assert dumped == {"value": 13.7}
     assert mr.load(ContainerIntFloat, dumped) == instance
+
+
+def test_integral_float() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Container:
+        value: float
+
+    instance = Container(value=1)
+    dumped = mr.dump(Container, instance)
+    assert dumped == {"value": 1}
+    assert mr.load(Container, dumped) == instance
