@@ -1,3 +1,8 @@
+## v0.0.55(2025-07-23)
+
+* [If datetime is passed as a date, use only date part of it](https://github.com/anna-money/marshmallow-recipe/pull/187)
+
+
 ## v0.0.54(2025-07-18)
 
 * [Float field should consume int](https://github.com/anna-money/marshmallow-recipe/pull/186)
