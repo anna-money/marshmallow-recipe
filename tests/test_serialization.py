@@ -1062,3 +1062,14 @@ def test_integral_float() -> None:
     dumped = mr.dump(Container, instance)
     assert dumped == {"value": 1}
     assert mr.load(Container, dumped) == instance
+
+
+def test_datetime_as_date() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class DateTimeContainer:
+        date_field: datetime.date
+
+    now = datetime.datetime.now(datetime.UTC)
+    dumped = mr.dump(DateTimeContainer(date_field=now))
+
+    assert dumped == {"date_field": now.date().isoformat()}

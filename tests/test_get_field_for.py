@@ -271,31 +271,31 @@ EMPTY_SCHEMA = m.Schema()
             m.fields.Time(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: date
-        (datetime.date, {}, m.fields.Date(required=True)),
+        (datetime.date, {}, mr.DateField(required=True)),
         (
             Optional[datetime.date],
             {},
-            m.fields.Date(allow_none=True, **default_fields(None)),
+            mr.DateField(allow_none=True, **default_fields(None)),
         ),
         (
             datetime.date | None,
             {},
-            m.fields.Date(allow_none=True, **default_fields(None)),
+            mr.DateField(allow_none=True, **default_fields(None)),
         ),
         (
             datetime.date,
             mr.meta(name="i"),
-            m.fields.Date(required=True, **data_key_fields("i")),
+            mr.DateField(required=True, **data_key_fields("i")),
         ),
         (
             Optional[datetime.date],
             mr.meta(name="i"),
-            m.fields.Date(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.DateField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             datetime.date | None,
             mr.meta(name="i"),
-            m.fields.Date(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.DateField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # enum
         (Enum, {}, mr.EnumField(enum_type=Enum, required=True)),
@@ -809,13 +809,13 @@ EMPTY_SCHEMA = m.Schema()
         (
             dict[datetime.date, int],
             {},
-            mr.DictField(keys=m.fields.Date(required=True), values=m.fields.Int(required=True), required=True),
+            mr.DictField(keys=mr.DateField(required=True), values=m.fields.Int(required=True), required=True),
         ),
         (
             dict[datetime.date, int],
             mr.meta(name="i"),
             mr.DictField(
-                keys=m.fields.Date(required=True),
+                keys=mr.DateField(required=True),
                 values=m.fields.Int(required=True),
                 required=True,
                 **data_key_fields("i"),
@@ -825,7 +825,7 @@ EMPTY_SCHEMA = m.Schema()
             Optional[dict[datetime.date, int]],
             {},
             mr.DictField(
-                keys=m.fields.Date(required=True),
+                keys=mr.DateField(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
                 **default_fields(None),
@@ -835,7 +835,7 @@ EMPTY_SCHEMA = m.Schema()
             Optional[dict[datetime.date, int]],
             mr.meta(name="i"),
             mr.DictField(
-                keys=m.fields.Date(required=True),
+                keys=mr.DateField(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
                 **default_fields(None),
@@ -846,7 +846,7 @@ EMPTY_SCHEMA = m.Schema()
             dict[datetime.date, int] | None,
             {},
             mr.DictField(
-                keys=m.fields.Date(required=True),
+                keys=mr.DateField(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
                 **default_fields(None),
@@ -856,7 +856,7 @@ EMPTY_SCHEMA = m.Schema()
             dict[datetime.date, int] | None,
             mr.meta(name="i"),
             mr.DictField(
-                keys=m.fields.Date(required=True),
+                keys=mr.DateField(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
                 **default_fields(None),
@@ -902,13 +902,13 @@ EMPTY_SCHEMA = m.Schema()
         (
             collections.abc.Mapping[datetime.date, int],
             {},
-            mr.DictField(keys=m.fields.Date(required=True), values=m.fields.Int(required=True), required=True),
+            mr.DictField(keys=mr.DateField(required=True), values=m.fields.Int(required=True), required=True),
         ),
         (
             collections.abc.Mapping[datetime.date, int],
             mr.meta(name="i"),
             mr.DictField(
-                keys=m.fields.Date(required=True),
+                keys=mr.DateField(required=True),
                 values=m.fields.Int(required=True),
                 required=True,
                 **data_key_fields("i"),
@@ -918,7 +918,7 @@ EMPTY_SCHEMA = m.Schema()
             Optional[collections.abc.Mapping[datetime.date, int]],
             {},
             mr.DictField(
-                keys=m.fields.Date(required=True),
+                keys=mr.DateField(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
                 **default_fields(None),
@@ -928,7 +928,7 @@ EMPTY_SCHEMA = m.Schema()
             Optional[collections.abc.Mapping[datetime.date, int]],
             mr.meta(name="i"),
             mr.DictField(
-                keys=m.fields.Date(required=True),
+                keys=mr.DateField(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
                 **default_fields(None),
@@ -939,7 +939,7 @@ EMPTY_SCHEMA = m.Schema()
             collections.abc.Mapping[datetime.date, int] | None,
             {},
             mr.DictField(
-                keys=m.fields.Date(required=True),
+                keys=mr.DateField(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
                 **default_fields(None),
@@ -949,7 +949,7 @@ EMPTY_SCHEMA = m.Schema()
             collections.abc.Mapping[datetime.date, int] | None,
             mr.meta(name="i"),
             mr.DictField(
-                keys=m.fields.Date(required=True),
+                keys=mr.DateField(required=True),
                 values=m.fields.Int(required=True),
                 allow_none=True,
                 **default_fields(None),

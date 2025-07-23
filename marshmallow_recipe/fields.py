@@ -301,7 +301,7 @@ def date_field(
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
-        return m.fields.Date(
+        return DateField(
             allow_none=allow_none,
             validate=validate,
             **default_fields(m.missing),
@@ -311,9 +311,9 @@ def date_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return m.fields.Date(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+        return DateField(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
 
-    return m.fields.Date(
+    return DateField(
         allow_none=allow_none,
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
@@ -625,6 +625,7 @@ def union_field(
 
 
 DateTimeField: type[m.fields.DateTime]
+DateField: type[m.fields.Date]
 EnumField: type[m.fields.Field]
 DictField: type[m.fields.Field]
 SetField: type[m.fields.List]
@@ -746,6 +747,14 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             return super()._serialize(value, attr, obj, **kwargs)
 
     DateTimeField = DateTimeFieldV3
+
+    class DateFieldV3(m.fields.Date):
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            if isinstance(value, datetime.datetime):
+                value = value.date()
+            return super()._serialize(value, attr, obj, **kwargs)
+
+    DateField = DateFieldV3
 
     class SetFieldV3(m.fields.List):
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
@@ -1029,6 +1038,14 @@ else:
             return result.astimezone(datetime.timezone.utc)
 
     DateTimeField = DateTimeFieldV2
+
+    class DateFieldV2(m.fields.Date):
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            if isinstance(value, datetime.datetime):
+                value = value.date()
+            return super()._serialize(value, attr, obj, **kwargs)
+
+    DateField = DateFieldV2
 
     class SetFieldV2(m.fields.List):
         def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:

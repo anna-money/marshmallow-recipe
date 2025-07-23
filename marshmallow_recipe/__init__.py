@@ -3,7 +3,17 @@ import re
 import sys
 
 from .bake import bake_schema, get_field_for
-from .fields import DateTimeField, DictField, EnumField, FrozenSetField, SetField, StrField, TupleField, UnionField
+from .fields import (
+    DateField,
+    DateTimeField,
+    DictField,
+    EnumField,
+    FrozenSetField,
+    SetField,
+    StrField,
+    TupleField,
+    UnionField,
+)
 from .hooks import add_pre_load, pre_load
 from .metadata import (
     EMPTY_METADATA,
@@ -56,6 +66,7 @@ __all__: tuple[str, ...] = (
     "add_pre_load",
     "pre_load",
     # fields.py
+    "DateField",
     "DateTimeField",
     "DictField",
     "FrozenSetField",
