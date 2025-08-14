@@ -1,4 +1,4 @@
-## unreleased
+## v0.0.56(2025-08-14)
 
 * [Allow to override decimal places per class and globally](https://github.com/anna-money/marshmallow-recipe/pull/188)
 
