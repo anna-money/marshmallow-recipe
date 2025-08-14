@@ -338,8 +338,8 @@ def get_field_for(
         field_factory = _SIMPLE_TYPE_FIELD_FACTORIES[t]
         field_kwargs: dict[str, Any] = dict(required=required, allow_none=allow_none, **metadata)
 
-        if t is decimal.Decimal and decimal_places is not MISSING and "places" not in field_kwargs:
-            field_kwargs["places"] = decimal_places
+        if t is decimal.Decimal and decimal_places is not MISSING:
+            field_kwargs.setdefault("places", decimal_places)
 
         return with_type_checks_on_serialize(
             field_factory(**field_kwargs),
