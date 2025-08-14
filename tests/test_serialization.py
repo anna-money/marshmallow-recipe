@@ -1073,3 +1073,88 @@ def test_datetime_as_date() -> None:
     dumped = mr.dump(DateTimeContainer(date_field=now))
 
     assert dumped == {"date_field": now.date().isoformat()}
+
+
+def test_options_decimal_places() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @mr.options(decimal_places=4)
+    class Container:
+        value: decimal.Decimal
+
+    dumped = mr.dump(Container(value=decimal.Decimal("123.456789")))
+    assert dumped == {"value": "123.4568"}
+
+
+def test_options_decimal_places_metadata_override() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @mr.options(decimal_places=4)
+    class Container:
+        value: Annotated[decimal.Decimal, mr.decimal_meta(places=1)]
+
+    dumped = mr.dump(Container(value=decimal.Decimal("123.456789")))
+    assert dumped == {"value": "123.5"}
+
+
+def test_options_decimal_places_multiple_fields() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @mr.options(decimal_places=3)
+    class Container:
+        decimal1: decimal.Decimal
+        decimal2: decimal.Decimal
+        integer: int
+
+    instance = Container(
+        decimal1=decimal.Decimal("123.456789"), 
+        decimal2=decimal.Decimal("987.654321"), 
+        integer=42
+    )
+    dumped = mr.dump(instance)
+    assert dumped == {"decimal1": "123.457", "decimal2": "987.654", "integer": 42}
+
+
+def test_options_decimal_places_mixed() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @mr.options(decimal_places=3)
+    class Container:
+        global_decimal: decimal.Decimal
+        field_decimal: Annotated[decimal.Decimal, mr.decimal_meta(places=1)]
+
+    instance = Container(
+        global_decimal=decimal.Decimal("123.456789"),
+        field_decimal=decimal.Decimal("123.456789")
+    )
+    dumped = mr.dump(instance)
+    assert dumped == {"global_decimal": "123.457", "field_decimal": "123.5"}
+
+
+def test_options_decimal_places_schema_caching() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Container:
+        value: decimal.Decimal
+
+    schema_2_places = mr.bake_schema(Container, decimal_places=2)
+    schema_4_places = mr.bake_schema(Container, decimal_places=4)
+    schema_2_places_again = mr.bake_schema(Container, decimal_places=2)
+
+    assert schema_2_places is not schema_4_places
+    assert schema_2_places is schema_2_places_again
+
+
+def test_options_decimal_places_different_values() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @mr.options(decimal_places=3)
+    class Container2:
+        value: decimal.Decimal
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @mr.options(decimal_places=4)
+    class Container4:
+        value: decimal.Decimal
+
+    test_value = decimal.Decimal("123.456789")
+
+    dumped2 = mr.dump(Container2(value=test_value))
+    dumped4 = mr.dump(Container4(value=test_value))
+
+    assert dumped2 == {"value": "123.457"}
+    assert dumped4 == {"value": "123.4568"}
