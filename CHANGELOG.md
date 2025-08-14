@@ -1,3 +1,8 @@
+## unreleased
+
+* [Allow to override decimal places per class and globally](https://github.com/anna-money/marshmallow-recipe/pull/188)
+
+
 ## v0.0.55(2025-07-23)
 
 * [If datetime is passed as a date, use only date part of it](https://github.com/anna-money/marshmallow-recipe/pull/187)
