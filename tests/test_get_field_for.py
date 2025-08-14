@@ -999,3 +999,30 @@ def test_get_field_for(type: type, metadata: dict[str, Any], field: m.fields.Fie
     with unittest.mock.patch("marshmallow_recipe.bake.bake_schema") as bake_schema:
         bake_schema.return_value = EMPTY_SCHEMA
         assert_fields_equal(mr.get_field_for(type, mr.Metadata(metadata), None, None), field)
+
+
+def test_get_field_for_with_global_decimal_places() -> None:
+    with unittest.mock.patch("marshmallow_recipe.bake.bake_schema") as bake_schema:
+        bake_schema.return_value = EMPTY_SCHEMA
+
+        field = mr.get_field_for(decimal.Decimal, mr.Metadata({}), None, None, decimal_places=5)
+        expected = m.fields.Decimal(required=True, places=5, as_string=True)
+        assert_fields_equal(field, expected)
+
+
+def test_get_field_for_metadata_overrides_global_decimal_places() -> None:
+    with unittest.mock.patch("marshmallow_recipe.bake.bake_schema") as bake_schema:
+        bake_schema.return_value = EMPTY_SCHEMA
+
+        field = mr.get_field_for(decimal.Decimal, mr.decimal_meta(places=3), None, None, decimal_places=5)
+        expected = m.fields.Decimal(required=True, places=3, as_string=True)
+        assert_fields_equal(field, expected)
+
+
+def test_get_field_for_global_decimal_places_ignored_for_non_decimal() -> None:
+    with unittest.mock.patch("marshmallow_recipe.bake.bake_schema") as bake_schema:
+        bake_schema.return_value = EMPTY_SCHEMA
+
+        field = mr.get_field_for(int, mr.Metadata({}), None, None, decimal_places=5)
+        expected = m.fields.Int(required=True)
+        assert_fields_equal(field, expected)

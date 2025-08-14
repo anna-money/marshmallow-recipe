@@ -35,6 +35,7 @@ from .fields import (
 from .generics import TypeLike, get_fields_type_map
 from .hooks import get_pre_loads
 from .metadata import EMPTY_METADATA, Metadata, is_metadata
+from .missing import MISSING
 from .naming_case import NamingCase
 from .options import NoneValueHandling, try_get_options_for
 
@@ -44,6 +45,7 @@ class _SchemaTypeKey:
     cls: type
     naming_case: NamingCase | None
     none_value_handling: NoneValueHandling | None
+    decimal_places: int | None
 
 
 _T = TypeVar("_T")
@@ -63,6 +65,7 @@ def bake_schema(
     *,
     naming_case: NamingCase | None = None,
     none_value_handling: NoneValueHandling | None = None,
+    decimal_places: int | None = MISSING,
 ) -> type[m.Schema]:
     origin: type = get_origin(cls) or cls
     if not dataclasses.is_dataclass(origin):
@@ -71,14 +74,17 @@ def bake_schema(
     if options := try_get_options_for(origin):
         cls_none_value_handling = none_value_handling or options.none_value_handling
         cls_naming_case = naming_case or options.naming_case
+        cls_decimal_places = options.decimal_places if decimal_places is MISSING else decimal_places
     else:
         cls_none_value_handling = none_value_handling
         cls_naming_case = naming_case
+        cls_decimal_places = decimal_places
 
     key = _SchemaTypeKey(
         cls=cls,
         naming_case=cls_naming_case,
         none_value_handling=cls_none_value_handling,
+        decimal_places=cls_decimal_places,
     )
     if result := _schema_types.get(key):
         return result
@@ -117,6 +123,7 @@ def bake_schema(
                 metadata,
                 naming_case=naming_case,
                 none_value_handling=none_value_handling,
+                decimal_places=cls_decimal_places,
             )
             for field, value_type, metadata in fields
         },
@@ -130,6 +137,7 @@ def get_field_for(
     metadata: Metadata,
     naming_case: NamingCase | None,
     none_value_handling: NoneValueHandling | None,
+    decimal_places: int | None = MISSING,
 ) -> m.fields.Field:
     if t is Any:
         return raw_field(**metadata)
@@ -161,6 +169,7 @@ def get_field_for(
                         metadata=EMPTY_METADATA,
                         naming_case=naming_case,
                         none_value_handling=none_value_handling,
+                        decimal_places=decimal_places,
                     )
                 )
             return union_field(
@@ -204,6 +213,7 @@ def get_field_for(
                         metadata=item_field_metadata,
                         naming_case=naming_case,
                         none_value_handling=none_value_handling,
+                        decimal_places=decimal_places,
                     ),
                     required=required,
                     allow_none=allow_none,
@@ -226,6 +236,7 @@ def get_field_for(
                         metadata=item_field_metadata,
                         naming_case=naming_case,
                         none_value_handling=none_value_handling,
+                        decimal_places=decimal_places,
                     ),
                     required=required,
                     allow_none=allow_none,
@@ -248,6 +259,7 @@ def get_field_for(
                         metadata=item_field_metadata,
                         naming_case=naming_case,
                         none_value_handling=none_value_handling,
+                        decimal_places=decimal_places,
                     ),
                     required=required,
                     allow_none=allow_none,
@@ -265,6 +277,7 @@ def get_field_for(
                     metadata=EMPTY_METADATA,
                     naming_case=naming_case,
                     none_value_handling=none_value_handling,
+                    decimal_places=decimal_places,
                 )
             )
             values_field = (
@@ -275,6 +288,7 @@ def get_field_for(
                     metadata=EMPTY_METADATA,
                     naming_case=naming_case,
                     none_value_handling=none_value_handling,
+                    decimal_places=decimal_places,
                 )
             )
             return with_type_checks_on_serialize(
@@ -296,6 +310,7 @@ def get_field_for(
                         metadata=item_field_metadata,
                         naming_case=naming_case,
                         none_value_handling=none_value_handling,
+                        decimal_places=decimal_places,
                     ),
                     required=required,
                     allow_none=allow_none,
@@ -316,12 +331,18 @@ def get_field_for(
                 metadata=metadata,
                 naming_case=naming_case,
                 none_value_handling=none_value_handling,
+                decimal_places=decimal_places,
             )
 
     if t in _SIMPLE_TYPE_FIELD_FACTORIES:
         field_factory = _SIMPLE_TYPE_FIELD_FACTORIES[t]
+        field_kwargs: dict[str, Any] = dict(required=required, allow_none=allow_none, **metadata)
+
+        if t is decimal.Decimal and decimal_places is not MISSING and "places" not in field_kwargs:
+            field_kwargs["places"] = decimal_places
+
         return with_type_checks_on_serialize(
-            field_factory(required=required, allow_none=allow_none, **metadata),
+            field_factory(**field_kwargs),
             type_guards=(float, int) if t == float else t,
         )
 
