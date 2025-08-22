@@ -313,42 +313,42 @@ EMPTY_SCHEMA = m.Schema()
             mr.EnumField(enum_type=Enum, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # dataclass
-        (EmptyDataclass, {}, m.fields.Nested(EMPTY_SCHEMA, required=True)),
-        (Optional[EmptyDataclass], {}, m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
-        (EmptyDataclass | None, {}, m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
+        (EmptyDataclass, {}, mr.NestedField(EMPTY_SCHEMA, required=True)),
+        (Optional[EmptyDataclass], {}, mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
+        (EmptyDataclass | None, {}, mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
         (
             EmptyDataclass,
             mr.meta(name="i"),
-            m.fields.Nested(EMPTY_SCHEMA, required=True, **data_key_fields("i")),
+            mr.NestedField(EMPTY_SCHEMA, required=True, **data_key_fields("i")),
         ),
         (
             Optional[EmptyDataclass],
             mr.meta(name="i"),
-            m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             EmptyDataclass | None,
             mr.meta(name="i"),
-            m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # dataclass NewType(..., EmptyDataclass)
-        (NewDataclass, {}, m.fields.Nested(EMPTY_SCHEMA, required=True)),
-        (Optional[NewDataclass], {}, m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
-        (NewDataclass | None, {}, m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
+        (NewDataclass, {}, mr.NestedField(EMPTY_SCHEMA, required=True)),
+        (Optional[NewDataclass], {}, mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
+        (NewDataclass | None, {}, mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
         (
             NewDataclass,
             mr.meta(name="i"),
-            m.fields.Nested(EMPTY_SCHEMA, required=True, **data_key_fields("i")),
+            mr.NestedField(EMPTY_SCHEMA, required=True, **data_key_fields("i")),
         ),
         (
             Optional[NewDataclass],
             mr.meta(name="i"),
-            m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             NewDataclass | None,
             mr.meta(name="i"),
-            m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # containers: list[T]
         (list[bool], {}, m.fields.List(m.fields.Bool(required=True), required=True)),
@@ -382,27 +382,27 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # containers: list[T] where T: dataclass
-        (list[EmptyDataclass], {}, m.fields.List(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True)),
+        (list[EmptyDataclass], {}, m.fields.List(mr.NestedField(EMPTY_SCHEMA, required=True), required=True)),
         (
             list[Optional[EmptyDataclass]],
             {},
-            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+            m.fields.List(mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             list[EmptyDataclass | None],
             {},
-            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+            m.fields.List(mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[list[EmptyDataclass]],
             {},
-            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
+            m.fields.List(mr.NestedField(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[list[Optional[EmptyDataclass]]],
             {},
             m.fields.List(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -411,7 +411,7 @@ EMPTY_SCHEMA = m.Schema()
             list[EmptyDataclass | None] | None,
             {},
             m.fields.List(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -451,28 +451,28 @@ EMPTY_SCHEMA = m.Schema()
         (
             collections.abc.Sequence[EmptyDataclass],
             {},
-            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
+            m.fields.List(mr.NestedField(EMPTY_SCHEMA, required=True), required=True),
         ),
         (
             collections.abc.Sequence[Optional[EmptyDataclass]],
             {},
-            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+            m.fields.List(mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             collections.abc.Sequence[EmptyDataclass | None],
             {},
-            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+            m.fields.List(mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[collections.abc.Sequence[EmptyDataclass]],
             {},
-            m.fields.List(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
+            m.fields.List(mr.NestedField(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[collections.abc.Sequence[Optional[EmptyDataclass]]],
             {},
             m.fields.List(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -481,7 +481,7 @@ EMPTY_SCHEMA = m.Schema()
             collections.abc.Sequence[EmptyDataclass | None] | None,
             {},
             m.fields.List(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -521,28 +521,28 @@ EMPTY_SCHEMA = m.Schema()
         (
             frozenset[EmptyDataclass],
             {},
-            mr.FrozenSetField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
+            mr.FrozenSetField(mr.NestedField(EMPTY_SCHEMA, required=True), required=True),
         ),
         (
             frozenset[Optional[EmptyDataclass]],
             {},
-            mr.FrozenSetField(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+            mr.FrozenSetField(mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             frozenset[EmptyDataclass | None],
             {},
-            mr.FrozenSetField(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+            mr.FrozenSetField(mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[frozenset[EmptyDataclass]],
             {},
-            mr.FrozenSetField(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
+            mr.FrozenSetField(mr.NestedField(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[frozenset[Optional[EmptyDataclass]]],
             {},
             mr.FrozenSetField(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -551,7 +551,7 @@ EMPTY_SCHEMA = m.Schema()
             frozenset[EmptyDataclass | None] | None,
             {},
             mr.FrozenSetField(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -591,28 +591,28 @@ EMPTY_SCHEMA = m.Schema()
         (
             set[EmptyDataclass],
             {},
-            mr.SetField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
+            mr.SetField(mr.NestedField(EMPTY_SCHEMA, required=True), required=True),
         ),
         (
             set[Optional[EmptyDataclass]],
             {},
-            mr.SetField(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+            mr.SetField(mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             set[EmptyDataclass | None],
             {},
-            mr.SetField(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+            mr.SetField(mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[set[EmptyDataclass]],
             {},
-            mr.SetField(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
+            mr.SetField(mr.NestedField(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[set[Optional[EmptyDataclass]]],
             {},
             mr.SetField(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -621,7 +621,7 @@ EMPTY_SCHEMA = m.Schema()
             set[EmptyDataclass | None] | None,
             {},
             mr.SetField(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -665,28 +665,28 @@ EMPTY_SCHEMA = m.Schema()
         (
             collections.abc.Set[EmptyDataclass],
             {},
-            mr.SetField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
+            mr.SetField(mr.NestedField(EMPTY_SCHEMA, required=True), required=True),
         ),
         (
             collections.abc.Set[Optional[EmptyDataclass]],
             {},
-            mr.SetField(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+            mr.SetField(mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             collections.abc.Set[EmptyDataclass | None],
             {},
-            mr.SetField(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+            mr.SetField(mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[collections.abc.Set[EmptyDataclass]],
             {},
-            mr.SetField(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
+            mr.SetField(mr.NestedField(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[collections.abc.Set[Optional[EmptyDataclass]]],
             {},
             mr.SetField(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -695,7 +695,7 @@ EMPTY_SCHEMA = m.Schema()
             collections.abc.Set[EmptyDataclass | None] | None,
             {},
             mr.SetField(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -735,28 +735,28 @@ EMPTY_SCHEMA = m.Schema()
         (
             tuple[EmptyDataclass, ...],
             {},
-            mr.TupleField(m.fields.Nested(EMPTY_SCHEMA, required=True), required=True),
+            mr.TupleField(mr.NestedField(EMPTY_SCHEMA, required=True), required=True),
         ),
         (
             tuple[Optional[EmptyDataclass], ...],
             {},
-            mr.TupleField(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+            mr.TupleField(mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             tuple[EmptyDataclass | None, ...],
             {},
-            mr.TupleField(m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
+            mr.TupleField(mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[tuple[EmptyDataclass, ...]],
             {},
-            mr.TupleField(m.fields.Nested(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
+            mr.TupleField(mr.NestedField(EMPTY_SCHEMA, required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[tuple[Optional[EmptyDataclass], ...]],
             {},
             mr.TupleField(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -765,7 +765,7 @@ EMPTY_SCHEMA = m.Schema()
             tuple[EmptyDataclass | None, ...] | None,
             {},
             mr.TupleField(
-                m.fields.Nested(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
+                mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None)),
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -996,7 +996,7 @@ EMPTY_SCHEMA = m.Schema()
     ],
 )
 def test_get_field_for(type: type, metadata: dict[str, Any], field: m.fields.Field) -> None:
-    with unittest.mock.patch("marshmallow_recipe.bake.bake_schema") as bake_schema:
+    with unittest.mock.patch("marshmallow_recipe.bake._bake_schema") as bake_schema:
         bake_schema.return_value = EMPTY_SCHEMA
         assert_fields_equal(mr.get_field_for(type, mr.Metadata(metadata), None, None), field)
 

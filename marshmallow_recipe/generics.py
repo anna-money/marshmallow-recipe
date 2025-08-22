@@ -38,8 +38,9 @@ def get_fields_type_map(cls: type) -> FieldsTypeMap:
 
     class_type_var_map = get_class_type_var_map(cls)
     fields_class_map = get_fields_class_map(origin)
+    field_type_hints = typing.get_type_hints(origin, include_extras=True)
     return {
-        f.name: build_subscripted_type(f.type, class_type_var_map.get(fields_class_map[f.name], {}))
+        f.name: build_subscripted_type(field_type_hints[f.name], class_type_var_map.get(fields_class_map[f.name], {}))
         for f in dataclasses.fields(origin)
     }
 

@@ -9,6 +9,7 @@ from .fields import (
     DictField,
     EnumField,
     FrozenSetField,
+    NestedField,
     SetField,
     StrField,
     TupleField,
@@ -75,6 +76,7 @@ __all__: tuple[str, ...] = (
     "StrField",
     "TupleField",
     "UnionField",
+    "NestedField",
     # metadata.py
     "Metadata",
     "EMPTY_METADATA",
@@ -125,7 +127,7 @@ __all__: tuple[str, ...] = (
     "get_validation_field_errors",
 )
 
-__version__ = "0.0.56"
+__version__ = "0.0.57"
 
 version = f"{__version__}, Python {sys.version}"
 

@@ -1103,11 +1103,7 @@ def test_options_decimal_places_multiple_fields() -> None:
         decimal2: decimal.Decimal
         integer: int
 
-    instance = Container(
-        decimal1=decimal.Decimal("123.456789"), 
-        decimal2=decimal.Decimal("987.654321"), 
-        integer=42
-    )
+    instance = Container(decimal1=decimal.Decimal("123.456789"), decimal2=decimal.Decimal("987.654321"), integer=42)
     dumped = mr.dump(instance)
     assert dumped == {"decimal1": "123.457", "decimal2": "987.654", "integer": 42}
 
@@ -1119,10 +1115,7 @@ def test_options_decimal_places_mixed() -> None:
         global_decimal: decimal.Decimal
         field_decimal: Annotated[decimal.Decimal, mr.decimal_meta(places=1)]
 
-    instance = Container(
-        global_decimal=decimal.Decimal("123.456789"),
-        field_decimal=decimal.Decimal("123.456789")
-    )
+    instance = Container(global_decimal=decimal.Decimal("123.456789"), field_decimal=decimal.Decimal("123.456789"))
     dumped = mr.dump(instance)
     assert dumped == {"global_decimal": "123.457", "field_decimal": "123.5"}
 
@@ -1158,3 +1151,79 @@ def test_options_decimal_places_different_values() -> None:
 
     assert dumped2 == {"value": "123.457"}
     assert dumped4 == {"value": "123.4568"}
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Cyclic:
+    marker: str
+    child: "Cyclic | None"
+
+
+def test_cyclic_self_reference() -> None:
+    dumped = mr.dump(Cyclic(marker="level 1", child=None))
+    assert dumped == {"marker": "level 1"}
+
+    dumped = mr.dump(
+        Cyclic(
+            marker="level 1",
+            child=Cyclic(
+                marker="level 2",
+                child=None,
+            ),
+        )
+    )
+    assert dumped == {"child": {"marker": "level 2"}, "marker": "level 1"}
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class CyclicParent:
+    marker: str
+    child: "CyclicChild"
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class CyclicChild:
+    marker: str
+    parent: CyclicParent | None
+
+
+def test_cyclic_indirect_reference() -> None:
+    dumped = mr.dump(
+        CyclicParent(
+            marker="level 1",
+            child=CyclicChild(
+                marker="level 2",
+                parent=None,
+            ),
+        )
+    )
+    assert dumped == {
+        "marker": "level 1",
+        "child": {"marker": "level 2"},
+    }
+
+    dumped = mr.dump(
+        CyclicParent(
+            marker="level 1",
+            child=CyclicChild(
+                marker="level 2",
+                parent=CyclicParent(
+                    marker="level 3",
+                    child=CyclicChild(
+                        marker="level 4",
+                        parent=None,
+                    ),
+                ),
+            ),
+        )
+    )
+    assert dumped == {
+        "marker": "level 1",
+        "child": {
+            "marker": "level 2",
+            "parent": {
+                "marker": "level 3",
+                "child": {"marker": "level 4"},
+            },
+        },
+    }
