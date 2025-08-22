@@ -67,6 +67,23 @@ def bake_schema(
     none_value_handling: NoneValueHandling | None = None,
     decimal_places: int | None = MISSING,
 ) -> type[m.Schema]:
+    return _bake_schema(
+        cls,
+        visited_nested_types={cls},
+        naming_case=naming_case,
+        none_value_handling=none_value_handling,
+        decimal_places=decimal_places,
+    )
+
+
+def _bake_schema(
+    cls: type,
+    *,
+    visited_nested_types: set[TypeLike],
+    naming_case: NamingCase | None = None,
+    none_value_handling: NoneValueHandling | None = None,
+    decimal_places: int | None = MISSING,
+) -> type[m.Schema]:
     origin: type = get_origin(cls) or cls
     if not dataclasses.is_dataclass(origin):
         raise ValueError(f"{origin} is not a dataclass")
@@ -118,9 +135,10 @@ def bake_schema(
         (_get_base_schema(cls, cls_none_value_handling or NoneValueHandling.IGNORE),),
         {"__module__": f"{__package__}.auto_generated"}
         | {
-            field.name: get_field_for(
+            field.name: _get_field_for(
                 value_type,
-                metadata,
+                metadata=metadata,
+                visited_nested_types=visited_nested_types,
                 naming_case=naming_case,
                 none_value_handling=none_value_handling,
                 decimal_places=cls_decimal_places,
@@ -138,6 +156,25 @@ def get_field_for(
     naming_case: NamingCase | None,
     none_value_handling: NoneValueHandling | None,
     decimal_places: int | None = MISSING,
+) -> m.fields.Field:
+    return _get_field_for(
+        t,
+        metadata=metadata,
+        visited_nested_types=set(),
+        naming_case=naming_case,
+        none_value_handling=none_value_handling,
+        decimal_places=decimal_places,
+    )
+
+
+def _get_field_for(
+    t: TypeLike,
+    *,
+    metadata: Metadata,
+    visited_nested_types: set[TypeLike],
+    naming_case: NamingCase | None,
+    none_value_handling: NoneValueHandling | None,
+    decimal_places: int | None,
 ) -> m.fields.Field:
     if t is Any:
         return raw_field(**metadata)
@@ -164,9 +201,10 @@ def get_field_for(
             underlying_union_fields = []
             for underlying_type in effective_underlying_union_types:
                 underlying_union_fields.append(
-                    get_field_for(
+                    _get_field_for(
                         underlying_type,
                         metadata=EMPTY_METADATA,
+                        visited_nested_types=visited_nested_types,
                         naming_case=naming_case,
                         none_value_handling=none_value_handling,
                         decimal_places=decimal_places,
@@ -186,9 +224,25 @@ def get_field_for(
         return enum_field(enum_type=t, required=required, allow_none=allow_none, **metadata)
 
     if (unsubscripted_type := get_origin(t) or t) and dataclasses.is_dataclass(unsubscripted_type):
+        nested_schema: type[m.Schema] | collections.abc.Callable[[], type[m.Schema]]
+        if t in visited_nested_types:
+            nested_schema = lambda: _bake_schema(  # noqa: E731
+                cast(type, t),
+                visited_nested_types=visited_nested_types,
+                naming_case=naming_case,
+                none_value_handling=none_value_handling,
+            )
+        else:
+            nested_schema = _bake_schema(
+                cast(type, t),
+                visited_nested_types=visited_nested_types,
+                naming_case=naming_case,
+                none_value_handling=none_value_handling,
+            )
+        visited_nested_types.add(t)
         return with_type_checks_on_serialize(
             nested_field(
-                bake_schema(cast(type, t), naming_case=naming_case, none_value_handling=none_value_handling),
+                nested_schema,
                 required=required,
                 allow_none=allow_none,
                 **metadata,
@@ -208,9 +262,10 @@ def get_field_for(
 
             return with_type_checks_on_serialize(
                 list_field(
-                    get_field_for(
+                    _get_field_for(
                         arguments[0],
                         metadata=item_field_metadata,
+                        visited_nested_types=visited_nested_types,
                         naming_case=naming_case,
                         none_value_handling=none_value_handling,
                         decimal_places=decimal_places,
@@ -231,9 +286,10 @@ def get_field_for(
 
             return with_type_checks_on_serialize(
                 set_field(
-                    get_field_for(
+                    _get_field_for(
                         arguments[0],
                         metadata=item_field_metadata,
+                        visited_nested_types=visited_nested_types,
                         naming_case=naming_case,
                         none_value_handling=none_value_handling,
                         decimal_places=decimal_places,
@@ -254,9 +310,10 @@ def get_field_for(
 
             return with_type_checks_on_serialize(
                 frozen_set_field(
-                    get_field_for(
+                    _get_field_for(
                         arguments[0],
                         metadata=item_field_metadata,
+                        visited_nested_types=visited_nested_types,
                         naming_case=naming_case,
                         none_value_handling=none_value_handling,
                         decimal_places=decimal_places,
@@ -272,9 +329,10 @@ def get_field_for(
             keys_field = (
                 None
                 if arguments[0] is str
-                else get_field_for(
+                else _get_field_for(
                     arguments[0],
                     metadata=EMPTY_METADATA,
+                    visited_nested_types=visited_nested_types,
                     naming_case=naming_case,
                     none_value_handling=none_value_handling,
                     decimal_places=decimal_places,
@@ -283,9 +341,10 @@ def get_field_for(
             values_field = (
                 None
                 if arguments[1] is Any
-                else get_field_for(
+                else _get_field_for(
                     arguments[1],
                     metadata=EMPTY_METADATA,
+                    visited_nested_types=visited_nested_types,
                     naming_case=naming_case,
                     none_value_handling=none_value_handling,
                     decimal_places=decimal_places,
@@ -305,9 +364,10 @@ def get_field_for(
 
             return with_type_checks_on_serialize(
                 tuple_field(
-                    get_field_for(
+                    _get_field_for(
                         arguments[0],
                         metadata=item_field_metadata,
+                        visited_nested_types=visited_nested_types,
                         naming_case=naming_case,
                         none_value_handling=none_value_handling,
                         decimal_places=decimal_places,
@@ -326,9 +386,10 @@ def get_field_for(
             )
             metadata = Metadata(dict(metadata, **annotated_metadata))
 
-            return get_field_for(
+            return _get_field_for(
                 underlying_type,
                 metadata=metadata,
+                visited_nested_types=visited_nested_types,
                 naming_case=naming_case,
                 none_value_handling=none_value_handling,
                 decimal_places=decimal_places,

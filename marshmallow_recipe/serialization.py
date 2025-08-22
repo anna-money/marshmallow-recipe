@@ -4,9 +4,9 @@ from typing import Any, TypeVar, overload
 
 import marshmallow as m
 
-from .missing import MISSING
 from .bake import bake_schema
 from .generics import extract_type
+from .missing import MISSING
 from .naming_case import NamingCase
 
 _T = TypeVar("_T")

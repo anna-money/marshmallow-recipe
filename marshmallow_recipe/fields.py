@@ -322,7 +322,7 @@ def date_field(
 
 
 def nested_field(
-    nested_schema: type[m.Schema],
+    nested_schema: type[m.Schema] | collections.abc.Callable[[], type[m.Schema]],
     *,
     required: bool,
     allow_none: bool,
