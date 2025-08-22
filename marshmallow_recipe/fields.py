@@ -332,7 +332,7 @@ def nested_field(
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
-        return m.fields.Nested(
+        return NestedField(
             nested_schema,
             allow_none=allow_none,
             validate=validate,
@@ -343,11 +343,11 @@ def nested_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return m.fields.Nested(
+        return NestedField(
             nested_schema, required=True, allow_none=allow_none, validate=validate, **data_key_fields(name)
         )
 
-    return m.fields.Nested(
+    return NestedField(
         nested_schema,
         allow_none=allow_none,
         validate=validate,
@@ -908,6 +908,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             raise m.ValidationError(message=errors, field_name=attr)
 
     UnionField = UnionFieldV3
+
+    NestedField = m.fields.Nested
 else:
 
     def with_type_checks_on_serialize_v2(field: TField, type_guards: type | tuple[type, ...]) -> TField:
@@ -1275,3 +1277,16 @@ else:
             raise m.ValidationError(message=errors, field_name=attr)
 
     UnionField = UnionFieldV2
+
+    class NestedFieldV2(m.fields.Nested):
+        def __init__(self, nested: Any, **kwargs: Any):
+            super().__init__(nested, **kwargs)
+
+        @property
+        def schema(self):
+            nested = self.nested
+            if callable(nested) and not isinstance(nested, type):
+                self.nested = nested()
+            return super().schema
+
+    NestedField = NestedFieldV2

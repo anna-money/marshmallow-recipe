@@ -9,6 +9,7 @@ from .fields import (
     DictField,
     EnumField,
     FrozenSetField,
+    NestedField,
     SetField,
     StrField,
     TupleField,
@@ -75,6 +76,7 @@ __all__: tuple[str, ...] = (
     "StrField",
     "TupleField",
     "UnionField",
+    "NestedField",
     # metadata.py
     "Metadata",
     "EMPTY_METADATA",
