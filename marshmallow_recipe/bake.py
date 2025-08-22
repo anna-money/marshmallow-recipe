@@ -225,7 +225,9 @@ def _get_field_for(
 
     if (unsubscripted_type := get_origin(t) or t) and dataclasses.is_dataclass(unsubscripted_type):
         nested_schema: type[m.Schema] | collections.abc.Callable[[], type[m.Schema]]
-        if t in visited_nested_types:
+        is_cyclic_reference = t in visited_nested_types
+        visited_nested_types.add(t)
+        if is_cyclic_reference:
             nested_schema = lambda: _bake_schema(  # noqa: E731
                 cast(type, t),
                 visited_nested_types=visited_nested_types,
@@ -239,7 +241,6 @@ def _get_field_for(
                 naming_case=naming_case,
                 none_value_handling=none_value_handling,
             )
-        visited_nested_types.add(t)
         return with_type_checks_on_serialize(
             nested_field(
                 nested_schema,
