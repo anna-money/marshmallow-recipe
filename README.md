@@ -11,10 +11,11 @@ It can be seamlessly integrated into any codebase, providing the following benef
 
 1. Automatic schema generation: Marshmallow schemas are generated and cached automatically, while still being accessible when needed
 2. Comprehensive Generics support with full nesting and inheritance capabilities
-3. Flexible field configuration through `dataclass.field(meta)` or `Annotated[T, meta]`
-4. Customizable case formatting support, including built-in `camelCase` and `CamelCase`, via dataclass decorators
-5. Configurable None value handling through dataclass decorators
-6. PATCH operation support via mr.MISSING value
+3. Nested cyclic references support
+4. Flexible field configuration through `dataclass.field(meta)` or `Annotated[T, meta]`
+5. Customizable case formatting support, including built-in `camelCase` and `CamelCase`, via dataclass decorators
+6. Configurable None value handling through dataclass decorators
+7. PATCH operation support via mr.MISSING value
 
 ## Supported Types
 
