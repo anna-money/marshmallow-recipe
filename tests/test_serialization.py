@@ -52,6 +52,7 @@ def test_simple_types() -> None:
         decimal_field: decimal.Decimal
         optional_decimal_field: decimal.Decimal | None
         int_field: int
+        int_field_as_float: int
         optional_int_field: int | None
         new_int_field: NewInt
         optional_new_int_field: NewInt | None
@@ -144,6 +145,7 @@ def test_simple_types() -> None:
         decimal_field_with_default_factory="42.00",
         optional_decimal_field="42.00",
         int_field=42,
+        int_field_as_float=42.0,
         int_field_with_default=42,
         int_field_with_default_factory=42,
         optional_int_field=42,
@@ -220,6 +222,7 @@ def test_simple_types() -> None:
             decimal_field=decimal.Decimal("42.00"),
             optional_decimal_field=decimal.Decimal("42.00"),
             int_field=42,
+            int_field_as_float=42,
             optional_int_field=42,
             new_int_field=NewInt(42),
             optional_new_int_field=NewInt(42),
