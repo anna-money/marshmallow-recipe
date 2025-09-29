@@ -1227,3 +1227,74 @@ def test_cyclic_indirect_reference() -> None:
             },
         },
     }
+
+
+def test_none_value_handling_with_include() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class DataClass:
+        str_field: str | None = None
+        int_field: int | None = None
+
+    data = DataClass(str_field="hello", int_field=None)
+    dumped = mr.dump(data, none_value_handling=mr.NoneValueHandling.INCLUDE)
+    assert dumped == {"str_field": "hello", "int_field": None}
+
+    loaded = mr.load(DataClass, dumped, none_value_handling=mr.NoneValueHandling.INCLUDE)
+    assert loaded == data
+
+
+def test_none_value_handling_with_ignore() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class DataClass:
+        str_field: str | None = None
+        int_field: int | None = None
+
+    data = DataClass(str_field="hello", int_field=None)
+    dumped = mr.dump(data, none_value_handling=mr.NoneValueHandling.IGNORE)
+    assert dumped == {"str_field": "hello"}
+
+
+def test_none_value_handling_with_many() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class DataClass:
+        str_field: str | None = None
+        int_field: int | None = None
+
+    data = [DataClass(str_field="hello", int_field=None), DataClass(str_field=None, int_field=42)]
+
+    dumped_include = mr.dump_many(data, none_value_handling=mr.NoneValueHandling.INCLUDE)
+    assert dumped_include == [{"str_field": "hello", "int_field": None}, {"str_field": None, "int_field": 42}]
+
+    dumped_ignore = mr.dump_many(data, none_value_handling=mr.NoneValueHandling.IGNORE)
+    assert dumped_ignore == [{"str_field": "hello"}, {"int_field": 42}]
+
+    loaded = mr.load_many(DataClass, dumped_include, none_value_handling=mr.NoneValueHandling.INCLUDE)
+    assert loaded == data
+
+
+def test_none_value_handling_overrides_dataclass_options() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @mr.options(none_value_handling=mr.NoneValueHandling.INCLUDE)
+    class DataClass:
+        str_field: str | None = None
+        int_field: int | None = None
+
+    data = DataClass(str_field="hello", int_field=None)
+
+    dumped_with_override = mr.dump(data, none_value_handling=mr.NoneValueHandling.IGNORE)
+    assert dumped_with_override == {"str_field": "hello"}
+
+    dumped_without_override = mr.dump(data)
+    assert dumped_without_override == {"str_field": "hello", "int_field": None}
+
+
+def test_none_value_handling_schema_caching() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class DataClass:
+        str_field: str | None = None
+        int_field: int | None = None
+
+    schema_include = mr.schema(DataClass, none_value_handling=mr.NoneValueHandling.INCLUDE)
+    schema_ignore = mr.schema(DataClass, none_value_handling=mr.NoneValueHandling.IGNORE)
+
+    assert schema_include is not schema_ignore
