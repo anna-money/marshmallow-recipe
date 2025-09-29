@@ -84,7 +84,10 @@ def bool_field(
             raise ValueError("Default value cannot be none")
 
         return m.fields.Bool(
-            required=True, allow_none=allow_none, validate=fix_validate(validate), **data_key_fields(name)
+            required=True,
+            allow_none=allow_none,
+            validate=fix_validate(validate),
+            **data_key_fields(name),
         )
 
     return m.fields.Bool(
@@ -119,6 +122,7 @@ def decimal_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
+
         return m.fields.Decimal(
             required=True,
             allow_none=allow_none,
@@ -193,8 +197,12 @@ def float_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
+
         return m.fields.Float(
-            required=True, allow_none=allow_none, validate=fix_validate(validate), **data_key_fields(name)
+            required=True,
+            allow_none=allow_none,
+            validate=fix_validate(validate),
+            **data_key_fields(name),
         )
 
     return m.fields.Float(
@@ -225,8 +233,12 @@ def uuid_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
+
         return m.fields.UUID(
-            required=True, allow_none=allow_none, validate=fix_validate(validate), **data_key_fields(name)
+            required=True,
+            allow_none=allow_none,
+            validate=fix_validate(validate),
+            **data_key_fields(name),
         )
 
     return m.fields.UUID(
@@ -259,6 +271,7 @@ def datetime_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
+
         return DateTimeField(
             required=True,
             allow_none=allow_none,
@@ -296,8 +309,12 @@ def time_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
+
         return m.fields.Time(
-            required=True, allow_none=allow_none, validate=fix_validate(validate), **data_key_fields(name)
+            required=True,
+            allow_none=allow_none,
+            validate=fix_validate(validate),
+            **data_key_fields(name),
         )
 
     return m.fields.Time(
@@ -328,8 +345,12 @@ def date_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
+
         return DateField(
-            required=True, allow_none=allow_none, validate=fix_validate(validate), **data_key_fields(name)
+            required=True,
+            allow_none=allow_none,
+            validate=fix_validate(validate),
+            **data_key_fields(name),
         )
 
     return DateField(
@@ -362,6 +383,7 @@ def nested_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
+
         return NestedField(
             nested_schema,
             required=True,
@@ -401,8 +423,13 @@ def list_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
+
         return m.fields.List(
-            field, required=True, allow_none=allow_none, validate=fix_validate(validate), **data_key_fields(name)
+            field,
+            required=True,
+            allow_none=allow_none,
+            validate=fix_validate(validate),
+            **data_key_fields(name),
         )
 
     return m.fields.List(
@@ -437,7 +464,11 @@ def set_field(
         if default is None:
             raise ValueError("Default value cannot be none")
         return SetField(
-            field, required=True, allow_none=allow_none, validate=fix_validate(validate), **data_key_fields(name)
+            field,
+            required=True,
+            allow_none=allow_none,
+            validate=fix_validate(validate),
+            **data_key_fields(name),
         )
 
     return SetField(
@@ -472,7 +503,11 @@ def frozen_set_field(
         if default is None:
             raise ValueError("Default value cannot be none")
         return FrozenSetField(
-            field, required=True, allow_none=allow_none, validate=fix_validate(validate), **data_key_fields(name)
+            field,
+            required=True,
+            allow_none=allow_none,
+            validate=fix_validate(validate),
+            **data_key_fields(name),
         )
 
     return FrozenSetField(
@@ -507,7 +542,11 @@ def tuple_field(
         if default is None:
             raise ValueError("Default value cannot be none")
         return TupleField(
-            field, required=True, allow_none=allow_none, validate=fix_validate(validate), **data_key_fields(name)
+            field,
+            required=True,
+            allow_none=allow_none,
+            validate=fix_validate(validate),
+            **data_key_fields(name),
         )
 
     return TupleField(
@@ -584,6 +623,7 @@ def enum_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
+
         return EnumField(
             enum_type=enum_type,
             required=True,
@@ -638,6 +678,7 @@ def union_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
+
         return UnionField(
             fields=fields,
             required=True,
@@ -1004,7 +1045,6 @@ else:
         return field
 
     with_type_checks_on_validated = with_type_checks_on_validated_v2
-
 
     def fix_validate(
         validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None,
