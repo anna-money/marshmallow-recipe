@@ -47,7 +47,10 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         if existent_schema is not None:
             return existent_schema
         new_schema = bake_schema(
-            cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
+            cls,
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places,
         )(many=many)
         _schemas[key] = new_schema
         return new_schema
@@ -63,11 +66,13 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> _T:
-        return schema_v3(
-            cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
-        ).load(
-            data
-        )  # type: ignore
+        schema = schema_v3(
+            cls,
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places,
+        )
+        return schema.load(data)  # type: ignore
 
     load = load_v3
 
@@ -160,7 +165,10 @@ else:
         if existent_schema is not None:
             return existent_schema
         new_schema_cls = bake_schema(
-            cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
+            cls,
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places,
         )
         new_schema = new_schema_cls(strict=True, many=many)  # type: ignore
         _schemas[key] = new_schema
@@ -178,7 +186,10 @@ else:
         decimal_places: int | None = MISSING,
     ) -> _T:
         schema = schema_v2(
-            cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
+            cls,
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places,
         )
         loaded, _ = schema.load(data)  # type: ignore
         return loaded  # type: ignore[return-value]

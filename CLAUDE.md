@@ -23,3 +23,4 @@
 - **Always run** `git add -A` after completing implementation
 - **Always ensure** that things work for the versions of marshmallow mentioned in `ci.yml`
 - **Always make changes** in-line with code practices within the repository
+- All PRs **must be** reflected in CHANGELOG.md 
