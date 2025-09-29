@@ -1,3 +1,8 @@
+## Unreleased
+
+* [Add global none_value_handling parameter to load/dump functions](https://github.com/anna-money/marshmallow-recipe/pull/TBD)
+
+
 ## v0.0.57(2025-08-22)
 
 * [Cyclic references support](https://github.com/anna-money/marshmallow-recipe/pull/189)
