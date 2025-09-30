@@ -5,7 +5,7 @@ import datetime
 import enum
 import importlib.metadata
 import types
-from typing import Any, TypeVar
+from typing import Any, Callable, TypeVar
 
 import marshmallow as m
 import marshmallow.validate
@@ -163,7 +163,13 @@ def int_field(
             **(default_fields(None) if default is dataclasses.MISSING else {}),
             **data_key_fields(name),
         )
-    return with_type_checks_on_validated(field, (int, str))
+
+    def is_valid_type(value: Any) -> bool:
+        if isinstance(value, float):
+            return value.is_integer()
+        return isinstance(value, (int, str))
+
+    return with_type_checks_on_validated(field, is_valid_type)
 
 
 def float_field(
@@ -652,7 +658,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     with_type_checks_on_serialize = with_type_checks_on_serialize_v3
 
-    def with_type_checks_on_validated_v3(field: TField, type_guards: type | tuple[type, ...]) -> TField:
+    def with_type_checks_on_validated_v3(field: TField, is_valid_type: Callable[[Any], bool]) -> TField:
         if not hasattr(field, "_validated"):
             raise TypeError("Field doesn't have _validated method")
 
@@ -661,7 +667,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         old = field._validated  # type: ignore
 
         def _validated(self: TField, value: Any) -> Any:
-            if not isinstance(value, type_guards):
+            if not is_valid_type(value):
                 raise self.make_error(fail_key)  # type: ignore
             return old(value)
 
@@ -928,7 +934,7 @@ else:
 
     with_type_checks_on_serialize = with_type_checks_on_serialize_v2
 
-    def with_type_checks_on_validated_v2(field: TField, type_guards: type | tuple[type, ...]) -> TField:
+    def with_type_checks_on_validated_v2(field: TField, is_valid_type: Callable[[Any], bool]) -> TField:
         if not hasattr(field, "_validated"):
             raise TypeError("Field doesn't have _validated method")
 
@@ -937,7 +943,7 @@ else:
         old = field._validated  # type: ignore
 
         def _validated(self: TField, value: Any) -> Any:
-            if value not in (None, m.missing) and not isinstance(value, type_guards):
+            if value not in (None, m.missing) and not is_valid_type(value):
                 raise self.fail(fail_key)  # type: ignore
             return old(value)
 

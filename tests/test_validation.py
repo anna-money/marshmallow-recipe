@@ -20,6 +20,11 @@ def test_int_validation() -> None:
 
     mr.load(Holder, dict(value=42))
 
+    with pytest.raises(m.ValidationError):
+        mr.load(Holder, dict(value=36.6))
+
+    mr.load(Holder, dict(value=36.0))
+
 
 def test_float_validation() -> None:
     @dataclasses.dataclass
