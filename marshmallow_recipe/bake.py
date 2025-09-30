@@ -141,7 +141,8 @@ def _bake_schema(
                 visited_nested_types=visited_nested_types,
                 naming_case=naming_case,
                 none_value_handling=none_value_handling,
-                decimal_places=cls_decimal_places,
+                field_decimal_places=cls_decimal_places,
+                decimal_places=decimal_places,
             )
             for field, value_type, metadata in fields
         },
@@ -163,6 +164,7 @@ def get_field_for(
         visited_nested_types=set(),
         naming_case=naming_case,
         none_value_handling=none_value_handling,
+        field_decimal_places=decimal_places,
         decimal_places=decimal_places,
     )
 
@@ -174,6 +176,7 @@ def _get_field_for(
     visited_nested_types: set[TypeLike],
     naming_case: NamingCase | None,
     none_value_handling: NoneValueHandling | None,
+    field_decimal_places: int | None,
     decimal_places: int | None,
 ) -> m.fields.Field:
     if t is Any:
@@ -207,6 +210,7 @@ def _get_field_for(
                         visited_nested_types=visited_nested_types,
                         naming_case=naming_case,
                         none_value_handling=none_value_handling,
+                        field_decimal_places=field_decimal_places,
                         decimal_places=decimal_places,
                     )
                 )
@@ -271,6 +275,7 @@ def _get_field_for(
                         visited_nested_types=visited_nested_types,
                         naming_case=naming_case,
                         none_value_handling=none_value_handling,
+                        field_decimal_places=field_decimal_places,
                         decimal_places=decimal_places,
                     ),
                     required=required,
@@ -295,6 +300,7 @@ def _get_field_for(
                         visited_nested_types=visited_nested_types,
                         naming_case=naming_case,
                         none_value_handling=none_value_handling,
+                        field_decimal_places=field_decimal_places,
                         decimal_places=decimal_places,
                     ),
                     required=required,
@@ -319,6 +325,7 @@ def _get_field_for(
                         visited_nested_types=visited_nested_types,
                         naming_case=naming_case,
                         none_value_handling=none_value_handling,
+                        field_decimal_places=field_decimal_places,
                         decimal_places=decimal_places,
                     ),
                     required=required,
@@ -338,6 +345,7 @@ def _get_field_for(
                     visited_nested_types=visited_nested_types,
                     naming_case=naming_case,
                     none_value_handling=none_value_handling,
+                    field_decimal_places=field_decimal_places,
                     decimal_places=decimal_places,
                 )
             )
@@ -350,6 +358,7 @@ def _get_field_for(
                     visited_nested_types=visited_nested_types,
                     naming_case=naming_case,
                     none_value_handling=none_value_handling,
+                    field_decimal_places=field_decimal_places,
                     decimal_places=decimal_places,
                 )
             )
@@ -373,6 +382,7 @@ def _get_field_for(
                         visited_nested_types=visited_nested_types,
                         naming_case=naming_case,
                         none_value_handling=none_value_handling,
+                        field_decimal_places=field_decimal_places,
                         decimal_places=decimal_places,
                     ),
                     required=required,
@@ -395,6 +405,7 @@ def _get_field_for(
                 visited_nested_types=visited_nested_types,
                 naming_case=naming_case,
                 none_value_handling=none_value_handling,
+                field_decimal_places=field_decimal_places,
                 decimal_places=decimal_places,
             )
 
@@ -402,8 +413,8 @@ def _get_field_for(
         field_factory = _SIMPLE_TYPE_FIELD_FACTORIES[t]
         field_kwargs: dict[str, Any] = dict(required=required, allow_none=allow_none, **metadata)
 
-        if t is decimal.Decimal and decimal_places is not MISSING:
-            field_kwargs.setdefault("places", decimal_places)
+        if t is decimal.Decimal and field_decimal_places is not MISSING:
+            field_kwargs.setdefault("places", field_decimal_places)
 
         return with_type_checks_on_serialize(
             field_factory(**field_kwargs),
