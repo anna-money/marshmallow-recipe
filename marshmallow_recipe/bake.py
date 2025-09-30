@@ -233,6 +233,7 @@ def _get_field_for(
                 visited_nested_types=visited_nested_types,
                 naming_case=naming_case,
                 none_value_handling=none_value_handling,
+                decimal_places=decimal_places,
             )
         else:
             nested_schema = _bake_schema(
@@ -240,6 +241,7 @@ def _get_field_for(
                 visited_nested_types=visited_nested_types,
                 naming_case=naming_case,
                 none_value_handling=none_value_handling,
+                decimal_places=decimal_places,
             )
         return with_type_checks_on_serialize(
             nested_field(
