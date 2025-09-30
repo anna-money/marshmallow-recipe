@@ -1,3 +1,8 @@
+## Unreleased
+
+* Fix decimal_places parameter not propagating to nested dataclasses
+
+
 ## v0.0.58(2025-09-30)
 
 * [Add global none_value_handling parameter to load/dump functions](https://github.com/anna-money/marshmallow-recipe/pull/191)

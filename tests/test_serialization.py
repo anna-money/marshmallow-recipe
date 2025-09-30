@@ -1153,6 +1153,93 @@ def test_options_decimal_places_different_values() -> None:
     assert dumped4 == {"value": "123.4568"}
 
 
+def test_options_decimal_places_nested_dataclass() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Inner:
+        value: decimal.Decimal
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @mr.options(decimal_places=2)
+    class Outer:
+        inner: Inner
+        outer_value: decimal.Decimal
+
+    instance = Outer(inner=Inner(value=decimal.Decimal("123.456789")), outer_value=decimal.Decimal("987.654321"))
+    dumped = mr.dump(instance)
+    assert dumped == {"inner": {"value": "123.46"}, "outer_value": "987.65"}
+
+
+def test_options_decimal_places_nested_with_global_parameter() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Inner:
+        value: decimal.Decimal
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Outer:
+        inner: Inner
+        outer_value: decimal.Decimal
+
+    instance = Outer(inner=Inner(value=decimal.Decimal("123.456789")), outer_value=decimal.Decimal("987.654321"))
+    dumped = mr.dump(instance, decimal_places=3)
+    assert dumped == {"inner": {"value": "123.457"}, "outer_value": "987.654"}
+
+
+def test_options_decimal_places_nested_list() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @mr.options(decimal_places=2)
+    class Item:
+        price: decimal.Decimal
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Container:
+        items: list[Item]
+
+    instance = Container(items=[Item(price=decimal.Decimal("10.999")), Item(price=decimal.Decimal("20.555"))])
+    dumped = mr.dump(instance)
+    assert dumped == {"items": [{"price": "11.00"}, {"price": "20.56"}]}
+
+
+def test_options_decimal_places_deeply_nested() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Level3:
+        value: decimal.Decimal
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Level2:
+        level3: Level3
+
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    @mr.options(decimal_places=1)
+    class Level1:
+        level2: Level2
+
+    instance = Level1(level2=Level2(level3=Level3(value=decimal.Decimal("123.456"))))
+    dumped = mr.dump(instance)
+    assert dumped == {"level2": {"level3": {"value": "123.5"}}}
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+@mr.options(decimal_places=2)
+class CyclicWithDecimal:
+    marker: str
+    value: decimal.Decimal
+    child: "CyclicWithDecimal | None"
+
+
+def test_options_decimal_places_cyclic_reference() -> None:
+    instance = CyclicWithDecimal(
+        marker="level 1",
+        value=decimal.Decimal("123.456"),
+        child=CyclicWithDecimal(marker="level 2", value=decimal.Decimal("987.654"), child=None),
+    )
+    dumped = mr.dump(instance)
+    assert dumped == {
+        "marker": "level 1",
+        "value": "123.46",
+        "child": {"marker": "level 2", "value": "987.65"},
+    }
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Cyclic:
     marker: str
