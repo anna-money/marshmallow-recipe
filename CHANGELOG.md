@@ -1,6 +1,6 @@
 ## Unreleased
 
-* Fix decimal_places parameter not propagating to nested dataclasses
+* [Fix decimal_places parameter not propagating to nested dataclasses](https://github.com/anna-money/marshmallow-recipe/pull/192)
 
 
 ## v0.0.58(2025-09-30)
