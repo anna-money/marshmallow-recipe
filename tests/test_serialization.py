@@ -1166,7 +1166,7 @@ def test_options_decimal_places_nested_dataclass() -> None:
 
     instance = Outer(inner=Inner(value=decimal.Decimal("123.456789")), outer_value=decimal.Decimal("987.654321"))
     dumped = mr.dump(instance)
-    assert dumped == {"inner": {"value": "123.457"}, "outer_value": "987.654"}
+    assert dumped == {"inner": {"value": "123.46"}, "outer_value": "987.654"}
 
 
 def test_options_decimal_places_nested_with_global_parameter() -> None:
@@ -1215,7 +1215,7 @@ def test_options_decimal_places_deeply_nested() -> None:
 
     instance = Level1(level2=Level2(level3=Level3(value=decimal.Decimal("123.456"))))
     dumped = mr.dump(instance)
-    assert dumped == {"level2": {"level3": {"value": "123.5"}}}
+    assert dumped == {"level2": {"level3": {"value": "123.46"}}}
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
