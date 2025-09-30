@@ -1159,14 +1159,14 @@ def test_options_decimal_places_nested_dataclass() -> None:
         value: decimal.Decimal
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    @mr.options(decimal_places=2)
+    @mr.options(decimal_places=3)
     class Outer:
         inner: Inner
         outer_value: decimal.Decimal
 
     instance = Outer(inner=Inner(value=decimal.Decimal("123.456789")), outer_value=decimal.Decimal("987.654321"))
     dumped = mr.dump(instance)
-    assert dumped == {"inner": {"value": "123.46"}, "outer_value": "987.65"}
+    assert dumped == {"inner": {"value": "123.457"}, "outer_value": "987.654"}
 
 
 def test_options_decimal_places_nested_with_global_parameter() -> None:
@@ -1186,7 +1186,7 @@ def test_options_decimal_places_nested_with_global_parameter() -> None:
 
 def test_options_decimal_places_nested_list() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    @mr.options(decimal_places=2)
+    @mr.options(decimal_places=3)
     class Item:
         price: decimal.Decimal
 
@@ -1196,7 +1196,7 @@ def test_options_decimal_places_nested_list() -> None:
 
     instance = Container(items=[Item(price=decimal.Decimal("10.999")), Item(price=decimal.Decimal("20.555"))])
     dumped = mr.dump(instance)
-    assert dumped == {"items": [{"price": "11.00"}, {"price": "20.56"}]}
+    assert dumped == {"items": [{"price": "10.999"}, {"price": "20.555"}]}
 
 
 def test_options_decimal_places_deeply_nested() -> None:
@@ -1219,7 +1219,7 @@ def test_options_decimal_places_deeply_nested() -> None:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-@mr.options(decimal_places=2)
+@mr.options(decimal_places=3)
 class CyclicWithDecimal:
     marker: str
     value: decimal.Decimal
@@ -1235,8 +1235,8 @@ def test_options_decimal_places_cyclic_reference() -> None:
     dumped = mr.dump(instance)
     assert dumped == {
         "marker": "level 1",
-        "value": "123.46",
-        "child": {"marker": "level 2", "value": "987.65"},
+        "value": "123.456",
+        "child": {"marker": "level 2", "value": "987.654"},
     }
 
 
