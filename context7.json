@@ -39,7 +39,6 @@
     "Cyclic/self-referencing structures: Type hints with quotes work: 'ClassName | None' or list['ClassName']",
     "Use @mr.pre_load decorator on static methods to transform data before deserialization",
     "Use mr.add_pre_load(Class, func) to programmatically add pre_load hooks without decorator",
-    "Multiple @mr.pre_load hooks are applied in order from top to bottom",
     "Custom datetime formats: Annotated[datetime.datetime, mr.datetime_meta(format='%Y-%m-%d %H:%M:%S')]",
     "Use mr.validate(condition, error='msg') helper for readable validation with custom error messages",
     "collections.abc types supported: Sequence (→list), Set (→set), Mapping (→dict) work transparently",
