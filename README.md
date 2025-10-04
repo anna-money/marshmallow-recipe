@@ -19,54 +19,13 @@ It can be seamlessly integrated into any codebase, providing the following benef
 
 ## Supported Types
 
-### Simple Types
-- text
-  - `str`
-- boolean
-  - `bool`
-- numeric
-  - `int`
-  - `float`
-  - `decimal.Decimal` (precision: 2 decimal places by default)
-- date and time
-  - `datetime.datetime`
-  - `datetime.date`
-  - `datetime.time`
-- UUID
-  - `uuid.UUID`
-- enum
-  - `enum.StrEnum`
-  - `enum.IntEnum`
+**Simple types:** `str`, `bool`, `int`, `float`, `decimal.Decimal`, `datetime.datetime`, `datetime.date`, `datetime.time`, `uuid.UUID`, `enum.StrEnum`, `enum.IntEnum`, `typing.Any`
 
-### Collection Types
-- sequences
-  - `tuple[T, ...]` (homogeneous tuples only)
-  - `Sequence[T]`
-  - `list[T]`
-  - `List[T]`
-- sets
-  - `set[T]`
-  - `Set[T]`
-  - `frozenset[T]`
-- mappings
-  - `dict[TKey, TValue]`
-  - `Dict[TKey, TValue]`
-  - `Mapping[TKey, TValue]`
+**Collections:** `list[T]`, `set[T]`, `frozenset[T]`, `tuple[T, ...]`, `dict[K, V]`, `Sequence[T]`, `Set[T]`, `Mapping[K, V]`
 
-### Advanced Types
-- nullable types
-  - `T | None`
-  - `typing.Optional[T]`
-  - `typing.Union[T, None]`
-- generic types
-  - `typing.TypeVar`
-  - `typing._GenericAlias`
-  - `types.GenericAlias`
-- meta types
-  - `typing.Annotated[T, _]`
-- special types
-  - `typing.Any`
-  - `typing.NewType(_, T)`
+**Advanced:** `T | None`, `Optional[T]`, `Generic[T]`, `Annotated[T, ...]`, `NewType('Name', T)`
+
+**Features:** Nested dataclasses, cyclic references, generics with full inheritance
 
 
 ## Examples
@@ -240,4 +199,23 @@ class SlotsFrozenNonGeneric(FrozenGeneric[int]):
     pass
 
 mr.dump(SlotsFrozenNonGeneric(value=123))  # cls not required for non-generic
+```
+
+## More Examples
+
+The [examples/](examples/) directory contains comprehensive examples covering all library features:
+
+- **[01_basic_usage.py](examples/01_basic_usage.py)** - All basic types, load/dump, schema generation
+- **[02_nested_and_collections.py](examples/02_nested_and_collections.py)** - Nested dataclasses and collections
+- **[03_field_customization.py](examples/03_field_customization.py)** - Field metadata, validation, transformations
+- **[04_naming_cases.py](examples/04_naming_cases.py)** - camelCase, PascalCase conversion
+- **[05_patch_operations.py](examples/05_patch_operations.py)** - PATCH operations with mr.MISSING
+- **[06_generics.py](examples/06_generics.py)** - Generic types usage
+- **[08_global_parameters.py](examples/08_global_parameters.py)** - Runtime global parameters
+- **[09_advanced_patterns.py](examples/09_advanced_patterns.py)** - BaseModel, cyclic refs, pre_load
+- **[10_advanced_features.py](examples/10_advanced_features.py)** - Advanced features and edge cases
+
+Run examples:
+```bash
+python examples/01_basic_usage.py
 ```
