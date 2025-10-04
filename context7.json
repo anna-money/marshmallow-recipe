@@ -40,13 +40,9 @@
     "Use mr.validate(condition, error='msg') helper for readable validation with custom error messages",
     "collections.abc types supported: Sequence (→list), Set (→set), Mapping (→dict) work transparently",
     "NewType support: NewType('UserId', int) works transparently - treated as underlying type",
-    "Schemas are generated and cached automatically - mr.schema(Class) returns marshmallow Schema",
-    "Schemas are cached separately per (naming_case, none_value_handling, decimal_places) combination",
+    "Schemas generated and cached automatically - mr.schema(Class) returns marshmallow Schema, cached per (naming_case, none_value_handling, decimal_places)",
     "Use mr.load_many(Class, list_data) and mr.dump_many(list_objs) for lists of objects",
-    "Validation errors raise marshmallow.ValidationError with detailed field-level error messages",
-    "Use mr.get_validation_field_errors(exc) to get structured validation errors",
-    "Originally created as abstraction layer for marshmallow v2 to v3 migration, now a powerful standalone library",
-    "Common production patterns: PATCH operations with mr.MISSING, decimal precision for money, camelCase for APIs"
+    "Use mr.get_validation_field_errors(exc) to get structured ValidationError details"
   ],
   "previousVersions": []
 }
