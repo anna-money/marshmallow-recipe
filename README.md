@@ -211,9 +211,9 @@ The [examples/](examples/) directory contains comprehensive examples covering al
 - **[04_naming_cases.py](examples/04_naming_cases.py)** - camelCase, PascalCase conversion
 - **[05_patch_operations.py](examples/05_patch_operations.py)** - PATCH operations with mr.MISSING
 - **[06_generics.py](examples/06_generics.py)** - Generic types usage
-- **[08_global_parameters.py](examples/08_global_parameters.py)** - Runtime global parameters
-- **[09_advanced_patterns.py](examples/09_advanced_patterns.py)** - BaseModel, cyclic refs, pre_load
-- **[10_advanced_features.py](examples/10_advanced_features.py)** - Advanced features and edge cases
+- **[08_global_parameters.py](examples/08_global_parameters.py)** - Runtime global parameters (naming_case, none_value_handling, decimal_places)
+- **[09_advanced_patterns.py](examples/09_advanced_patterns.py)** - Per-dataclass customization with @mr.options decorator
+- **[10_advanced_features.py](examples/10_advanced_features.py)** - Cyclic refs, @mr.pre_load, datetime_meta, collections.abc, NewType
 
 Run examples:
 ```bash
