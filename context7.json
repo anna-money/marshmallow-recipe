@@ -8,7 +8,6 @@
   "rules": [
     "Works with both marshmallow v2 and v3 - no version-specific code needed",
     "Basic usage: mr.dump(obj) to serialize, mr.load(Class, data) to deserialize",
-    "Standard dataclass pattern: @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)",
     "All Python types supported: str, int, float, bool, decimal.Decimal, datetime.datetime, datetime.date, datetime.time, uuid.UUID, enums, Any",
     "Collections: list[T], set[T], frozenset[T], tuple[T, ...], dict[K, V] - all work automatically",
     "Nested dataclasses work automatically without special configuration",
