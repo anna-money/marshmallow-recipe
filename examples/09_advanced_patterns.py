@@ -1,12 +1,11 @@
 """
 Per-dataclass customization with @mr.options decorator.
 
-This example demonstrates:
-- @mr.options(naming_case=...) for field name conversion
-- @mr.options(none_value_handling=...) for None value control
-- @mr.options(decimal_places=N) for decimal precision
-- Combining multiple @mr.options parameters
-- How @mr.options applies to a specific dataclass (not inherited by nested classes)
+This example demonstrates @mr.options decorator for per-dataclass settings:
+- naming_case: field name conversion per dataclass
+- none_value_handling: None value serialization per dataclass
+- decimal_places: decimal precision per dataclass
+- Nested dataclasses keep their own settings (NOT inherited)
 """
 
 import dataclasses
@@ -22,32 +21,32 @@ import marshmallow_recipe as mr
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class SnakeCaseModel:
-    """Default naming (snake_case)."""
+class SnakeCaseProduct:
+    """Default snake_case naming."""
 
-    user_id: int
-    user_name: str
-    email_address: str
+    product_id: uuid.UUID
+    product_name: str
+    unit_price: decimal.Decimal
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 @mr.options(naming_case=mr.CAMEL_CASE)
-class CamelCaseModel:
-    """camelCase naming."""
+class CamelCaseProduct:
+    """camelCase naming via @mr.options."""
 
-    user_id: int
-    user_name: str
-    email_address: str
+    product_id: uuid.UUID
+    product_name: str
+    unit_price: decimal.Decimal
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 @mr.options(naming_case=mr.CAPITAL_CAMEL_CASE)
-class PascalCaseModel:
-    """PascalCase naming."""
+class PascalCaseProduct:
+    """PascalCase naming via @mr.options."""
 
-    user_id: int
-    user_name: str
-    email_address: str
+    product_id: uuid.UUID
+    product_name: str
+    unit_price: decimal.Decimal
 
 
 # ============================================================
@@ -56,29 +55,29 @@ class PascalCaseModel:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class DefaultNoneHandling:
+class DefaultNoneProduct:
     """Default: None values excluded (IGNORE)."""
 
-    required_field: str
-    optional_field: str | None = None
+    product_name: str
+    description: str | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 @mr.options(none_value_handling=mr.NoneValueHandling.INCLUDE)
-class IncludeNoneHandling:
-    """Explicitly include None values."""
+class IncludeNoneProduct:
+    """INCLUDE: None values included via @mr.options."""
 
-    required_field: str
-    optional_field: str | None = None
+    product_name: str
+    description: str | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 @mr.options(none_value_handling=mr.NoneValueHandling.IGNORE)
-class IgnoreNoneHandling:
-    """Explicitly exclude None values."""
+class IgnoreNoneProduct:
+    """IGNORE: None values excluded via @mr.options (explicit)."""
 
-    required_field: str
-    optional_field: str | None = None
+    product_name: str
+    description: str | None = None
 
 
 # ============================================================
@@ -87,86 +86,42 @@ class IgnoreNoneHandling:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class DefaultDecimalPrecision:
+class DefaultPrecisionProduct:
     """Default decimal precision (2 places)."""
 
-    amount: decimal.Decimal
-    rate: decimal.Decimal
+    unit_price: decimal.Decimal
+    tax_rate: decimal.Decimal
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 @mr.options(decimal_places=4)
-class HighDecimalPrecision:
-    """High precision (4 places)."""
+class HighPrecisionProduct:
+    """4 decimal places via @mr.options."""
 
-    amount: decimal.Decimal
-    rate: decimal.Decimal
+    unit_price: decimal.Decimal
+    tax_rate: decimal.Decimal
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 @mr.options(decimal_places=9)
-class VeryHighDecimalPrecision:
-    """Very high precision (9 places) for forex/crypto."""
+class VeryHighPrecisionProduct:
+    """9 decimal places via @mr.options (for forex/crypto)."""
 
-    amount: decimal.Decimal
-    rate: decimal.Decimal
-
-
-# ============================================================
-# Pattern 4: Combining multiple @mr.options
-# ============================================================
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-@mr.options(
-    naming_case=mr.CAMEL_CASE,
-    none_value_handling=mr.NoneValueHandling.INCLUDE,
-)
-class CombinedOptionsV1:
-    """Combine naming + none handling."""
-
-    user_id: int
-    last_login: str | None = None
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-@mr.options(
-    naming_case=mr.CAPITAL_CAMEL_CASE,
-    decimal_places=3,
-)
-class CombinedOptionsV2:
-    """Combine naming + decimal precision."""
-
-    account_balance: decimal.Decimal
-    interest_rate: decimal.Decimal
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-@mr.options(
-    naming_case=mr.CAMEL_CASE,
-    none_value_handling=mr.NoneValueHandling.INCLUDE,
-    decimal_places=4,
-)
-class AllOptionsModel:
-    """Combine all three options."""
-
-    transaction_id: uuid.UUID
-    amount_usd: decimal.Decimal
-    exchange_rate: decimal.Decimal
-    error_message: str | None = None
+    unit_price: decimal.Decimal
+    tax_rate: decimal.Decimal
 
 
 # ============================================================
-# Pattern 5: Options NOT inherited by nested classes
+# Pattern 4: Nested dataclasses keep their own settings
 # ============================================================
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class InnerModel:
-    """Nested model WITHOUT @mr.options."""
+class InnerProduct:
+    """Nested product WITHOUT @mr.options (default settings)."""
 
-    inner_field: str
-    inner_amount: decimal.Decimal
+    inner_name: str
+    inner_price: decimal.Decimal
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -174,170 +129,143 @@ class InnerModel:
     naming_case=mr.CAMEL_CASE,
     decimal_places=4,
 )
-class OuterModel:
-    """Outer model WITH @mr.options."""
+class OuterOrder:
+    """Outer order WITH @mr.options."""
 
-    outer_field: str
-    outer_amount: decimal.Decimal
-    nested: InnerModel  # InnerModel keeps its own settings!
+    outer_id: uuid.UUID
+    outer_total: decimal.Decimal
+    product: InnerProduct  # Nested keeps its own settings!
 
 
 if __name__ == "__main__":
+    product_id = uuid.UUID("550e8400-e29b-41d4-a716-446655440000")
+
     print("=== Pattern 1: naming_case per dataclass ===")
 
-    # Same data, different naming conventions
-    snake_model = SnakeCaseModel(user_id=1, user_name="john", email_address="john@example.com")
-    snake_dict = mr.dump(snake_model)
-    print(f"SnakeCaseModel: {list(snake_dict.keys())}")
-    # ['user_id', 'user_name', 'email_address']
+    # snake_case (default)
+    snake_product = SnakeCaseProduct(
+        product_id=product_id,
+        product_name="Laptop",
+        unit_price=decimal.Decimal("999.99"),
+    )
+    snake_dict = mr.dump(snake_product)
+    print(f"SnakeCaseProduct: {list(snake_dict.keys())}")
+    # ['product_id', 'product_name', 'unit_price']
 
-    camel_model = CamelCaseModel(user_id=1, user_name="john", email_address="john@example.com")
-    camel_dict = mr.dump(camel_model)
-    print(f"CamelCaseModel: {list(camel_dict.keys())}")
-    # ['userId', 'userName', 'emailAddress']
+    # camelCase via @mr.options
+    camel_product = CamelCaseProduct(
+        product_id=product_id,
+        product_name="Laptop",
+        unit_price=decimal.Decimal("999.99"),
+    )
+    camel_dict = mr.dump(camel_product)
+    print(f"CamelCaseProduct: {list(camel_dict.keys())}")
+    # ['productId', 'productName', 'unitPrice']
 
-    pascal_model = PascalCaseModel(user_id=1, user_name="john", email_address="john@example.com")
-    pascal_dict = mr.dump(pascal_model)
-    print(f"PascalCaseModel: {list(pascal_dict.keys())}")
-    # ['UserId', 'UserName', 'EmailAddress']
+    # PascalCase via @mr.options
+    pascal_product = PascalCaseProduct(
+        product_id=product_id,
+        product_name="Laptop",
+        unit_price=decimal.Decimal("999.99"),
+    )
+    pascal_dict = mr.dump(pascal_product)
+    print(f"PascalCaseProduct: {list(pascal_dict.keys())}")
+    # ['ProductId', 'ProductName', 'UnitPrice']
 
-    print("✓ Each dataclass has its own naming convention!")
+    print("✓ Different dataclasses, different naming conventions!")
 
     print("\n=== Pattern 2: none_value_handling per dataclass ===")
 
-    # Default: None values excluded
-    default_model = DefaultNoneHandling(required_field="test", optional_field=None)
-    default_dict = mr.dump(default_model)
-    print(f"Default (IGNORE): 'optional_field' present = {'optional_field' in default_dict}")
+    # Default: IGNORE
+    default_product = DefaultNoneProduct(product_name="Laptop", description=None)
+    default_dict = mr.dump(default_product)
+    print(f"DefaultNoneProduct (IGNORE): 'description' present = {'description' in default_dict}")
     # False - None excluded
 
-    # INCLUDE: None values included
-    include_model = IncludeNoneHandling(required_field="test", optional_field=None)
-    include_dict = mr.dump(include_model)
-    print(f"INCLUDE: 'optional_field' present = {'optional_field' in include_dict}")
-    print(f"  Value: {include_dict.get('optional_field')}")
+    # INCLUDE via @mr.options
+    include_product = IncludeNoneProduct(product_name="Laptop", description=None)
+    include_dict = mr.dump(include_product)
+    print(f"IncludeNoneProduct (INCLUDE): 'description' present = {'description' in include_dict}")
+    print(f"  Value: {include_dict['description']}")
     # True - None included
 
-    # Explicit IGNORE
-    ignore_model = IgnoreNoneHandling(required_field="test", optional_field=None)
-    ignore_dict = mr.dump(ignore_model)
-    print(f"Explicit IGNORE: 'optional_field' present = {'optional_field' in ignore_dict}")
+    # Explicit IGNORE via @mr.options
+    ignore_product = IgnoreNoneProduct(product_name="Laptop", description=None)
+    ignore_dict = mr.dump(ignore_product)
+    print(f"IgnoreNoneProduct (IGNORE): 'description' present = {'description' in ignore_dict}")
     # False - None excluded
 
-    print("✓ Each dataclass controls its own None handling!")
+    print("✓ Different dataclasses, different None handling!")
 
     print("\n=== Pattern 3: decimal_places per dataclass ===")
 
-    # Default: 2 decimal places
-    default_decimal = DefaultDecimalPrecision(
-        amount=decimal.Decimal("123.456789"),
-        rate=decimal.Decimal("0.123456789"),
+    # Default: 2 places
+    default_precision = DefaultPrecisionProduct(
+        unit_price=decimal.Decimal("999.99567"),
+        tax_rate=decimal.Decimal("0.12345"),
     )
-    default_decimal_dict = mr.dump(default_decimal)
-    print(f"Default (2 places):")
-    print(f"  amount: {default_decimal_dict['amount']}")
-    print(f"  rate: {default_decimal_dict['rate']}")
-    # amount: 123.46, rate: 0.12
+    default_dict = mr.dump(default_precision)
+    print(f"DefaultPrecisionProduct (2 places):")
+    print(f"  unit_price: {default_dict['unit_price']}")
+    print(f"  tax_rate: {default_dict['tax_rate']}")
 
-    # High precision: 4 decimal places
-    high_precision = HighDecimalPrecision(
-        amount=decimal.Decimal("123.456789"),
-        rate=decimal.Decimal("0.123456789"),
+    # 4 places via @mr.options
+    high_precision = HighPrecisionProduct(
+        unit_price=decimal.Decimal("999.99567"),
+        tax_rate=decimal.Decimal("0.12345"),
     )
-    high_precision_dict = mr.dump(high_precision)
-    print(f"High precision (4 places):")
-    print(f"  amount: {high_precision_dict['amount']}")
-    print(f"  rate: {high_precision_dict['rate']}")
-    # amount: 123.4568, rate: 0.1235
+    high_dict = mr.dump(high_precision)
+    print(f"HighPrecisionProduct (4 places):")
+    print(f"  unit_price: {high_dict['unit_price']}")
+    print(f"  tax_rate: {high_dict['tax_rate']}")
 
-    # Very high precision: 9 decimal places
-    very_high_precision = VeryHighDecimalPrecision(
-        amount=decimal.Decimal("123.456789123"),
-        rate=decimal.Decimal("0.123456789123"),
+    # 9 places via @mr.options
+    very_high_precision = VeryHighPrecisionProduct(
+        unit_price=decimal.Decimal("999.99567123"),
+        tax_rate=decimal.Decimal("0.12345678901"),
     )
-    very_high_precision_dict = mr.dump(very_high_precision)
-    print(f"Very high precision (9 places):")
-    print(f"  amount: {very_high_precision_dict['amount']}")
-    print(f"  rate: {very_high_precision_dict['rate']}")
-    # amount: 123.456789123, rate: 0.123456789
+    very_high_dict = mr.dump(very_high_precision)
+    print(f"VeryHighPrecisionProduct (9 places):")
+    print(f"  unit_price: {very_high_dict['unit_price']}")
+    print(f"  tax_rate: {very_high_dict['tax_rate']}")
 
-    print("✓ Each dataclass has its own decimal precision!")
+    print("✓ Different dataclasses, different decimal precision!")
 
-    print("\n=== Pattern 4: Combining multiple @mr.options ===")
+    print("\n=== Pattern 4: Nested dataclasses keep their own settings ===")
 
-    # Combine naming + none handling
-    combined_v1 = CombinedOptionsV1(user_id=1, last_login=None)
-    combined_v1_dict = mr.dump(combined_v1)
-    print(f"camelCase + INCLUDE:")
-    print(f"  Keys: {list(combined_v1_dict.keys())}")
-    print(f"  lastLogin: {combined_v1_dict['lastLogin']}")
-    # ['userId', 'lastLogin'], lastLogin: None
-
-    # Combine naming + decimal precision
-    combined_v2 = CombinedOptionsV2(
-        account_balance=decimal.Decimal("1234.56789"),
-        interest_rate=decimal.Decimal("0.123456"),
+    inner = InnerProduct(
+        inner_name="Widget",
+        inner_price=decimal.Decimal("123.456789"),
     )
-    combined_v2_dict = mr.dump(combined_v2)
-    print(f"\nPascalCase + 3 decimal places:")
-    print(f"  Keys: {list(combined_v2_dict.keys())}")
-    print(f"  AccountBalance: {combined_v2_dict['AccountBalance']}")
-    print(f"  InterestRate: {combined_v2_dict['InterestRate']}")
-    # ['AccountBalance', 'InterestRate'], AccountBalance: 1234.568, InterestRate: 0.123
-
-    # Combine all three
-    all_options = AllOptionsModel(
-        transaction_id=uuid.uuid4(),
-        amount_usd=decimal.Decimal("99.123456789"),
-        exchange_rate=decimal.Decimal("1.23456789"),
-        error_message=None,
-    )
-    all_options_dict = mr.dump(all_options)
-    print(f"\ncamelCase + INCLUDE + 4 decimal places:")
-    print(f"  Keys: {list(all_options_dict.keys())}")
-    print(f"  amountUsd: {all_options_dict['amountUsd']}")
-    print(f"  errorMessage: {all_options_dict['errorMessage']}")
-    # ['transactionId', 'amountUsd', 'exchangeRate', 'errorMessage']
-    # amountUsd: 99.1235, errorMessage: None
-
-    print("✓ All @mr.options parameters work together!")
-
-    print("\n=== Pattern 5: Options NOT inherited by nested classes ===")
-
-    inner = InnerModel(
-        inner_field="test",
-        inner_amount=decimal.Decimal("123.456789"),
-    )
-    outer = OuterModel(
-        outer_field="outer",
-        outer_amount=decimal.Decimal("999.123456"),
-        nested=inner,
+    outer = OuterOrder(
+        outer_id=product_id,
+        outer_total=decimal.Decimal("999.123456"),
+        product=inner,
     )
 
     outer_dict = mr.dump(outer)
-    print(f"Outer model (camelCase, 4 places):")
+    print(f"OuterOrder (camelCase, 4 places):")
     print(f"  Top-level keys: {list(outer_dict.keys())}")
-    print(f"  outerAmount: {outer_dict['outerAmount']}")
-    # ['outerField', 'outerAmount', 'nested']
-    # outerAmount: 999.1235
+    print(f"  outerTotal: {outer_dict['outerTotal']}")
+    # ['outerId', 'outerTotal', 'product']
+    # outerTotal: 999.1235 (4 places from @mr.options)
 
-    print(f"\nNested model (default snake_case, 2 places):")
-    print(f"  Nested keys: {list(outer_dict['nested'].keys())}")
-    print(f"  inner_amount: {outer_dict['nested']['inner_amount']}")
-    # ['inner_field', 'inner_amount']
-    # inner_amount: 123.46
+    print(f"\nInnerProduct (snake_case, 2 places):")
+    print(f"  Nested keys: {list(outer_dict['product'].keys())}")
+    print(f"  inner_price: {outer_dict['product']['inner_price']}")
+    # ['inner_name', 'inner_price']
+    # inner_price: 123.46 (2 places, NOT 4!)
 
-    assert "outerField" in outer_dict  # camelCase from outer
-    assert outer_dict["outerAmount"] == "999.1235"  # 4 places from outer
-    assert "inner_field" in outer_dict["nested"]  # snake_case from inner (NOT camelCase!)
-    assert outer_dict["nested"]["inner_amount"] == "123.46"  # 2 places from inner (NOT 4!)
+    assert "outerId" in outer_dict  # camelCase from outer
+    assert outer_dict["outerTotal"] == "999.1235"  # 4 places from outer
+    assert "inner_name" in outer_dict["product"]  # snake_case from inner (NOT camelCase!)
+    assert outer_dict["product"]["inner_price"] == "123.46"  # 2 places from inner (NOT 4!)
 
-    print("✓ Nested models keep their own @mr.options settings!")
+    print("✓ Nested dataclasses keep their own @mr.options settings!")
 
     print("\n=== Summary ===")
-    print("@mr.options decorator allows per-dataclass customization:")
-    print("✓ naming_case: CAMEL_CASE, CAPITAL_CAMEL_CASE, UPPER_SNAKE_CASE")
-    print("✓ none_value_handling: INCLUDE or IGNORE")
-    print("✓ decimal_places: 2, 3, 4, 9, or any number")
-    print("✓ Combine multiple options in one decorator")
+    print("@mr.options decorator configures per-dataclass settings:")
+    print("✓ naming_case: each dataclass has its own naming convention")
+    print("✓ none_value_handling: each dataclass controls its None handling")
+    print("✓ decimal_places: each dataclass has its own decimal precision")
     print("✓ Nested dataclasses keep their own settings (NOT inherited)")
