@@ -203,19 +203,14 @@ mr.dump(SlotsFrozenNonGeneric(value=123))  # cls not required for non-generic
 
 ## More Examples
 
-The [examples/](examples/) directory contains comprehensive examples covering all library features:
+The [examples/](https://github.com/anna-money/marshmallow-recipe/tree/main/examples) directory contains comprehensive examples covering all library features:
 
-- **[01_basic_usage.py](examples/01_basic_usage.py)** - All basic types, load/dump, schema generation
-- **[02_nested_and_collections.py](examples/02_nested_and_collections.py)** - Nested dataclasses and collections
-- **[03_field_customization.py](examples/03_field_customization.py)** - Field metadata, validation, transformations
-- **[04_naming_cases.py](examples/04_naming_cases.py)** - camelCase, PascalCase conversion
-- **[05_patch_operations.py](examples/05_patch_operations.py)** - PATCH operations with mr.MISSING
-- **[06_generics.py](examples/06_generics.py)** - Generic types usage
-- **[08_global_parameters.py](examples/08_global_parameters.py)** - Runtime global parameters (naming_case, none_value_handling, decimal_places)
-- **[09_advanced_patterns.py](examples/09_advanced_patterns.py)** - Per-dataclass customization with @mr.options decorator
-- **[10_advanced_features.py](examples/10_advanced_features.py)** - Cyclic refs, @mr.pre_load, datetime_meta, collections.abc, NewType
-
-Run examples:
-```bash
-python examples/01_basic_usage.py
-```
+- **[01_basic_usage.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/01_basic_usage.py)** - All basic types, load/dump, schema generation
+- **[02_nested_and_collections.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/02_nested_and_collections.py)** - Nested dataclasses and collections
+- **[03_field_customization.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/03_field_customization.py)** - Field metadata, validation, transformations
+- **[04_naming_cases.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/04_naming_cases.py)** - camelCase, PascalCase conversion
+- **[05_patch_operations.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/05_patch_operations.py)** - PATCH operations with mr.MISSING
+- **[06_generics.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/06_generics.py)** - Generic types usage
+- **[08_global_parameters.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/08_global_parameters.py)** - Runtime global parameters (naming_case, none_value_handling, decimal_places)
+- **[09_advanced_patterns.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/09_advanced_patterns.py)** - Per-dataclass customization with @mr.options decorator
+- **[10_advanced_features.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/10_advanced_features.py)** - Cyclic refs, @mr.pre_load, datetime_meta, collections.abc, NewType
