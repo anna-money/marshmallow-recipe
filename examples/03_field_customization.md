@@ -149,38 +149,3 @@ event_dict = mr.dump(event)
 #     'event_date': '25/12/2024'               # Custom format
 # }
 ```
-
-## Combining Customisations
-
-Multiple customisations can be combined:
-
-```python
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ComplexModel:
-    # Custom name + strip
-    user_name: Annotated[str, mr.str_meta(strip_whitespaces=True), mr.meta(name="userName")]
-
-    # Custom name + decimal precision
-    total_amount: Annotated[decimal.Decimal, mr.decimal_meta(places=2), mr.meta(name="totalAmount")]
-
-    # Custom name + datetime format
-    last_updated: Annotated[
-        datetime.datetime,
-        mr.datetime_meta(format="%Y-%m-%d %H:%M"),
-        mr.meta(name="lastUpdated"),
-    ]
-
-
-complex = ComplexModel(
-    user_name="  Alice  ",
-    total_amount=decimal.Decimal("99.999"),
-    last_updated=datetime.datetime(2024, 3, 15, 10, 30, 45),
-)
-
-complex_dict = mr.dump(complex)
-# {
-#     'userName': 'Alice',           # Stripped
-#     'totalAmount': '100.00',       # 2 places
-#     'lastUpdated': '2024-03-15 10:30'  # Custom format
-# }
-```
