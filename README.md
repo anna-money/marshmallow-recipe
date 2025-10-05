@@ -205,12 +205,15 @@ mr.dump(SlotsFrozenNonGeneric(value=123))  # cls not required for non-generic
 
 The [examples/](https://github.com/anna-money/marshmallow-recipe/tree/main/examples) directory contains comprehensive examples covering all library features:
 
-- **[01_basic_usage.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/01_basic_usage.py)** - All basic types, load/dump, schema generation
-- **[02_nested_and_collections.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/02_nested_and_collections.py)** - Nested dataclasses and collections
-- **[03_field_customization.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/03_field_customization.py)** - Field metadata, validation, transformations
-- **[04_naming_cases.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/04_naming_cases.py)** - camelCase, PascalCase conversion
-- **[05_patch_operations.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/05_patch_operations.py)** - PATCH operations with mr.MISSING
-- **[06_generics.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/06_generics.py)** - Generic types usage
-- **[08_global_parameters.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/08_global_parameters.py)** - Runtime global parameters (naming_case, none_value_handling, decimal_places)
-- **[09_advanced_patterns.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/09_advanced_patterns.py)** - Per-dataclass customization with @mr.options decorator
-- **[10_advanced_features.py](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/10_advanced_features.py)** - Cyclic refs, @mr.pre_load, datetime_meta, collections.abc, NewType
+- **[01_basic_usage.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/01_basic_usage.md)** - Basic types, load/dump, schema, NewType
+- **[02_nested_and_collections.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/02_nested_and_collections.md)** - Nested dataclasses, collections, collections.abc types
+- **[03_field_customization.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/03_field_customization.md)** - Custom field names, string transforms, decimal precision, datetime formats
+- **[04_validation.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/04_validation.md)** - Field validation, regex, mr.validate(), collection item validation
+- **[05_naming_case_conversion.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/05_naming_case_conversion.md)** - camelCase, PascalCase, UPPER_SNAKE_CASE conversion
+- **[06_patch_operations.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/06_patch_operations.md)** - PATCH operations with mr.MISSING
+- **[07_generics.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/07_generics.md)** - Generic[T] types
+- **[08_global_overrides.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/08_global_overrides.md)** - Runtime parameter overrides (naming_case, none_value_handling, decimal_places)
+- **[09_per_dataclass_overrides.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/09_per_dataclass_overrides.md)** - Per-dataclass overrides with @mr.options decorator
+- **[10_cyclic_references.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/10_cyclic_references.md)** - Cyclic and self-referencing structures
+- **[11_pre_load_hooks.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/11_pre_load_hooks.md)** - @mr.pre_load hooks, add_pre_load()
+- **[12_validation_errors.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/12_validation_errors.md)** - get_validation_field_errors(), error handling
