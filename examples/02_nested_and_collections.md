@@ -25,7 +25,7 @@ class Address:
 class PhoneNumber:
     country_code: str
     number: str
-    type: str  # "mobile", "home", etc.
+    type: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
