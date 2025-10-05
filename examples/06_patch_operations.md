@@ -164,26 +164,6 @@ dumped = mr.dump(patch)
 # - Field in dict with value → Update to value
 ```
 
-## Real-World Pattern
-
-```python
-# API receives PATCH request
-update_data_raw = {
-    "cbd_business": True,
-    # Other fields not provided, should stay unchanged
-}
-
-# Load as PATCH model
-patch_obj = mr.load(CompanyInfoPatch, update_data_raw)
-
-# Dump for database update
-update_data = mr.dump(patch_obj)
-
-# Only cbd_business in update_data
-# Database UPDATE will only touch that field
-# Other fields remain unchanged in database
-```
-
 ## Key Principles
 
 1. **Default to `mr.MISSING`** - All PATCH fields should default to `mr.MISSING`
