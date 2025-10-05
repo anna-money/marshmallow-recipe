@@ -127,25 +127,17 @@ class Event:
         mr.datetime_meta(format="%Y-%m-%d %H:%M:%S"),
     ]
 
-    # Custom format: DD/MM/YYYY
-    event_date: Annotated[
-        datetime.date,
-        mr.datetime_meta(format="%d/%m/%Y"),
-    ]
-
 
 event = Event(
     id=1,
     name="Conference",
     scheduled_at=datetime.datetime(2024, 12, 25, 14, 30, 0),
-    event_date=datetime.date(2024, 12, 25),
 )
 
 event_dict = mr.dump(event)
 # {
 #     'id': 1,
 #     'name': 'Conference',
-#     'scheduled_at': '2024-12-25 14:30:00',  # Custom format
-#     'event_date': '25/12/2024'               # Custom format
+#     'scheduled_at': '2024-12-25 14:30:00'  # Custom format
 # }
 ```
