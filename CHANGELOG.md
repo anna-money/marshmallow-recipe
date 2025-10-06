@@ -1,9 +1,10 @@
-## Unreleased
+## v0.0.60(2025-10-06)
 
 * Add comprehensive examples covering all library functionality
 * Add Context7 configuration for AI-assisted development
 * Improve README.md with examples documentation
 * Update CLAUDE.md with documentation maintenance requirements
+
 
 ## v0.0.59(2025-09-30)
 
