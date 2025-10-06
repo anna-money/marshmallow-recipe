@@ -1,3 +1,10 @@
+## Unreleased
+
+* Add comprehensive examples covering all library functionality
+* Add Context7 configuration for AI-assisted development
+* Improve README.md with examples documentation
+* Update CLAUDE.md with documentation maintenance requirements
+
 ## v0.0.59(2025-09-30)
 
 * [Fix decimal_places parameter not propagating to nested dataclasses](https://github.com/anna-money/marshmallow-recipe/pull/192)

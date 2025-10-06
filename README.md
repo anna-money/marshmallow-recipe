@@ -19,54 +19,13 @@ It can be seamlessly integrated into any codebase, providing the following benef
 
 ## Supported Types
 
-### Simple Types
-- text
-  - `str`
-- boolean
-  - `bool`
-- numeric
-  - `int`
-  - `float`
-  - `decimal.Decimal` (precision: 2 decimal places by default)
-- date and time
-  - `datetime.datetime`
-  - `datetime.date`
-  - `datetime.time`
-- UUID
-  - `uuid.UUID`
-- enum
-  - `enum.StrEnum`
-  - `enum.IntEnum`
+**Simple types:** `str`, `bool`, `int`, `float`, `decimal.Decimal`, `datetime.datetime`, `datetime.date`, `datetime.time`, `uuid.UUID`, `enum.StrEnum`, `enum.IntEnum`, `typing.Any`
 
-### Collection Types
-- sequences
-  - `tuple[T, ...]` (homogeneous tuples only)
-  - `Sequence[T]`
-  - `list[T]`
-  - `List[T]`
-- sets
-  - `set[T]`
-  - `Set[T]`
-  - `frozenset[T]`
-- mappings
-  - `dict[TKey, TValue]`
-  - `Dict[TKey, TValue]`
-  - `Mapping[TKey, TValue]`
+**Collections:** `list[T]`, `set[T]`, `frozenset[T]`, `tuple[T, ...]`, `dict[K, V]`, `Sequence[T]`, `Set[T]`, `Mapping[K, V]`
 
-### Advanced Types
-- nullable types
-  - `T | None`
-  - `typing.Optional[T]`
-  - `typing.Union[T, None]`
-- generic types
-  - `typing.TypeVar`
-  - `typing._GenericAlias`
-  - `types.GenericAlias`
-- meta types
-  - `typing.Annotated[T, _]`
-- special types
-  - `typing.Any`
-  - `typing.NewType(_, T)`
+**Advanced:** `T | None`, `Optional[T]`, `Generic[T]`, `Annotated[T, ...]`, `NewType('Name', T)`
+
+**Features:** Nested dataclasses, cyclic references, generics with full inheritance
 
 
 ## Examples
@@ -241,3 +200,20 @@ class SlotsFrozenNonGeneric(FrozenGeneric[int]):
 
 mr.dump(SlotsFrozenNonGeneric(value=123))  # cls not required for non-generic
 ```
+
+## More Examples
+
+The [examples/](https://github.com/anna-money/marshmallow-recipe/tree/main/examples) directory contains comprehensive examples covering all library features:
+
+- **[01_basic_usage.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/01_basic_usage.md)** - Basic types, load/dump, schema, NewType
+- **[02_nested_and_collections.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/02_nested_and_collections.md)** - Nested dataclasses, collections, collections.abc types
+- **[03_field_customization.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/03_field_customization.md)** - Custom field names, string transforms, decimal precision, datetime formats
+- **[04_validation.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/04_validation.md)** - Field validation, regex, mr.validate(), collection item validation
+- **[05_naming_case_conversion.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/05_naming_case_conversion.md)** - camelCase, PascalCase, UPPER_SNAKE_CASE conversion
+- **[06_patch_operations.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/06_patch_operations.md)** - PATCH operations with mr.MISSING
+- **[07_generics.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/07_generics.md)** - Generic[T] types
+- **[08_global_overrides.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/08_global_overrides.md)** - Runtime parameter overrides (naming_case, none_value_handling, decimal_places)
+- **[09_per_dataclass_overrides.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/09_per_dataclass_overrides.md)** - Per-dataclass overrides with @mr.options decorator
+- **[10_cyclic_references.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/10_cyclic_references.md)** - Cyclic and self-referencing structures
+- **[11_pre_load_hooks.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/11_pre_load_hooks.md)** - @mr.pre_load hooks, add_pre_load()
+- **[12_validation_errors.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/12_validation_errors.md)** - get_validation_field_errors(), error handling
