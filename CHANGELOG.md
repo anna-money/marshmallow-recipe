@@ -1,6 +1,7 @@
-## v0.0.61(TBD)
+## v0.0.61a1(2025-10-06)
 
 * Add rounding parameter support for decimal fields via decimal_meta()
+
 
 ## v0.0.60(2025-10-06)
 
