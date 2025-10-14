@@ -1240,6 +1240,24 @@ def test_options_decimal_places_cyclic_reference() -> None:
     }
 
 
+def test_decimal_rounding_metadata() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Container:
+        value: Annotated[decimal.Decimal, mr.decimal_meta(places=2, rounding=decimal.ROUND_UP)]
+
+    dumped = mr.dump(Container(value=decimal.Decimal("123.454")))
+    assert dumped == {"value": "123.46"}
+
+
+def test_decimal_rounding_metadata_round_down() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Container:
+        value: Annotated[decimal.Decimal, mr.decimal_meta(places=2, rounding=decimal.ROUND_DOWN)]
+
+    dumped = mr.dump(Container(value=decimal.Decimal("123.459")))
+    assert dumped == {"value": "123.45"}
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Cyclic:
     marker: str
