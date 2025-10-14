@@ -199,6 +199,13 @@ EMPTY_SCHEMA = m.Schema()
             m.fields.Decimal(required=True, **data_key_fields("i"), places=4, as_string=False),
         ),
         (
+            decimal.Decimal,
+            mr.decimal_meta(name="i", places=4, as_string=False, rounding=decimal.ROUND_DOWN),
+            m.fields.Decimal(
+                required=True, **data_key_fields("i"), places=4, as_string=False, rounding=decimal.ROUND_DOWN
+            ),
+        ),
+        (
             Optional[decimal.Decimal],
             mr.decimal_meta(name="i", places=4, as_string=False),
             m.fields.Decimal(

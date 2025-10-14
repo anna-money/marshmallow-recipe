@@ -80,6 +80,7 @@ def decimal_metadata(
     *,
     name: str = MISSING,
     places: int | None = MISSING,
+    rounding: str | None = None,
     as_string: bool = MISSING,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
 ) -> Metadata:
@@ -88,6 +89,8 @@ def decimal_metadata(
         values.update(name=name)
     if places is not MISSING:
         values.update(places=places)
+    if rounding is not None:
+        values.update(rounding=rounding)
     if as_string is not MISSING:
         values.update(as_string=as_string)
     if validate is not None:
