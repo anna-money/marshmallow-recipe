@@ -56,14 +56,6 @@ class ContactInfo:
         ),
     ]
 
-    # Email: standard email pattern
-    email: Annotated[
-        str,
-        mr.str_meta(
-            validate=mr.regexp_validate(r"^[\w\.-]+@[\w\.-]+\.\w+$", error="Invalid email format")
-        ),
-    ]
-
     # Phone: international format
     phone: Annotated[
         str,
@@ -73,9 +65,46 @@ class ContactInfo:
 
 contact = ContactInfo(
     username="john_doe",
-    email="john@example.com",
     phone="+15551234567",
 )
+```
+
+## Email Validation
+
+Email address validation with `mr.email_validate()`:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class UserAccount:
+    # Primary email: standard validation
+    email: Annotated[str, mr.str_meta(validate=mr.email_validate())]
+
+    # Backup email: custom error message
+    backup_email: Annotated[
+        str,
+        mr.str_meta(
+            validate=mr.email_validate(error="Please provide a valid backup email address")
+        ),
+    ]
+
+
+user = UserAccount(
+    email="user@example.com",
+    backup_email="backup@domain.org",
+)
+
+# Valid email formats:
+# - user@example.com
+# - test.user+tag@domain.co.uk
+# - user@localhost
+# - "quoted.user"@example.com
+# - user@münchen.de (internationalized domains)
+
+# Invalid formats raise ValidationError:
+# - Empty string
+# - Missing @ sign
+# - Invalid domain
+# - Invalid user part
 ```
 
 ## Custom Error Messages
@@ -162,7 +191,7 @@ class CleanedUser:
         str,
         mr.str_meta(
             strip_whitespaces=True,
-            validate=mr.regexp_validate(r"^[\w\.-]+@[\w\.-]+\.\w+$"),
+            validate=mr.email_validate(),
         ),
     ]
 

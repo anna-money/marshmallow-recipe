@@ -54,6 +54,7 @@ from .validation import (
     ValidationError,
     ValidationFieldError,
     ValidationFunc,
+    email_validate,
     get_validation_field_errors,
     regexp_validate,
     validate,
@@ -120,6 +121,7 @@ __all__: tuple[str, ...] = (
     "EmptySchema",
     # validation.py
     "ValidationFunc",
+    "email_validate",
     "regexp_validate",
     "validate",
     "ValidationError",
@@ -127,7 +129,7 @@ __all__: tuple[str, ...] = (
     "get_validation_field_errors",
 )
 
-__version__ = "0.0.61"
+__version__ = "0.0.62"
 
 version = f"{__version__}, Python {sys.version}"
 
