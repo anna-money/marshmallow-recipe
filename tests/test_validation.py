@@ -241,3 +241,66 @@ def test_get_field_errors() -> None:
             nested_errors=[mr.ValidationFieldError(name="0", error="Not a valid integer.")],
         ),
     ]
+
+
+def test_email_validate() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class UserContact:
+        email: Annotated[str, mr.str_meta(validate=mr.email_validate())]
+        backup_email: Annotated[str, mr.str_meta(validate=mr.email_validate(error="Invalid backup email: {input}"))]
+
+    # Valid emails
+    user = UserContact(email="user@example.com", backup_email="backup@domain.org")
+    assert mr.dump(user) == {"email": "user@example.com", "backup_email": "backup@domain.org"}
+    assert mr.load(UserContact, {"email": "user@example.com", "backup_email": "backup@domain.org"}) == user
+
+    # Valid email with plus addressing
+    user = UserContact(email="test.user+tag@domain.co.uk", backup_email="backup@domain.org")
+    assert mr.dump(user) == {"email": "test.user+tag@domain.co.uk", "backup_email": "backup@domain.org"}
+
+    # Valid email with localhost
+    user = UserContact(email="user@localhost", backup_email="backup@domain.org")
+    assert mr.dump(user) == {"email": "user@localhost", "backup_email": "backup@domain.org"}
+
+    # Invalid email - empty string
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.dump(UserContact(email="", backup_email="backup@domain.org"))
+    assert exc_info.value.messages == {"email": ["Not a valid email address."]}
+
+    # Invalid email - no @ sign
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.dump(UserContact(email="notanemail", backup_email="backup@domain.org"))
+    assert exc_info.value.messages == {"email": ["Not a valid email address."]}
+
+    # Invalid email - missing domain
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.dump(UserContact(email="user@", backup_email="backup@domain.org"))
+    assert exc_info.value.messages == {"email": ["Not a valid email address."]}
+
+    # Invalid email - missing user part
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.dump(UserContact(email="@domain.com", backup_email="backup@domain.org"))
+    assert exc_info.value.messages == {"email": ["Not a valid email address."]}
+
+    # Custom error message
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.dump(UserContact(email="user@example.com", backup_email="invalid"))
+    assert exc_info.value.messages == {"backup_email": ["Invalid backup email: invalid"]}
+
+    # Test with load
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.load(UserContact, {"email": "notanemail", "backup_email": "backup@domain.org"})
+    assert exc_info.value.messages == {"email": ["Not a valid email address."]}
+
+
+def test_email_validate_with_strip_whitespaces() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class CleanedUser:
+        email: Annotated[str, mr.str_meta(strip_whitespaces=True, validate=mr.email_validate())]
+
+    # Whitespace should be stripped before validation
+    user = mr.load(CleanedUser, {"email": "  user@example.com  "})
+    assert user.email == "user@example.com"
+
+    dumped = mr.dump(user)
+    assert dumped == {"email": "user@example.com"}

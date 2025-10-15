@@ -1,3 +1,8 @@
+## v0.0.62(2025-10-15)
+
+* Add email validation support with mr.email_validate()
+
+
 ## v0.0.61(2025-10-06)
 
 * Add rounding parameter support for decimal fields via decimal_meta()

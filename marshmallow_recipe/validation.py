@@ -12,6 +12,10 @@ def regexp_validate(regexp: re.Pattern | str, *, error: str | None = None) -> Va
     return marshmallow.validate.Regexp(regexp, error=error)
 
 
+def email_validate(*, error: str | None = None) -> ValidationFunc:
+    return marshmallow.validate.Email(error=error)
+
+
 def validate(validator: ValidationFunc, *, error: str | None = None) -> ValidationFunc:
     if error is None:
         return validator
