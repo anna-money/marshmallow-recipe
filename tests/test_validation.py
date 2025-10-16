@@ -304,3 +304,127 @@ def test_email_validate_with_strip_whitespaces() -> None:
 
     dumped = mr.dump(user)
     assert dumped == {"email": "user@example.com"}
+
+
+def test_error_messages_str_field() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class User:
+        name: Annotated[
+            str, mr.str_meta(error_messages={"required": "Name is required", "null": "Name cannot be null"})
+        ]
+
+    # Test custom required error message
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.load(User, {})
+    assert exc_info.value.messages == {"name": ["Name is required"]}
+
+    # Test custom null error message
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.load(User, {"name": None})
+    assert exc_info.value.messages == {"name": ["Name cannot be null"]}
+
+
+def test_error_messages_int_field() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Product:
+        quantity: Annotated[
+            int, mr.meta(error_messages={"required": "Quantity is required", "invalid": "Invalid quantity"})
+        ]
+
+    # Test custom required error message
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.load(Product, {})
+    assert exc_info.value.messages == {"quantity": ["Quantity is required"]}
+
+    # Test custom invalid error message
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.load(Product, {"quantity": "not-a-number"})
+    assert exc_info.value.messages == {"quantity": ["Invalid quantity"]}
+
+
+def test_error_messages_decimal_field() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Price:
+        amount: Annotated[
+            decimal.Decimal,
+            mr.decimal_meta(error_messages={"required": "Price is required", "invalid": "Invalid price format"}),
+        ]
+
+    # Test custom required error message
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.load(Price, {})
+    assert exc_info.value.messages == {"amount": ["Price is required"]}
+
+    # Test custom invalid error message
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.load(Price, {"amount": "abc"})
+    assert exc_info.value.messages == {"amount": ["Invalid price format"]}
+
+
+def test_error_messages_datetime_field() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Event:
+        timestamp: Annotated[
+            datetime.datetime,
+            mr.datetime_meta(error_messages={"required": "Timestamp is required", "invalid": "Invalid timestamp"}),
+        ]
+
+    # Test custom required error message
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.load(Event, {})
+    assert exc_info.value.messages == {"timestamp": ["Timestamp is required"]}
+
+    # Test custom invalid error message
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.load(Event, {"timestamp": "not-a-date"})
+    assert exc_info.value.messages == {"timestamp": ["Invalid timestamp"]}
+
+
+def test_error_messages_list_field() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Items:
+        tags: Annotated[
+            list[str], mr.list_meta(error_messages={"required": "Tags are required", "null": "Tags cannot be null"})
+        ]
+
+    # Test custom required error message
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.load(Items, {})
+    assert exc_info.value.messages == {"tags": ["Tags are required"]}
+
+    # Test custom null error message
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.load(Items, {"tags": None})
+    assert exc_info.value.messages == {"tags": ["Tags cannot be null"]}
+
+
+def test_error_messages_optional_field() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Config:
+        value: Annotated[str | None, mr.str_meta(error_messages={"invalid": "Invalid configuration value"})] = None
+
+    # Custom error message should work for optional fields too when invalid type is provided
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.load(Config, {"value": 123})
+    assert exc_info.value.messages == {"value": ["Invalid configuration value"]}
+
+    # None should be allowed for optional field
+    assert mr.load(Config, {"value": None}) == Config(value=None)
+    assert mr.load(Config, {}) == Config(value=None)
+
+
+def test_error_messages_multiple_fields() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class User:
+        username: Annotated[str, mr.str_meta(error_messages={"required": "Username is required"})]
+        email: Annotated[str, mr.str_meta(error_messages={"required": "Email is required"})]
+        age: Annotated[int, mr.meta(error_messages={"required": "Age is required"})]
+
+    # Test multiple custom error messages at once
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.load(User, {})
+    assert exc_info.value.messages == {
+        "username": ["Username is required"],
+        "email": ["Email is required"],
+        "age": ["Age is required"],
+    }

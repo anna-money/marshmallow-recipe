@@ -1,3 +1,8 @@
+## v0.0.63a1(2025-10-16)
+
+* Add error_messages support to all metadata functions
+
+
 ## v0.0.62(2025-10-15)
 
 * Add email validation support with mr.email_validate()
