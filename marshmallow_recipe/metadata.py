@@ -48,12 +48,15 @@ def metadata(
     *,
     name: str = MISSING,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    error_messages: collections.abc.Mapping[str, str] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
         values.update(name=name)
     if validate is not None:
         values.update(validate=validate)
+    if error_messages is not None:
+        values.update(error_messages=error_messages)
     return Metadata(values)
 
 
@@ -63,6 +66,7 @@ def str_metadata(
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     strip_whitespaces: bool | None = None,
     post_load: collections.abc.Callable[[str], str] | None = None,
+    error_messages: collections.abc.Mapping[str, str] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -73,6 +77,8 @@ def str_metadata(
         values.update(strip_whitespaces=strip_whitespaces)
     if post_load is not None:
         values.update(post_load=post_load)
+    if error_messages is not None:
+        values.update(error_messages=error_messages)
     return Metadata(values)
 
 
@@ -83,6 +89,7 @@ def decimal_metadata(
     rounding: str | None = None,
     as_string: bool = MISSING,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    error_messages: collections.abc.Mapping[str, str] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -95,6 +102,8 @@ def decimal_metadata(
         values.update(as_string=as_string)
     if validate is not None:
         values.update(validate=validate)
+    if error_messages is not None:
+        values.update(error_messages=error_messages)
     return Metadata(values)
 
 
@@ -103,6 +112,7 @@ def datetime_metadata(
     name: str = MISSING,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     format: str | None = None,
+    error_messages: collections.abc.Mapping[str, str] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -111,6 +121,8 @@ def datetime_metadata(
         values.update(validate=validate)
     if format is not None:
         values.update(format=format)
+    if error_messages is not None:
+        values.update(error_messages=error_messages)
     return Metadata(values)
 
 
@@ -118,12 +130,15 @@ def time_metadata(
     *,
     name: str = MISSING,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    error_messages: collections.abc.Mapping[str, str] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
         values.update(name=name)
     if validate is not None:
         values.update(validate=validate)
+    if error_messages is not None:
+        values.update(error_messages=error_messages)
     return Metadata(values)
 
 
@@ -132,6 +147,7 @@ def list_metadata(
     name: str = MISSING,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     validate_item: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    error_messages: collections.abc.Mapping[str, str] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -140,6 +156,8 @@ def list_metadata(
         values.update(validate=validate)
     if validate_item is not None:
         values.update(validate_item=validate_item)
+    if error_messages is not None:
+        values.update(error_messages=error_messages)
     return Metadata(values)
 
 
@@ -148,6 +166,7 @@ def set_metadata(
     name: str = MISSING,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     validate_item: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    error_messages: collections.abc.Mapping[str, str] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -156,6 +175,8 @@ def set_metadata(
         values.update(validate=validate)
     if validate_item is not None:
         values.update(validate_item=validate_item)
+    if error_messages is not None:
+        values.update(error_messages=error_messages)
     return Metadata(values)
 
 
@@ -164,6 +185,7 @@ def tuple_metadata(
     name: str = MISSING,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     validate_item: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    error_messages: collections.abc.Mapping[str, str] | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -172,6 +194,8 @@ def tuple_metadata(
         values.update(validate=validate)
     if validate_item is not None:
         values.update(validate_item=validate_item)
+    if error_messages is not None:
+        values.update(error_messages=error_messages)
     return Metadata(values)
 
 

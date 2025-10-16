@@ -133,6 +133,69 @@ class PaymentInfo:
     ]
 ```
 
+## Field-Level Error Messages
+
+Customize marshmallow's built-in error messages with `error_messages`:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class UserProfile:
+    # Custom "required" error message
+    username: Annotated[
+        str,
+        mr.str_meta(error_messages={"required": "Please provide a username"}),
+    ]
+
+    # Custom "null" and "required" messages
+    email: Annotated[
+        str,
+        mr.str_meta(
+            error_messages={
+                "required": "Email address is required",
+                "null": "Email cannot be empty",
+            }
+        ),
+    ]
+
+    # Custom "invalid" error message
+    age: Annotated[
+        int,
+        mr.meta(error_messages={"invalid": "Age must be a valid number"}),
+    ]
+
+
+# Missing required field
+try:
+    mr.load(UserProfile, {"email": "user@example.com", "age": 25})
+except m.ValidationError as e:
+    # e.messages == {'username': ['Please provide a username']}
+    pass
+
+# Null value for non-nullable field
+try:
+    mr.load(UserProfile, {"username": "john", "email": None, "age": 25})
+except m.ValidationError as e:
+    # e.messages == {'email': ['Email cannot be empty']}
+    pass
+
+# Invalid type
+try:
+    mr.load(UserProfile, {"username": "john", "email": "john@example.com", "age": "abc"})
+except m.ValidationError as e:
+    # e.messages == {'age': ['Age must be a valid number']}
+    pass
+```
+
+Common error message keys for different field types:
+- All fields: `required`, `null`, `validator_failed`
+- String: `invalid`
+- Integer/Float: `invalid`
+- Decimal: `invalid`, `special`
+- DateTime/Date/Time: `invalid`
+- List/Set/Tuple: `invalid`
+- Nested: `invalid`
+- UUID: `invalid`
+
 ## Collection Item Validation
 
 Validate individual items in collections:
