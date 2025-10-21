@@ -282,6 +282,11 @@ def test_email_validate() -> None:
         mr.dump(UserContact(email="@domain.com", backup_email="backup@domain.org"))
     assert exc_info.value.messages == {"email": ["Not a valid email address."]}
 
+    # Invalid email - quoted local-part
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.dump(UserContact(email='"very.unusual.@.unusual.com"@example.com', backup_email="backup@domain.org"))
+    assert exc_info.value.messages == {"email": ["Not a valid email address."]}
+
     # Custom error message
     with pytest.raises(m.ValidationError) as exc_info:
         mr.dump(UserContact(email="user@example.com", backup_email="invalid"))

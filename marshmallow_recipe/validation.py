@@ -13,7 +13,13 @@ def regexp_validate(regexp: re.Pattern | str, *, error: str | None = None) -> Va
 
 
 def email_validate(*, error: str | None = None) -> ValidationFunc:
-    return marshmallow.validate.Email(error=error)
+    class Email(marshmallow.validate.Email):
+        # RESTRICT QUOTED STRINGS: Prohibiting double-quotes (") in the local-part
+        # (the part before the @) ensures compatibility with most major email systems,
+        # as the full RFC-valid quoted format is rarely supported in practice.
+        USER_REGEX = re.compile(r"(^[-!#$%&'*+/=?^`{}|~\w]+(\.[-!#$%&'*+/=?^`{}|~\w]+)*$)", re.IGNORECASE | re.UNICODE)
+
+    return Email(error=error)
 
 
 def validate(validator: ValidationFunc, *, error: str | None = None) -> ValidationFunc:
