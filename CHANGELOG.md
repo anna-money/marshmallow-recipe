@@ -1,4 +1,4 @@
-## Unreleased
+## v0.0.63(2025-10-21)
 
 * [Restrict email validation for quoted local-parts](https://github.com/anna-money/marshmallow-recipe/pull/199)
 
