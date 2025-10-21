@@ -1,3 +1,8 @@
+## Unreleased
+
+* [Restrict email validation for quoted local-parts](https://github.com/anna-money/marshmallow-recipe/pull/199)
+
+
 ## v0.0.62(2025-10-15)
 
 * Add email validation support with mr.email_validate()
