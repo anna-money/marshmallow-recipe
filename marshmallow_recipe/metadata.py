@@ -49,7 +49,7 @@ def metadata(
     name: str = MISSING,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     required_error: str | None = None,
-    null_error: str | None = None,
+    none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
@@ -59,8 +59,8 @@ def metadata(
         values.update(validate=validate)
     if required_error is not None:
         values.update(required_error=required_error)
-    if null_error is not None:
-        values.update(null_error=null_error)
+    if none_error is not None:
+        values.update(none_error=none_error)
     if invalid_error is not None:
         values.update(invalid_error=invalid_error)
     return Metadata(values)
@@ -73,7 +73,7 @@ def str_metadata(
     strip_whitespaces: bool | None = None,
     post_load: collections.abc.Callable[[str], str] | None = None,
     required_error: str | None = None,
-    null_error: str | None = None,
+    none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
@@ -87,8 +87,8 @@ def str_metadata(
         values.update(post_load=post_load)
     if required_error is not None:
         values.update(required_error=required_error)
-    if null_error is not None:
-        values.update(null_error=null_error)
+    if none_error is not None:
+        values.update(none_error=none_error)
     if invalid_error is not None:
         values.update(invalid_error=invalid_error)
     return Metadata(values)
@@ -102,7 +102,7 @@ def decimal_metadata(
     as_string: bool = MISSING,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     required_error: str | None = None,
-    null_error: str | None = None,
+    none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
@@ -118,8 +118,8 @@ def decimal_metadata(
         values.update(validate=validate)
     if required_error is not None:
         values.update(required_error=required_error)
-    if null_error is not None:
-        values.update(null_error=null_error)
+    if none_error is not None:
+        values.update(none_error=none_error)
     if invalid_error is not None:
         values.update(invalid_error=invalid_error)
     return Metadata(values)
@@ -131,7 +131,7 @@ def datetime_metadata(
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     format: str | None = None,
     required_error: str | None = None,
-    null_error: str | None = None,
+    none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
@@ -143,8 +143,8 @@ def datetime_metadata(
         values.update(format=format)
     if required_error is not None:
         values.update(required_error=required_error)
-    if null_error is not None:
-        values.update(null_error=null_error)
+    if none_error is not None:
+        values.update(none_error=none_error)
     if invalid_error is not None:
         values.update(invalid_error=invalid_error)
     return Metadata(values)
@@ -155,7 +155,7 @@ def time_metadata(
     name: str = MISSING,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     required_error: str | None = None,
-    null_error: str | None = None,
+    none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
@@ -165,8 +165,8 @@ def time_metadata(
         values.update(validate=validate)
     if required_error is not None:
         values.update(required_error=required_error)
-    if null_error is not None:
-        values.update(null_error=null_error)
+    if none_error is not None:
+        values.update(none_error=none_error)
     if invalid_error is not None:
         values.update(invalid_error=invalid_error)
     return Metadata(values)
@@ -178,7 +178,7 @@ def list_metadata(
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     validate_item: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     required_error: str | None = None,
-    null_error: str | None = None,
+    none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
@@ -190,8 +190,8 @@ def list_metadata(
         values.update(validate_item=validate_item)
     if required_error is not None:
         values.update(required_error=required_error)
-    if null_error is not None:
-        values.update(null_error=null_error)
+    if none_error is not None:
+        values.update(none_error=none_error)
     if invalid_error is not None:
         values.update(invalid_error=invalid_error)
     return Metadata(values)
@@ -203,7 +203,7 @@ def set_metadata(
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     validate_item: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     required_error: str | None = None,
-    null_error: str | None = None,
+    none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
@@ -215,8 +215,8 @@ def set_metadata(
         values.update(validate_item=validate_item)
     if required_error is not None:
         values.update(required_error=required_error)
-    if null_error is not None:
-        values.update(null_error=null_error)
+    if none_error is not None:
+        values.update(none_error=none_error)
     if invalid_error is not None:
         values.update(invalid_error=invalid_error)
     return Metadata(values)
@@ -228,7 +228,7 @@ def tuple_metadata(
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     validate_item: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     required_error: str | None = None,
-    null_error: str | None = None,
+    none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
@@ -240,8 +240,8 @@ def tuple_metadata(
         values.update(validate_item=validate_item)
     if required_error is not None:
         values.update(required_error=required_error)
-    if null_error is not None:
-        values.update(null_error=null_error)
+    if none_error is not None:
+        values.update(none_error=none_error)
     if invalid_error is not None:
         values.update(invalid_error=invalid_error)
     return Metadata(values)

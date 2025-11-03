@@ -314,14 +314,14 @@ def test_email_validate_with_strip_whitespaces() -> None:
 def test_error_messages_str_field() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class User:
-        name: Annotated[str, mr.str_meta(required_error="Name is required", null_error="Name cannot be null")]
+        name: Annotated[str, mr.str_meta(required_error="Name is required", none_error="Name cannot be null")]
 
     # Test custom required error message
     with pytest.raises(m.ValidationError) as exc_info:
         mr.load(User, {})
     assert exc_info.value.messages == {"name": ["Name is required"]}
 
-    # Test custom null error message
+    # Test custom none error message
     with pytest.raises(m.ValidationError) as exc_info:
         mr.load(User, {"name": None})
     assert exc_info.value.messages == {"name": ["Name cannot be null"]}
@@ -384,14 +384,14 @@ def test_error_messages_datetime_field() -> None:
 def test_error_messages_list_field() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class Items:
-        tags: Annotated[list[str], mr.list_meta(required_error="Tags are required", null_error="Tags cannot be null")]
+        tags: Annotated[list[str], mr.list_meta(required_error="Tags are required", none_error="Tags cannot be null")]
 
     # Test custom required error message
     with pytest.raises(m.ValidationError) as exc_info:
         mr.load(Items, {})
     assert exc_info.value.messages == {"tags": ["Tags are required"]}
 
-    # Test custom null error message
+    # Test custom none error message
     with pytest.raises(m.ValidationError) as exc_info:
         mr.load(Items, {"tags": None})
     assert exc_info.value.messages == {"tags": ["Tags cannot be null"]}

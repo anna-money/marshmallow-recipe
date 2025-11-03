@@ -146,12 +146,12 @@ class UserProfile:
         mr.str_meta(required_error="Please provide a username"),
     ]
 
-    # Custom "required" and "null" error messages
+    # Custom "required" and "none" error messages
     email: Annotated[
         str,
         mr.str_meta(
             required_error="Email address is required",
-            null_error="Email cannot be empty",
+            none_error="Email cannot be empty",
         ),
     ]
 
@@ -169,7 +169,7 @@ except m.ValidationError as e:
     # e.messages == {'username': ['Please provide a username']}
     pass
 
-# Null value for non-nullable field
+# None value for non-nullable field
 try:
     mr.load(UserProfile, {"username": "john", "email": None, "age": 25})
 except m.ValidationError as e:
@@ -186,7 +186,7 @@ except m.ValidationError as e:
 
 Available error message parameters:
 - `required_error`: Error when field is missing from input
-- `null_error`: Error when field has None value but doesn't allow None
+- `none_error`: Error when field has None value but doesn't allow None
 - `invalid_error`: Error for invalid type or format
 
 ## Collection Item Validation
