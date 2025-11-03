@@ -140,16 +140,19 @@ Customize marshmallow's built-in error messages using explicit error parameters:
 ```python
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class UserProfile:
-    # Custom "required" error message (also used for null values)
+    # Custom "required" error message
     username: Annotated[
         str,
         mr.str_meta(required_error="Please provide a username"),
     ]
 
-    # Custom "required" message for both missing and null
+    # Custom "required" and "null" messages
     email: Annotated[
         str,
-        mr.str_meta(required_error="Email address is required"),
+        mr.str_meta(
+            required_error="Email address is required",
+            null_error="Email cannot be empty",
+        ),
     ]
 
     # Custom "invalid" error message
@@ -166,11 +169,11 @@ except m.ValidationError as e:
     # e.messages == {'username': ['Please provide a username']}
     pass
 
-# Null value for non-nullable field (uses same required_error)
+# Null value for non-nullable field
 try:
     mr.load(UserProfile, {"username": "john", "email": None, "age": 25})
 except m.ValidationError as e:
-    # e.messages == {'email': ['Email address is required']}
+    # e.messages == {'email': ['Email cannot be empty']}
     pass
 
 # Invalid type
@@ -182,7 +185,8 @@ except m.ValidationError as e:
 ```
 
 Available error message parameters:
-- `required_error`: Error when field is missing from input or has None value when not allowed
+- `required_error`: Error when field is missing from input
+- `null_error`: Error when field has None value but doesn't allow None
 - `invalid_error`: Error for invalid type or format
 
 ## Collection Item Validation

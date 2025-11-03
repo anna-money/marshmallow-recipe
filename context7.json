@@ -17,7 +17,7 @@
     "For decimal precision: Annotated[decimal.Decimal, mr.decimal_meta(places=N)]",
     "For validation: Annotated[T, mr.meta(validate=lambda x: condition)] or mr.regexp_validate(regex, error=msg)",
     "For email validation: Annotated[str, mr.str_meta(validate=mr.email_validate())] or with custom error: mr.email_validate(error='msg')",
-    "For custom field error messages: Annotated[T, mr.meta(required_error='msg', invalid_error='msg')]",
+    "For custom field error messages: Annotated[T, mr.meta(required_error='msg', null_error='msg', invalid_error='msg')]",
     "For collection item validation: mr.list_meta(validate_item=func), mr.set_meta(validate_item=func), mr.tuple_meta(validate_item=func)",
     "GLOBAL PARAMETERS: Three parameters can be passed to load/dump/schema - naming_case, none_value_handling, decimal_places",
     "Global parameter naming_case: mr.dump(obj, naming_case=mr.CAMEL_CASE) converts field names at runtime",
