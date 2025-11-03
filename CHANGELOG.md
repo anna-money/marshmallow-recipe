@@ -1,4 +1,4 @@
-## v0.0.64a1(2025-11-03)
+## v0.0.64 (2025-11-03)
 
 * Add custom error message support via `required_error`, `none_error`, and `invalid_error` parameters to all field and metadata functions
 
