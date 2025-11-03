@@ -1,3 +1,8 @@
+## v0.0.64a1(2025-10-21)
+
+* Add custom error message support via `required_error` and `invalid_error` parameters to all field and metadata functions
+
+
 ## v0.0.63(2025-10-21)
 
 * [Restrict email validation for quoted local-parts](https://github.com/anna-money/marshmallow-recipe/pull/199)

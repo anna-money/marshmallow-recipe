@@ -133,6 +133,58 @@ class PaymentInfo:
     ]
 ```
 
+## Field-Level Error Messages
+
+Customize marshmallow's built-in error messages using explicit error parameters:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class UserProfile:
+    # Custom "required" error message (also used for null values)
+    username: Annotated[
+        str,
+        mr.str_meta(required_error="Please provide a username"),
+    ]
+
+    # Custom "required" message for both missing and null
+    email: Annotated[
+        str,
+        mr.str_meta(required_error="Email address is required"),
+    ]
+
+    # Custom "invalid" error message
+    age: Annotated[
+        int,
+        mr.meta(invalid_error="Age must be a valid number"),
+    ]
+
+
+# Missing required field
+try:
+    mr.load(UserProfile, {"email": "user@example.com", "age": 25})
+except m.ValidationError as e:
+    # e.messages == {'username': ['Please provide a username']}
+    pass
+
+# Null value for non-nullable field (uses same required_error)
+try:
+    mr.load(UserProfile, {"username": "john", "email": None, "age": 25})
+except m.ValidationError as e:
+    # e.messages == {'email': ['Email address is required']}
+    pass
+
+# Invalid type
+try:
+    mr.load(UserProfile, {"username": "john", "email": "john@example.com", "age": "abc"})
+except m.ValidationError as e:
+    # e.messages == {'age': ['Age must be a valid number']}
+    pass
+```
+
+Available error message parameters:
+- `required_error`: Error when field is missing from input or has None value when not allowed
+- `invalid_error`: Error for invalid type or format
+
 ## Collection Item Validation
 
 Validate individual items in collections:
