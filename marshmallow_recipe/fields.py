@@ -27,6 +27,9 @@ def str_field(
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     strip_whitespaces: bool = False,
     post_load: collections.abc.Callable[[str], str] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -37,6 +40,9 @@ def str_field(
             post_load=post_load,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     if required:
@@ -50,6 +56,9 @@ def str_field(
             strip_whitespaces=strip_whitespaces,
             post_load=post_load,
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     return StrField(
@@ -59,6 +68,9 @@ def str_field(
         post_load=post_load,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -69,6 +81,9 @@ def bool_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -77,19 +92,33 @@ def bool_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
 
-        return m.fields.Bool(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+        return m.fields.Bool(
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
+        )
 
     return m.fields.Bool(
         allow_none=allow_none,
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -103,6 +132,9 @@ def decimal_field(
     rounding: str | None = None,
     as_string: bool = True,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -114,6 +146,9 @@ def decimal_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     if required:
@@ -127,6 +162,9 @@ def decimal_field(
             rounding=rounding,
             validate=validate,
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     return m.fields.Decimal(
@@ -137,6 +175,9 @@ def decimal_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -147,6 +188,9 @@ def int_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -155,17 +199,31 @@ def int_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
     elif required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        field = m.fields.Int(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+        field = m.fields.Int(
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
+        )
     else:
         field = m.fields.Int(
             allow_none=allow_none,
             validate=validate,
             **(default_fields(None) if default is dataclasses.MISSING else {}),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
     return with_type_checks_on_validated(field, (int, str))
 
@@ -177,6 +235,9 @@ def float_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -185,18 +246,32 @@ def float_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return m.fields.Float(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+        return m.fields.Float(
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
+        )
 
     return m.fields.Float(
         allow_none=allow_none,
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -207,6 +282,9 @@ def uuid_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -215,18 +293,32 @@ def uuid_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return m.fields.UUID(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+        return m.fields.UUID(
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
+        )
 
     return m.fields.UUID(
         allow_none=allow_none,
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -238,6 +330,9 @@ def datetime_field(
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     format: str | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -247,13 +342,23 @@ def datetime_field(
             format=format,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
         return DateTimeField(
-            required=True, allow_none=allow_none, validate=validate, format=format, **data_key_fields(name)
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            format=format,
+            **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     return DateTimeField(
@@ -262,6 +367,9 @@ def datetime_field(
         format=format,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -272,6 +380,9 @@ def time_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -280,18 +391,32 @@ def time_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return m.fields.Time(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+        return m.fields.Time(
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
+        )
 
     return m.fields.Time(
         allow_none=allow_none,
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -302,6 +427,9 @@ def date_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -310,18 +438,32 @@ def date_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return DateField(required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+        return DateField(
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
+        )
 
     return DateField(
         allow_none=allow_none,
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -333,6 +475,9 @@ def nested_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -342,13 +487,23 @@ def nested_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
         return NestedField(
-            nested_schema, required=True, allow_none=allow_none, validate=validate, **data_key_fields(name)
+            nested_schema,
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     return NestedField(
@@ -357,6 +512,9 @@ def nested_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -368,6 +526,9 @@ def list_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -377,12 +538,24 @@ def list_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return m.fields.List(field, required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+        return m.fields.List(
+            field,
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
+        )
 
     return m.fields.List(
         field,
@@ -390,6 +563,9 @@ def list_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -401,6 +577,9 @@ def set_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -410,12 +589,24 @@ def set_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return SetField(field, required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+        return SetField(
+            field,
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
+        )
 
     return SetField(
         field,
@@ -423,6 +614,9 @@ def set_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -434,6 +628,9 @@ def frozen_set_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -443,12 +640,24 @@ def frozen_set_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return FrozenSetField(field, required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+        return FrozenSetField(
+            field,
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
+        )
 
     return FrozenSetField(
         field,
@@ -456,6 +665,9 @@ def frozen_set_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -467,6 +679,9 @@ def tuple_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -476,12 +691,24 @@ def tuple_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return TupleField(field, required=True, allow_none=allow_none, validate=validate, **data_key_fields(name))
+        return TupleField(
+            field,
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
+        )
 
     return TupleField(
         field,
@@ -489,6 +716,9 @@ def tuple_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -501,6 +731,9 @@ def dict_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -511,6 +744,9 @@ def dict_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     if required:
@@ -523,6 +759,9 @@ def dict_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     return DictField(
@@ -532,6 +771,9 @@ def dict_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -543,6 +785,9 @@ def enum_field(
     name: str | None = None,
     default: Any = dataclasses.MISSING,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> marshmallow.fields.Field:
     if default is m.missing:
@@ -552,6 +797,9 @@ def enum_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     if required:
@@ -563,6 +811,9 @@ def enum_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     return EnumField(
@@ -571,6 +822,9 @@ def enum_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -579,6 +833,9 @@ def raw_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     return m.fields.Raw(
@@ -586,6 +843,9 @@ def raw_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -597,6 +857,9 @@ def union_field(
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -606,6 +869,9 @@ def union_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     if required:
@@ -617,6 +883,9 @@ def union_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
         )
 
     return UnionField(
@@ -625,6 +894,9 @@ def union_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
     )
 
 
@@ -637,6 +909,24 @@ FrozenSetField: type[m.fields.List]
 TupleField: type[m.fields.List]
 StrField: type[m.fields.Str]
 UnionField: type[m.fields.Field]
+
+
+def build_error_messages(
+    *,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
+) -> dict[str, str] | None:
+    error_messages = {}
+    if required_error is not None:
+        error_messages["required"] = required_error
+    if none_error is not None:
+        error_messages["null"] = none_error
+    if invalid_error is not None:
+        error_messages["invalid"] = invalid_error
+
+    return error_messages if error_messages else None
+
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
