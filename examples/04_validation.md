@@ -146,7 +146,7 @@ class UserProfile:
         mr.str_meta(required_error="Please provide a username"),
     ]
 
-    # Custom "required" and "null" messages
+    # Custom "required" and "null" error messages
     email: Annotated[
         str,
         mr.str_meta(
