@@ -1,11 +1,12 @@
 import dataclasses
 import importlib.metadata
-from typing import Any, TypeVar, overload
+from typing import Annotated, Any, Generic, TypeVar, overload
 
 import marshmallow as m
 
 from .bake import bake_schema
 from .generics import extract_type
+from .metadata import meta
 from .missing import MISSING
 from .naming_case import NamingCase
 from .options import NoneValueHandling
@@ -327,3 +328,63 @@ def dump_many(*args: Any, **kwargs: Any) -> list[dict[str, Any]]:
     if len(args) == 1:
         return dump_many_impl(None, *args, **kwargs)
     return dump_many_impl(*args, **kwargs)
+
+
+def load_value(
+    cls: type[_T],
+    data: Any,
+    /,
+    *,
+    naming_case: NamingCase | None = None,
+    none_value_handling: NoneValueHandling | None = None,
+    decimal_places: int | None = MISSING,
+) -> _T:
+    if dataclasses.is_dataclass(cls):
+        return load(
+            cls,
+            data,
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places,
+        )
+    wrapper = load(
+        _Wrapper[cls],
+        {"value": data},
+        naming_case=naming_case,
+        none_value_handling=none_value_handling,
+        decimal_places=decimal_places,
+    )
+    return wrapper.value  # type: ignore
+
+
+def dump_value(
+    cls: type[_T],
+    data: _T,
+    /,
+    *,
+    naming_case: NamingCase | None = None,
+    none_value_handling: NoneValueHandling | None = None,
+    decimal_places: int | None = MISSING,
+) -> Any:
+    if dataclasses.is_dataclass(cls):
+        return dump(
+            cls,
+            data,
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places,
+        )
+    wrapper = _Wrapper[cls](value=data)
+    result = dump(
+        _Wrapper[cls],
+        wrapper,
+        naming_case=naming_case,
+        none_value_handling=none_value_handling,
+        decimal_places=decimal_places,
+    )
+    return result.get("value", None)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class _Wrapper(Generic[_T]):
+    value: Annotated[_T, meta(name="value")]
