@@ -2,10 +2,10 @@ import cProfile
 import dataclasses
 import datetime
 import decimal
-import marshmallow_recipe as mr
 import uuid
-
 from typing import Annotated
+
+import marshmallow_recipe as mr
 
 
 @dataclasses.dataclass(frozen=True)
@@ -19,7 +19,7 @@ class Transaction:
 
 transaction = Transaction(
     id=uuid.uuid4(),
-    created_at=datetime.datetime.now(datetime.timezone.utc),
+    created_at=datetime.datetime.now(datetime.UTC),
     processed_at=None,
     amount=decimal.Decimal(42),
     transaction_amount=decimal.Decimal(42),
@@ -28,4 +28,4 @@ transaction = Transaction(
 # to warm up the lib caches
 assert mr.load_many(Transaction, mr.dump_many([transaction] * 1024))
 
-cProfile.run("mr.load_many(Transaction, mr.dump_many([transaction] * 1024))", sort='tottime')
+cProfile.run("mr.load_many(Transaction, mr.dump_many([transaction] * 1024))", sort="tottime")

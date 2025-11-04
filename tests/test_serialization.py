@@ -3,24 +3,9 @@ import datetime
 import decimal
 import enum
 import uuid
+from collections.abc import Callable, Iterable, Mapping
 from contextlib import nullcontext as does_not_raise
-from typing import (
-    Annotated,
-    Any,
-    Callable,
-    ContextManager,
-    Dict,
-    FrozenSet,
-    Generic,
-    Iterable,
-    List,
-    Mapping,
-    NewType,
-    Set,
-    Tuple,
-    TypeVar,
-    get_origin,
-)
+from typing import Annotated, Any, ContextManager, Generic, NewType, TypeVar, get_origin
 
 import pytest
 
@@ -91,7 +76,7 @@ def test_simple_types() -> None:
         float_field_with_default: float = 42.0
         uuid_field_with_default: uuid.UUID = uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05")
         datetime_field_with_default: datetime.datetime = datetime.datetime(
-            2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc
+            2022, 2, 20, 11, 33, 48, 607289, datetime.UTC
         )
         time_field_with_default: datetime.time = datetime.time(11, 33, 48)
         date_field_with_default: datetime.date = datetime.date(2022, 2, 20)
@@ -110,7 +95,7 @@ def test_simple_types() -> None:
             default_factory=lambda: uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05")
         )
         datetime_field_with_default_factory: datetime.datetime = dataclasses.field(
-            default_factory=lambda: datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc)
+            default_factory=lambda: datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.UTC)
         )
         time_field_with_default_factory: datetime.time = dataclasses.field(
             default_factory=lambda: datetime.time(11, 33, 48)
@@ -123,83 +108,83 @@ def test_simple_types() -> None:
         list_field_with_default_factory: list[str] = dataclasses.field(default_factory=lambda: [])
         set_field_with_default_factory: set[str] = dataclasses.field(default_factory=lambda: set())
         frozenset_field_with_default_factory: frozenset[str] = dataclasses.field(default_factory=lambda: frozenset())
-        tuple_field_with_default_factory: tuple[str, ...] = dataclasses.field(default_factory=lambda: tuple())
+        tuple_field_with_default_factory: tuple[str, ...] = dataclasses.field(default_factory=lambda: ())
         enum_str_field_with_default_factory: Parity = dataclasses.field(default_factory=lambda: Parity.ODD)
         enum_int_field_with_default_factory: Bit = dataclasses.field(default_factory=lambda: Bit.Zero)
         str_int_union_with_default_factory: int | str = dataclasses.field(default_factory=lambda: 42)
 
-    raw = dict(
-        any_field={},
-        annotated_any_field={},
-        str_field="42",
-        str_field_with_default="42",
-        str_field_with_default_factory="42",
-        optional_str_field="42",
-        bool_field=True,
-        bool_field_with_default=True,
-        bool_field_with_default_factory=True,
-        optional_bool_field=True,
-        decimal_field="42.00",
-        decimal_field_with_default="42.00",
-        decimal_field_with_default_factory="42.00",
-        optional_decimal_field="42.00",
-        int_field=42,
-        int_field_with_default=42,
-        int_field_with_default_factory=42,
-        optional_int_field=42,
-        new_int_field=42,
-        optional_new_int_field=42,
-        float_field=42.0,
-        float_field_with_default=42.0,
-        float_field_with_default_factory=42.0,
-        optional_float_field=42.0,
-        uuid_field="15f75b02-1c34-46a2-92a5-18363aadea05",
-        uuid_field_with_default="15f75b02-1c34-46a2-92a5-18363aadea05",
-        uuid_field_with_default_factory="15f75b02-1c34-46a2-92a5-18363aadea05",
-        optional_uuid_field="15f75b02-1c34-46a2-92a5-18363aadea05",
-        datetime_field="2022-02-20T11:33:48+00:00",
-        datetime_field_with_default="2022-02-20T11:33:48.607289+00:00",
-        datetime_field_with_default_factory="2022-02-20T11:33:48.607289+00:00",
-        optional_datetime_field="2022-02-20T11:33:48.607289+00:00",
-        time_field="11:33:48.607289",
-        time_field_with_default="11:33:48",
-        time_field_with_default_factory="11:33:48",
-        optional_time_field="11:33:48",
-        date_field="2022-02-20",
-        date_field_with_default="2022-02-20",
-        date_field_with_default_factory="2022-02-20",
-        optional_date_field="2022-02-20",
-        dict_field=dict(key="value"),
-        dict_field_with_default_factory={},
-        optional_dict_field=dict(key="value"),
-        custom_dict_field={"2020-01-01": 42},
-        custom_dict_field_with_default_factory={},
-        optional_custom_dict_field={"2020-01-01": 42},
-        list_field=["value"],
-        list_field_with_default_factory=[],
-        optional_list_field=["value"],
-        set_field=["value"],
-        set_field_with_default_factory=[],
-        str_int_union=42,
-        optional_str_int_union=42,
-        str_int_union_with_default=42,
-        str_int_union_with_default_factory=42,
-        optional_set_field=["value"],
-        tuple_field=["value"],
-        tuple_field_with_default_factory=[],
-        optional_tuple_field=["value"],
-        frozenset_field=["value"],
-        frozenset_field_with_default_factory=[],
-        optional_frozenset_field=["value"],
-        enum_str_field="odd",
-        enum_str_field_with_default="odd",
-        enum_str_field_with_default_factory="odd",
-        optional_enum_str_field="even",
-        enum_int_field=0,
-        enum_int_field_with_default=0,
-        enum_int_field_with_default_factory=0,
-        optional_enum_int_field=1,
-    )
+    raw = {
+        "any_field": {},
+        "annotated_any_field": {},
+        "str_field": "42",
+        "str_field_with_default": "42",
+        "str_field_with_default_factory": "42",
+        "optional_str_field": "42",
+        "bool_field": True,
+        "bool_field_with_default": True,
+        "bool_field_with_default_factory": True,
+        "optional_bool_field": True,
+        "decimal_field": "42.00",
+        "decimal_field_with_default": "42.00",
+        "decimal_field_with_default_factory": "42.00",
+        "optional_decimal_field": "42.00",
+        "int_field": 42,
+        "int_field_with_default": 42,
+        "int_field_with_default_factory": 42,
+        "optional_int_field": 42,
+        "new_int_field": 42,
+        "optional_new_int_field": 42,
+        "float_field": 42.0,
+        "float_field_with_default": 42.0,
+        "float_field_with_default_factory": 42.0,
+        "optional_float_field": 42.0,
+        "uuid_field": "15f75b02-1c34-46a2-92a5-18363aadea05",
+        "uuid_field_with_default": "15f75b02-1c34-46a2-92a5-18363aadea05",
+        "uuid_field_with_default_factory": "15f75b02-1c34-46a2-92a5-18363aadea05",
+        "optional_uuid_field": "15f75b02-1c34-46a2-92a5-18363aadea05",
+        "datetime_field": "2022-02-20T11:33:48+00:00",
+        "datetime_field_with_default": "2022-02-20T11:33:48.607289+00:00",
+        "datetime_field_with_default_factory": "2022-02-20T11:33:48.607289+00:00",
+        "optional_datetime_field": "2022-02-20T11:33:48.607289+00:00",
+        "time_field": "11:33:48.607289",
+        "time_field_with_default": "11:33:48",
+        "time_field_with_default_factory": "11:33:48",
+        "optional_time_field": "11:33:48",
+        "date_field": "2022-02-20",
+        "date_field_with_default": "2022-02-20",
+        "date_field_with_default_factory": "2022-02-20",
+        "optional_date_field": "2022-02-20",
+        "dict_field": {"key": "value"},
+        "dict_field_with_default_factory": {},
+        "optional_dict_field": {"key": "value"},
+        "custom_dict_field": {"2020-01-01": 42},
+        "custom_dict_field_with_default_factory": {},
+        "optional_custom_dict_field": {"2020-01-01": 42},
+        "list_field": ["value"],
+        "list_field_with_default_factory": [],
+        "optional_list_field": ["value"],
+        "set_field": ["value"],
+        "set_field_with_default_factory": [],
+        "str_int_union": 42,
+        "optional_str_int_union": 42,
+        "str_int_union_with_default": 42,
+        "str_int_union_with_default_factory": 42,
+        "optional_set_field": ["value"],
+        "tuple_field": ["value"],
+        "tuple_field_with_default_factory": [],
+        "optional_tuple_field": ["value"],
+        "frozenset_field": ["value"],
+        "frozenset_field_with_default_factory": [],
+        "optional_frozenset_field": ["value"],
+        "enum_str_field": "odd",
+        "enum_str_field_with_default": "odd",
+        "enum_str_field_with_default_factory": "odd",
+        "optional_enum_str_field": "even",
+        "enum_int_field": 0,
+        "enum_int_field_with_default": 0,
+        "enum_int_field_with_default_factory": 0,
+        "optional_enum_int_field": 1,
+    }
 
     raw_no_defaults = {k: v for k, v in raw.items() if not k.endswith("default") and not k.endswith("default_factory")}
 
@@ -227,14 +212,14 @@ def test_simple_types() -> None:
             optional_float_field=42.0,
             uuid_field=uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05"),
             optional_uuid_field=uuid.UUID("15f75b02-1c34-46a2-92a5-18363aadea05"),
-            datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 0, datetime.timezone.utc),
-            optional_datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc),
+            datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 0, datetime.UTC),
+            optional_datetime_field=datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.UTC),
             time_field=datetime.time(11, 33, 48, 607289),
             optional_time_field=datetime.time(11, 33, 48),
             date_field=datetime.date(2022, 2, 20),
             optional_date_field=datetime.date(2022, 2, 20),
-            dict_field=dict(key="value"),
-            optional_dict_field=dict(key="value"),
+            dict_field={"key": "value"},
+            optional_dict_field={"key": "value"},
             custom_dict_field={datetime.date(2020, 1, 1): 42},
             optional_custom_dict_field={datetime.date(2020, 1, 1): 42},
             list_field=["value"],
@@ -273,11 +258,11 @@ def test_nested_dataclass() -> None:
             default_factory=lambda: BoolContainer(bool_field=True)
         )
 
-    raw = dict(
-        bool_container_field=dict(bool_field=True),
-        bool_container_field_with_default=dict(bool_field=True),
-        bool_container_field_with_default_factory=dict(bool_field=True),
-    )
+    raw = {
+        "bool_container_field": {"bool_field": True},
+        "bool_container_field_with_default": {"bool_field": True},
+        "bool_container_field_with_default_factory": {"bool_field": True},
+    }
     raw_no_defaults = {k: v for k, v in raw.items() if not k.endswith("default") or not k.endswith("default_factory")}
 
     loaded = mr.load(Container, raw)
@@ -295,7 +280,7 @@ def test_custom_name_bool() -> None:
     class BoolContainer:
         bool_field: bool = dataclasses.field(metadata=mr.meta(name="BoolField"))
 
-    raw = dict(BoolField=False)
+    raw = {"BoolField": False}
 
     loaded = mr.load(BoolContainer, raw)
     dumped = mr.dump(loaded)
@@ -327,7 +312,7 @@ def test_none() -> None:
     class BoolContainer:
         bool_field: bool | None = None
 
-    raw: dict[str, Any] = dict()
+    raw: dict[str, Any] = {}
 
     loaded = mr.load(BoolContainer, raw)
     dumped = mr.dump(loaded)
@@ -343,11 +328,11 @@ def test_unknown_field() -> None:
     class BoolContainer:
         bool_field: bool
 
-    loaded = mr.load(BoolContainer, dict(bool_field=True, int_field=42))
+    loaded = mr.load(BoolContainer, {"bool_field": True, "int_field": 42})
     dumped = mr.dump(loaded)
 
     assert loaded == BoolContainer(bool_field=True)
-    assert dumped == dict(bool_field=True)
+    assert dumped == {"bool_field": True}
 
     assert mr.schema(BoolContainer) is mr.schema(BoolContainer)
 
@@ -357,7 +342,7 @@ def test_schema_with_default_case() -> None:
     class DataClass:
         str_field: str
 
-    origin = dict(str_field="foobar")
+    origin = {"str_field": "foobar"}
     loaded = mr.load(DataClass, origin)
     dumped = mr.dump(loaded)
 
@@ -370,7 +355,7 @@ def test_schema_with_capital_camel_case() -> None:
     class DataClass:
         str_field: str
 
-    origin = dict(StrField="foobar")
+    origin = {"StrField": "foobar"}
     loaded = mr.load(DataClass, origin, naming_case=mr.CAPITAL_CAMEL_CASE)
     dumped = mr.dump(loaded, naming_case=mr.CAPITAL_CAMEL_CASE)
 
@@ -383,7 +368,7 @@ def test_schema_with_camel_case() -> None:
     class DataClass:
         str_field: str
 
-    origin = dict(strField="foobar")
+    origin = {"strField": "foobar"}
     loaded = mr.load(DataClass, origin, naming_case=mr.CAMEL_CASE)
     dumped = mr.dump(loaded, naming_case=mr.CAMEL_CASE)
 
@@ -396,11 +381,11 @@ def test_many() -> None:
     class BoolContainer:
         bool_field: bool
 
-    loaded = mr.load_many(BoolContainer, [dict(bool_field=True), dict(bool_field=False)])
+    loaded = mr.load_many(BoolContainer, [{"bool_field": True}, {"bool_field": False}])
     dumped = mr.dump_many(loaded)
 
     assert loaded == [BoolContainer(bool_field=True), BoolContainer(bool_field=False)]
-    assert dumped == [dict(bool_field=True), dict(bool_field=False)]
+    assert dumped == [{"bool_field": True}, {"bool_field": False}]
 
     assert mr.schema(BoolContainer) is mr.schema(BoolContainer)
 
@@ -422,12 +407,12 @@ def test_many_empty() -> None:
 @pytest.mark.parametrize(
     "raw, dt",
     [
-        ("2022-02-20T11:33:48.607289+00:00", datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc)),
-        ("2022-02-20T11:33:48.607289", datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc)),
-        ("2022-02-20T11:33:48", datetime.datetime(2022, 2, 20, 11, 33, 48, 0, datetime.timezone.utc)),
-        ("2022-02-20T11:33:48.607289Z", datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc)),
-        ("2022-02-20T11:33:48Z", datetime.datetime(2022, 2, 20, 11, 33, 48, 0, datetime.timezone.utc)),
-        ("2022-02-20", datetime.datetime(2022, 2, 20, 0, 0, 0, 0, datetime.timezone.utc)),
+        ("2022-02-20T11:33:48.607289+00:00", datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.UTC)),
+        ("2022-02-20T11:33:48.607289", datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.UTC)),
+        ("2022-02-20T11:33:48", datetime.datetime(2022, 2, 20, 11, 33, 48, 0, datetime.UTC)),
+        ("2022-02-20T11:33:48.607289Z", datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.UTC)),
+        ("2022-02-20T11:33:48Z", datetime.datetime(2022, 2, 20, 11, 33, 48, 0, datetime.UTC)),
+        ("2022-02-20", datetime.datetime(2022, 2, 20, 0, 0, 0, 0, datetime.UTC)),
     ],
 )
 def test_datetime_field_load(raw: str, dt: datetime.datetime) -> None:
@@ -435,15 +420,15 @@ def test_datetime_field_load(raw: str, dt: datetime.datetime) -> None:
     class DateTimeContainer:
         datetime_field: datetime.datetime
 
-    loaded = mr.load(DateTimeContainer, dict(datetime_field=raw))
+    loaded = mr.load(DateTimeContainer, {"datetime_field": raw})
     assert loaded == DateTimeContainer(datetime_field=dt)
 
 
 @pytest.mark.parametrize(
     "dt, raw",
     [
-        (datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.timezone.utc), "2022-02-20T11:33:48.607289+00:00"),
-        (datetime.datetime(2022, 2, 20, 11, 33, 48, 0, datetime.timezone.utc), "2022-02-20T11:33:48+00:00"),
+        (datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, datetime.UTC), "2022-02-20T11:33:48.607289+00:00"),
+        (datetime.datetime(2022, 2, 20, 11, 33, 48, 0, datetime.UTC), "2022-02-20T11:33:48+00:00"),
         (datetime.datetime(2022, 2, 20, 11, 33, 48, 607289, None), "2022-02-20T11:33:48.607289+00:00"),
         (datetime.datetime(2022, 2, 20, 11, 33, 48, 0, None), "2022-02-20T11:33:48+00:00"),
         (datetime.datetime(2022, 2, 20, 0, 0, 0, 0, None), "2022-02-20T00:00:00+00:00"),
@@ -455,70 +440,46 @@ def test_datetime_field_dump(dt: datetime.datetime, raw: str) -> None:
         datetime_field: datetime.datetime
 
     dumped = mr.dump(DateTimeContainer(datetime_field=dt))
-    assert dumped == dict(datetime_field=raw)
+    assert dumped == {"datetime_field": raw}
 
 
-@pytest.mark.parametrize(
-    "value, raw",
-    [
-        (Parity.ODD, "odd"),
-        (Parity.EVEN, "even"),
-    ],
-)
+@pytest.mark.parametrize("value, raw", [(Parity.ODD, "odd"), (Parity.EVEN, "even")])
 def test_enum_str_field_dump(value: Parity, raw: str) -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class EnumContainer:
         enum_field: Parity
 
     dumped = mr.dump(EnumContainer(enum_field=value))
-    assert dumped == dict(enum_field=raw)
+    assert dumped == {"enum_field": raw}
 
 
-@pytest.mark.parametrize(
-    "raw, value",
-    [
-        ("odd", Parity.ODD),
-        ("even", Parity.EVEN),
-    ],
-)
+@pytest.mark.parametrize("raw, value", [("odd", Parity.ODD), ("even", Parity.EVEN)])
 def test_enum_str_field_load(value: Parity, raw: str) -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class EnumContainer:
         enum_field: Parity
 
-    dumped = mr.load(EnumContainer, dict(enum_field=raw))
+    dumped = mr.load(EnumContainer, {"enum_field": raw})
     assert dumped == EnumContainer(enum_field=value)
 
 
-@pytest.mark.parametrize(
-    "value, raw",
-    [
-        (Bit.Zero, 0),
-        (Bit.One, 1),
-    ],
-)
+@pytest.mark.parametrize("value, raw", [(Bit.Zero, 0), (Bit.One, 1)])
 def test_enum_int_field_dump(value: Bit, raw: str) -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class EnumContainer:
         enum_field: Bit
 
     dumped = mr.dump(EnumContainer(enum_field=value))
-    assert dumped == dict(enum_field=raw)
+    assert dumped == {"enum_field": raw}
 
 
-@pytest.mark.parametrize(
-    "raw, value",
-    [
-        (0, Bit.Zero),
-        (1, Bit.One),
-    ],
-)
+@pytest.mark.parametrize("raw, value", [(0, Bit.Zero), (1, Bit.One)])
 def test_enum_int_field_load(value: Bit, raw: str) -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class EnumContainer:
         enum_field: Bit
 
-    dumped = mr.load(EnumContainer, dict(enum_field=raw))
+    dumped = mr.load(EnumContainer, {"enum_field": raw})
     assert dumped == EnumContainer(enum_field=value)
 
 
@@ -605,11 +566,11 @@ def test_bake_schema_should_generate_schemas_per_parameters(
 def test_legacy_collection_typings() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class Container:
-        list_field: List[int]
-        dict_field: Dict[str, Any]
-        set_field: Set[str]
-        frozenset_field: FrozenSet[str]
-        tuple_field: Tuple[str, ...]
+        list_field: list[int]
+        dict_field: dict[str, Any]
+        set_field: set[str]
+        frozenset_field: frozenset[str]
+        tuple_field: tuple[str, ...]
 
     assert mr.schema(Container)
 
@@ -692,28 +653,22 @@ def test_nested_default() -> None:
 def test_generic_extract_type_on_dump(
     frozen: bool, slots: bool, get_type: Callable[[type], type | None], context: ContextManager
 ) -> None:
-    _TValue = TypeVar("_TValue")
+    TValue = TypeVar("TValue")
 
     @dataclasses.dataclass(frozen=frozen, slots=slots)
-    class Data(Generic[_TValue]):
-        value: _TValue
+    class Data(Generic[TValue]):
+        value: TValue
 
     instance = Data[int](value=123)
     with context:
         type = get_type(Data[int])
-        if type is None:
-            dumped = mr.dump(instance)
-        else:
-            dumped = mr.dump(type, instance)
+        dumped = mr.dump(instance) if type is None else mr.dump(type, instance)
         assert dumped == {"value": 123}
 
     instance_many = [Data[int](value=123), Data[int](value=456)]
     with context:
         type = get_type(Data[int])
-        if type is None:
-            dumped = mr.dump_many(instance_many)
-        else:
-            dumped = mr.dump_many(type, instance_many)
+        dumped = mr.dump_many(instance_many) if type is None else mr.dump_many(type, instance_many)
         assert dumped == [{"value": 123}, {"value": 456}]
 
 
@@ -738,34 +693,28 @@ def test_non_generic_extract_type_on_dump(
     instance = Data(value=123)
     with context:
         type = get_type(Data)
-        if type is None:
-            dumped = mr.dump(instance)
-        else:
-            dumped = mr.dump(type, instance)
+        dumped = mr.dump(instance) if type is None else mr.dump(type, instance)
         assert dumped == {"value": 123}
 
     instance_many = [Data(value=123), Data(value=456)]
     with context:
         type = get_type(Data)
-        if type is None:
-            dumped = mr.dump_many(instance_many)
-        else:
-            dumped = mr.dump_many(type, instance_many)
+        dumped = mr.dump_many(instance_many) if type is None else mr.dump_many(type, instance_many)
         assert dumped == [{"value": 123}, {"value": 456}]
 
 
 def test_generic_in_parents() -> None:
-    _TXxx = TypeVar("_TXxx")
-    _TData = TypeVar("_TData")
+    TXxx = TypeVar("TXxx")
+    TData = TypeVar("TData")
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class Data(Generic[_TXxx]):
-        xxx: _TXxx
+    class Data(Generic[TXxx]):
+        xxx: TXxx
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class ParentClass(Generic[_TData]):
+    class ParentClass(Generic[TData]):
         value: str
-        data: _TData
+        data: TData
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class ChildClass(ParentClass[Data[int]]):
@@ -779,15 +728,15 @@ def test_generic_in_parents() -> None:
 
 
 def test_generic_type_var_with_reuse() -> None:
-    _T = TypeVar("_T")
+    T = TypeVar("T")
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class T1(Generic[_T]):
-        t1: _T
+    class T1(Generic[T]):
+        t1: T
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class T2(Generic[_T], T1[int]):
-        t2: _T
+    class T2(Generic[T], T1[int]):
+        t2: T
 
     instance = T2[str](t1=1, t2="2")
 
@@ -806,20 +755,20 @@ def test_generic_with_field_override() -> None:
     class Value2(Value1):
         v2: str
 
-    _TValue = TypeVar("_TValue", bound=Value1)
-    _TItem = TypeVar("_TItem")
+    TValue = TypeVar("TValue", bound=Value1)
+    TItem = TypeVar("TItem")
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class T1(Generic[_TItem]):
+    class T1(Generic[TItem]):
         value: Value1
-        iterable: Iterable[_TItem]
+        iterable: Iterable[TItem]
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class T2(Generic[_TValue, _TItem], T1[_TItem]):
-        value: _TValue
-        iterable: set[_TItem]
+    class T2(Generic[TValue, TItem], T1[TItem]):
+        value: TValue
+        iterable: set[TItem]
 
-    instance = T2[Value2, int](value=Value2(v1="aaa", v2="bbb"), iterable=set([3, 4, 5]))
+    instance = T2[Value2, int](value=Value2(v1="aaa", v2="bbb"), iterable={3, 4, 5})
 
     dumped = mr.dump(T2[Value2, int], instance)
 
@@ -828,11 +777,11 @@ def test_generic_with_field_override() -> None:
 
 
 def test_generic_reuse_with_different_args() -> None:
-    _TItem = TypeVar("_TItem")
+    TItem = TypeVar("TItem")
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class GenericContainer(Generic[_TItem]):
-        items: list[_TItem]
+    class GenericContainer(Generic[TItem]):
+        items: list[TItem]
 
     container_int = GenericContainer[int](items=[1, 2, 3])
     dumped = mr.dump(GenericContainer[int], container_int)
@@ -1233,11 +1182,7 @@ def test_options_decimal_places_cyclic_reference() -> None:
         child=CyclicWithDecimal(marker="level 2", value=decimal.Decimal("987.654"), child=None),
     )
     dumped = mr.dump(instance)
-    assert dumped == {
-        "marker": "level 1",
-        "value": "123.456",
-        "child": {"marker": "level 2", "value": "987.654"},
-    }
+    assert dumped == {"marker": "level 1", "value": "123.456", "child": {"marker": "level 2", "value": "987.654"}}
 
 
 def test_decimal_rounding_metadata() -> None:
@@ -1268,15 +1213,7 @@ def test_cyclic_self_reference() -> None:
     dumped = mr.dump(Cyclic(marker="level 1", child=None))
     assert dumped == {"marker": "level 1"}
 
-    dumped = mr.dump(
-        Cyclic(
-            marker="level 1",
-            child=Cyclic(
-                marker="level 2",
-                child=None,
-            ),
-        )
-    )
+    dumped = mr.dump(Cyclic(marker="level 1", child=Cyclic(marker="level 2", child=None)))
     assert dumped == {"child": {"marker": "level 2"}, "marker": "level 1"}
 
 
@@ -1293,44 +1230,21 @@ class CyclicChild:
 
 
 def test_cyclic_indirect_reference() -> None:
-    dumped = mr.dump(
-        CyclicParent(
-            marker="level 1",
-            child=CyclicChild(
-                marker="level 2",
-                parent=None,
-            ),
-        )
-    )
-    assert dumped == {
-        "marker": "level 1",
-        "child": {"marker": "level 2"},
-    }
+    dumped = mr.dump(CyclicParent(marker="level 1", child=CyclicChild(marker="level 2", parent=None)))
+    assert dumped == {"marker": "level 1", "child": {"marker": "level 2"}}
 
     dumped = mr.dump(
         CyclicParent(
             marker="level 1",
             child=CyclicChild(
                 marker="level 2",
-                parent=CyclicParent(
-                    marker="level 3",
-                    child=CyclicChild(
-                        marker="level 4",
-                        parent=None,
-                    ),
-                ),
+                parent=CyclicParent(marker="level 3", child=CyclicChild(marker="level 4", parent=None)),
             ),
         )
     )
     assert dumped == {
         "marker": "level 1",
-        "child": {
-            "marker": "level 2",
-            "parent": {
-                "marker": "level 3",
-                "child": {"marker": "level 4"},
-            },
-        },
+        "child": {"marker": "level 2", "parent": {"marker": "level 3", "child": {"marker": "level 4"}}},
     }
 
 

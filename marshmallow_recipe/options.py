@@ -21,7 +21,7 @@ class DataclassOptions:
     decimal_places: int | None = MISSING
 
 
-_T = TypeVar("_T")
+T = TypeVar("T")
 
 
 def options(
@@ -29,15 +29,13 @@ def options(
     none_value_handling: NoneValueHandling | None = None,
     naming_case: NamingCase | None = None,
     decimal_places: int | None = MISSING,
-) -> collections.abc.Callable[[type[_T]], type[_T]]:
-    def wrap(cls: type[_T]) -> type[_T]:
+) -> collections.abc.Callable[[type[T]], type[T]]:
+    def wrap(cls: type[T]) -> type[T]:
         setattr(
             cls,
             _OPTIONS_KEY,
             DataclassOptions(
-                none_value_handling=none_value_handling,
-                naming_case=naming_case,
-                decimal_places=decimal_places,
+                none_value_handling=none_value_handling, naming_case=naming_case, decimal_places=decimal_places
             ),
         )
         return cls

@@ -1,7 +1,8 @@
 import dataclasses
 import types
 import typing
-from typing import Annotated, Any, Generic, Mapping, NewType, TypeAlias, TypeVar, Union, get_args, get_origin
+from collections.abc import Mapping
+from typing import Annotated, Any, Generic, NewType, TypeAlias, TypeVar, Union, get_args, get_origin
 
 _GenericAlias: TypeAlias = typing._GenericAlias  # type: ignore
 

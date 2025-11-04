@@ -16,9 +16,9 @@ def test_int_validation() -> None:
         value: int = dataclasses.field(metadata=mr.meta(validate=lambda x: x != 0))
 
     with pytest.raises(m.ValidationError):
-        mr.load(Holder, dict(value=0))
+        mr.load(Holder, {"value": 0})
 
-    mr.load(Holder, dict(value=42))
+    mr.load(Holder, {"value": 42})
 
 
 def test_float_validation() -> None:
@@ -27,9 +27,9 @@ def test_float_validation() -> None:
         value: float = dataclasses.field(metadata=mr.meta(validate=lambda x: x != 0))
 
     with pytest.raises(m.ValidationError):
-        mr.load(Holder, dict(value=0))
+        mr.load(Holder, {"value": 0})
 
-    mr.load(Holder, dict(value=42))
+    mr.load(Holder, {"value": 42})
 
 
 def test_decimal_validation() -> None:
@@ -38,9 +38,9 @@ def test_decimal_validation() -> None:
         value: decimal.Decimal = dataclasses.field(metadata=mr.meta(validate=lambda x: x != 0))
 
     with pytest.raises(m.ValidationError):
-        mr.load(Holder, dict(value="0"))
+        mr.load(Holder, {"value": "0"})
 
-    mr.load(Holder, dict(value="42"))
+    mr.load(Holder, {"value": "42"})
 
 
 def test_str_validation() -> None:
@@ -49,9 +49,9 @@ def test_str_validation() -> None:
         value: str = dataclasses.field(metadata=mr.meta(validate=lambda x: x != ""))
 
     with pytest.raises(m.ValidationError):
-        mr.load(Holder, dict(value=""))
+        mr.load(Holder, {"value": ""})
 
-    mr.load(Holder, dict(value="42"))
+    mr.load(Holder, {"value": "42"})
 
 
 def test_bool_validation() -> None:
@@ -60,9 +60,9 @@ def test_bool_validation() -> None:
         value: bool = dataclasses.field(metadata=mr.meta(validate=lambda x: x is True))
 
     with pytest.raises(m.ValidationError):
-        mr.load(Holder, dict(value="False"))
+        mr.load(Holder, {"value": "False"})
 
-    mr.load(Holder, dict(value="True"))
+    mr.load(Holder, {"value": "True"})
 
 
 def test_uuid_validation() -> None:
@@ -73,9 +73,9 @@ def test_uuid_validation() -> None:
         value: uuid.UUID = dataclasses.field(metadata=mr.meta(validate=lambda x: x != invalid))
 
     with pytest.raises(m.ValidationError):
-        mr.load(Holder, dict(value=str(invalid)))
+        mr.load(Holder, {"value": str(invalid)})
 
-    mr.load(Holder, dict(value=str(uuid.uuid4())))
+    mr.load(Holder, {"value": str(uuid.uuid4())})
 
 
 def test_date_validation() -> None:
@@ -86,22 +86,22 @@ def test_date_validation() -> None:
         value: datetime.date = dataclasses.field(metadata=mr.meta(validate=lambda x: x != invalid))
 
     with pytest.raises(m.ValidationError):
-        mr.load(Holder, dict(value=invalid.isoformat()))
+        mr.load(Holder, {"value": invalid.isoformat()})
 
-    mr.load(Holder, dict(value=datetime.date(2001, 1, 2).isoformat()))
+    mr.load(Holder, {"value": datetime.date(2001, 1, 2).isoformat()})
 
 
 def test_datetime_validation() -> None:
-    invalid = datetime.datetime.now().astimezone(datetime.timezone.utc)
+    invalid = datetime.datetime.now().astimezone(datetime.UTC)
 
     @dataclasses.dataclass
     class Holder:
         value: datetime.datetime = dataclasses.field(metadata=mr.meta(validate=lambda x: x != invalid))
 
     with pytest.raises(m.ValidationError):
-        mr.load(Holder, dict(value=invalid.isoformat()))
+        mr.load(Holder, {"value": invalid.isoformat()})
 
-    mr.load(Holder, dict(value=datetime.datetime(2001, 1, 2).isoformat()))
+    mr.load(Holder, {"value": datetime.datetime(2001, 1, 2).isoformat()})
 
 
 def test_none_validation_with_default() -> None:
@@ -110,13 +110,13 @@ def test_none_validation_with_default() -> None:
         value: str = "default"
 
     with pytest.raises(m.ValidationError):
-        mr.load(Holder, dict(value=None))
+        mr.load(Holder, {"value": None})
 
     @dataclasses.dataclass
     class HolderWithNone:
         value: str | None = "default"
 
-    mr.load(HolderWithNone, dict(value=None))
+    mr.load(HolderWithNone, {"value": None})
 
 
 def test_list_item_validation() -> None:
@@ -125,9 +125,9 @@ def test_list_item_validation() -> None:
         items: list[str] = dataclasses.field(metadata=mr.list_meta(validate_item=lambda x: bool(x)))
 
     with pytest.raises(m.ValidationError):
-        mr.load(Holder, dict(items=[""]))
+        mr.load(Holder, {"items": [""]})
 
-    assert mr.load(Holder, dict(items=["1"])) == Holder(items=["1"])
+    assert mr.load(Holder, {"items": ["1"]}) == Holder(items=["1"])
 
 
 def test_set_item_validation() -> None:
@@ -136,9 +136,9 @@ def test_set_item_validation() -> None:
         items: set[str] = dataclasses.field(metadata=mr.set_meta(validate_item=lambda x: bool(x)))
 
     with pytest.raises(m.ValidationError):
-        mr.load(Holder, dict(items=[""]))
+        mr.load(Holder, {"items": [""]})
 
-    assert mr.load(Holder, dict(items=["1"])) == Holder(items={"1"})
+    assert mr.load(Holder, {"items": ["1"]}) == Holder(items={"1"})
 
 
 def test_tuple_item_validation() -> None:
@@ -147,9 +147,9 @@ def test_tuple_item_validation() -> None:
         items: tuple[str, ...] = dataclasses.field(metadata=mr.tuple_meta(validate_item=lambda x: bool(x)))
 
     with pytest.raises(m.ValidationError):
-        mr.load(Holder, dict(items=[""]))
+        mr.load(Holder, {"items": [""]})
 
-    assert mr.load(Holder, dict(items=["1"])) == Holder(items=("1",))
+    assert mr.load(Holder, {"items": ["1"]}) == Holder(items=("1",))
 
 
 def test_dict_with_complex_value_load_fail() -> None:
@@ -193,12 +193,7 @@ def test_regexp_validate() -> None:
 def test_validate() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class IntContainer:
-        value: Annotated[
-            int,
-            mr.str_meta(
-                validate=mr.validate(lambda x: x < 0, error="Should be negative."),
-            ),
-        ]
+        value: Annotated[int, mr.str_meta(validate=mr.validate(lambda x: x < 0, error="Should be negative."))]
 
     with pytest.raises(m.ValidationError) as exc_info:
         mr.dump(IntContainer(value=42))
@@ -230,15 +225,13 @@ def test_get_field_errors() -> None:
             nested_errors=[
                 mr.ValidationFieldError(name="value", error="Not a valid integer."),
                 mr.ValidationFieldError(
-                    name="values",
-                    nested_errors=[mr.ValidationFieldError(name="0", error="Not a valid integer.")],
+                    name="values", nested_errors=[mr.ValidationFieldError(name="0", error="Not a valid integer.")]
                 ),
             ],
         ),
         mr.ValidationFieldError(name="value", error="Not a valid integer."),
         mr.ValidationFieldError(
-            name="values",
-            nested_errors=[mr.ValidationFieldError(name="0", error="Not a valid integer.")],
+            name="values", nested_errors=[mr.ValidationFieldError(name="0", error="Not a valid integer.")]
         ),
     ]
 
@@ -347,8 +340,7 @@ def test_error_messages_decimal_field() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class Price:
         amount: Annotated[
-            decimal.Decimal,
-            mr.decimal_meta(required_error="Price is required", invalid_error="Invalid price format"),
+            decimal.Decimal, mr.decimal_meta(required_error="Price is required", invalid_error="Invalid price format")
         ]
 
     # Test custom required error message
