@@ -736,6 +736,9 @@ def test_non_generic_extract_type_on_dump(
         value: int
 
     instance = Data(value=123)
+
+    mr.dump(int, instance)
+
     with context:
         type = get_type(Data)
         if type is None:

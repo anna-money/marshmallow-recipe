@@ -1,11 +1,12 @@
 import dataclasses
 import importlib.metadata
-from typing import Any, TypeVar, overload
+from typing import Annotated, Any, Generic, TypeVar, get_origin, overload
 
 import marshmallow as m
 
 from .bake import bake_schema
 from .generics import extract_type
+from .metadata import meta
 from .missing import MISSING
 from .naming_case import NamingCase
 from .options import NoneValueHandling
@@ -66,13 +67,23 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> _T:
-        schema = schema_v3(
-            cls,
+        if dataclasses.is_dataclass(get_origin(cls) or cls):
+            schema = schema_v3(
+                cls,
+                naming_case=naming_case,
+                none_value_handling=none_value_handling,
+                decimal_places=decimal_places,
+            )
+            return schema.load(data)  # type: ignore
+
+        wrapper_schema = schema_v3(
+            _Wrapper[cls],
             naming_case=naming_case,
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
         )
-        return schema.load(data)  # type: ignore
+        wrapper = wrapper_schema.load({"value": data})  # type: ignore
+        return wrapper.value  # type: ignore
 
     load = load_v3
 
@@ -105,16 +116,30 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> dict[str, Any]:
+        cls = cls or extract_type(data, None)
+        if dataclasses.is_dataclass(get_origin(cls) or cls):
+            data_schema = schema_v3(
+                cls,
+                naming_case=naming_case,
+                none_value_handling=none_value_handling,
+                decimal_places=decimal_places,
+            )
+            dumped: dict[str, Any] = data_schema.dump(data)  # type: ignore
+            if errors := data_schema.validate(dumped):
+                raise m.ValidationError(errors)
+            return dumped
+
+        wrapper = _Wrapper[cls](value=data)
         data_schema = schema_v3(
-            extract_type(data, cls),
+            _Wrapper[cls],
             naming_case=naming_case,
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
         )
-        dumped: dict[str, Any] = data_schema.dump(data)  # type: ignore
+        dumped: dict[str, Any] = data_schema.dump(wrapper)  # type: ignore
         if errors := data_schema.validate(dumped):
             raise m.ValidationError(errors)
-        return dumped
+        return dumped.get("value")  # type: ignore
 
     dump_impl = dump_v3
 
@@ -185,14 +210,24 @@ else:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> _T:
-        schema = schema_v2(
-            cls,
+        if dataclasses.is_dataclass(get_origin(cls) or cls):
+            schema = schema_v2(
+                cls,
+                naming_case=naming_case,
+                none_value_handling=none_value_handling,
+                decimal_places=decimal_places,
+            )
+            loaded, _ = schema.load(data)  # type: ignore
+            return loaded  # type: ignore[return-value]
+
+        wrapper_schema = schema_v2(
+            _Wrapper[cls],
             naming_case=naming_case,
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
         )
-        loaded, _ = schema.load(data)  # type: ignore
-        return loaded  # type: ignore[return-value]
+        loaded, _ = wrapper_schema.load({"value": data})  # type: ignore
+        return loaded.value  # type: ignore
 
     load = load_v2
 
@@ -226,18 +261,34 @@ else:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> dict[str, Any]:
+        cls = cls or extract_type(data, None)
+        if dataclasses.is_dataclass(get_origin(cls) or cls):
+            data_schema = schema_v2(
+                cls,
+                naming_case=naming_case,
+                none_value_handling=none_value_handling,
+                decimal_places=decimal_places,
+            )
+            dumped, errors = data_schema.dump(data)
+            if errors:
+                raise m.ValidationError(errors)
+            if errors := data_schema.validate(dumped):
+                raise m.ValidationError(errors)
+            return dumped  # type: ignore
+
+        wrapper = _Wrapper[cls](value=data)
         data_schema = schema_v2(
-            extract_type(data, cls),
+            _Wrapper[cls],
             naming_case=naming_case,
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
         )
-        dumped, errors = data_schema.dump(data)
+        dumped, errors = data_schema.dump(wrapper)
         if errors:
             raise m.ValidationError(errors)
         if errors := data_schema.validate(dumped):
             raise m.ValidationError(errors)
-        return dumped  # type: ignore
+        return dumped.get("value")  # type: ignore
 
     dump_impl = dump_v2
 
@@ -327,3 +378,8 @@ def dump_many(*args: Any, **kwargs: Any) -> list[dict[str, Any]]:
     if len(args) == 1:
         return dump_many_impl(None, *args, **kwargs)
     return dump_many_impl(*args, **kwargs)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class _Wrapper(Generic[_T]):
+    value: Annotated[_T, meta(name="value")]
