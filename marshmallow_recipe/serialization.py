@@ -1,6 +1,6 @@
 import dataclasses
 import importlib.metadata
-from typing import Any, TypeVar, overload
+from typing import Any, ClassVar, Protocol, TypeVar, overload
 
 import marshmallow as m
 
@@ -10,7 +10,12 @@ from .missing import MISSING
 from .naming_case import NamingCase
 from .options import NoneValueHandling
 
-T = TypeVar("T")
+
+class Dataclass(Protocol):
+    __dataclass_fields__: ClassVar[dict[str, Any]]
+
+
+T = TypeVar("T", bound=Dataclass)
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 
@@ -261,7 +266,7 @@ EmptySchema = m.Schema
 
 @overload
 def dump(
-    data: Any,
+    data: Dataclass,
     /,
     *,
     naming_case: NamingCase | None = None,
@@ -272,8 +277,8 @@ def dump(
 
 @overload
 def dump(
-    cls: type,
-    data: Any,
+    cls: type[T],
+    data: T,
     /,
     *,
     naming_case: NamingCase | None = None,
@@ -290,7 +295,7 @@ def dump(*args: Any, **kwargs: Any) -> dict[str, Any]:
 
 @overload
 def dump_many(
-    data: list[Any],
+    data: list[T],
     /,
     *,
     naming_case: NamingCase | None = None,
@@ -301,8 +306,8 @@ def dump_many(
 
 @overload
 def dump_many(
-    cls: type,
-    data: list[Any],
+    cls: type[T],
+    data: list[T],
     /,
     *,
     naming_case: NamingCase | None = None,
