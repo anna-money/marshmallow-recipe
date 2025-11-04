@@ -10,7 +10,7 @@ from .missing import MISSING
 from .naming_case import NamingCase
 from .options import NoneValueHandling
 
-_T = TypeVar("_T")
+T = TypeVar("T")
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 
@@ -47,10 +47,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         if existent_schema is not None:
             return existent_schema
         new_schema = bake_schema(
-            cls,
-            naming_case=naming_case,
-            none_value_handling=none_value_handling,
-            decimal_places=decimal_places,
+            cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )(many=many)
         _schemas[key] = new_schema
         return new_schema
@@ -58,33 +55,30 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     schema = schema_v3
 
     def load_v3(
-        cls: type[_T],
+        cls: type[T],
         data: dict[str, Any],
         /,
         *,
         naming_case: NamingCase | None = None,
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
-    ) -> _T:
+    ) -> T:
         schema = schema_v3(
-            cls,
-            naming_case=naming_case,
-            none_value_handling=none_value_handling,
-            decimal_places=decimal_places,
+            cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
         return schema.load(data)  # type: ignore
 
     load = load_v3
 
     def load_many_v3(
-        cls: type[_T],
+        cls: type[T],
         data: list[dict[str, Any]],
         /,
         *,
         naming_case: NamingCase | None = None,
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
-    ) -> list[_T]:
+    ) -> list[T]:
         schema = schema_v3(
             cls,
             many=True,
@@ -165,10 +159,7 @@ else:
         if existent_schema is not None:
             return existent_schema
         new_schema_cls = bake_schema(
-            cls,
-            naming_case=naming_case,
-            none_value_handling=none_value_handling,
-            decimal_places=decimal_places,
+            cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
         new_schema = new_schema_cls(strict=True, many=many)  # type: ignore
         _schemas[key] = new_schema
@@ -177,19 +168,16 @@ else:
     schema = schema_v2
 
     def load_v2(
-        cls: type[_T],
+        cls: type[T],
         data: dict[str, Any],
         /,
         *,
         naming_case: NamingCase | None = None,
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
-    ) -> _T:
+    ) -> T:
         schema = schema_v2(
-            cls,
-            naming_case=naming_case,
-            none_value_handling=none_value_handling,
-            decimal_places=decimal_places,
+            cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
         loaded, _ = schema.load(data)  # type: ignore
         return loaded  # type: ignore[return-value]
@@ -197,14 +185,14 @@ else:
     load = load_v2
 
     def load_many_v2(
-        cls: type[_T],
+        cls: type[T],
         data: list[dict[str, Any]],
         /,
         *,
         naming_case: NamingCase | None = None,
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
-    ) -> list[_T]:
+    ) -> list[T]:
         schema = schema_v2(
             cls,
             many=True,

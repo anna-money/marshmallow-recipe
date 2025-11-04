@@ -53,7 +53,7 @@ def __get_field_errors_from_normalized_messages(normalized_messages: dict[Any, A
     field_errors: list[ValidationFieldError] = []
 
     for key, value in normalized_messages.items():
-        if not isinstance(key, (str, int)):
+        if not isinstance(key, str | int):
             continue
 
         name = str(key)
@@ -64,7 +64,7 @@ def __get_field_errors_from_normalized_messages(normalized_messages: dict[Any, A
             nested_errors = __get_field_errors_from_normalized_messages(value)
         elif isinstance(value, str):
             error = value
-        elif isinstance(value, list) and all([isinstance(item, str) for item in value]):
+        elif isinstance(value, list) and all(isinstance(item, str) for item in value):
             error = "; ".join(value)
         else:
             continue

@@ -48,7 +48,7 @@ class _SchemaTypeKey:
     decimal_places: int | None
 
 
-_T = TypeVar("_T")
+T = TypeVar("T")
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 _schema_types: dict[_SchemaTypeKey, type[m.Schema]] = {}
@@ -214,12 +214,7 @@ def _get_field_for(
                         decimal_places=decimal_places,
                     )
                 )
-            return union_field(
-                fields=underlying_union_fields,
-                required=required,
-                allow_none=allow_none,
-                **metadata,
-            )
+            return union_field(fields=underlying_union_fields, required=required, allow_none=allow_none, **metadata)
 
     if isinstance(t, NewType):
         t = t.__supertype__
@@ -248,12 +243,7 @@ def _get_field_for(
                 decimal_places=decimal_places,
             )
         return with_type_checks_on_serialize(
-            nested_field(
-                nested_schema,
-                required=required,
-                allow_none=allow_none,
-                **metadata,
-            ),
+            nested_field(nested_schema, required=required, allow_none=allow_none, **metadata),
             type_guards=unsubscripted_type,  # type: ignore
         )
 
@@ -263,7 +253,7 @@ def _get_field_for(
         if origin is list or origin is collections.abc.Sequence:
             collection_field_metadata = dict(metadata)
             if validate_item := collection_field_metadata.pop("validate_item", None):
-                item_field_metadata = Metadata(dict(validate=validate_item))
+                item_field_metadata = Metadata({"validate": validate_item})
             else:
                 item_field_metadata = EMPTY_METADATA
 
@@ -288,7 +278,7 @@ def _get_field_for(
         if origin is set or origin is collections.abc.Set:
             collection_field_metadata = dict(metadata)
             if validate_item := collection_field_metadata.pop("validate_item", None):
-                item_field_metadata = Metadata(dict(validate=validate_item))
+                item_field_metadata = Metadata({"validate": validate_item})
             else:
                 item_field_metadata = EMPTY_METADATA
 
@@ -313,7 +303,7 @@ def _get_field_for(
         if origin is frozenset:
             collection_field_metadata = dict(metadata)
             if validate_item := collection_field_metadata.pop("validate_item", None):
-                item_field_metadata = Metadata(dict(validate=validate_item))
+                item_field_metadata = Metadata({"validate": validate_item})
             else:
                 item_field_metadata = EMPTY_METADATA
 
@@ -370,7 +360,7 @@ def _get_field_for(
         if origin is tuple and len(arguments) == 2 and arguments[1] is Ellipsis:
             collection_field_metadata = dict(metadata)
             if validate_item := collection_field_metadata.pop("validate_item", None):
-                item_field_metadata = Metadata(dict(validate=validate_item))
+                item_field_metadata = Metadata({"validate": validate_item})
             else:
                 item_field_metadata = EMPTY_METADATA
 
@@ -417,8 +407,7 @@ def _get_field_for(
             field_kwargs.setdefault("places", field_decimal_places)
 
         return with_type_checks_on_serialize(
-            field_factory(**field_kwargs),
-            type_guards=(float, int) if t == float else t,
+            field_factory(**field_kwargs), type_guards=(float, int) if t is float else t
         )
 
     raise ValueError(f"Unsupported {t=}")
@@ -495,13 +484,7 @@ def _get_field_default(field: dataclasses.Field) -> Any:
 
 class _FieldFactory(Protocol):
     def __call__(
-        self,
-        *,
-        required: bool,
-        allow_none: bool,
-        name: str,
-        default: Any,
-        **kwargs: Any,
+        self, *, required: bool, allow_none: bool, name: str, default: Any, **kwargs: Any
     ) -> m.fields.Field: ...
 
 
@@ -519,13 +502,13 @@ _SIMPLE_TYPE_FIELD_FACTORIES: dict[type, _FieldFactory] = {
 
 
 def _get_metadata(*, name: str, default: Any, metadata: collections.abc.Mapping[Any, Any]) -> Metadata:
-    values: dict[str, Any] = dict(name=name, default=default)
+    values: dict[str, Any] = {"name": name, "default": default}
     values.update({k: v for k, v in metadata.items() if isinstance(k, str)})
     return Metadata(values)
 
 
 def _try_get_underlying_types_from_union(t: TypeLike) -> tuple[TypeLike, ...] | None:
     # to support Union[int, None] and int | None
-    if not get_origin(t) is Union and not isinstance(t, types.UnionType):  # type: ignore
+    if get_origin(t) is not Union and not isinstance(t, types.UnionType):  # type: ignore
         return None
     return get_args(t)

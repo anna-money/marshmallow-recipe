@@ -1,21 +1,18 @@
 all: deps lint test
 
 deps:
-	@python3 -m pip install --upgrade pip && pip3 install -r requirements-dev.txt
+	@uv pip install -e ".[dev]"
 
-black:
-	@black --line-length 120 marshmallow_recipe tests
+ruff-format:
+	@ruff format marshmallow_recipe tests
 
-isort:
-	@isort --line-length 120 --use-parentheses --multi-line 3 --combine-as --trailing-comma marshmallow_recipe tests
-
-flake8:
-	@flake8 --max-line-length 120 --ignore C901,C812,E203,E704 --extend-ignore W503 marshmallow_recipe tests
+ruff-lint:
+	@ruff check marshmallow_recipe tests
 
 pyright:
 	@pyright
 
-lint: black isort flake8 pyright
+lint: ruff-format ruff-lint pyright
 
 test:
 	@python3 -m pytest -vv --rootdir tests .

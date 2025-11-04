@@ -912,10 +912,7 @@ UnionField: type[m.fields.Field]
 
 
 def build_error_messages(
-    *,
-    required_error: str | None = None,
-    none_error: str | None = None,
-    invalid_error: str | None = None,
+    *, required_error: str | None = None, none_error: str | None = None, invalid_error: str | None = None
 ) -> dict[str, str] | None:
     error_messages = {}
     if required_error is not None:
@@ -968,10 +965,10 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     def data_key_fields(name: str | None) -> collections.abc.Mapping[str, Any]:
         if name is None:
             return {}
-        return dict(data_key=name)
+        return {"data_key": name}
 
     def default_fields(value: Any) -> collections.abc.Mapping[str, Any]:
-        return dict(dump_default=value, load_default=value)
+        return {"dump_default": value, "load_default": value}
 
     class StrFieldV3(m.fields.Str):
         def __init__(
@@ -1013,12 +1010,12 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     StrField = StrFieldV3
 
     class DateTimeFieldV3(m.fields.DateTime):
-        SERIALIZATION_FUNCS = {
+        SERIALIZATION_FUNCS = {  # noqa: RUF012
             **m.fields.DateTime.SERIALIZATION_FUNCS,  # type: ignore
             **{"iso": datetime.datetime.isoformat, "iso8601": datetime.datetime.isoformat},
         }
 
-        DESERIALIZATION_FUNCS = {
+        DESERIALIZATION_FUNCS = {  # noqa: RUF012
             **m.fields.DateTime.DESERIALIZATION_FUNCS,  # type: ignore
             **{"iso": datetime.datetime.fromisoformat, "iso8601": datetime.datetime.fromisoformat},
         }
@@ -1026,17 +1023,17 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             result = super()._deserialize(value, attr, data, **kwargs)
             if result.tzinfo is None:
-                return result.replace(tzinfo=datetime.timezone.utc)
-            if result.tzinfo == datetime.timezone.utc:
+                return result.replace(tzinfo=datetime.UTC)
+            if result.tzinfo == datetime.UTC:
                 return result
-            return result.astimezone(datetime.timezone.utc)
+            return result.astimezone(datetime.UTC)
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
             if value is None:
                 return None
 
             if value.tzinfo is None:
-                value = value.replace(tzinfo=datetime.timezone.utc)
+                value = value.replace(tzinfo=datetime.UTC)
 
             return super()._serialize(value, attr, obj, **kwargs)
 
@@ -1074,21 +1071,13 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     class EnumFieldV3(m.fields.Field):
         default_error = "Not a valid choice: '{input}'. Allowed values: {choices}"
 
-        def __init__(
-            self,
-            *args: Any,
-            enum_type: type[enum.Enum],
-            error: str | None = None,
-            **kwargs: Any,
-        ):
+        def __init__(self, *args: Any, enum_type: type[enum.Enum], error: str | None = None, **kwargs: Any):
             """
             :param enum_type: class inherited from Enum and string, where all values are different strings
             :param error: error string pattern with {input} and {choices}
             """
-            allow_none = (
-                kwargs.get("allow_none") is True
-                or kwargs.get("allow_none") is None
-                and kwargs.get("missing", m.missing) is None
+            allow_none = kwargs.get("allow_none") is True or (
+                kwargs.get("allow_none") is None and kwargs.get("missing", m.missing) is None
             )
 
             self.enum_type = enum_type
@@ -1252,10 +1241,10 @@ else:
     def data_key_fields(name: str | None) -> collections.abc.Mapping[str, Any]:
         if name is None:
             return {}
-        return dict(dump_to=name, load_from=name)
+        return {"dump_to": name, "load_from": name}
 
     def default_fields(value: Any) -> collections.abc.Mapping[str, Any]:
-        return dict(missing=value, default=value)
+        return {"missing": value, "default": value}
 
     class StrFieldV2(m.fields.Str):
         def __init__(
@@ -1304,12 +1293,12 @@ else:
             assert not kwargs
             return datetime.datetime.isoformat(v)
 
-        DATEFORMAT_SERIALIZATION_FUNCS = {
+        DATEFORMAT_SERIALIZATION_FUNCS = {  # noqa: RUF012
             **m.fields.DateTime.DATEFORMAT_SERIALIZATION_FUNCS,  # type: ignore
             **{"iso": __isoformat, "iso8601": __isoformat},
         }
 
-        DATEFORMAT_DESERIALIZATION_FUNCS = {
+        DATEFORMAT_DESERIALIZATION_FUNCS = {  # noqa: RUF012
             **m.fields.DateTime.DATEFORMAT_DESERIALIZATION_FUNCS,  # type: ignore
             **{"iso": datetime.datetime.fromisoformat, "iso8601": datetime.datetime.fromisoformat},
         }
@@ -1319,19 +1308,19 @@ else:
                 return None
 
             if value.tzinfo is None:
-                value = value.replace(tzinfo=datetime.timezone.utc)
+                value = value.replace(tzinfo=datetime.UTC)
 
             return super()._serialize(value, attr, obj, **kwargs)
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:
             result = super()._deserialize(value, attr, data)
             if result.tzinfo is None:
-                return result.replace(tzinfo=datetime.timezone.utc)
-            if result.tzinfo == datetime.timezone.utc:
+                return result.replace(tzinfo=datetime.UTC)
+            if result.tzinfo == datetime.UTC:
                 return result
             if dateutil_tz_utc_cls is not None and isinstance(result.tzinfo, dateutil_tz_utc_cls):
-                return result.replace(tzinfo=datetime.timezone.utc)
-            return result.astimezone(datetime.timezone.utc)
+                return result.replace(tzinfo=datetime.UTC)
+            return result.astimezone(datetime.UTC)
 
     DateTimeField = DateTimeFieldV2
 
@@ -1367,21 +1356,13 @@ else:
     class EnumFieldV2(m.fields.Field):
         default_error = "Not a valid choice: '{input}'. Allowed values: {choices}"
 
-        def __init__(
-            self,
-            *args: Any,
-            enum_type: type[enum.Enum],
-            error: str | None = None,
-            **kwargs: Any,
-        ):
+        def __init__(self, *args: Any, enum_type: type[enum.Enum], error: str | None = None, **kwargs: Any):
             """
             :param enum_type: class inherited from Enum and string, where all values are different strings
             :param error: error string pattern with {input} and {choices}
             """
-            allow_none = (
-                kwargs.get("allow_none") is True
-                or kwargs.get("allow_none") is None
-                and kwargs.get("missing", m.missing) is None
+            allow_none = kwargs.get("allow_none") is True or (
+                kwargs.get("allow_none") is None and kwargs.get("missing", m.missing) is None
             )
 
             self.enum_type = enum_type
@@ -1470,7 +1451,7 @@ else:
     EnumField = EnumFieldV2
 
     class TypedDict(m.fields.Field):
-        default_error_messages = {"invalid": "Not a valid mapping type."}
+        default_error_messages = {"invalid": "Not a valid mapping type."}  # noqa: RUF012
 
         def __init__(
             self, keys: m.fields.Field | None = None, values: m.fields.Field | None = None, *args: Any, **kwargs: Any
@@ -1486,9 +1467,9 @@ else:
                 return value
 
             if self.keys is None:
-                keys = {k: k for k in value.keys()}
+                keys = {k: k for k in value}
             else:
-                keys = {k: self.keys._serialize(k, None, None, **kwargs) for k in value.keys()}
+                keys = {k: self.keys._serialize(k, None, None, **kwargs) for k in value}
 
             result = {}
             if self.values is None:
@@ -1511,10 +1492,10 @@ else:
             errors = collections.defaultdict(dict)  # type: ignore
 
             if self.keys is None:
-                keys = {k: k for k in value.keys()}
+                keys = {k: k for k in value}
             else:
                 keys = {}
-                for key in value.keys():
+                for key in value:
                     try:
                         keys[key] = self.keys.deserialize(key, **kwargs)
                     except m.ValidationError as error:
@@ -1577,7 +1558,7 @@ else:
             super().__init__(nested, **kwargs)
 
         @property
-        def schema(self):
+        def schema(self) -> Any:
             nested = self.nested
             if callable(nested) and not isinstance(nested, type):
                 self.nested = nested()

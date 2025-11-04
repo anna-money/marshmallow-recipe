@@ -22,20 +22,20 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     def data_key_fields(name: str | None) -> dict[str, Any]:
         if name is None:
             return {}
-        return dict(data_key=name)
+        return {"data_key": name}
 
     def default_fields(value: Any) -> dict[str, Any]:
-        return dict(dump_default=value, load_default=value)
+        return {"dump_default": value, "load_default": value}
 
 else:
 
     def data_key_fields(name: str | None) -> dict[str, Any]:
         if name is None:
             return {}
-        return dict(dump_to=name, load_from=name)
+        return {"dump_to": name, "load_from": name}
 
     def default_fields(value: Any) -> dict[str, Any]:
-        return dict(missing=value, default=value)
+        return {"missing": value, "default": value}
 
 
 def assert_fields_equal(a: m.fields.Field, b: m.fields.Field) -> None:
@@ -131,11 +131,7 @@ EMPTY_SCHEMA = m.Schema()
             mr.meta(name="i"),
             m.fields.Int(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
-        (
-            int | None,
-            mr.meta(name="i"),
-            m.fields.Int(allow_none=True, **default_fields(None), **data_key_fields("i")),
-        ),
+        (int | None, mr.meta(name="i"), m.fields.Int(allow_none=True, **default_fields(None), **data_key_fields("i"))),
         # simple types: NewType(..., int)
         (NewInt, {}, m.fields.Int(required=True)),
         (Optional[NewInt], {}, m.fields.Int(allow_none=True, **default_fields(None))),
@@ -221,16 +217,8 @@ EMPTY_SCHEMA = m.Schema()
         ),
         # simple types: datetime
         (datetime.datetime, {}, mr.DateTimeField(required=True)),
-        (
-            Optional[datetime.datetime],
-            {},
-            mr.DateTimeField(allow_none=True, **default_fields(None)),
-        ),
-        (
-            datetime.datetime | None,
-            {},
-            mr.DateTimeField(allow_none=True, **default_fields(None)),
-        ),
+        (Optional[datetime.datetime], {}, mr.DateTimeField(allow_none=True, **default_fields(None))),
+        (datetime.datetime | None, {}, mr.DateTimeField(allow_none=True, **default_fields(None))),
         (
             datetime.datetime,
             mr.datetime_meta(name="i", format="%Y-%m-%dT%H:%M:%SZ"),
@@ -252,21 +240,9 @@ EMPTY_SCHEMA = m.Schema()
         ),
         # simple types: time
         (datetime.time, {}, m.fields.Time(required=True)),
-        (
-            Optional[datetime.time],
-            {},
-            m.fields.Time(allow_none=True, **default_fields(None)),
-        ),
-        (
-            datetime.time | None,
-            {},
-            m.fields.Time(allow_none=True, **default_fields(None)),
-        ),
-        (
-            datetime.time,
-            mr.datetime_meta(name="i"),
-            m.fields.Time(required=True, **data_key_fields("i")),
-        ),
+        (Optional[datetime.time], {}, m.fields.Time(allow_none=True, **default_fields(None))),
+        (datetime.time | None, {}, m.fields.Time(allow_none=True, **default_fields(None))),
+        (datetime.time, mr.datetime_meta(name="i"), m.fields.Time(required=True, **data_key_fields("i"))),
         (
             Optional[datetime.time],
             mr.datetime_meta(name="i"),
@@ -279,21 +255,9 @@ EMPTY_SCHEMA = m.Schema()
         ),
         # simple types: date
         (datetime.date, {}, mr.DateField(required=True)),
-        (
-            Optional[datetime.date],
-            {},
-            mr.DateField(allow_none=True, **default_fields(None)),
-        ),
-        (
-            datetime.date | None,
-            {},
-            mr.DateField(allow_none=True, **default_fields(None)),
-        ),
-        (
-            datetime.date,
-            mr.meta(name="i"),
-            mr.DateField(required=True, **data_key_fields("i")),
-        ),
+        (Optional[datetime.date], {}, mr.DateField(allow_none=True, **default_fields(None))),
+        (datetime.date | None, {}, mr.DateField(allow_none=True, **default_fields(None))),
+        (datetime.date, mr.meta(name="i"), mr.DateField(required=True, **data_key_fields("i"))),
         (
             Optional[datetime.date],
             mr.meta(name="i"),
@@ -323,11 +287,7 @@ EMPTY_SCHEMA = m.Schema()
         (EmptyDataclass, {}, mr.NestedField(EMPTY_SCHEMA, required=True)),
         (Optional[EmptyDataclass], {}, mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
         (EmptyDataclass | None, {}, mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
-        (
-            EmptyDataclass,
-            mr.meta(name="i"),
-            mr.NestedField(EMPTY_SCHEMA, required=True, **data_key_fields("i")),
-        ),
+        (EmptyDataclass, mr.meta(name="i"), mr.NestedField(EMPTY_SCHEMA, required=True, **data_key_fields("i"))),
         (
             Optional[EmptyDataclass],
             mr.meta(name="i"),
@@ -342,11 +302,7 @@ EMPTY_SCHEMA = m.Schema()
         (NewDataclass, {}, mr.NestedField(EMPTY_SCHEMA, required=True)),
         (Optional[NewDataclass], {}, mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
         (NewDataclass | None, {}, mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None))),
-        (
-            NewDataclass,
-            mr.meta(name="i"),
-            mr.NestedField(EMPTY_SCHEMA, required=True, **data_key_fields("i")),
-        ),
+        (NewDataclass, mr.meta(name="i"), mr.NestedField(EMPTY_SCHEMA, required=True, **data_key_fields("i"))),
         (
             Optional[NewDataclass],
             mr.meta(name="i"),
@@ -364,11 +320,7 @@ EMPTY_SCHEMA = m.Schema()
             {},
             m.fields.List(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
         ),
-        (
-            list[bool | None],
-            {},
-            m.fields.List(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
-        ),
+        (list[bool | None], {}, m.fields.List(m.fields.Bool(allow_none=True, **default_fields(None)), required=True)),
         (
             Optional[list[bool]],
             {},
@@ -525,11 +477,7 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # containers: frozenset[T] where T: dataclass
-        (
-            frozenset[EmptyDataclass],
-            {},
-            mr.FrozenSetField(mr.NestedField(EMPTY_SCHEMA, required=True), required=True),
-        ),
+        (frozenset[EmptyDataclass], {}, mr.FrozenSetField(mr.NestedField(EMPTY_SCHEMA, required=True), required=True)),
         (
             frozenset[Optional[EmptyDataclass]],
             {},
@@ -565,21 +513,9 @@ EMPTY_SCHEMA = m.Schema()
         ),
         # containers: set[T]
         (set[bool], {}, mr.SetField(m.fields.Bool(required=True), required=True)),
-        (
-            set[Optional[bool]],
-            {},
-            mr.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
-        ),
-        (
-            set[bool | None],
-            {},
-            mr.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
-        ),
-        (
-            Optional[set[bool]],
-            {},
-            mr.SetField(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
-        ),
+        (set[Optional[bool]], {}, mr.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True)),
+        (set[bool | None], {}, mr.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True)),
+        (Optional[set[bool]], {}, mr.SetField(m.fields.Bool(required=True), allow_none=True, **default_fields(None))),
         (
             Optional[set[Optional[bool]]],
             {},
@@ -595,11 +531,7 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # containers: set[T] where T: dataclass
-        (
-            set[EmptyDataclass],
-            {},
-            mr.SetField(mr.NestedField(EMPTY_SCHEMA, required=True), required=True),
-        ),
+        (set[EmptyDataclass], {}, mr.SetField(mr.NestedField(EMPTY_SCHEMA, required=True), required=True)),
         (
             set[Optional[EmptyDataclass]],
             {},
@@ -634,11 +566,7 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # containers: collections.abc.Set[T]
-        (
-            collections.abc.Set[bool],
-            {},
-            mr.SetField(m.fields.Bool(required=True), required=True),
-        ),
+        (collections.abc.Set[bool], {}, mr.SetField(m.fields.Bool(required=True), required=True)),
         (
             collections.abc.Set[Optional[bool]],
             {},
@@ -739,11 +667,7 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # containers: tuple[T, ...] where T: dataclass
-        (
-            tuple[EmptyDataclass, ...],
-            {},
-            mr.TupleField(mr.NestedField(EMPTY_SCHEMA, required=True), required=True),
-        ),
+        (tuple[EmptyDataclass, ...], {}, mr.TupleField(mr.NestedField(EMPTY_SCHEMA, required=True), required=True)),
         (
             tuple[Optional[EmptyDataclass], ...],
             {},
@@ -779,38 +703,18 @@ EMPTY_SCHEMA = m.Schema()
         ),
         # containers: dict[str, Any]
         (dict[str, Any], {}, mr.DictField(required=True)),
-        (
-            dict[str, Any],
-            mr.meta(name="i"),
-            mr.DictField(required=True, **data_key_fields("i")),
-        ),
-        (
-            Optional[dict[str, Any]],
-            {},
-            mr.DictField(allow_none=True, **default_fields(None)),
-        ),
+        (dict[str, Any], mr.meta(name="i"), mr.DictField(required=True, **data_key_fields("i"))),
+        (Optional[dict[str, Any]], {}, mr.DictField(allow_none=True, **default_fields(None))),
         (
             Optional[dict[str, Any]],
             mr.meta(name="i"),
-            mr.DictField(
-                allow_none=True,
-                **default_fields(None),
-                **data_key_fields("i"),
-            ),
+            mr.DictField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
-        (
-            dict[str, Any] | None,
-            {},
-            mr.DictField(allow_none=True, **default_fields(None)),
-        ),
+        (dict[str, Any] | None, {}, mr.DictField(allow_none=True, **default_fields(None))),
         (
             dict[str, Any] | None,
             mr.meta(name="i"),
-            mr.DictField(
-                allow_none=True,
-                **default_fields(None),
-                **data_key_fields("i"),
-            ),
+            mr.DictField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # containers: dict[datetime.date, int]
         (
@@ -872,38 +776,18 @@ EMPTY_SCHEMA = m.Schema()
         ),
         # containers: collections.abc.Mapping[str, Any]
         (collections.abc.Mapping[str, Any], {}, mr.DictField(required=True)),
-        (
-            collections.abc.Mapping[str, Any],
-            mr.meta(name="i"),
-            mr.DictField(required=True, **data_key_fields("i")),
-        ),
-        (
-            Optional[collections.abc.Mapping[str, Any]],
-            {},
-            mr.DictField(allow_none=True, **default_fields(None)),
-        ),
+        (collections.abc.Mapping[str, Any], mr.meta(name="i"), mr.DictField(required=True, **data_key_fields("i"))),
+        (Optional[collections.abc.Mapping[str, Any]], {}, mr.DictField(allow_none=True, **default_fields(None))),
         (
             Optional[collections.abc.Mapping[str, Any]],
             mr.meta(name="i"),
-            mr.DictField(
-                allow_none=True,
-                **default_fields(None),
-                **data_key_fields("i"),
-            ),
+            mr.DictField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
-        (
-            collections.abc.Mapping[str, Any] | None,
-            {},
-            mr.DictField(allow_none=True, **default_fields(None)),
-        ),
+        (collections.abc.Mapping[str, Any] | None, {}, mr.DictField(allow_none=True, **default_fields(None))),
         (
             collections.abc.Mapping[str, Any] | None,
             mr.meta(name="i"),
-            mr.DictField(
-                allow_none=True,
-                **default_fields(None),
-                **data_key_fields("i"),
-            ),
+            mr.DictField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # containers: collections.abc.Mapping[datetime.date, int]
         (
@@ -964,21 +848,12 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # unions...
-        (
-            int | str,
-            {},
-            mr.UnionField(
-                fields=[m.fields.Int(required=True), mr.StrField(required=True)],
-                required=True,
-            ),
-        ),
+        (int | str, {}, mr.UnionField(fields=[m.fields.Int(required=True), mr.StrField(required=True)], required=True)),
         (
             int | str,
             mr.meta(name="i"),
             mr.UnionField(
-                fields=[m.fields.Int(required=True), mr.StrField(required=True)],
-                required=True,
-                **data_key_fields("i"),
+                fields=[m.fields.Int(required=True), mr.StrField(required=True)], required=True, **data_key_fields("i")
             ),
         ),
         (

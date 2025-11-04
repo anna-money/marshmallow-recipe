@@ -1,0 +1,95 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "marshmallow-recipe"
+dynamic = ["version"]
+description = "Bake marshmallow schemas based on dataclasses"
+readme = {file = "README.md", content-type = "text/markdown"}
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Yury Pliner", email = "yury.pliner@gmail.com"}
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+    "Development Status :: 5 - Production/Stable",
+]
+dependencies = [
+    "marshmallow>=2.20.5,<4",
+]
+
+[project.urls]
+Homepage = "https://github.com/anna-money/marshmallow-recipe"
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.5",
+    "ruff==0.8.4",
+    "pyright==1.1.407",
+    "setuptools",
+]
+
+[tool.hatch.version]
+path = "marshmallow_recipe/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["marshmallow_recipe"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = [
+    ".git",
+    ".claude",
+    ".idea",
+    "__pycache__",
+    "venv",
+]
+
+[tool.ruff.lint]
+select = ["SIM","C4", "ANN", "N", "LOG", "G", "F", "E", "W", "Q", "I", "UP", "T20", "COM", "RSE", "RET", "ISC", "ASYNC", "SLOT", "RUF"]
+ignore = ["COM812", "ISC001", "ASYNC109", "RUF018", "ANN401", "ANN204", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["UP007", "E741", "UP035", "RUF009"]
+
+[tool.ruff.format]
+skip-magic-trailing-comma = true
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+split-on-trailing-comma = false
+
+[tool.pytest.ini_options]
+norecursedirs = [".git", ".venv"]
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+
+[tool.pyright]
+include = ["marshmallow_recipe/", "tests/"]
+pythonVersion = "3.11"
+pythonPlatform = "All"
+stubPath = ""
+typeCheckingMode = "strict"
+useLibraryCodeForTypes = true
+reportPrivateImportUsage = false
+reportMissingTypeStubs = false
+reportUnknownVariableType = false
+reportUnknownMemberType = false
+reportUnknownLambdaType = false
+reportUnknownArgumentType = false
+reportUnknownParameterType = false
+reportUntypedFunctionDecorator = false
+reportUnusedImport = false
+reportMissingTypeArgument = false
+reportImportCycles = false
+reportDeprecated = false
