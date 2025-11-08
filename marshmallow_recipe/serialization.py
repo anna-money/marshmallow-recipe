@@ -33,7 +33,7 @@ _schemas: dict[_SchemaKey, m.Schema] = {}
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def schema_v3(
-        cls: type,
+        cls: type[Dataclass],
         /,
         *,
         many: bool = False,
@@ -145,7 +145,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 else:
 
     def schema_v2(
-        cls: type,
+        cls: type[Dataclass],
         /,
         *,
         many: bool = False,
