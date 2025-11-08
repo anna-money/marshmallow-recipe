@@ -1,3 +1,10 @@
+## v0.0.65 (2025-11-08)
+
+* [Ensure T is bound by dataclass for dump/load/dump_many/load_many/schema](https://github.com/anna-money/marshmallow-recipe/pull/203)
+* [Ensure T is bound by dataclass for schema(https://github.com/anna-money/marshmallow-recipe/commit/ff75a88d4b8e3d2ea2eede020dbe3b33f70f4468)
+* [Add support of python 3.14](https://github.com/anna-money/marshmallow-recipe/pull/202)
+
+
 ## v0.0.64 (2025-11-03)
 
 * Add custom error message support via `required_error`, `none_error`, and `invalid_error` parameters to all field and metadata functions
