@@ -2,17 +2,17 @@ import dataclasses
 import types
 import typing
 from collections.abc import Mapping
-from typing import Annotated, Any, Generic, NewType, TypeAlias, TypeVar, Union, get_args, get_origin
+from typing import Annotated, Any, Generic, NewType, TypeVar, Union, get_args, get_origin
 
-_GenericAlias: TypeAlias = typing._GenericAlias  # type: ignore
+_GenericAlias: type[typing._GenericAlias] = typing._GenericAlias  # type: ignore
 
 
-TypeLike: TypeAlias = type | TypeVar | types.UnionType | types.GenericAlias | _GenericAlias | NewType
-FieldsTypeMap: TypeAlias = dict[str, TypeLike]
-TypeVarMap: TypeAlias = dict[TypeVar, TypeLike]
-FieldsClassMap: TypeAlias = dict[str, TypeLike]
-ClassTypeVarMap: TypeAlias = dict[TypeLike, TypeVarMap]
-FieldsTypeVarMap: TypeAlias = dict[str, TypeVarMap]
+type TypeLike = type | TypeVar | types.UnionType | types.GenericAlias | _GenericAlias | NewType  # type: ignore[valid-type]
+type FieldsTypeMap = dict[str, TypeLike]
+type TypeVarMap = dict[TypeVar, TypeLike]
+type FieldsClassMap = dict[str, TypeLike]
+type ClassTypeVarMap = dict[TypeLike, TypeVarMap]
+type FieldsTypeVarMap = dict[str, TypeVarMap]
 
 
 def extract_type(data: Any, cls: type | None) -> type:
