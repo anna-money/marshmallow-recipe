@@ -40,8 +40,8 @@ def e(match: str) -> ContextManager:
     return pytest.raises(ValueError, match=match)
 
 
-def type_var_values(type_var_map: dict[Any, Any]) -> list[Any]:
-    return sorted(type_var_map.values(), key=repr)
+def type_vars(type_var_map: dict[Any, Any]) -> set[Any]:
+    return set(type_var_map.values())
 
 
 @pytest.mark.parametrize(
@@ -214,10 +214,10 @@ def test_get_class_type_var_map_with_inheritance() -> None:
 
     actual = get_class_type_var_map(Ddd[bool, str, float])
     assert len(actual) == 4
-    assert type_var_values(actual[Aaa]) == [int, str]
-    assert type_var_values(actual[Bbb]) == [str]
-    assert type_var_values(actual[Ccc]) == [bool]
-    assert type_var_values(actual[Ddd]) == [bool, float, str]
+    assert type_vars(actual[Aaa]) == {int, str}
+    assert type_vars(actual[Bbb]) == {str}
+    assert type_vars(actual[Ccc]) == {bool}
+    assert type_vars(actual[Ddd]) == {bool, float, str}
 
 
 def test_get_class_type_var_map_with_incompatible_inheritance() -> None:
@@ -258,7 +258,7 @@ def test_get_class_type_var_map_with_duplicated_generic_inheritance() -> None:
     actual = get_class_type_var_map(Ccc)
     assert len(actual) == 1
     assert Aaa in actual
-    assert type_var_values(actual[Aaa]) == [int]
+    assert type_vars(actual[Aaa]) == {int}
 
 
 def test_get_class_type_var_map_with_nesting() -> None:
@@ -278,10 +278,9 @@ def test_get_class_type_var_map_with_nesting() -> None:
     assert len(actual) == 2
     assert Aaa in actual and Ccc in actual
     assert len(actual[Aaa]) == 2
-    aaa_values = type_var_values(actual[Aaa])
-    assert aaa_values[0] == Bbb[list[Annotated[Bbb[str], "xxx"]]]
-    assert aaa_values[1] == bool | None
-    assert type_var_values(actual[Ccc]) == [bool, float, str]
+
+    assert type_vars(actual[Aaa]) == {Bbb[list[Annotated[Bbb[str], "xxx"]]], bool | None}
+    assert type_vars(actual[Ccc]) == {bool, float, str}
 
 
 class Xxx[T1, T2]:
