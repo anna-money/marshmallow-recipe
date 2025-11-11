@@ -5,7 +5,7 @@ import datetime
 import enum
 import importlib.metadata
 import types
-from typing import Any, TypeVar
+from typing import Any
 
 import marshmallow as m
 import marshmallow.validate
@@ -13,9 +13,6 @@ import marshmallow.validate
 from .validation import ValidationFunc
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
-
-
-TField = TypeVar("TField", bound=m.fields.Field)
 
 
 def str_field(
@@ -927,7 +924,9 @@ def build_error_messages(
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
-    def with_type_checks_on_serialize_v3(field: TField, type_guards: type | tuple[type, ...]) -> TField:
+    def with_type_checks_on_serialize_v3[TField: m.fields.Field](
+        field: TField, type_guards: type | tuple[type, ...]
+    ) -> TField:
         fail_key = "invalid" if "invalid" in field.default_error_messages else "validator_failed"
 
         old = field._serialize  # type: ignore
@@ -943,7 +942,9 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     with_type_checks_on_serialize = with_type_checks_on_serialize_v3
 
-    def with_type_checks_on_validated_v3(field: TField, type_guards: type | tuple[type, ...]) -> TField:
+    def with_type_checks_on_validated_v3[TField: m.fields.Field](
+        field: TField, type_guards: type | tuple[type, ...]
+    ) -> TField:
         if not hasattr(field, "_validated"):
             raise TypeError("Field doesn't have _validated method")
 
@@ -1195,7 +1196,9 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     NestedField = m.fields.Nested
 else:
 
-    def with_type_checks_on_serialize_v2(field: TField, type_guards: type | tuple[type, ...]) -> TField:
+    def with_type_checks_on_serialize_v2[TField: m.fields.Field](
+        field: TField, type_guards: type | tuple[type, ...]
+    ) -> TField:
         fail_key = "invalid" if "invalid" in field.default_error_messages else "validator_failed"
 
         old = field._serialize  # type: ignore
@@ -1211,7 +1214,9 @@ else:
 
     with_type_checks_on_serialize = with_type_checks_on_serialize_v2
 
-    def with_type_checks_on_validated_v2(field: TField, type_guards: type | tuple[type, ...]) -> TField:
+    def with_type_checks_on_validated_v2[TField: m.fields.Field](
+        field: TField, type_guards: type | tuple[type, ...]
+    ) -> TField:
         if not hasattr(field, "_validated"):
             raise TypeError("Field doesn't have _validated method")
 

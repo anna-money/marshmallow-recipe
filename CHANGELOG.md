@@ -1,3 +1,9 @@
+## Unreleased
+
+* Use PEP 695
+* Drop Python 3.11 support
+
+
 ## v0.0.65 (2025-11-08)
 
 * [Ensure T is bound by dataclass for dump/load/dump_many/load_many/schema](https://github.com/anna-money/marshmallow-recipe/pull/203)

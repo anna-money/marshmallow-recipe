@@ -5,14 +5,13 @@ import enum
 import uuid
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import nullcontext as does_not_raise
-from typing import Annotated, Any, ContextManager, Generic, NewType, TypeVar, get_origin
+from typing import Annotated, Any, ContextManager, NewType, get_origin
 
 import pytest
 
 import marshmallow_recipe as mr
 
 NewInt = NewType("NewInt", int)
-T = TypeVar("T")
 
 
 class Parity(str, enum.Enum):
@@ -653,10 +652,8 @@ def test_nested_default() -> None:
 def test_generic_extract_type_on_dump(
     frozen: bool, slots: bool, get_type: Callable[[type], type | None], context: ContextManager
 ) -> None:
-    TValue = TypeVar("TValue")
-
     @dataclasses.dataclass(frozen=frozen, slots=slots)
-    class Data(Generic[TValue]):
+    class Data[TValue]:
         value: TValue
 
     instance = Data[int](value=123)
@@ -704,15 +701,12 @@ def test_non_generic_extract_type_on_dump(
 
 
 def test_generic_in_parents() -> None:
-    TXxx = TypeVar("TXxx")
-    TData = TypeVar("TData")
-
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class Data(Generic[TXxx]):
+    class Data[TXxx]:
         xxx: TXxx
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class ParentClass(Generic[TData]):
+    class ParentClass[TData]:
         value: str
         data: TData
 
@@ -728,14 +722,12 @@ def test_generic_in_parents() -> None:
 
 
 def test_generic_type_var_with_reuse() -> None:
-    T = TypeVar("T")
-
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class T1(Generic[T]):
+    class T1[T]:
         t1: T
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class T2(Generic[T], T1[int]):
+    class T2[T](T1[int]):
         t2: T
 
     instance = T2[str](t1=1, t2="2")
@@ -755,16 +747,13 @@ def test_generic_with_field_override() -> None:
     class Value2(Value1):
         v2: str
 
-    TValue = TypeVar("TValue", bound=Value1)
-    TItem = TypeVar("TItem")
-
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class T1(Generic[TItem]):
+    class T1[TItem]:
         value: Value1
         iterable: Iterable[TItem]
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class T2(Generic[TValue, TItem], T1[TItem]):
+    class T2[TValue: Value1, TItem](T1[TItem]):
         value: TValue
         iterable: set[TItem]
 
@@ -777,10 +766,8 @@ def test_generic_with_field_override() -> None:
 
 
 def test_generic_reuse_with_different_args() -> None:
-    TItem = TypeVar("TItem")
-
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class GenericContainer(Generic[TItem]):
+    class GenericContainer[TItem]:
         items: list[TItem]
 
     container_int = GenericContainer[int](items=[1, 2, 3])
@@ -932,7 +919,7 @@ def test_union_dict_str() -> None:
 
 def test_union_str_generic() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class GenericContainer(Generic[T]):
+    class GenericContainer[T]:
         value: T
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -952,7 +939,7 @@ def test_union_str_generic() -> None:
 
 def test_union_generic_str() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class GenericContainer(Generic[T]):
+    class GenericContainer[T]:
         value: T
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

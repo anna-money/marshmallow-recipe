@@ -7,7 +7,7 @@ name = "marshmallow-recipe"
 dynamic = ["version"]
 description = "Bake marshmallow schemas based on dataclasses"
 readme = {file = "README.md", content-type = "text/markdown"}
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = {text = "MIT"}
 authors = [
     {name = "Yury Pliner", email = "yury.pliner@gmail.com"}
@@ -17,7 +17,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
@@ -47,7 +46,7 @@ packages = ["marshmallow_recipe"]
 
 [tool.ruff]
 line-length = 120
-target-version = "py311"
+target-version = "py312"
 exclude = [
     ".git",
     ".claude",
@@ -76,7 +75,7 @@ python_files = ["tests.py", "test_*.py", "*_tests.py"]
 
 [tool.pyright]
 include = ["marshmallow_recipe/", "tests/"]
-pythonVersion = "3.11"
+pythonVersion = "3.12"
 pythonPlatform = "All"
 stubPath = ""
 typeCheckingMode = "strict"

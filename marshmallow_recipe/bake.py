@@ -7,7 +7,7 @@ import importlib.metadata
 import inspect
 import types
 import uuid
-from typing import Annotated, Any, NamedTuple, NewType, Protocol, TypeVar, Union, cast, get_args, get_origin
+from typing import Annotated, Any, NamedTuple, NewType, Protocol, Union, cast, get_args, get_origin
 
 import marshmallow as m
 
@@ -48,7 +48,6 @@ class _SchemaTypeKey:
     decimal_places: int | None
 
 
-T = TypeVar("T")
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 _schema_types: dict[_SchemaTypeKey, type[m.Schema]] = {}

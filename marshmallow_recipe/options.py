@@ -1,7 +1,6 @@
 import collections.abc
 import dataclasses
 import enum
-from typing import TypeVar
 
 from .missing import MISSING
 from .naming_case import NamingCase
@@ -21,10 +20,7 @@ class DataclassOptions:
     decimal_places: int | None = MISSING
 
 
-T = TypeVar("T")
-
-
-def options(
+def options[T](
     *,
     none_value_handling: NoneValueHandling | None = None,
     naming_case: NamingCase | None = None,
