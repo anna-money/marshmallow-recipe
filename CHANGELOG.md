@@ -1,5 +1,10 @@
 ## Unreleased
 
+* Add `json_schema()` function for JSON Schema Draft 2020-12 generation
+* Add `description` parameter to `meta()` / `metadata()` for field descriptions in JSON Schema
+* Add `description` parameter to `@options()` decorator for schema-level descriptions
+* Add `title` parameter to `@options()` decorator for schema-level title
+* Add `item_description` parameter to `list_meta()`, `set_meta()`, and `tuple_meta()` for collection item descriptions in JSON Schema
 * Use PEP 695
 * Drop Python 3.11 support
 

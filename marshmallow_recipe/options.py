@@ -18,6 +18,8 @@ class DataclassOptions:
     none_value_handling: NoneValueHandling | None = None
     naming_case: NamingCase | None = None
     decimal_places: int | None = MISSING
+    title: str | None = None
+    description: str | None = None
 
 
 def options[T](
@@ -25,13 +27,19 @@ def options[T](
     none_value_handling: NoneValueHandling | None = None,
     naming_case: NamingCase | None = None,
     decimal_places: int | None = MISSING,
+    title: str | None = None,
+    description: str | None = None,
 ) -> collections.abc.Callable[[type[T]], type[T]]:
     def wrap(cls: type[T]) -> type[T]:
         setattr(
             cls,
             _OPTIONS_KEY,
             DataclassOptions(
-                none_value_handling=none_value_handling, naming_case=naming_case, decimal_places=decimal_places
+                none_value_handling=none_value_handling,
+                naming_case=naming_case,
+                decimal_places=decimal_places,
+                title=title,
+                description=description,
             ),
         )
         return cls
