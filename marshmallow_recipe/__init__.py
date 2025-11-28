@@ -16,6 +16,7 @@ from .fields import (
     UnionField,
 )
 from .hooks import add_pre_load, pre_load
+from .json_schema import json_schema
 from .metadata import (
     EMPTY_METADATA,
     Metadata,
@@ -98,6 +99,7 @@ __all__: tuple[str, ...] = (
     "get_field_for",
     "get_validation_field_errors",
     "is_metadata",
+    "json_schema",
     "list_meta",
     "list_metadata",
     "load",
