@@ -1,6 +1,6 @@
 import dataclasses
 import importlib.metadata
-from typing import Any, ClassVar, Protocol, overload
+from typing import Any, overload
 
 import marshmallow as m
 
@@ -9,11 +9,6 @@ from .generics import extract_type
 from .missing import MISSING
 from .naming_case import NamingCase
 from .options import NoneValueHandling
-
-
-class Dataclass(Protocol):
-    __dataclass_fields__: ClassVar[dict[str, Any]]
-
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
@@ -58,7 +53,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     schema = schema_v3
 
-    def load_v3[T: Dataclass](
+    def load_v3[T](
         cls: type[T],
         data: dict[str, Any],
         /,
@@ -74,7 +69,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     load = load_v3
 
-    def load_many_v3[T: Dataclass](
+    def load_many_v3[T](
         cls: type[T],
         data: list[dict[str, Any]],
         /,
@@ -94,9 +89,9 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     load_many = load_many_v3
 
-    def dump_v3(
-        cls: type | None,
-        data: Any,
+    def dump_v3[T](
+        cls: type[T] | None,
+        data: T,
         /,
         *,
         naming_case: NamingCase | None = None,
@@ -116,9 +111,9 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     dump_impl = dump_v3
 
-    def dump_many_v3(
-        cls: type | None,
-        data: list[Any],
+    def dump_many_v3[T](
+        cls: type[T] | None,
+        data: list[T],
         /,
         *,
         naming_case: NamingCase | None = None,
@@ -143,8 +138,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
 else:
 
-    def schema_v2(
-        cls: type,
+    def schema_v2[T](
+        cls: type[T],
         /,
         *,
         many: bool = False,
@@ -171,7 +166,7 @@ else:
 
     schema = schema_v2
 
-    def load_v2[T: Dataclass](
+    def load_v2[T](
         cls: type[T],
         data: dict[str, Any],
         /,
@@ -188,7 +183,7 @@ else:
 
     load = load_v2
 
-    def load_many_v2[T: Dataclass](
+    def load_many_v2[T](
         cls: type[T],
         data: list[dict[str, Any]],
         /,
@@ -209,8 +204,8 @@ else:
 
     load_many = load_many_v2
 
-    def dump_v2(
-        cls: type | None,
+    def dump_v2[T](
+        cls: type[T] | None,
         data: Any,
         /,
         *,
@@ -233,9 +228,9 @@ else:
 
     dump_impl = dump_v2
 
-    def dump_many_v2(
-        cls: type | None,
-        data: list[Any],
+    def dump_many_v2[T](
+        cls: type[T] | None,
+        data: list[T],
         /,
         *,
         naming_case: NamingCase | None = None,
@@ -265,7 +260,7 @@ EmptySchema = m.Schema
 
 @overload
 def dump(
-    data: Dataclass,
+    data: Any,
     /,
     *,
     naming_case: NamingCase | None = None,
@@ -275,7 +270,7 @@ def dump(
 
 
 @overload
-def dump[T: Dataclass](
+def dump[T](
     cls: type[T],
     data: T,
     /,
@@ -293,7 +288,7 @@ def dump(*args: Any, **kwargs: Any) -> dict[str, Any]:
 
 
 @overload
-def dump_many[T: Dataclass](
+def dump_many[T](
     data: list[T],
     /,
     *,
@@ -304,7 +299,7 @@ def dump_many[T: Dataclass](
 
 
 @overload
-def dump_many[T: Dataclass](
+def dump_many[T](
     cls: type[T],
     data: list[T],
     /,
