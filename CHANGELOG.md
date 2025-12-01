@@ -1,7 +1,7 @@
-## Unreleased
+## v0.0.66 (2025-12-01)
 
-* Use PEP 695
-* Drop Python 3.11 support
+* [Use PEP 695, Drop Python 3.11 support](https://github.com/anna-money/marshmallow-recipe/pull/205)
+* Revert T binding in dump/load/dump_many/load_many/schema to dataclass only introduced in 0.0.65
 
 
 ## v0.0.65 (2025-11-08)
