@@ -1,6 +1,6 @@
 import dataclasses
 import importlib.metadata
-from typing import Any, overload
+from typing import Any, ClassVar, Protocol, overload
 
 import marshmallow as m
 
@@ -11,6 +11,10 @@ from .naming_case import NamingCase
 from .options import NoneValueHandling
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
+
+
+class Dataclass(Protocol):
+    __dataclass_fields__: ClassVar[dict[str, Any]]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

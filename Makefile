@@ -7,7 +7,7 @@ ruff-format:
 	@ruff format marshmallow_recipe tests
 
 ruff-lint:
-	@ruff check marshmallow_recipe tests
+	@ruff check marshmallow_recipe tests --fix
 
 pyright:
 	@pyright

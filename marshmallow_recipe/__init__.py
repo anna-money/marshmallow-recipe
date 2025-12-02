@@ -49,7 +49,7 @@ from .naming_case import (
     UpperSnakeCase,
 )
 from .options import NoneValueHandling, options
-from .serialization import EmptySchema, dump, dump_many, load, load_many, schema
+from .serialization import Dataclass, EmptySchema, dump, dump_many, load, load_many, schema
 from .validation import (
     ValidationError,
     ValidationFieldError,
@@ -68,6 +68,7 @@ __all__: tuple[str, ...] = (
     "UPPER_SNAKE_CASE",
     "CamelCase",
     "CapitalCamelCase",
+    "Dataclass",
     "DateField",
     "DateTimeField",
     "DictField",
@@ -120,7 +121,7 @@ __all__: tuple[str, ...] = (
     "validate",
 )
 
-__version__ = "0.0.66"
+__version__ = "0.0.67"
 
 version = f"{__version__}, Python {sys.version}"
 

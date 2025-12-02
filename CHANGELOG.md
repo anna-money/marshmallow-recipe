@@ -1,3 +1,8 @@
+## v0.0.67 (2025-12-02)
+
+* Return Dataclass protocol back because it has already been used
+
+
 ## v0.0.66 (2025-12-01)
 
 * [Use PEP 695, Drop Python 3.11 support](https://github.com/anna-money/marshmallow-recipe/pull/205)
