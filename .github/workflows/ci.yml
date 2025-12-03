@@ -1,50 +1,36 @@
 name: CI
-
 on:
   push:
     branches:
       - main
-    tags: [ 'v*' ]
+    tags: ['v*']
   pull_request:
     branches:
       - main
-
-
 jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.12", "3.13", "3.14"]
         marshmallow: ["marshmallow==2.20.5", "marshmallow[reco]==2.20.5", "marshmallow>=2,<3", "marshmallow[reco]>=2,<3", "marshmallow>=3,<4"]
-
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-        allow-prereleases: true
-    - name: Install uv
-      run: |
-        pip install -U pip && pip install --no-cache-dir uv
-    - name: Install dependencies
-      run: |
-        uv pip install -e ".[dev]" --system
-    - name: Install ${{ matrix.marshmallow }}
-      run: |
-        uv pip install "${{ matrix.marshmallow }}" --system
-    - name: Lint
-      run: |
-        make lint
-    - name: Tests
-      run: |
-        make test
-
+      - uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+      - name: Use python ${{ matrix.python-version }}
+        run: echo ${{ matrix.python-version }} > .python-version
+      - name: Install dependencies
+        run: make deps
+      - name: Install ${{ matrix.marshmallow }}
+        run: uv pip install "${{ matrix.marshmallow }}"
+      - name: Lint
+        run: make lint
+      - name: Tests
+        run: make test
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
@@ -52,20 +38,13 @@ jobs:
     # Run only on pushing a tag
     if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Setup Python 3.12
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.12"
-    - name: Install uv
-      run: |
-        pip install -U pip && pip install --no-cache-dir uv
-    - name: Build package
-      run: |
-        uv build
-    - name: Publish to PyPI
-      env:
-        UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
-      run: |
-        uv publish
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+      - name: Build package
+        run: uv build
+      - name: Publish to PyPI
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: uv publish
