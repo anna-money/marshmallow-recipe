@@ -1,24 +1,24 @@
 all: deps lint test
 
-deps:
-	@uv pip install -e ".[dev]"
+uv:
+	@which uv >/dev/null 2>&1 || { \
+		echo "uv is not installed"; \
+		exit 1;\
+	}
+
+deps: uv
+	@uv sync --all-extras
 
 ruff-format:
-	@ruff format marshmallow_recipe tests
+	@uv run ruff format marshmallow_recipe tests
 
 ruff-lint:
-	@ruff check marshmallow_recipe tests --fix
+	@uv run ruff check marshmallow_recipe tests --fix
 
 pyright:
-	@pyright
+	@uv run pyright
 
 lint: ruff-format ruff-lint pyright
 
 test:
-	@python3 -m pytest -vv --rootdir tests .
-
-pyenv:
-	echo marshmallow_recipe > .python-version && pyenv install -s 3.12 && pyenv virtualenv -f 3.12 marshmallow_recipe
-
-pyenv-delete:
-	pyenv virtualenv-delete -f marshmallow_recipe
+	@uv run pytest -vv --rootdir tests .
