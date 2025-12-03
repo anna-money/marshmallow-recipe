@@ -49,7 +49,7 @@ from .naming_case import (
     UpperSnakeCase,
 )
 from .options import NoneValueHandling, options
-from .serialization import Dataclass, EmptySchema, dump, dump_many, load, load_many, schema
+from .serialization import Dataclass, EmptySchema, dump, dump_many, dump_value, load, load_many, load_value, schema
 from .validation import (
     ValidationError,
     ValidationFieldError,
@@ -95,6 +95,7 @@ __all__: tuple[str, ...] = (
     "decimal_metadata",
     "dump",
     "dump_many",
+    "dump_value",
     "email_validate",
     "get_field_for",
     "get_validation_field_errors",
@@ -103,6 +104,7 @@ __all__: tuple[str, ...] = (
     "list_metadata",
     "load",
     "load_many",
+    "load_value",
     "meta",
     "metadata",
     "options",
