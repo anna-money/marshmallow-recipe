@@ -33,6 +33,16 @@ DT2 = datetime.datetime(2024, 1, 2, 12, 0, 0, tzinfo=datetime.UTC)
         (bool, False, False),
         (float, 3.14, 3.14),
         (float, 0.0, 0.0),
+        # Optional primitives (T | None)
+        (int | None, 42, 42),
+        (int | None, None, None),
+        (str | None, "hello", "hello"),
+        (str | None, None, None),
+        (str | None, "", ""),
+        (bool | None, True, True),
+        (bool | None, None, None),
+        (float | None, 3.14, 3.14),
+        (float | None, None, None),
         # Empty collections
         (list[int], [], []),
         (dict[str, int], {}, {}),
