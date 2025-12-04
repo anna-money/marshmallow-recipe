@@ -4,6 +4,7 @@ import decimal
 import uuid
 from typing import Any
 
+import marshmallow as m
 import pytest
 
 import marshmallow_recipe as mr
@@ -99,3 +100,86 @@ def test_dump_value_rejects_dataclass() -> None:
 def test_load_value_rejects_dataclass() -> None:
     with pytest.raises(ValueError, match="load_value does not support dataclasses"):
         mr.load_value(Holder[int], {"value": 42})
+
+
+def test_load_value_invalid_int() -> None:
+    with pytest.raises(m.ValidationError) as e:
+        mr.load_value(int, "not_a_number")
+    assert e.value.messages == ["Not a valid integer."]
+
+
+def test_load_value_int_none() -> None:
+    with pytest.raises(m.ValidationError) as e:
+        mr.load_value(int, None)
+    assert e.value.messages == ["Field may not be null."]
+
+
+def test_load_value_list_invalid_item() -> None:
+    with pytest.raises(m.ValidationError) as e:
+        mr.load_value(list[int], [1, "invalid", 3])
+    assert e.value.messages == {1: ["Not a valid integer."]}
+
+
+def test_load_value_dict_invalid_value() -> None:
+    with pytest.raises(m.ValidationError):
+        mr.load_value(dict[str, int], {"a": "invalid"})
+
+
+def test_load_value_dict_complex_invalid() -> None:
+    with pytest.raises(m.ValidationError):
+        mr.load_value(dict[datetime.date, decimal.Decimal], {"invalid": "invalid"})
+
+
+def test_load_value_invalid_uuid() -> None:
+    with pytest.raises(m.ValidationError):
+        mr.load_value(uuid.UUID, "not-a-uuid")
+
+
+def test_load_value_invalid_datetime() -> None:
+    with pytest.raises(m.ValidationError):
+        mr.load_value(datetime.datetime, "not-a-date")
+
+
+def test_load_value_invalid_decimal() -> None:
+    with pytest.raises(m.ValidationError):
+        mr.load_value(decimal.Decimal, "not-a-number")
+
+
+def test_load_value_optional_invalid() -> None:
+    with pytest.raises(m.ValidationError):
+        mr.load_value(int | None, "invalid")  # type: ignore[arg-type]
+
+
+def test_load_value_nested_dataclass_invalid() -> None:
+    with pytest.raises(m.ValidationError):
+        mr.load_value(list[Holder[int]], [{"value": "invalid"}])
+
+
+def test_load_value_nested_list_invalid() -> None:
+    with pytest.raises(m.ValidationError):
+        mr.load_value(list[list[int]], [[1, 2], ["invalid"]])
+
+
+def test_load_value_union_valid() -> None:
+    assert mr.load_value(int | str, 42) == 42  # type: ignore[arg-type]
+    assert mr.load_value(int | str, "hello") == "hello"  # type: ignore[arg-type]
+
+
+def test_load_value_union_invalid() -> None:
+    with pytest.raises(m.ValidationError):
+        mr.load_value(int | str, [1, 2, 3])  # type: ignore[arg-type]
+
+
+def test_load_value_union_list_or_none_invalid() -> None:
+    with pytest.raises(m.ValidationError):
+        mr.load_value(list[int] | None, [1, "invalid"])  # type: ignore[arg-type]
+
+
+def test_dump_value_invalid_int() -> None:
+    with pytest.raises(m.ValidationError):
+        mr.dump_value(int, "not_an_int")
+
+
+def test_dump_value_int_none() -> None:
+    with pytest.raises(m.ValidationError):
+        mr.dump_value(int, None)

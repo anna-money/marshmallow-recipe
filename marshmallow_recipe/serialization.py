@@ -165,7 +165,11 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
         )
-        wrapper: _Wrapper[T] = wrapper_schema.load({"value": data})  # type: ignore[assignment]
+        try:
+            wrapper: _Wrapper[T] = wrapper_schema.load({"value": data})  # type: ignore[assignment]
+        except m.ValidationError as e:
+            messages = e.messages
+            raise m.ValidationError(messages.get("value", messages) if isinstance(messages, dict) else messages) from e
         return wrapper.value
 
     load_value = load_value_v3
@@ -191,7 +195,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         )
         dumped: dict[str, Any] = data_schema.dump(wrapper)  # type: ignore[assignment]
         if errors := data_schema.validate(dumped):
-            raise m.ValidationError(errors)
+            raise m.ValidationError(errors.get("value", errors))
         return dumped.get("value")
 
     dump_value = dump_value_v3
@@ -333,7 +337,9 @@ else:
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
         )
-        wrapper, _ = wrapper_schema.load({"value": data})  # type: ignore
+        wrapper, errors = wrapper_schema.load({"value": data})  # type: ignore
+        if errors:
+            raise m.ValidationError(errors.get("value", errors) if isinstance(errors, dict) else errors)
         return wrapper.value  # type: ignore
 
     load_value = load_value_v2
@@ -359,9 +365,9 @@ else:
         )
         dumped, errors = data_schema.dump(wrapper)
         if errors:
-            raise m.ValidationError(errors)
+            raise m.ValidationError(errors.get("value", errors) if isinstance(errors, dict) else errors)
         if errors := data_schema.validate(dumped):
-            raise m.ValidationError(errors)
+            raise m.ValidationError(errors.get("value", errors))
         return dumped.get("value")  # type: ignore
 
     dump_value = dump_value_v2
