@@ -1,3 +1,8 @@
+## unreleased
+
+* Add `dump_value` and `load_value` functions for serializing arbitrary types (not just dataclasses)
+
+
 ## v0.0.67 (2025-12-02)
 
 * Return Dataclass protocol back because it has already been used

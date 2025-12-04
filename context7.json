@@ -42,7 +42,8 @@
     "NewType support: NewType('UserId', int) works transparently - treated as underlying type",
     "Schemas generated and cached automatically - mr.schema(Class) returns marshmallow Schema, cached per (naming_case, none_value_handling, decimal_places)",
     "Use mr.load_many(Class, list_data) and mr.dump_many(list_objs) for lists of objects",
-    "Use mr.get_validation_field_errors(exc) to get structured ValidationError details"
+    "Use mr.get_validation_field_errors(exc) to get structured ValidationError details",
+    "Use mr.dump_value(type, value) and mr.load_value(type, data) for serializing arbitrary types (not just dataclasses) - e.g., mr.dump_value(list[int], [1,2,3])"
   ],
   "previousVersions": []
 }

@@ -1,11 +1,12 @@
 import dataclasses
 import importlib.metadata
-from typing import Any, ClassVar, Protocol, overload
+from typing import Annotated, Any, ClassVar, Protocol, get_origin, overload
 
 import marshmallow as m
 
 from .bake import bake_schema
 from .generics import extract_type
+from .metadata import meta
 from .missing import MISSING
 from .naming_case import NamingCase
 from .options import NoneValueHandling
@@ -27,6 +28,12 @@ class _SchemaKey:
 
 
 _schemas: dict[_SchemaKey, m.Schema] = {}
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class _Wrapper[T]:
+    value: Annotated[T, meta(name="value")]
+
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
@@ -139,6 +146,59 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         return dumped
 
     dump_many_impl = dump_many_v3
+
+    def load_value_v3[T](
+        cls: type[T],
+        data: Any,
+        /,
+        *,
+        naming_case: NamingCase | None = None,
+        none_value_handling: NoneValueHandling | None = None,
+        decimal_places: int | None = MISSING,
+    ) -> T:
+        if (origin := (get_origin(cls) or cls)) and dataclasses.is_dataclass(origin):
+            raise ValueError("load_value does not support dataclasses")
+
+        wrapper_schema = schema_v3(
+            _Wrapper[cls],  # type: ignore[valid-type]
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places,
+        )
+        try:
+            wrapper: _Wrapper[T] = wrapper_schema.load({"value": data})  # type: ignore[assignment]
+        except m.ValidationError as e:
+            messages = e.messages
+            raise m.ValidationError(messages.get("value", messages) if isinstance(messages, dict) else messages) from e
+        return wrapper.value
+
+    load_value = load_value_v3
+
+    def dump_value_v3[T](
+        cls: type[T],
+        data: T,
+        /,
+        *,
+        naming_case: NamingCase | None = None,
+        none_value_handling: NoneValueHandling | None = None,
+        decimal_places: int | None = MISSING,
+    ) -> Any:
+        if (origin := (get_origin(cls) or cls)) and dataclasses.is_dataclass(origin):
+            raise ValueError("dump_value does not support dataclasses")
+
+        wrapper = _Wrapper[cls](value=data)  # type: ignore[valid-type]
+        data_schema = schema_v3(
+            _Wrapper[cls],  # type: ignore[valid-type]
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places,
+        )
+        dumped: dict[str, Any] = data_schema.dump(wrapper)  # type: ignore[assignment]
+        if errors := data_schema.validate(dumped):
+            raise m.ValidationError(errors.get("value", errors))
+        return dumped.get("value")
+
+    dump_value = dump_value_v3
 
 else:
 
@@ -258,6 +318,59 @@ else:
         return dumped  # type: ignore
 
     dump_many_impl = dump_many_v2
+
+    def load_value_v2[T](
+        cls: type[T],
+        data: Any,
+        /,
+        *,
+        naming_case: NamingCase | None = None,
+        none_value_handling: NoneValueHandling | None = None,
+        decimal_places: int | None = MISSING,
+    ) -> T:
+        if (origin := (get_origin(cls) or cls)) and dataclasses.is_dataclass(origin):
+            raise ValueError("load_value does not support dataclasses")
+
+        wrapper_schema = schema_v2(
+            _Wrapper[cls],  # type: ignore[valid-type]
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places,
+        )
+        wrapper, errors = wrapper_schema.load({"value": data})  # type: ignore
+        if errors:
+            raise m.ValidationError(errors.get("value", errors) if isinstance(errors, dict) else errors)
+        return wrapper.value  # type: ignore
+
+    load_value = load_value_v2
+
+    def dump_value_v2[T](
+        cls: type[T],
+        data: T,
+        /,
+        *,
+        naming_case: NamingCase | None = None,
+        none_value_handling: NoneValueHandling | None = None,
+        decimal_places: int | None = MISSING,
+    ) -> Any:
+        if (origin := (get_origin(cls) or cls)) and dataclasses.is_dataclass(origin):
+            raise ValueError("dump_value does not support dataclasses")
+
+        wrapper = _Wrapper[cls](value=data)  # type: ignore[valid-type]
+        data_schema = schema_v2(
+            _Wrapper[cls],  # type: ignore[valid-type]
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places,
+        )
+        dumped, errors = data_schema.dump(wrapper)
+        if errors:
+            raise m.ValidationError(errors.get("value", errors) if isinstance(errors, dict) else errors)
+        if errors := data_schema.validate(dumped):
+            raise m.ValidationError(errors.get("value", errors))
+        return dumped.get("value")  # type: ignore
+
+    dump_value = dump_value_v2
 
 EmptySchema = m.Schema
 
