@@ -13,6 +13,8 @@ import marshmallow_recipe as mr
 
 T = TypeVar("T")
 TData = TypeVar("TData")
+K = TypeVar("K")
+V = TypeVar("V")
 
 
 def test_simple_types() -> None:
@@ -634,7 +636,7 @@ def test_generic_with_multiple_type_vars() -> None:
     """Test generic with multiple type parameters"""
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class Pair[K, V]:
+    class Pair(Generic[K, V]):
         key: K
         value: V
 
