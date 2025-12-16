@@ -27,6 +27,7 @@ def str_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -37,6 +38,7 @@ def str_field(
             post_load=post_load,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -53,6 +55,7 @@ def str_field(
             strip_whitespaces=strip_whitespaces,
             post_load=post_load,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -65,6 +68,7 @@ def str_field(
         post_load=post_load,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -81,6 +85,7 @@ def bool_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -89,6 +94,7 @@ def bool_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -103,6 +109,7 @@ def bool_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -113,6 +120,7 @@ def bool_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -132,6 +140,7 @@ def decimal_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -143,6 +152,7 @@ def decimal_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -159,6 +169,7 @@ def decimal_field(
             rounding=rounding,
             validate=validate,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -172,6 +183,7 @@ def decimal_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -188,6 +200,7 @@ def int_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -196,6 +209,7 @@ def int_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -208,6 +222,7 @@ def int_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -218,6 +233,7 @@ def int_field(
             validate=validate,
             **(default_fields(None) if default is dataclasses.MISSING else {}),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -235,6 +251,7 @@ def float_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -243,6 +260,7 @@ def float_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -256,6 +274,7 @@ def float_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -266,6 +285,7 @@ def float_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -282,6 +302,7 @@ def uuid_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -290,6 +311,7 @@ def uuid_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -303,6 +325,7 @@ def uuid_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -313,6 +336,7 @@ def uuid_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -330,6 +354,7 @@ def datetime_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -339,6 +364,7 @@ def datetime_field(
             format=format,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -353,6 +379,7 @@ def datetime_field(
             validate=validate,
             format=format,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -364,6 +391,7 @@ def datetime_field(
         format=format,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -380,6 +408,7 @@ def time_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -388,6 +417,7 @@ def time_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -401,6 +431,7 @@ def time_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -411,6 +442,7 @@ def time_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -427,6 +459,7 @@ def date_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -435,6 +468,7 @@ def date_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -448,6 +482,7 @@ def date_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -458,6 +493,7 @@ def date_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -475,6 +511,7 @@ def nested_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -484,6 +521,7 @@ def nested_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -498,6 +536,7 @@ def nested_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -509,6 +548,7 @@ def nested_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -526,6 +566,7 @@ def list_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -535,6 +576,7 @@ def list_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -549,6 +591,7 @@ def list_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -560,6 +603,7 @@ def list_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -577,6 +621,7 @@ def set_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -586,6 +631,7 @@ def set_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -600,6 +646,7 @@ def set_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -611,6 +658,7 @@ def set_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -628,6 +676,7 @@ def frozen_set_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -637,6 +686,7 @@ def frozen_set_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -651,6 +701,7 @@ def frozen_set_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -662,6 +713,7 @@ def frozen_set_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -679,6 +731,7 @@ def tuple_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -688,6 +741,7 @@ def tuple_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -702,6 +756,7 @@ def tuple_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -713,6 +768,7 @@ def tuple_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -731,6 +787,7 @@ def dict_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -741,6 +798,7 @@ def dict_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -756,6 +814,7 @@ def dict_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -768,6 +827,7 @@ def dict_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -785,6 +845,7 @@ def enum_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> marshmallow.fields.Field:
     if default is m.missing:
@@ -794,6 +855,7 @@ def enum_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -808,6 +870,7 @@ def enum_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -819,6 +882,7 @@ def enum_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -833,6 +897,7 @@ def raw_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     return m.fields.Raw(
@@ -840,6 +905,7 @@ def raw_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -857,6 +923,7 @@ def union_field(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
+    description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
@@ -866,6 +933,7 @@ def union_field(
             validate=validate,
             **default_fields(m.missing),
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -880,6 +948,7 @@ def union_field(
             allow_none=allow_none,
             validate=validate,
             **data_key_fields(name),
+            **description_fields(description),
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -891,6 +960,7 @@ def union_field(
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
+        **description_fields(description),
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -970,6 +1040,11 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def default_fields(value: Any) -> collections.abc.Mapping[str, Any]:
         return {"dump_default": value, "load_default": value}
+
+    def description_fields(description: str | None) -> collections.abc.Mapping[str, Any]:
+        if description is None:
+            return {}
+        return {"metadata": {"description": description}}
 
     class StrFieldV3(m.fields.Str):
         def __init__(
@@ -1250,6 +1325,11 @@ else:
 
     def default_fields(value: Any) -> collections.abc.Mapping[str, Any]:
         return {"missing": value, "default": value}
+
+    def description_fields(description: str | None) -> collections.abc.Mapping[str, Any]:
+        if description is None:
+            return {}
+        return {"description": description}
 
     class StrFieldV2(m.fields.Str):
         def __init__(
