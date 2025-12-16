@@ -34,7 +34,7 @@ from .fields import (
 )
 from .generics import TypeLike, get_fields_type_map
 from .hooks import get_pre_loads
-from .metadata import EMPTY_METADATA, Metadata, is_metadata
+from .metadata import EMPTY_METADATA, Metadata, build_metadata, is_metadata
 from .missing import MISSING
 from .naming_case import NamingCase
 from .options import NoneValueHandling, try_get_options_for
@@ -112,10 +112,10 @@ def _bake_schema(
         _FieldDescription(
             field,
             fields_type_map[field.name],
-            _get_metadata(
+            build_metadata(
                 name=field.name if cls_naming_case is None else cls_naming_case(field.name),
                 default=_get_field_default(field),
-                metadata=field.metadata,
+                field_metadata=field.metadata,
             ),
         )
         for field in dataclasses.fields(origin)
@@ -516,12 +516,6 @@ _SIMPLE_TYPE_FIELD_FACTORIES: dict[type, _FieldFactory] = {
     datetime.date: date_field,
     datetime.time: time_field,
 }
-
-
-def _get_metadata(*, name: str, default: Any, metadata: collections.abc.Mapping[Any, Any]) -> Metadata:
-    values: dict[str, Any] = {"name": name, "default": default}
-    values.update({k: v for k, v in metadata.items() if isinstance(k, str)})
-    return Metadata(values)
 
 
 def _try_get_underlying_types_from_union(t: TypeLike) -> tuple[TypeLike, ...] | None:

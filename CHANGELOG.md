@@ -1,3 +1,10 @@
+## Unreleased
+
+* Add `json_schema()` function for JSON Schema Draft 2020-12 generation
+* Add `title` and `description` parameters to `@options()` decorator for schema-level metadata in JSON Schema
+* Add `item_description` parameter to `list_meta()`, `set_meta()`, and `tuple_meta()` for collection item descriptions in JSON Schema
+
+
 ## v0.0.72 (2026-01-15)
 
 * Change decimal `places` to validate precision instead of rounding (use `rounding` parameter for old behavior)
