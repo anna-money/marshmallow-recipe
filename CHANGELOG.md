@@ -1,3 +1,12 @@
+## Unreleased
+
+* Add `json_schema()` function for JSON Schema Draft 2020-12 generation
+* Add `description` parameter to `meta()` / `metadata()` for field descriptions in JSON Schema
+* Add `description` parameter to `@options()` decorator for schema-level descriptions
+* Add `title` parameter to `@options()` decorator for schema-level title
+* Add `item_description` parameter to `list_meta()`, `set_meta()`, and `tuple_meta()` for collection item descriptions in JSON Schema
+
+
 ## v0.0.67 (2025-12-02)
 
 * Return Dataclass protocol back because it has already been used
