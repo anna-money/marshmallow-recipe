@@ -2,7 +2,7 @@ import dataclasses
 import types
 from collections.abc import Iterable
 from contextlib import nullcontext as does_not_raise
-from typing import Annotated, Any, ContextManager, TypeVar, Union
+from typing import Annotated, Any, ContextManager, Generic, TypeVar, Union
 from unittest.mock import ANY
 
 import pytest
@@ -14,6 +14,12 @@ from marshmallow_recipe.generics import (
     get_fields_class_map,
     get_fields_type_map,
 )
+
+T = TypeVar("T")
+T1 = TypeVar("T1")
+T2 = TypeVar("T2")
+T3 = TypeVar("T3")
+TItem = TypeVar("TItem")
 
 
 @dataclasses.dataclass()
@@ -27,12 +33,12 @@ class NonGeneric:
 
 
 @dataclasses.dataclass()
-class RegularGeneric[T]:
+class RegularGeneric(Generic[T]):
     pass
 
 
 @dataclasses.dataclass(frozen=True)
-class FrozenGeneric[T]:
+class FrozenGeneric(Generic[T]):
     pass
 
 
@@ -88,17 +94,19 @@ def test_get_fields_type_map_with_field_override() -> None:
     class Value2(Value1):
         v2: str
 
+    TValueBound = TypeVar("TValueBound", bound=Value1)
+
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class T1[TItem]:
+    class Container1(Generic[TItem]):
         value: Value1
         iterable: Iterable[TItem]
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class T2[TValue: Value1, TItem](T1[TItem]):
-        value: TValue
+    class Container2(Generic[TValueBound, TItem], Container1[TItem]):
+        value: TValueBound
         iterable: set[TItem]
 
-    actual = get_fields_type_map(T2[Value2, int])
+    actual = get_fields_type_map(Container2[Value2, int])
     assert actual == {"value": Value2, "iterable": set[int]}
 
 
@@ -121,7 +129,7 @@ def test_get_fields_type_map_generic_inheritance() -> None:
         v: bool
 
     @dataclasses.dataclass()
-    class Value1[T]:
+    class Value1(Generic[T]):
         v1: T
 
     @dataclasses.dataclass()
@@ -140,7 +148,7 @@ def test_get_fields_type_map_non_dataclass() -> None:
 
 def test_get_fields_type_map_not_subscripted() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class Xxx[T]:
+    class Xxx(Generic[T]):
         xxx: T
 
     with pytest.raises(Exception) as e:
@@ -154,7 +162,7 @@ def test_get_fields_type_map_not_subscripted() -> None:
 
 def test_get_fields_type_map_for_subscripted() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class Xxx[T]:
+    class Xxx(Generic[T]):
         xxx: T
 
     actual = get_fields_type_map(Xxx[str])
@@ -163,7 +171,7 @@ def test_get_fields_type_map_for_subscripted() -> None:
 
 def test_get_fields_class_map() -> None:
     @dataclasses.dataclass()
-    class Base1[T]:
+    class Base1(Generic[T]):
         a: str
         b: str
         c: str
@@ -197,19 +205,19 @@ def test_get_class_type_var_map_with_inheritance() -> None:
         pass
 
     @dataclasses.dataclass()
-    class Aaa[T1, T2]:
+    class Aaa(Generic[T1, T2]):
         pass
 
     @dataclasses.dataclass()
-    class Bbb[T1](Aaa[int, T1]):
+    class Bbb(Generic[T1], Aaa[int, T1]):
         pass
 
     @dataclasses.dataclass()
-    class Ccc[T3]:
+    class Ccc(Generic[T3]):
         pass
 
     @dataclasses.dataclass()
-    class Ddd[T1, T2, T3](Bbb[T2], Ccc[T1], NonGeneric):
+    class Ddd(Generic[T1, T2, T3], Bbb[T2], Ccc[T1], NonGeneric):
         pass
 
     actual = get_class_type_var_map(Ddd[bool, str, float])
@@ -222,7 +230,7 @@ def test_get_class_type_var_map_with_inheritance() -> None:
 
 def test_get_class_type_var_map_with_incompatible_inheritance() -> None:
     @dataclasses.dataclass()
-    class Aaa[T]:
+    class Aaa(Generic[T]):
         pass
 
     @dataclasses.dataclass()
@@ -235,7 +243,7 @@ def test_get_class_type_var_map_with_incompatible_inheritance() -> None:
 
     with pytest.raises(ValueError, match="Incompatible Base class") as e:
         get_class_type_var_map(Ccc)
-    assert "<locals>.Aaa'> with generic args {T: <class 'int'>} and {T: <class 'str'>}" in e.value.args[0]
+    assert "<locals>.Aaa'> with generic args {~T: <class 'int'>} and {~T: <class 'str'>}" in e.value.args[0]
 
 
 def test_get_class_type_var_map_with_duplicated_generic_inheritance() -> None:
@@ -244,7 +252,7 @@ def test_get_class_type_var_map_with_duplicated_generic_inheritance() -> None:
         pass
 
     @dataclasses.dataclass()
-    class Aaa[T]:
+    class Aaa(Generic[T]):
         pass
 
     @dataclasses.dataclass()
@@ -263,15 +271,15 @@ def test_get_class_type_var_map_with_duplicated_generic_inheritance() -> None:
 
 def test_get_class_type_var_map_with_nesting() -> None:
     @dataclasses.dataclass()
-    class Aaa[T1, T2]:
+    class Aaa(Generic[T1, T2]):
         pass
 
     @dataclasses.dataclass()
-    class Bbb[T1]:
+    class Bbb(Generic[T1]):
         pass
 
     @dataclasses.dataclass()
-    class Ccc[T1, T2, T3](Aaa[Bbb[list[Annotated[Bbb[T2], "xxx"]]], T1 | None]):
+    class Ccc(Generic[T1, T2, T3], Aaa[Bbb[list[Annotated[Bbb[T2], "xxx"]]], T1 | None]):
         pass
 
     actual = get_class_type_var_map(Ccc[bool, str, float])
@@ -283,11 +291,11 @@ def test_get_class_type_var_map_with_nesting() -> None:
     assert type_vars(actual[Ccc]) == {bool, float, str}
 
 
-class Xxx[T1, T2]:
+class Xxx(Generic[T1, T2]):
     pass
 
 
-class Zzz[T1]:
+class Zzz(Generic[T1]):
     pass
 
 
