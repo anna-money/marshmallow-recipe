@@ -5,11 +5,14 @@ import datetime
 import decimal
 import enum
 import uuid
-from typing import Annotated
+from typing import Annotated, Generic, TypeVar
 
 import pytest
 
 import marshmallow_recipe as mr
+
+T = TypeVar("T")
+TData = TypeVar("TData")
 
 
 def test_simple_types() -> None:
@@ -529,7 +532,7 @@ def test_generic_simple() -> None:
     """Test simple generic dataclass with type parameter"""
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class Container[T]:
+    class Container(Generic[T]):
         value: T
 
     # Test with int type parameter
@@ -554,7 +557,7 @@ def test_generic_with_options() -> None:
 
     @mr.options(naming_case=mr.CAMEL_CASE, description="A generic container")
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class Container[T]:
+    class Container(Generic[T]):
         item_value: T
 
     schema = mr.json_schema(Container[int])
@@ -570,12 +573,12 @@ def test_generic_with_options() -> None:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class _GenericInner[T]:
+class _GenericInner(Generic[T]):
     value: T
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class _GenericOuter[T]:
+class _GenericOuter(Generic[T]):
     inner: _GenericInner[T]
 
 
@@ -605,11 +608,11 @@ def test_generic_in_parents() -> None:
     """Test generic type parameters in parent classes"""
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class Data[T]:
+    class Data(Generic[T]):
         data: T
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class Parent[TData]:
+    class Parent(Generic[TData]):
         name: str
         content: TData
 
