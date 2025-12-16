@@ -43,7 +43,24 @@
     "NewType support: NewType('UserId', int) works transparently - treated as underlying type",
     "Schemas generated and cached automatically - mr.schema(Class) returns marshmallow Schema, cached per (naming_case, none_value_handling, decimal_places)",
     "Use mr.load_many(Class, list_data) and mr.dump_many(list_objs) for lists of objects",
-    "Use mr.get_validation_field_errors(exc) to get structured ValidationError details"
+    "Use mr.get_validation_field_errors(exc) to get structured ValidationError details",
+    "JSON SCHEMA GENERATION: Use mr.json_schema(Class) to generate JSON Schema Draft 2020-12 from dataclasses",
+    "JSON Schema: All Python types automatically mapped - str→string, int→integer, float→number, bool→boolean, etc.",
+    "JSON Schema: DateTime types include format - datetime→date-time, date→date, time→time, uuid.UUID→uuid",
+    "JSON Schema: Enums include enum values - Status(str, Enum) → {\"type\": \"string\", \"enum\": [values]}",
+    "JSON Schema: Collections mapped - list→array, set→array with uniqueItems, dict→object with additionalProperties",
+    "JSON Schema: Union types (str | int) mapped to anyOf - {\"anyOf\": [{\"type\": \"string\"}, {\"type\": \"integer\"}]}",
+    "JSON Schema: Optional fields (T | None) not in required array, but type is not anyOf with null",
+    "JSON Schema: Nested dataclasses use $defs and $ref for reusability - {\"$ref\": \"#/$defs/ClassName\"}",
+    "JSON Schema: Cyclic/self-referential types handled automatically without infinite recursion",
+    "JSON Schema: Field descriptions via Annotated[T, mr.meta(description='...')] → {\"description\": \"...\"}",
+    "JSON Schema: Collection item descriptions via mr.list_meta(item_description='...'), mr.set_meta(item_description='...'), mr.tuple_meta(item_description='...')",
+    "JSON Schema: Schema-level documentation via @mr.options(title='...', description='...') sets top-level title and description",
+    "JSON Schema: Default values included in schema - field: int = 42 → {\"type\": \"integer\", \"default\": 42}",
+    "JSON Schema: Naming case conversion - mr.json_schema(Class, naming_case=mr.CAMEL_CASE) converts field names",
+    "JSON Schema: Decimal representation controlled by metadata - mr.decimal_meta(as_string=True) → string, as_string=False → number",
+    "JSON Schema: Not cached (unlike mr.schema) - generates fresh dict each call, similar to mr.dump()",
+    "JSON Schema: Override title per call - mr.json_schema(User, title='Custom') overrides @mr.options(title='...')"
   ],
   "previousVersions": []
 }
