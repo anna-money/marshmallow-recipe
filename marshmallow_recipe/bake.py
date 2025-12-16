@@ -129,9 +129,13 @@ def _bake_schema(
             if first.field.name == second_name:
                 raise ValueError(f"Invalid name={second_name} in metadata for field={second.field.name}")
 
+    # Pre-compute known_fields for marshmallow v2 pre_load optimization
+    # This will be captured in closure if needed
+    known_field_names = {metadata["name"] for _, _, metadata in fields}
+
     schema_type = type(
         cls.__name__,
-        (_get_base_schema(cls, cls_none_value_handling or NoneValueHandling.IGNORE),),
+        (_get_base_schema(cls, cls_none_value_handling or NoneValueHandling.IGNORE, known_field_names),),
         {"__module__": f"{__package__}.auto_generated"}
         | {
             field.name: _get_field_for(
@@ -414,7 +418,9 @@ def _get_field_for(
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
-    def _get_base_schema(cls: type, none_value_handling: NoneValueHandling) -> type[m.Schema]:
+    def _get_base_schema(
+        cls: type, none_value_handling: NoneValueHandling, known_field_names: set[str]
+    ) -> type[m.Schema]:
         class _Schema(m.Schema):
             class Meta:  # type: ignore
                 unknown = m.EXCLUDE  # type: ignore
@@ -444,7 +450,10 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
 else:
 
-    def _get_base_schema(cls: type, none_value_handling: NoneValueHandling) -> type[m.Schema]:
+    def _get_base_schema(
+        cls: type, none_value_handling: NoneValueHandling, known_field_names: set[str]
+    ) -> type[m.Schema]:
+        # Closure captures known_field_names computed once at schema creation time
         class _Schema(m.Schema):  # type: ignore
             @property
             def set_class(self) -> type:
@@ -465,8 +474,8 @@ else:
                 if not isinstance(data, dict):  # type: ignore
                     return data
                 # Exclude unknown fields to prevent possible value overlapping
-                known_fields = {field.load_from or field.name for field in self.fields.values()}  # type: ignore
-                result = {key: value for key, value in data.items() if key in known_fields}
+                # Use pre-computed known_field_names from closure instead of recomputing
+                result = {key: value for key, value in data.items() if key in known_field_names}
                 for pre_load in get_pre_loads(cls):
                     result = pre_load(result)
                 return result
