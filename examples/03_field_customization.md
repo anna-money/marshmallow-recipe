@@ -141,3 +141,35 @@ event_dict = mr.dump(event)
 #     'scheduled_at': '2024-12-25 14:30:00'  # Custom format
 # }
 ```
+
+## Field Descriptions
+
+Add documentation to your fields using descriptions:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class User:
+    # Add description via metadata
+    username: Annotated[str, mr.str_meta(description="Unique username for the user")]
+
+    email: Annotated[
+        str,
+        mr.str_meta(strip_whitespaces=True, description="Primary email address for notifications"),
+    ]
+
+    age: Annotated[int, mr.meta(description="User's age in years")]
+
+
+# Access descriptions from the generated schema
+user_schema = mr.schema(User)
+username_field = user_schema.fields["username"]
+print(username_field.metadata["description"])
+# Output: "Unique username for the user"
+```
+
+The description is stored in the field's `metadata` dictionary and can be used for:
+
+- Generating API documentation
+- Creating interactive forms
+- OpenAPI/Swagger schema generation
+```

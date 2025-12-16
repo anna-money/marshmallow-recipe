@@ -27,6 +27,11 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     def default_fields(value: Any) -> dict[str, Any]:
         return {"dump_default": value, "load_default": value}
 
+    def description_fields(description: str | None) -> dict[str, Any]:
+        if description is None:
+            return {}
+        return {"metadata": {"description": description}}
+
 else:
 
     def data_key_fields(name: str | None) -> dict[str, Any]:
@@ -36,6 +41,11 @@ else:
 
     def default_fields(value: Any) -> dict[str, Any]:
         return {"missing": value, "default": value}
+
+    def description_fields(description: str | None) -> dict[str, Any]:
+        if description is None:
+            return {}
+        return {"description": description}
 
 
 def assert_fields_equal(a: m.fields.Field, b: m.fields.Field) -> None:
@@ -874,6 +884,40 @@ EMPTY_SCHEMA = m.Schema()
                 **default_fields(None),
                 **data_key_fields("i"),
             ),
+        ),
+        # description
+        (
+            str,
+            mr.str_meta(description="String field"),
+            mr.StrField(required=True, **description_fields("String field")),
+        ),
+        (int, mr.meta(description="Int field"), m.fields.Int(required=True, **description_fields("Int field"))),
+        (
+            decimal.Decimal,
+            mr.decimal_meta(description="Decimal field"),
+            m.fields.Decimal(required=True, as_string=True, places=2, **description_fields("Decimal field")),
+        ),
+        (
+            datetime.datetime,
+            mr.datetime_meta(description="DateTime field"),
+            mr.DateTimeField(required=True, **description_fields("DateTime field")),
+        ),
+        (
+            list[int],
+            mr.list_meta(description="List field"),
+            m.fields.List(m.fields.Int(required=True), required=True, **description_fields("List field")),
+        ),
+        (
+            str,
+            mr.str_meta(name="custom", description="Field with name and description"),
+            mr.StrField(
+                required=True, **data_key_fields("custom"), **description_fields("Field with name and description")
+            ),
+        ),
+        (
+            Optional[str],
+            mr.str_meta(description="Optional field"),
+            mr.StrField(allow_none=True, **default_fields(None), **description_fields("Optional field")),
         ),
     ],
 )
