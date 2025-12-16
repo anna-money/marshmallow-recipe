@@ -5,11 +5,17 @@ import enum
 import uuid
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import nullcontext as does_not_raise
-from typing import Annotated, Any, ContextManager, NewType, get_origin
+from typing import Annotated, Any, ContextManager, Generic, NewType, TypeVar, get_origin
 
 import pytest
 
 import marshmallow_recipe as mr
+
+T = TypeVar("T")
+TValue = TypeVar("TValue")
+TXxx = TypeVar("TXxx")
+TData = TypeVar("TData")
+TItem = TypeVar("TItem")
 
 NewInt = NewType("NewInt", int)
 
@@ -653,7 +659,7 @@ def test_generic_extract_type_on_dump(
     frozen: bool, slots: bool, get_type: Callable[[type], type | None], context: ContextManager
 ) -> None:
     @dataclasses.dataclass(frozen=frozen, slots=slots)
-    class Data[TValue]:
+    class Data(Generic[TValue]):
         value: TValue
 
     instance = Data[int](value=123)
@@ -702,11 +708,11 @@ def test_non_generic_extract_type_on_dump(
 
 def test_generic_in_parents() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class Data[TXxx]:
+    class Data(Generic[TXxx]):
         xxx: TXxx
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class ParentClass[TData]:
+    class ParentClass(Generic[TData]):
         value: str
         data: TData
 
@@ -723,19 +729,19 @@ def test_generic_in_parents() -> None:
 
 def test_generic_type_var_with_reuse() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class T1[T]:
+    class Parent(Generic[T]):
         t1: T
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class T2[T](T1[int]):
+    class Child(Generic[T], Parent[int]):
         t2: T
 
-    instance = T2[str](t1=1, t2="2")
+    instance = Child[str](t1=1, t2="2")
 
-    dumped = mr.dump(T2[str], instance)
+    dumped = mr.dump(Child[str], instance)
 
     assert dumped == {"t1": 1, "t2": "2"}
-    assert mr.load(T2[str], dumped) == instance
+    assert mr.load(Child[str], dumped) == instance
 
 
 def test_generic_with_field_override() -> None:
@@ -747,27 +753,29 @@ def test_generic_with_field_override() -> None:
     class Value2(Value1):
         v2: str
 
+    TValueBound = TypeVar("TValueBound", bound=Value1)
+
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class T1[TItem]:
+    class Container1(Generic[TItem]):
         value: Value1
         iterable: Iterable[TItem]
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class T2[TValue: Value1, TItem](T1[TItem]):
-        value: TValue
+    class Container2(Generic[TValueBound, TItem], Container1[TItem]):
+        value: TValueBound
         iterable: set[TItem]
 
-    instance = T2[Value2, int](value=Value2(v1="aaa", v2="bbb"), iterable={3, 4, 5})
+    instance = Container2[Value2, int](value=Value2(v1="aaa", v2="bbb"), iterable={3, 4, 5})
 
-    dumped = mr.dump(T2[Value2, int], instance)
+    dumped = mr.dump(Container2[Value2, int], instance)
 
     assert dumped == {"value": {"v1": "aaa", "v2": "bbb"}, "iterable": [3, 4, 5]}
-    assert mr.load(T2[Value2, int], dumped) == instance
+    assert mr.load(Container2[Value2, int], dumped) == instance
 
 
 def test_generic_reuse_with_different_args() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class GenericContainer[TItem]:
+    class GenericContainer(Generic[TItem]):
         items: list[TItem]
 
     container_int = GenericContainer[int](items=[1, 2, 3])
@@ -919,7 +927,7 @@ def test_union_dict_str() -> None:
 
 def test_union_str_generic() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class GenericContainer[T]:
+    class GenericContainer(Generic[T]):
         value: T
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -939,7 +947,7 @@ def test_union_str_generic() -> None:
 
 def test_union_generic_str() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-    class GenericContainer[T]:
+    class GenericContainer(Generic[T]):
         value: T
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
