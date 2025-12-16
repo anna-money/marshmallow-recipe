@@ -1,4 +1,4 @@
-## Unreleased
+## v0.0.68a1 (2025-12-16)
 
 * Add `description` parameter to all metadata functions (`mr.meta`, `mr.str_meta`, `mr.decimal_meta`, `mr.datetime_meta`, `mr.time_meta`, `mr.list_meta`, `mr.set_meta`, `mr.tuple_meta`)
 * Field descriptions are passed to marshmallow Fields via the metadata dictionary (marshmallow v3) or as direct kwargs (marshmallow v2)
