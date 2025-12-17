@@ -30,6 +30,7 @@ from .fields import (
     tuple_field,
     union_field,
     uuid_field,
+    with_none_skipping,
     with_type_checks_on_serialize,
 )
 from .generics import TypeLike, get_fields_type_map
@@ -139,7 +140,7 @@ def _bake_schema(
                 metadata=metadata,
                 visited_nested_types=visited_nested_types,
                 naming_case=naming_case,
-                none_value_handling=none_value_handling,
+                none_value_handling=cls_none_value_handling,
                 field_decimal_places=cls_decimal_places,
                 decimal_places=decimal_places,
             )
@@ -178,8 +179,7 @@ def _get_field_for(
     field_decimal_places: int | None,
     decimal_places: int | None,
 ) -> m.fields.Field:
-    if t is Any:
-        return raw_field(**metadata)
+    effective_none_value_handling = none_value_handling or NoneValueHandling.IGNORE
 
     underlying_union_types = _try_get_underlying_types_from_union(t)
     # Optional is a union with None
@@ -192,6 +192,10 @@ def _get_field_for(
     else:
         required = True
         allow_none = False
+
+    if t is Any:
+        field = raw_field(**metadata)
+        return with_none_skipping(field, effective_none_value_handling)
 
     if underlying_union_types is not None:
         effective_underlying_union_types = [t for t in underlying_union_types if t is not types.NoneType]
@@ -213,13 +217,15 @@ def _get_field_for(
                         decimal_places=decimal_places,
                     )
                 )
-            return union_field(fields=underlying_union_fields, required=required, allow_none=allow_none, **metadata)
+            field = union_field(fields=underlying_union_fields, required=required, allow_none=allow_none, **metadata)
+            return with_none_skipping(field, effective_none_value_handling)
 
     if isinstance(t, NewType):
         t = t.__supertype__
 
     if inspect.isclass(t) and issubclass(t, enum.Enum):
-        return enum_field(enum_type=t, required=required, allow_none=allow_none, **metadata)
+        field = enum_field(enum_type=t, required=required, allow_none=allow_none, **metadata)
+        return with_none_skipping(field, effective_none_value_handling)
 
     if (unsubscripted_type := get_origin(t) or t) and dataclasses.is_dataclass(unsubscripted_type):
         nested_schema: type[m.Schema] | collections.abc.Callable[[], type[m.Schema]]
@@ -230,7 +236,6 @@ def _get_field_for(
                 cast(type, t),
                 visited_nested_types=visited_nested_types,
                 naming_case=naming_case,
-                none_value_handling=none_value_handling,
                 decimal_places=decimal_places,
             )
         else:
@@ -238,13 +243,13 @@ def _get_field_for(
                 cast(type, t),
                 visited_nested_types=visited_nested_types,
                 naming_case=naming_case,
-                none_value_handling=none_value_handling,
                 decimal_places=decimal_places,
             )
-        return with_type_checks_on_serialize(
+        field = with_type_checks_on_serialize(
             nested_field(nested_schema, required=required, allow_none=allow_none, **metadata),
             type_guards=unsubscripted_type,  # type: ignore
         )
+        return with_none_skipping(field, effective_none_value_handling)
 
     if (origin := get_origin(t)) is not None:
         arguments = get_args(t)
@@ -256,7 +261,7 @@ def _get_field_for(
             else:
                 item_field_metadata = EMPTY_METADATA
 
-            return with_type_checks_on_serialize(
+            field = with_type_checks_on_serialize(
                 list_field(
                     _get_field_for(
                         arguments[0],
@@ -273,6 +278,7 @@ def _get_field_for(
                 ),
                 type_guards=list,
             )
+            return with_none_skipping(field, effective_none_value_handling)
 
         if origin is set or origin is collections.abc.Set:
             collection_field_metadata = dict(metadata)
@@ -281,7 +287,7 @@ def _get_field_for(
             else:
                 item_field_metadata = EMPTY_METADATA
 
-            return with_type_checks_on_serialize(
+            field = with_type_checks_on_serialize(
                 set_field(
                     _get_field_for(
                         arguments[0],
@@ -298,6 +304,7 @@ def _get_field_for(
                 ),
                 type_guards=set,
             )
+            return with_none_skipping(field, effective_none_value_handling)
 
         if origin is frozenset:
             collection_field_metadata = dict(metadata)
@@ -306,7 +313,7 @@ def _get_field_for(
             else:
                 item_field_metadata = EMPTY_METADATA
 
-            return with_type_checks_on_serialize(
+            field = with_type_checks_on_serialize(
                 frozen_set_field(
                     _get_field_for(
                         arguments[0],
@@ -323,6 +330,7 @@ def _get_field_for(
                 ),
                 type_guards=frozenset,
             )
+            return with_none_skipping(field, effective_none_value_handling)
 
         if origin is dict or origin is collections.abc.Mapping:
             keys_field = (
@@ -351,10 +359,11 @@ def _get_field_for(
                     decimal_places=decimal_places,
                 )
             )
-            return with_type_checks_on_serialize(
+            field = with_type_checks_on_serialize(
                 dict_field(keys_field, values_field, required=required, allow_none=allow_none, **metadata),
                 type_guards=dict,
             )
+            return with_none_skipping(field, effective_none_value_handling)
 
         if origin is tuple and len(arguments) == 2 and arguments[1] is Ellipsis:
             collection_field_metadata = dict(metadata)
@@ -363,7 +372,7 @@ def _get_field_for(
             else:
                 item_field_metadata = EMPTY_METADATA
 
-            return with_type_checks_on_serialize(
+            field = with_type_checks_on_serialize(
                 tuple_field(
                     _get_field_for(
                         arguments[0],
@@ -380,6 +389,7 @@ def _get_field_for(
                 ),
                 type_guards=tuple,
             )
+            return with_none_skipping(field, effective_none_value_handling)
 
         if origin is Annotated:
             underlying_type, *annotations = arguments
@@ -405,9 +415,10 @@ def _get_field_for(
         if t is decimal.Decimal and field_decimal_places is not MISSING:
             field_kwargs.setdefault("places", field_decimal_places)
 
-        return with_type_checks_on_serialize(
+        field = with_type_checks_on_serialize(
             field_factory(**field_kwargs), type_guards=(float, int) if t is float else t
         )
+        return with_none_skipping(field, effective_none_value_handling)
 
     raise ValueError(f"Unsupported {t=}")
 
@@ -422,12 +433,6 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             @property
             def set_class(self) -> type:
                 return m.schema.OrderedSet  # type: ignore
-
-            @m.post_dump
-            def remove_none_values(self, data: dict[str, Any], **_: Any) -> dict[str, Any]:
-                if none_value_handling == NoneValueHandling.IGNORE:
-                    return {key: value for key, value in data.items() if value is not None}
-                return data
 
             @m.post_load
             def post_load(self, data: dict[str, Any], **_: Any) -> Any:
@@ -449,12 +454,6 @@ else:
             @property
             def set_class(self) -> type:
                 return m.schema.OrderedSet  # type: ignore
-
-            @m.post_dump  # type: ignore
-            def remove_none_values(self, data: dict[str, Any]) -> dict[str, Any]:
-                if none_value_handling == NoneValueHandling.IGNORE:
-                    return {key: value for key, value in data.items() if value is not None}
-                return data
 
             @m.post_load  # type: ignore
             def post_load(self, data: dict[str, Any]) -> Any:

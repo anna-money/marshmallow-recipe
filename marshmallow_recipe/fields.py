@@ -10,6 +10,7 @@ from typing import Any
 import marshmallow as m
 import marshmallow.validate
 
+from .options import NoneValueHandling
 from .validation import ValidationFunc
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
@@ -994,6 +995,23 @@ def build_error_messages(
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
+    def with_none_skipping_v3[TField: m.fields.Field](field: TField, none_value_handling: NoneValueHandling) -> TField:
+        if none_value_handling == NoneValueHandling.INCLUDE or not field.allow_none:
+            return field
+
+        old = field._serialize  # type: ignore
+
+        def _serialize_skip_none(self: TField, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            result = old(value, attr, obj, **kwargs)
+            if result is None:
+                return m.missing  # type: ignore
+            return result
+
+        field._serialize = types.MethodType(_serialize_skip_none, field)  # type: ignore
+        return field
+
+    with_none_skipping = with_none_skipping_v3
+
     def with_type_checks_on_serialize_v3[TField: m.fields.Field](
         field: TField, type_guards: type | tuple[type, ...]
     ) -> TField:
@@ -1270,6 +1288,23 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     NestedField = m.fields.Nested
 else:
+
+    def with_none_skipping_v2[TField: m.fields.Field](field: TField, none_value_handling: NoneValueHandling) -> TField:
+        if none_value_handling == NoneValueHandling.INCLUDE or not field.allow_none:
+            return field
+
+        old = field._serialize  # type: ignore
+
+        def _serialize_skip_none(self: TField, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            result = old(value, attr, obj, **kwargs)
+            if result is None:
+                return m.missing  # type: ignore
+            return result
+
+        field._serialize = types.MethodType(_serialize_skip_none, field)  # type: ignore
+        return field
+
+    with_none_skipping = with_none_skipping_v2
 
     def with_type_checks_on_serialize_v2[TField: m.fields.Field](
         field: TField, type_guards: type | tuple[type, ...]
