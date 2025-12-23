@@ -1,6 +1,12 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyDict, PyList};
 use serde_json::{Map, Value};
+use std::collections::HashMap;
+use std::sync::RwLock;
+use once_cell::sync::Lazy;
+
+static SCHEMA_CACHE: Lazy<RwLock<HashMap<u64, TypeDescriptor>>> =
+    Lazy::new(|| RwLock::new(HashMap::new()));
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum FieldType {
@@ -816,10 +822,445 @@ fn hello() -> String {
     "Hello from Rust!".to_string()
 }
 
+#[pyfunction]
+#[pyo3(signature = (schema_id, raw_schema))]
+fn register_schema(_py: Python, schema_id: u64, raw_schema: &Bound<'_, PyDict>) -> PyResult<()> {
+    let descriptor = build_type_descriptor_from_dict(raw_schema)?;
+    let mut cache = SCHEMA_CACHE.write().unwrap();
+    cache.insert(schema_id, descriptor);
+    Ok(())
+}
+
+fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<TypeDescriptor> {
+    let type_kind: String = raw.get_item("type_kind")?.ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing type_kind")
+    })?.extract()?;
+
+    match type_kind.as_str() {
+        "dataclass" => {
+            let fields_raw: Vec<Bound<'_, PyDict>> = raw.get_item("fields")?.ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing fields")
+            })?.extract()?;
+
+            let cls: Py<PyAny> = raw.get_item("cls")?.ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing cls")
+            })?.extract()?;
+
+            let fields: Vec<FieldDescriptor> = fields_raw
+                .iter()
+                .map(|f| build_field_from_dict(f))
+                .collect::<PyResult<_>>()?;
+
+            Ok(TypeDescriptor {
+                type_kind: TypeKind::Dataclass,
+                primitive_type: None,
+                optional: false,
+                inner_type: None,
+                item_type: None,
+                key_type: None,
+                value_type: None,
+                cls: Some(cls),
+                fields,
+            })
+        }
+        "primitive" => {
+            let primitive_type: String = raw.get_item("primitive_type")?.ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing primitive_type")
+            })?.extract()?;
+
+            Ok(TypeDescriptor {
+                type_kind: TypeKind::Primitive,
+                primitive_type: Some(parse_field_type(&primitive_type)?),
+                optional: false,
+                inner_type: None,
+                item_type: None,
+                key_type: None,
+                value_type: None,
+                cls: None,
+                fields: vec![],
+            })
+        }
+        "list" => {
+            let item_raw: Bound<'_, PyDict> = raw.get_item("item_type")?.ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing item_type")
+            })?.extract()?;
+            let item_type = build_type_descriptor_from_dict(&item_raw)?;
+
+            Ok(TypeDescriptor {
+                type_kind: TypeKind::List,
+                primitive_type: None,
+                optional: false,
+                inner_type: None,
+                item_type: Some(Box::new(item_type)),
+                key_type: None,
+                value_type: None,
+                cls: None,
+                fields: vec![],
+            })
+        }
+        "dict" => {
+            let key_type: String = raw.get_item("key_type")?.ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing key_type")
+            })?.extract()?;
+            let value_raw: Bound<'_, PyDict> = raw.get_item("value_type")?.ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing value_type")
+            })?.extract()?;
+            let value_type = build_type_descriptor_from_dict(&value_raw)?;
+
+            Ok(TypeDescriptor {
+                type_kind: TypeKind::Dict,
+                primitive_type: None,
+                optional: false,
+                inner_type: None,
+                item_type: None,
+                key_type: Some(parse_field_type(&key_type)?),
+                value_type: Some(Box::new(value_type)),
+                cls: None,
+                fields: vec![],
+            })
+        }
+        "optional" => {
+            let inner_raw: Bound<'_, PyDict> = raw.get_item("inner_type")?.ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing inner_type")
+            })?.extract()?;
+            let inner_type = build_type_descriptor_from_dict(&inner_raw)?;
+
+            Ok(TypeDescriptor {
+                type_kind: TypeKind::Optional,
+                primitive_type: None,
+                optional: true,
+                inner_type: Some(Box::new(inner_type)),
+                item_type: None,
+                key_type: None,
+                value_type: None,
+                cls: None,
+                fields: vec![],
+            })
+        }
+        _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            format!("Unknown type_kind: {}", type_kind)
+        )),
+    }
+}
+
+fn parse_field_type(s: &str) -> PyResult<FieldType> {
+    match s {
+        "str" => Ok(FieldType::Str),
+        "int" => Ok(FieldType::Int),
+        "float" => Ok(FieldType::Float),
+        "bool" => Ok(FieldType::Bool),
+        "decimal" => Ok(FieldType::Decimal),
+        "uuid" => Ok(FieldType::Uuid),
+        "datetime" => Ok(FieldType::DateTime),
+        "date" => Ok(FieldType::Date),
+        "time" => Ok(FieldType::Time),
+        "list" => Ok(FieldType::List),
+        "dict" => Ok(FieldType::Dict),
+        "nested" => Ok(FieldType::Nested),
+        _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            format!("Unknown field type: {}", s)
+        )),
+    }
+}
+
+fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescriptor> {
+    let name: String = raw.get_item("name")?.ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing name")
+    })?.extract()?;
+
+    let serialized_name: Option<String> = raw.get_item("serialized_name")?
+        .and_then(|v| v.extract().ok());
+
+    let field_type: String = raw.get_item("field_type")?.ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing field_type")
+    })?.extract()?;
+
+    let optional: bool = raw.get_item("optional")?
+        .map(|v| v.extract().unwrap_or(false))
+        .unwrap_or(false);
+
+    let strip_whitespaces: bool = raw.get_item("strip_whitespaces")?
+        .map(|v| v.extract().unwrap_or(false))
+        .unwrap_or(false);
+
+    let decimal_places: Option<i32> = raw.get_item("decimal_places")?
+        .and_then(|v| v.extract().ok());
+
+    let decimal_as_string: bool = raw.get_item("decimal_as_string")?
+        .map(|v| v.extract().unwrap_or(true))
+        .unwrap_or(true);
+
+    let datetime_format: Option<String> = raw.get_item("datetime_format")?
+        .and_then(|v| v.extract().ok());
+
+    let nested_schema: Option<Box<SchemaDescriptor>> = if let Some(nested_raw) = raw.get_item("nested_schema")? {
+        if !nested_raw.is_none() {
+            let nested_dict: Bound<'_, PyDict> = nested_raw.extract()?;
+            Some(Box::new(build_schema_from_dict(&nested_dict)?))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let item_schema: Option<Box<FieldDescriptor>> = if let Some(item_raw) = raw.get_item("item_schema")? {
+        if !item_raw.is_none() {
+            let item_dict: Bound<'_, PyDict> = item_raw.extract()?;
+            Some(Box::new(build_field_from_dict(&item_dict)?))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let key_type: Option<FieldType> = if let Some(kt) = raw.get_item("key_type")? {
+        if !kt.is_none() {
+            let kt_str: String = kt.extract()?;
+            Some(parse_field_type(&kt_str)?)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let value_schema: Option<Box<FieldDescriptor>> = if let Some(value_raw) = raw.get_item("value_schema")? {
+        if !value_raw.is_none() {
+            let value_dict: Bound<'_, PyDict> = value_raw.extract()?;
+            Some(Box::new(build_field_from_dict(&value_dict)?))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    Ok(FieldDescriptor {
+        name,
+        serialized_name,
+        field_type: parse_field_type(&field_type)?,
+        optional,
+        nested_schema,
+        item_schema,
+        key_type,
+        value_schema,
+        strip_whitespaces,
+        decimal_places,
+        decimal_as_string,
+        datetime_format,
+    })
+}
+
+fn build_schema_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<SchemaDescriptor> {
+    let cls: Py<PyAny> = raw.get_item("cls")?.ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing cls")
+    })?.extract()?;
+
+    let fields_raw: Vec<Bound<'_, PyDict>> = raw.get_item("fields")?.ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing fields")
+    })?.extract()?;
+
+    let fields: Vec<FieldDescriptor> = fields_raw
+        .iter()
+        .map(|f| build_field_from_dict(f))
+        .collect::<PyResult<_>>()?;
+
+    Ok(SchemaDescriptor { cls, fields })
+}
+
+#[pyfunction]
+#[pyo3(signature = (schema_id, obj, none_value_handling=None, validators=None))]
+fn dump_cached(
+    py: Python,
+    schema_id: u64,
+    obj: &Bound<'_, PyAny>,
+    none_value_handling: Option<&str>,
+    validators: Option<&Bound<'_, PyDict>>,
+) -> PyResult<Py<PyBytes>> {
+    let cache = SCHEMA_CACHE.read().unwrap();
+    let descriptor = cache.get(&schema_id).ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Schema {} not registered", schema_id))
+    })?;
+
+    if let Some(v) = validators {
+        validate_object(py, obj, descriptor, v)?;
+    }
+
+    let json_value = serialize_root_type(py, obj, descriptor, none_value_handling)?;
+    let json_bytes = serde_json::to_vec(&json_value)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+    Ok(PyBytes::new_bound(py, &json_bytes).unbind())
+}
+
+fn validate_object(
+    _py: Python,
+    obj: &Bound<'_, PyAny>,
+    descriptor: &TypeDescriptor,
+    validators: &Bound<'_, PyDict>,
+) -> PyResult<()> {
+    for field in &descriptor.fields {
+        if let Some(field_validators) = validators.get_item(&field.name)? {
+            let py_value = obj.getattr(field.name.as_str())?;
+            let validator_list: &Bound<'_, PyList> = field_validators.downcast()?;
+            for validator in validator_list.iter() {
+                validator.call1((&py_value,))?;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[pyfunction]
+#[pyo3(signature = (schema_id, json_bytes, post_loads=None, validators=None))]
+fn load_cached(
+    py: Python,
+    schema_id: u64,
+    json_bytes: &[u8],
+    post_loads: Option<&Bound<'_, PyDict>>,
+    validators: Option<&Bound<'_, PyDict>>,
+) -> PyResult<PyObject> {
+    let cache = SCHEMA_CACHE.read().unwrap();
+    let descriptor = cache.get(&schema_id).ok_or_else(|| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Schema {} not registered", schema_id))
+    })?;
+
+    let json_value: Value = serde_json::from_slice(json_bytes)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+
+    deserialize_root_type_cached(py, &json_value, descriptor, post_loads, validators)
+}
+
+fn deserialize_root_type_cached(
+    py: Python,
+    json_value: &Value,
+    descriptor: &TypeDescriptor,
+    post_loads: Option<&Bound<'_, PyDict>>,
+    validators: Option<&Bound<'_, PyDict>>,
+) -> PyResult<PyObject> {
+    match descriptor.type_kind {
+        TypeKind::Dataclass => {
+            let obj = json_value.as_object().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected JSON object")
+            })?;
+            let cls = descriptor.cls.as_ref().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing cls for dataclass")
+            })?;
+            deserialize_dataclass_cached(py, obj, &descriptor.fields, cls.bind(py), post_loads, validators)
+        }
+        TypeKind::Primitive => {
+            let field_type = descriptor.primitive_type.as_ref().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing primitive_type")
+            })?;
+            deserialize_primitive(py, json_value, field_type)
+        }
+        TypeKind::List => {
+            let arr = json_value.as_array().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected JSON array")
+            })?;
+            let item_descriptor = descriptor.item_type.as_ref().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing item_type for list")
+            })?;
+            let mut items = Vec::with_capacity(arr.len());
+            for (idx, item) in arr.iter().enumerate() {
+                let py_item = deserialize_root_type_cached(py, item, item_descriptor, post_loads, validators)
+                    .map_err(|e| wrap_error_with_field(py, e, &idx.to_string()))?;
+                items.push(py_item);
+            }
+            Ok(PyList::new_bound(py, items).to_object(py))
+        }
+        TypeKind::Dict => {
+            let obj = json_value.as_object().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected JSON object")
+            })?;
+            let value_descriptor = descriptor.value_type.as_ref().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing value_type for dict")
+            })?;
+            let dict = PyDict::new_bound(py);
+            for (k, v) in obj {
+                let val = deserialize_root_type_cached(py, v, value_descriptor, post_loads, validators)
+                    .map_err(|e| wrap_error_with_field(py, e, k))?;
+                dict.set_item(k, val)?;
+            }
+            Ok(dict.to_object(py))
+        }
+        TypeKind::Optional => {
+            if json_value.is_null() {
+                Ok(py.None())
+            } else {
+                let inner_descriptor = descriptor.inner_type.as_ref().ok_or_else(|| {
+                    PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing inner_type for optional")
+                })?;
+                deserialize_root_type_cached(py, json_value, inner_descriptor, post_loads, validators)
+            }
+        }
+    }
+}
+
+fn deserialize_dataclass_cached(
+    py: Python,
+    json_obj: &Map<String, Value>,
+    fields: &[FieldDescriptor],
+    cls: &Bound<'_, PyAny>,
+    post_loads: Option<&Bound<'_, PyDict>>,
+    validators: Option<&Bound<'_, PyDict>>,
+) -> PyResult<PyObject> {
+    let kwargs = PyDict::new_bound(py);
+
+    for field in fields {
+        let key = field.serialized_name.as_ref().unwrap_or(&field.name);
+        if let Some(json_field) = json_obj.get(key) {
+            let mut py_value = if field.field_type == FieldType::Nested {
+                let nested_schema = field.nested_schema.as_ref().unwrap();
+                let nested_obj = json_field.as_object().ok_or_else(|| {
+                    PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected JSON object for nested field")
+                })?;
+                let nested_cls = nested_schema.cls.bind(py);
+                deserialize_dataclass_cached(py, nested_obj, &nested_schema.fields, nested_cls, post_loads, validators)
+                    .map_err(|e| wrap_error_with_field(py, e, &field.name))?
+            } else {
+                deserialize_value(py, json_field, field)
+                    .map_err(|e| wrap_error_with_field(py, e, &field.name))?
+            };
+
+            // Apply post_load if exists
+            if let Some(pl) = post_loads {
+                if let Some(post_load_fn) = pl.get_item(&field.name)? {
+                    if !post_load_fn.is_none() {
+                        py_value = post_load_fn.call1((py_value,))?.to_object(py);
+                    }
+                }
+            }
+
+            // Apply validators if exist
+            if let Some(v) = validators {
+                if let Some(field_validators) = v.get_item(&field.name)? {
+                    let validator_list: &Bound<'_, PyList> = field_validators.downcast()?;
+                    for validator in validator_list.iter() {
+                        validator.call1((py_value.bind(py),))?;
+                    }
+                }
+            }
+
+            kwargs.set_item(&field.name, py_value)?;
+        } else if field.optional {
+            kwargs.set_item(&field.name, py.None())?;
+        } else {
+            return Err(missing_field_error(py, &field.name));
+        }
+    }
+
+    cls.call((), Some(&kwargs))?.extract()
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(hello, m)?)?;
     m.add_function(wrap_pyfunction!(dump_to_json, m)?)?;
     m.add_function(wrap_pyfunction!(load_from_json, m)?)?;
+    m.add_function(wrap_pyfunction!(register_schema, m)?)?;
+    m.add_function(wrap_pyfunction!(dump_cached, m)?)?;
+    m.add_function(wrap_pyfunction!(load_cached, m)?)?;
     Ok(())
 }
