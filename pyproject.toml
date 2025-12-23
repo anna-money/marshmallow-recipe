@@ -70,7 +70,7 @@ combine-as-imports = true
 split-on-trailing-comma = false
 
 [tool.pytest.ini_options]
-norecursedirs = [".git", ".venv"]
+norecursedirs = [".git", ".venv", "benchmarks"]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 
 [tool.pyright]

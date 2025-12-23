@@ -1,0 +1,13 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "marshmallow-recipe-core"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[tool.maturin]
+python-source = ".."
+module-name = "marshmallow_recipe.v2._core"
+manifest-path = "Cargo.toml"
