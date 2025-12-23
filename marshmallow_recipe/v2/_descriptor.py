@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import dataclasses
+import datetime
+import decimal
 import types
+import uuid
 from collections.abc import Callable, Mapping
 from typing import Annotated, Any, Union, get_args, get_origin, get_type_hints
 
@@ -16,6 +19,10 @@ class FieldDescriptor:
     item_schema: FieldDescriptor | None = None
     key_type: str | None = None
     value_schema: FieldDescriptor | None = None
+    strip_whitespaces: bool = False
+    decimal_places: int | None = None
+    decimal_as_string: bool = True
+    datetime_format: str | None = None
 
 
 @dataclasses.dataclass(slots=True, kw_only=True)
@@ -68,6 +75,16 @@ def build_type_descriptor(cls: Any, naming_case: Callable[[str], str] | None = N
             return TypeDescriptor(type_kind="primitive", primitive_type="float")
         if cls is bool:
             return TypeDescriptor(type_kind="primitive", primitive_type="bool")
+        if cls is decimal.Decimal:
+            return TypeDescriptor(type_kind="primitive", primitive_type="decimal")
+        if cls is uuid.UUID:
+            return TypeDescriptor(type_kind="primitive", primitive_type="uuid")
+        if cls is datetime.datetime:
+            return TypeDescriptor(type_kind="primitive", primitive_type="datetime")
+        if cls is datetime.date:
+            return TypeDescriptor(type_kind="primitive", primitive_type="date")
+        if cls is datetime.time:
+            return TypeDescriptor(type_kind="primitive", primitive_type="time")
 
         if dataclasses.is_dataclass(cls):
             schema = build_schema_descriptor(cls, naming_case)  # type: ignore[arg-type]
@@ -110,9 +127,17 @@ def _build_field_descriptor(
 ) -> FieldDescriptor:
     optional = False
     serialized_name = None
+    strip_whitespaces = False
+    decimal_places: int | None = None
+    decimal_as_string = True
+    datetime_format: str | None = None
 
     if metadata:
         serialized_name = metadata.get("name")
+        strip_whitespaces = metadata.get("strip_whitespaces", False)
+        decimal_places = metadata.get("places")
+        decimal_as_string = metadata.get("as_string", True)
+        datetime_format = metadata.get("format")
 
     origin = get_origin(hint)
     args = get_args(hint)
@@ -120,8 +145,17 @@ def _build_field_descriptor(
     if origin is Annotated:
         hint = args[0]
         for arg in args[1:]:
-            if isinstance(arg, dict) and "name" in arg:
-                serialized_name = arg["name"]
+            if isinstance(arg, dict):
+                if "name" in arg:
+                    serialized_name = arg["name"]
+                if "strip_whitespaces" in arg:
+                    strip_whitespaces = arg["strip_whitespaces"]
+                if "places" in arg:
+                    decimal_places = arg["places"]
+                if "as_string" in arg:
+                    decimal_as_string = arg["as_string"]
+                if "format" in arg:
+                    datetime_format = arg["format"]
         origin = get_origin(hint)
         args = get_args(hint)
 
@@ -139,7 +173,15 @@ def _build_field_descriptor(
     field_type, nested_info = _analyze_type(hint, origin, args, naming_case)
 
     return FieldDescriptor(
-        name=name, serialized_name=serialized_name, field_type=field_type, optional=optional, **nested_info
+        name=name,
+        serialized_name=serialized_name,
+        field_type=field_type,
+        optional=optional,
+        strip_whitespaces=strip_whitespaces,
+        decimal_places=decimal_places,
+        decimal_as_string=decimal_as_string,
+        datetime_format=datetime_format,
+        **nested_info,
     )
 
 
@@ -155,6 +197,16 @@ def _analyze_type(
             return "float", {}
         if hint is bool:
             return "bool", {}
+        if hint is decimal.Decimal:
+            return "decimal", {}
+        if hint is uuid.UUID:
+            return "uuid", {}
+        if hint is datetime.datetime:
+            return "datetime", {}
+        if hint is datetime.date:
+            return "date", {}
+        if hint is datetime.time:
+            return "time", {}
         if dataclasses.is_dataclass(hint):
             nested_schema = build_schema_descriptor(hint, naming_case)  # type: ignore[arg-type]
             return "nested", {"nested_schema": nested_schema}

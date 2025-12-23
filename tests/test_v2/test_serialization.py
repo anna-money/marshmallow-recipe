@@ -1,4 +1,8 @@
+import datetime
+import uuid
 from dataclasses import dataclass, field
+from decimal import Decimal
+from typing import Annotated
 
 import pytest
 from marshmallow import ValidationError
@@ -383,3 +387,190 @@ def test_dict_value_error() -> None:
 
     errors = exc.value.normalized_messages()
     assert errors == {"u2": {"name": ["Missing data for required field."]}}
+
+
+@dataclass
+class WithDecimal:
+    amount: Decimal
+
+
+def test_decimal_dump() -> None:
+    obj = WithDecimal(amount=Decimal("123.45"))
+    result = v2.dump(WithDecimal, obj)
+    assert b'"amount":"123.45"' in result
+
+
+def test_decimal_load() -> None:
+    data = b'{"amount":"123.45"}'
+    result = v2.load(WithDecimal, data)
+    assert result == WithDecimal(amount=Decimal("123.45"))
+
+
+def test_decimal_roundtrip() -> None:
+    obj = WithDecimal(amount=Decimal("999.99"))
+    json_bytes = v2.dump(WithDecimal, obj)
+    loaded = v2.load(WithDecimal, json_bytes)
+    assert loaded == obj
+
+
+@dataclass
+class WithDecimalPlaces:
+    amount: Annotated[Decimal, {"places": 2}]
+
+
+def test_decimal_places_load() -> None:
+    data = b'{"amount":"123.456789"}'
+    result = v2.load(WithDecimalPlaces, data)
+    assert result.amount == Decimal("123.46")
+
+
+@dataclass
+class WithUuid:
+    id: uuid.UUID
+
+
+def test_uuid_dump() -> None:
+    obj = WithUuid(id=uuid.UUID("550e8400-e29b-41d4-a716-446655440000"))
+    result = v2.dump(WithUuid, obj)
+    assert b'"id":"550e8400-e29b-41d4-a716-446655440000"' in result
+
+
+def test_uuid_load() -> None:
+    data = b'{"id":"550e8400-e29b-41d4-a716-446655440000"}'
+    result = v2.load(WithUuid, data)
+    assert result == WithUuid(id=uuid.UUID("550e8400-e29b-41d4-a716-446655440000"))
+
+
+def test_uuid_roundtrip() -> None:
+    obj = WithUuid(id=uuid.UUID("550e8400-e29b-41d4-a716-446655440000"))
+    json_bytes = v2.dump(WithUuid, obj)
+    loaded = v2.load(WithUuid, json_bytes)
+    assert loaded == obj
+
+
+@dataclass
+class WithDateTime:
+    created_at: datetime.datetime
+
+
+def test_datetime_dump() -> None:
+    obj = WithDateTime(created_at=datetime.datetime(2024, 1, 15, 12, 30, 45))
+    result = v2.dump(WithDateTime, obj)
+    assert b'"created_at":"2024-01-15T12:30:45"' in result
+
+
+def test_datetime_load() -> None:
+    data = b'{"created_at":"2024-01-15T12:30:45"}'
+    result = v2.load(WithDateTime, data)
+    assert result == WithDateTime(created_at=datetime.datetime(2024, 1, 15, 12, 30, 45))
+
+
+def test_datetime_roundtrip() -> None:
+    obj = WithDateTime(created_at=datetime.datetime(2024, 1, 15, 12, 30, 45))
+    json_bytes = v2.dump(WithDateTime, obj)
+    loaded = v2.load(WithDateTime, json_bytes)
+    assert loaded == obj
+
+
+@dataclass
+class WithDateTimeFormat:
+    created_at: Annotated[datetime.datetime, {"format": "%Y-%m-%d %H:%M:%S"}]
+
+
+def test_datetime_custom_format_dump() -> None:
+    obj = WithDateTimeFormat(created_at=datetime.datetime(2024, 1, 15, 12, 30, 45))
+    result = v2.dump(WithDateTimeFormat, obj)
+    assert b'"created_at":"2024-01-15 12:30:45"' in result
+
+
+def test_datetime_custom_format_load() -> None:
+    data = b'{"created_at":"2024-01-15 12:30:45"}'
+    result = v2.load(WithDateTimeFormat, data)
+    assert result == WithDateTimeFormat(created_at=datetime.datetime(2024, 1, 15, 12, 30, 45))
+
+
+@dataclass
+class WithDate:
+    date_field: datetime.date
+
+
+def test_date_dump() -> None:
+    obj = WithDate(date_field=datetime.date(2024, 1, 15))
+    result = v2.dump(WithDate, obj)
+    assert b'"date_field":"2024-01-15"' in result
+
+
+def test_date_load() -> None:
+    data = b'{"date_field":"2024-01-15"}'
+    result = v2.load(WithDate, data)
+    assert result == WithDate(date_field=datetime.date(2024, 1, 15))
+
+
+def test_date_roundtrip() -> None:
+    obj = WithDate(date_field=datetime.date(2024, 1, 15))
+    json_bytes = v2.dump(WithDate, obj)
+    loaded = v2.load(WithDate, json_bytes)
+    assert loaded == obj
+
+
+@dataclass
+class WithTime:
+    time_field: datetime.time
+
+
+def test_time_dump() -> None:
+    obj = WithTime(time_field=datetime.time(12, 30, 45))
+    result = v2.dump(WithTime, obj)
+    assert b'"time_field":"12:30:45"' in result
+
+
+def test_time_load() -> None:
+    data = b'{"time_field":"12:30:45"}'
+    result = v2.load(WithTime, data)
+    assert result == WithTime(time_field=datetime.time(12, 30, 45))
+
+
+def test_time_roundtrip() -> None:
+    obj = WithTime(time_field=datetime.time(12, 30, 45))
+    json_bytes = v2.dump(WithTime, obj)
+    loaded = v2.load(WithTime, json_bytes)
+    assert loaded == obj
+
+
+@dataclass
+class WithStripWhitespaces:
+    name: Annotated[str, {"strip_whitespaces": True}]
+
+
+def test_str_strip_whitespaces_dump() -> None:
+    obj = WithStripWhitespaces(name="  hello  ")
+    result = v2.dump(WithStripWhitespaces, obj)
+    assert b'"name":"hello"' in result
+
+
+def test_str_strip_whitespaces_load() -> None:
+    data = b'{"name":"  world  "}'
+    result = v2.load(WithStripWhitespaces, data)
+    assert result.name == "world"
+
+
+@dataclass
+class WithAllNewTypes:
+    amount: Decimal
+    id: uuid.UUID
+    created_at: datetime.datetime
+    date_field: datetime.date
+    time_field: datetime.time
+
+
+def test_all_new_types_roundtrip() -> None:
+    obj = WithAllNewTypes(
+        amount=Decimal("123.45"),
+        id=uuid.UUID("550e8400-e29b-41d4-a716-446655440000"),
+        created_at=datetime.datetime(2024, 1, 15, 12, 30, 45),
+        date_field=datetime.date(2024, 1, 15),
+        time_field=datetime.time(12, 30, 45),
+    )
+    json_bytes = v2.dump(WithAllNewTypes, obj)
+    loaded = v2.load(WithAllNewTypes, json_bytes)
+    assert loaded == obj

@@ -8,6 +8,11 @@ pub enum FieldType {
     Int,
     Float,
     Bool,
+    Decimal,
+    Uuid,
+    DateTime,
+    Date,
+    Time,
     List,
     Dict,
     Nested,
@@ -21,6 +26,11 @@ impl<'py> FromPyObject<'py> for FieldType {
             "int" => Ok(FieldType::Int),
             "float" => Ok(FieldType::Float),
             "bool" => Ok(FieldType::Bool),
+            "decimal" => Ok(FieldType::Decimal),
+            "uuid" => Ok(FieldType::Uuid),
+            "datetime" => Ok(FieldType::DateTime),
+            "date" => Ok(FieldType::Date),
+            "time" => Ok(FieldType::Time),
             "list" => Ok(FieldType::List),
             "dict" => Ok(FieldType::Dict),
             "nested" => Ok(FieldType::Nested),
@@ -41,6 +51,10 @@ pub struct FieldDescriptor {
     pub item_schema: Option<Box<FieldDescriptor>>,
     pub key_type: Option<FieldType>,
     pub value_schema: Option<Box<FieldDescriptor>>,
+    pub strip_whitespaces: bool,
+    pub decimal_places: Option<i32>,
+    pub decimal_as_string: bool,
+    pub datetime_format: Option<String>,
 }
 
 impl<'py> FromPyObject<'py> for FieldDescriptor {
@@ -55,6 +69,11 @@ impl<'py> FromPyObject<'py> for FieldDescriptor {
         let key_type: Option<FieldType> = ob.getattr("key_type")?.extract()?;
         let value_schema: Option<FieldDescriptor> = ob.getattr("value_schema")?.extract()?;
 
+        let strip_whitespaces: bool = ob.getattr("strip_whitespaces")?.extract().unwrap_or(false);
+        let decimal_places: Option<i32> = ob.getattr("decimal_places")?.extract().ok().flatten();
+        let decimal_as_string: bool = ob.getattr("decimal_as_string")?.extract().unwrap_or(true);
+        let datetime_format: Option<String> = ob.getattr("datetime_format")?.extract().ok().flatten();
+
         Ok(FieldDescriptor {
             name,
             serialized_name,
@@ -64,6 +83,10 @@ impl<'py> FromPyObject<'py> for FieldDescriptor {
             item_schema: item_schema.map(Box::new),
             key_type,
             value_schema: value_schema.map(Box::new),
+            strip_whitespaces,
+            decimal_places,
+            decimal_as_string,
+            datetime_format,
         })
     }
 }
@@ -171,6 +194,7 @@ impl<'py> FromPyObject<'py> for TypeDescriptor {
     }
 }
 
+#[inline]
 fn serialize_value(py: Python, value: &Bound<'_, PyAny>, field: &FieldDescriptor) -> PyResult<Value> {
     if value.is_none() {
         return Ok(Value::Null);
@@ -178,7 +202,10 @@ fn serialize_value(py: Python, value: &Bound<'_, PyAny>, field: &FieldDescriptor
 
     match field.field_type {
         FieldType::Str => {
-            let s: String = value.extract()?;
+            let mut s: String = value.extract()?;
+            if field.strip_whitespaces {
+                s = s.trim().to_string();
+            }
             Ok(Value::String(s))
         }
         FieldType::Int => {
@@ -195,15 +222,47 @@ fn serialize_value(py: Python, value: &Bound<'_, PyAny>, field: &FieldDescriptor
             let b: bool = value.extract()?;
             Ok(Value::Bool(b))
         }
+        FieldType::Decimal => {
+            let s: String = value.str()?.extract()?;
+            if field.decimal_as_string {
+                Ok(Value::String(s))
+            } else {
+                let f: f64 = s.parse().map_err(|_| {
+                    PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                        "Cannot parse decimal '{}' as float",
+                        s
+                    ))
+                })?;
+                Ok(serde_json::Number::from_f64(f)
+                    .map(Value::Number)
+                    .unwrap_or(Value::Null))
+            }
+        }
+        FieldType::Uuid => {
+            let s: String = value.str()?.extract()?;
+            Ok(Value::String(s))
+        }
+        FieldType::DateTime => {
+            let s: String = if let Some(ref fmt) = field.datetime_format {
+                value.call_method1("strftime", (fmt.as_str(),))?.extract()?
+            } else {
+                value.call_method0("isoformat")?.extract()?
+            };
+            Ok(Value::String(s))
+        }
+        FieldType::Date | FieldType::Time => {
+            let s: String = value.call_method0("isoformat")?.extract()?;
+            Ok(Value::String(s))
+        }
         FieldType::List => {
             let list = value.downcast::<PyList>()?;
             let item_schema = field.item_schema.as_ref().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("List field missing item_schema")
             })?;
-            let items: Vec<Value> = list
-                .iter()
-                .map(|item| serialize_value(py, &item, item_schema))
-                .collect::<PyResult<_>>()?;
+            let mut items = Vec::with_capacity(list.len());
+            for item in list.iter() {
+                items.push(serialize_value(py, &item, item_schema)?);
+            }
             Ok(Value::Array(items))
         }
         FieldType::Dict => {
@@ -228,6 +287,7 @@ fn serialize_value(py: Python, value: &Bound<'_, PyAny>, field: &FieldDescriptor
     }
 }
 
+#[inline]
 fn serialize_dataclass(
     py: Python,
     obj: &Bound<'_, PyAny>,
@@ -244,14 +304,15 @@ fn serialize_dataclass(
             continue;
         }
 
-        let serialized_name = field.serialized_name.as_ref().unwrap_or(&field.name);
         let json_value = serialize_value(py, &py_value, field)?;
-        map.insert(serialized_name.clone(), json_value);
+        let key = field.serialized_name.as_ref().unwrap_or(&field.name);
+        map.insert(key.clone(), json_value);
     }
 
     Ok(Value::Object(map))
 }
 
+#[inline]
 fn serialize_primitive(_py: Python, value: &Bound<'_, PyAny>, field_type: &FieldType) -> PyResult<Value> {
     if value.is_none() {
         return Ok(Value::Null);
@@ -276,12 +337,25 @@ fn serialize_primitive(_py: Python, value: &Bound<'_, PyAny>, field_type: &Field
             let b: bool = value.extract()?;
             Ok(Value::Bool(b))
         }
+        FieldType::Decimal => {
+            let s: String = value.str()?.extract()?;
+            Ok(Value::String(s))
+        }
+        FieldType::Uuid => {
+            let s: String = value.str()?.extract()?;
+            Ok(Value::String(s))
+        }
+        FieldType::DateTime | FieldType::Date | FieldType::Time => {
+            let s: String = value.call_method0("isoformat")?.extract()?;
+            Ok(Value::String(s))
+        }
         _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
             "Unsupported primitive type",
         )),
     }
 }
 
+#[inline]
 fn serialize_root_type(
     py: Python,
     value: &Bound<'_, PyAny>,
@@ -303,10 +377,10 @@ fn serialize_root_type(
             let item_descriptor = descriptor.item_type.as_ref().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing item_type for list")
             })?;
-            let items: Vec<Value> = list
-                .iter()
-                .map(|item| serialize_root_type(py, &item, item_descriptor, none_value_handling))
-                .collect::<PyResult<_>>()?;
+            let mut items = Vec::with_capacity(list.len());
+            for item in list.iter() {
+                items.push(serialize_root_type(py, &item, item_descriptor, none_value_handling)?);
+            }
             Ok(Value::Array(items))
         }
         TypeKind::Dict => {
@@ -349,6 +423,7 @@ fn dump_to_json(
     Ok(PyBytes::new_bound(py, &json_bytes).unbind())
 }
 
+#[inline]
 fn deserialize_value(
     py: Python,
     value: &Value,
@@ -360,12 +435,15 @@ fn deserialize_value(
 
     match field.field_type {
         FieldType::Str => {
-            let s = value.as_str().ok_or_else(|| {
+            let mut s = value.as_str().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
                     "Expected string for field '{}', got {:?}",
                     field.name, value
                 ))
-            })?;
+            })?.to_string();
+            if field.strip_whitespaces {
+                s = s.trim().to_string();
+            }
             Ok(s.to_object(py))
         }
         FieldType::Int => {
@@ -395,6 +473,71 @@ fn deserialize_value(
             })?;
             Ok(b.to_object(py))
         }
+        FieldType::Decimal => {
+            let s = value.as_str().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Expected string for decimal field '{}', got {:?}",
+                    field.name, value
+                ))
+            })?;
+            let decimal_mod = py.import_bound("decimal")?;
+            let decimal_cls = decimal_mod.getattr("Decimal")?;
+            let result = decimal_cls.call1((s,))?;
+            if let Some(places) = field.decimal_places {
+                let quantize_str = format!("1e-{}", places);
+                let quantize_val = decimal_cls.call1((quantize_str,))?;
+                return Ok(result.call_method1("quantize", (quantize_val,))?.to_object(py));
+            }
+            Ok(result.to_object(py))
+        }
+        FieldType::Uuid => {
+            let s = value.as_str().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Expected string for uuid field '{}', got {:?}",
+                    field.name, value
+                ))
+            })?;
+            let uuid_mod = py.import_bound("uuid")?;
+            let uuid_cls = uuid_mod.getattr("UUID")?;
+            Ok(uuid_cls.call1((s,))?.to_object(py))
+        }
+        FieldType::DateTime => {
+            let s = value.as_str().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Expected string for datetime field '{}', got {:?}",
+                    field.name, value
+                ))
+            })?;
+            let datetime_mod = py.import_bound("datetime")?;
+            let datetime_cls = datetime_mod.getattr("datetime")?;
+            if let Some(ref fmt) = field.datetime_format {
+                Ok(datetime_cls.call_method1("strptime", (s, fmt.as_str()))?.to_object(py))
+            } else {
+                Ok(datetime_cls.call_method1("fromisoformat", (s,))?.to_object(py))
+            }
+        }
+        FieldType::Date => {
+            let s = value.as_str().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Expected string for date field '{}', got {:?}",
+                    field.name, value
+                ))
+            })?;
+            let datetime_mod = py.import_bound("datetime")?;
+            let date_cls = datetime_mod.getattr("date")?;
+            Ok(date_cls.call_method1("fromisoformat", (s,))?.to_object(py))
+        }
+        FieldType::Time => {
+            let s = value.as_str().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Expected string for time field '{}', got {:?}",
+                    field.name, value
+                ))
+            })?;
+            let datetime_mod = py.import_bound("datetime")?;
+            let time_cls = datetime_mod.getattr("time")?;
+            Ok(time_cls.call_method1("fromisoformat", (s,))?.to_object(py))
+        }
         FieldType::List => {
             let arr = value.as_array().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
@@ -405,10 +548,10 @@ fn deserialize_value(
             let item_schema = field.item_schema.as_ref().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("List field missing item_schema")
             })?;
-            let items: Vec<PyObject> = arr
-                .iter()
-                .map(|item| deserialize_value(py, item, item_schema))
-                .collect::<PyResult<_>>()?;
+            let mut items = Vec::with_capacity(arr.len());
+            for item in arr.iter() {
+                items.push(deserialize_value(py, item, item_schema)?);
+            }
             Ok(PyList::new_bound(py, items).to_object(py))
         }
         FieldType::Dict => {
@@ -443,6 +586,8 @@ fn deserialize_value(
     }
 }
 
+#[cold]
+#[inline(never)]
 fn wrap_error_with_field(py: Python, inner: PyErr, field_name: &str) -> PyErr {
     let inner_value = inner.value_bound(py);
     if let Ok(inner_dict) = inner_value.downcast::<PyDict>() {
@@ -463,6 +608,8 @@ fn wrap_error_with_field(py: Python, inner: PyErr, field_name: &str) -> PyErr {
     }
 }
 
+#[cold]
+#[inline(never)]
 fn missing_field_error(py: Python, field_name: &str) -> PyErr {
     let dict = PyDict::new_bound(py);
     let error_list = PyList::new_bound(py, vec!["Missing data for required field."]);
@@ -470,6 +617,7 @@ fn missing_field_error(py: Python, field_name: &str) -> PyErr {
     PyErr::new::<pyo3::exceptions::PyValueError, _>(dict.to_object(py))
 }
 
+#[inline]
 fn deserialize_primitive(py: Python, value: &Value, field_type: &FieldType) -> PyResult<PyObject> {
     if value.is_null() {
         return Ok(py.None());
@@ -500,12 +648,53 @@ fn deserialize_primitive(py: Python, value: &Value, field_type: &FieldType) -> P
             })?;
             Ok(b.to_object(py))
         }
+        FieldType::Decimal => {
+            let s = value.as_str().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected string for decimal")
+            })?;
+            let decimal_mod = py.import_bound("decimal")?;
+            let decimal_cls = decimal_mod.getattr("Decimal")?;
+            Ok(decimal_cls.call1((s,))?.to_object(py))
+        }
+        FieldType::Uuid => {
+            let s = value.as_str().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected string for uuid")
+            })?;
+            let uuid_mod = py.import_bound("uuid")?;
+            let uuid_cls = uuid_mod.getattr("UUID")?;
+            Ok(uuid_cls.call1((s,))?.to_object(py))
+        }
+        FieldType::DateTime => {
+            let s = value.as_str().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected string for datetime")
+            })?;
+            let datetime_mod = py.import_bound("datetime")?;
+            let datetime_cls = datetime_mod.getattr("datetime")?;
+            Ok(datetime_cls.call_method1("fromisoformat", (s,))?.to_object(py))
+        }
+        FieldType::Date => {
+            let s = value.as_str().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected string for date")
+            })?;
+            let datetime_mod = py.import_bound("datetime")?;
+            let date_cls = datetime_mod.getattr("date")?;
+            Ok(date_cls.call_method1("fromisoformat", (s,))?.to_object(py))
+        }
+        FieldType::Time => {
+            let s = value.as_str().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected string for time")
+            })?;
+            let datetime_mod = py.import_bound("datetime")?;
+            let time_cls = datetime_mod.getattr("time")?;
+            Ok(time_cls.call_method1("fromisoformat", (s,))?.to_object(py))
+        }
         _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
             "Unsupported primitive type",
         )),
     }
 }
 
+#[inline]
 fn deserialize_dataclass(
     py: Python,
     json_obj: &Map<String, Value>,
@@ -515,9 +704,8 @@ fn deserialize_dataclass(
     let kwargs = PyDict::new_bound(py);
 
     for field in fields {
-        let serialized_name = field.serialized_name.as_ref().unwrap_or(&field.name);
-
-        if let Some(json_field) = json_obj.get(serialized_name) {
+        let key = field.serialized_name.as_ref().unwrap_or(&field.name);
+        if let Some(json_field) = json_obj.get(key) {
             let py_value = if field.field_type == FieldType::Nested {
                 let nested_schema = field.nested_schema.as_ref().unwrap();
                 let nested_obj = json_field.as_object().ok_or_else(|| {
@@ -540,6 +728,7 @@ fn deserialize_dataclass(
     cls.call_bound(py, (), Some(&kwargs))
 }
 
+#[inline]
 fn deserialize_root_type(
     py: Python,
     json_value: &Value,
@@ -570,14 +759,12 @@ fn deserialize_root_type(
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing item_type for list")
             })?;
 
-            let items: Vec<PyObject> = arr
-                .iter()
-                .enumerate()
-                .map(|(idx, item)| {
-                    deserialize_root_type(py, item, item_descriptor)
-                        .map_err(|e| wrap_error_with_field(py, e, &idx.to_string()))
-                })
-                .collect::<PyResult<_>>()?;
+            let mut items = Vec::with_capacity(arr.len());
+            for (idx, item) in arr.iter().enumerate() {
+                let py_item = deserialize_root_type(py, item, item_descriptor)
+                    .map_err(|e| wrap_error_with_field(py, e, &idx.to_string()))?;
+                items.push(py_item);
+            }
 
             Ok(PyList::new_bound(py, items).to_object(py))
         }

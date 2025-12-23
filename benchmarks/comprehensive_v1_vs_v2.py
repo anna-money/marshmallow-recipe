@@ -330,7 +330,6 @@ def run_comprehensive_benchmarks():
     print("Recommendation:")
     print("  - Use v2 for production workloads, especially with bulk data")
     print("  - v1 remains available for backward compatibility")
-    print("  - Note: v2 doesn't yet support Decimal, datetime, UUID, Enum types")
     print()
 
 
