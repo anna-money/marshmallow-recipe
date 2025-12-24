@@ -74,6 +74,9 @@ def _field_to_dict(field: Any) -> dict:
         "optional": field.optional,
     }
 
+    if field.slot_offset is not None:
+        result["slot_offset"] = field.slot_offset
+
     if field.serialized_name is not None:
         result["serialized_name"] = field.serialized_name
 

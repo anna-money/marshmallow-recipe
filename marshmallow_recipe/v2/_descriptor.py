@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ctypes
 import dataclasses
 import datetime
 import decimal
@@ -9,12 +10,41 @@ from collections.abc import Callable, Mapping
 from typing import Annotated, Any, Union, get_args, get_origin, get_type_hints
 
 
+class _PyMemberDef(ctypes.Structure):
+    _fields_ = [("name", ctypes.c_void_p), ("type", ctypes.c_int), ("offset", ctypes.c_ssize_t)]
+
+
+class _PyMemberDescrObject(ctypes.Structure):
+    _fields_ = [
+        ("ob_refcnt", ctypes.c_ssize_t),
+        ("ob_type", ctypes.c_void_p),
+        ("d_type", ctypes.c_void_p),
+        ("d_name", ctypes.c_void_p),
+        ("d_qualname", ctypes.c_void_p),
+        ("d_member", ctypes.POINTER(_PyMemberDef)),
+    ]
+
+
+def get_slot_offset(cls: type, field_name: str) -> int | None:
+    if not hasattr(cls, "__slots__"):
+        return None
+    descriptor = getattr(cls, field_name, None)
+    if descriptor is None:
+        return None
+    try:
+        ptr = ctypes.cast(id(descriptor), ctypes.POINTER(_PyMemberDescrObject))
+        return ptr.contents.d_member.contents.offset
+    except Exception:
+        return None
+
+
 @dataclasses.dataclass(slots=True, kw_only=True)
 class FieldDescriptor:
     name: str
     serialized_name: str | None
     field_type: str
     optional: bool
+    slot_offset: int | None = None
     nested_schema: SchemaDescriptor | None = None
     item_schema: FieldDescriptor | None = None
     key_type: str | None = None
@@ -116,14 +146,18 @@ def build_schema_descriptor(cls: type, naming_case: Callable[[str], str] | None 
 
     for field in dataclasses.fields(cls):
         hint = type_hints[field.name]
-        field_descriptor = _build_field_descriptor(field.name, hint, field.metadata, naming_case)
+        field_descriptor = _build_field_descriptor(cls, field.name, hint, field.metadata, naming_case)
         fields.append(field_descriptor)
 
     return SchemaDescriptor(cls=cls, fields=fields)
 
 
 def _build_field_descriptor(
-    name: str, hint: Any, metadata: Mapping[str, Any] | None = None, naming_case: Callable[[str], str] | None = None
+    cls: type | None,
+    name: str,
+    hint: Any,
+    metadata: Mapping[str, Any] | None = None,
+    naming_case: Callable[[str], str] | None = None,
 ) -> FieldDescriptor:
     optional = False
     serialized_name = None
@@ -171,12 +205,14 @@ def _build_field_descriptor(
         serialized_name = naming_case(name)
 
     field_type, nested_info = _analyze_type(hint, origin, args, naming_case)
+    slot_offset = get_slot_offset(cls, name) if cls else None
 
     return FieldDescriptor(
         name=name,
         serialized_name=serialized_name,
         field_type=field_type,
         optional=optional,
+        slot_offset=slot_offset,
         strip_whitespaces=strip_whitespaces,
         decimal_places=decimal_places,
         decimal_as_string=decimal_as_string,
@@ -214,14 +250,14 @@ def _analyze_type(
 
     if origin is list:
         item_hint = args[0] if args else Any
-        item_descriptor = _build_field_descriptor("item", item_hint, None, naming_case)
+        item_descriptor = _build_field_descriptor(None, "item", item_hint, None, naming_case)
         return "list", {"item_schema": item_descriptor}
 
     if origin is dict:
         key_hint = args[0] if args else str
         value_hint = args[1] if len(args) > 1 else Any
         key_type, _ = _analyze_type(key_hint, None, (), naming_case)
-        value_descriptor = _build_field_descriptor("value", value_hint, None, naming_case)
+        value_descriptor = _build_field_descriptor(None, "value", value_hint, None, naming_case)
         return "dict", {"key_type": key_type, "value_schema": value_descriptor}
 
     raise NotImplementedError(f"Unsupported generic type: {origin}[{args}]")

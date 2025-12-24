@@ -53,6 +53,7 @@ pub struct FieldDescriptor {
     pub serialized_name: Option<String>,
     pub field_type: FieldType,
     pub optional: bool,
+    pub slot_offset: Option<isize>,
     pub nested_schema: Option<Box<SchemaDescriptor>>,
     pub item_schema: Option<Box<FieldDescriptor>>,
     pub key_type: Option<FieldType>,
@@ -69,6 +70,7 @@ impl<'py> FromPyObject<'py> for FieldDescriptor {
         let serialized_name: Option<String> = ob.getattr("serialized_name")?.extract()?;
         let field_type: FieldType = ob.getattr("field_type")?.extract()?;
         let optional: bool = ob.getattr("optional")?.extract()?;
+        let slot_offset: Option<isize> = ob.getattr("slot_offset")?.extract().ok().flatten();
 
         let nested_schema: Option<SchemaDescriptor> = ob.getattr("nested_schema")?.extract()?;
         let item_schema: Option<FieldDescriptor> = ob.getattr("item_schema")?.extract()?;
@@ -85,6 +87,7 @@ impl<'py> FromPyObject<'py> for FieldDescriptor {
             serialized_name,
             field_type,
             optional,
+            slot_offset,
             nested_schema: nested_schema.map(Box::new),
             item_schema: item_schema.map(Box::new),
             key_type,
@@ -294,6 +297,18 @@ fn serialize_value(py: Python, value: &Bound<'_, PyAny>, field: &FieldDescriptor
 }
 
 #[inline]
+unsafe fn get_slot_value_direct<'py>(
+    py: Python<'py>,
+    obj: &Bound<'_, PyAny>,
+    offset: isize,
+) -> Bound<'py, PyAny> {
+    let obj_ptr = obj.as_ptr() as *const u8;
+    let slot_ptr = obj_ptr.offset(offset) as *const *mut pyo3::ffi::PyObject;
+    let py_obj_ptr = *slot_ptr;
+    Py::<PyAny>::from_borrowed_ptr(py, py_obj_ptr).into_bound(py)
+}
+
+#[inline]
 fn serialize_dataclass(
     py: Python,
     obj: &Bound<'_, PyAny>,
@@ -304,7 +319,11 @@ fn serialize_dataclass(
     let ignore_none = none_value_handling.map(|s| s == "ignore").unwrap_or(true);
 
     for field in fields {
-        let py_value = obj.getattr(field.name.as_str())?;
+        let py_value = if let Some(offset) = field.slot_offset {
+            unsafe { get_slot_value_direct(py, obj, offset) }
+        } else {
+            obj.getattr(field.name.as_str())?
+        };
 
         if py_value.is_none() && ignore_none {
             continue;
@@ -979,6 +998,9 @@ fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescriptor> {
         .map(|v| v.extract().unwrap_or(false))
         .unwrap_or(false);
 
+    let slot_offset: Option<isize> = raw.get_item("slot_offset")?
+        .and_then(|v| v.extract().ok());
+
     let strip_whitespaces: bool = raw.get_item("strip_whitespaces")?
         .map(|v| v.extract().unwrap_or(false))
         .unwrap_or(false);
@@ -1042,6 +1064,7 @@ fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescriptor> {
         serialized_name,
         field_type: parse_field_type(&field_type)?,
         optional,
+        slot_offset,
         nested_schema,
         item_schema,
         key_type,
