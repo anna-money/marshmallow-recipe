@@ -6,8 +6,23 @@ build-backend = "maturin"
 name = "marshmallow-recipe-core"
 version = "0.1.0"
 requires-python = ">=3.12"
+description = "Rust core for marshmallow-recipe v2 serialization"
+license = {text = "MIT"}
+authors = [
+    {name = "Yury Pliner", email = "yury.pliner@gmail.com"}
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Rust",
+]
+
+[project.urls]
+Homepage = "https://github.com/anna-money/marshmallow-recipe"
 
 [tool.maturin]
-python-source = ".."
 module-name = "marshmallow_recipe.v2._core"
 manifest-path = "Cargo.toml"

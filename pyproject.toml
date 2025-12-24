@@ -25,6 +25,7 @@ classifiers = [
 ]
 dependencies = [
     "marshmallow>=2.20.5,<4",
+    "marshmallow-recipe-core>=0.1.0",
 ]
 
 [project.urls]
