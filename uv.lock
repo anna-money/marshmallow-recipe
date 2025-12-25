@@ -1,6 +1,12 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.12"
+
+[manifest]
+members = [
+    "marshmallow-recipe",
+    "marshmallow-recipe-speedup",
+]
 
 [[package]]
 name = "colorama"
@@ -46,16 +52,25 @@ dev = [
     { name = "ruff" },
     { name = "setuptools" },
 ]
+speedup = [
+    { name = "marshmallow-recipe-speedup" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "marshmallow", specifier = ">=2.20.5,<4" },
+    { name = "marshmallow-recipe-speedup", marker = "extra == 'speedup'", editable = "packages/marshmallow-recipe-speedup" },
     { name = "pyright", marker = "extra == 'dev'", specifier = "==1.1.407" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "==8.3.5" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.8.4" },
     { name = "setuptools", marker = "extra == 'dev'" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["dev", "speedup"]
+
+[[package]]
+name = "marshmallow-recipe-speedup"
+version = "0.0.1"
+source = { editable = "packages/marshmallow-recipe-speedup" }
 
 [[package]]
 name = "nodeenv"

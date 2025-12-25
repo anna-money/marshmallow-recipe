@@ -38,6 +38,9 @@ dev = [
     "pyright==1.1.407",
     "setuptools",
 ]
+speedup = [
+    "marshmallow-recipe-speedup",
+]
 
 [tool.hatch.version]
 path = "marshmallow_recipe/__init__.py"
@@ -93,3 +96,9 @@ reportUnusedImport = false
 reportMissingTypeArgument = false
 reportImportCycles = false
 reportDeprecated = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+marshmallow-recipe-speedup = { workspace = true }

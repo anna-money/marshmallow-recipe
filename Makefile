@@ -9,6 +9,9 @@ uv:
 deps: uv
 	@uv sync --all-extras
 
+build-speedup:
+	@cd packages/marshmallow-recipe-speedup && maturin develop
+
 ruff-format:
 	@uv run ruff format marshmallow_recipe tests
 
@@ -22,3 +25,6 @@ lint: ruff-format ruff-lint pyright
 
 test:
 	@uv run pytest -vv --rootdir tests .
+
+test-speedup: build-speedup
+	@uv run pytest -vv tests/test_speedup
