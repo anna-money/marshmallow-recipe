@@ -7,7 +7,7 @@ uv:
 	}
 
 deps: uv
-	@uv sync --all-extras
+	@uv sync --extra dev
 	@cd packages/marshmallow-recipe-speedup && PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 uv run maturin develop
 
 ruff-format:
