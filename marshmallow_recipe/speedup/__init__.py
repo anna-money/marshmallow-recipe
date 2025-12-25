@@ -11,14 +11,6 @@ from marshmallow_recipe_speedup import _core  # type: ignore[attr-defined]
 
 __all__ = ["dump", "load"]
 
-
-def __require_speedup() -> None:
-    if _core is None:
-        raise ImportError(
-            "marshmallow-recipe-speedup is not installed. " "Install it with: pip install marshmallow-recipe[speedup]"
-        )
-
-
 _schema_id_counter: int = 0
 _schema_id_map: dict[tuple[type, Callable[[str], str] | None], int] = {}
 _schema_cache: dict[int, tuple[dict | None, dict | None]] = {}

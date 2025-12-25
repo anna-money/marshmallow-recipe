@@ -71,7 +71,7 @@ jobs:
 
       - name: Build wheels
         working-directory: packages/marshmallow-recipe-speedup
-        run: maturin build --release --out dist
+        run: PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 maturin build --release --out dist
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
