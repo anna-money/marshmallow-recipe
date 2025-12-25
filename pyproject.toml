@@ -25,7 +25,6 @@ classifiers = [
 ]
 dependencies = [
     "marshmallow>=2.20.5,<4",
-    "marshmallow-recipe-core>=0.1.0",
 ]
 
 [project.urls]
@@ -37,6 +36,7 @@ dev = [
     "ruff==0.8.4",
     "pyright==1.1.407",
     "setuptools",
+    "maturin>=1.0,<2.0",
 ]
 speedup = [
     "marshmallow-recipe-speedup",

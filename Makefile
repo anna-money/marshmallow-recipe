@@ -8,9 +8,7 @@ uv:
 
 deps: uv
 	@uv sync --all-extras
-
-build-speedup:
-	@cd packages/marshmallow-recipe-speedup && maturin develop
+	@cd packages/marshmallow-recipe-speedup && PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 uv run maturin develop
 
 ruff-format:
 	@uv run ruff format marshmallow_recipe tests
@@ -24,7 +22,4 @@ pyright:
 lint: ruff-format ruff-lint pyright
 
 test:
-	@uv run pytest -vv --rootdir tests .
-
-test-speedup: build-speedup
-	@uv run pytest -vv tests/test_speedup
+	@uv run pytest -vv .
