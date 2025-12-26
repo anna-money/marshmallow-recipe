@@ -1,5 +1,6 @@
 import datetime
 import enum
+import json
 import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -22,10 +23,7 @@ class SimpleTypes:
 def test_simple_types_dump() -> None:
     obj = SimpleTypes(name="John", age=30, score=9.5, active=True)
     result = speedup.dump(SimpleTypes, obj)
-    assert b'"name":"John"' in result
-    assert b'"age":30' in result
-    assert b'"score":9.5' in result
-    assert b'"active":true' in result
+    assert result == b'{"active":true,"age":30,"name":"John","score":9.5}'
 
 
 def test_simple_types_load() -> None:
@@ -50,19 +48,19 @@ class WithOptional:
 def test_optional_none_ignored() -> None:
     obj = WithOptional(name="John")
     result = speedup.dump(WithOptional, obj)
-    assert b"nickname" not in result
+    assert result == b'{"name":"John"}'
 
 
 def test_optional_none_included() -> None:
     obj = WithOptional(name="John")
     result = speedup.dump(WithOptional, obj, none_value_handling="include")
-    assert b'"nickname":null' in result
+    assert result == b'{"name":"John","nickname":null}'
 
 
 def test_optional_with_value() -> None:
     obj = WithOptional(name="John", nickname="Johnny")
     result = speedup.dump(WithOptional, obj)
-    assert b'"nickname":"Johnny"' in result
+    assert result == b'{"name":"John","nickname":"Johnny"}'
 
 
 def test_optional_load_missing() -> None:
@@ -85,7 +83,7 @@ class WithList:
 def test_list_dump() -> None:
     obj = WithList(tags=["a", "b", "c"])
     result = speedup.dump(WithList, obj)
-    assert b'"tags":["a","b","c"]' in result
+    assert result == b'{"tags":["a","b","c"]}'
 
 
 def test_list_load() -> None:
@@ -109,9 +107,7 @@ class WithDict:
 def test_dict_dump() -> None:
     obj = WithDict(scores={"x": 1, "y": 2})
     result = speedup.dump(WithDict, obj)
-    assert b'"scores":{' in result
-    assert b'"x":1' in result
-    assert b'"y":2' in result
+    assert result == b'{"scores":{"x":1,"y":2}}'
 
 
 def test_dict_load() -> None:
@@ -142,9 +138,7 @@ class UserWithAddress:
 def test_nested_dump() -> None:
     obj = UserWithAddress(name="John", address=Address(city="NY", country="USA"))
     result = speedup.dump(UserWithAddress, obj)
-    assert b'"address":{' in result
-    assert b'"city":"NY"' in result
-    assert b'"country":"USA"' in result
+    assert result == b'{"address":{"city":"NY","country":"USA"},"name":"John"}'
 
 
 def test_nested_load() -> None:
@@ -174,8 +168,7 @@ def _to_camel_case(name: str) -> str:
 def test_naming_case_dump() -> None:
     obj = UserForNaming(user_name="John", user_id=123)
     result = speedup.dump(UserForNaming, obj, naming_case=_to_camel_case)
-    assert b'"userName":"John"' in result
-    assert b'"userId":123' in result
+    assert result == b'{"userId":123,"userName":"John"}'
 
 
 def test_naming_case_load() -> None:
@@ -199,8 +192,7 @@ def test_custom_naming_case() -> None:
 
     obj = UserForNaming(user_name="John", user_id=123)
     result = speedup.dump(UserForNaming, obj, naming_case=custom_converter)
-    assert b'"userName":"John"' in result
-    assert b'"id":123' in result
+    assert result == b'{"id":123,"userName":"John"}'
 
 
 @dataclass
@@ -212,8 +204,7 @@ class UserWithMetadata:
 def test_metadata_dump() -> None:
     obj = UserWithMetadata(name="John", age=30)
     result = speedup.dump(UserWithMetadata, obj)
-    assert b'"userName":"John"' in result
-    assert b'"userAge":30' in result
+    assert result == b'{"userAge":30,"userName":"John"}'
 
 
 def test_metadata_load() -> None:
@@ -238,10 +229,7 @@ class SimpleUser:
 def test_dump_list_of_dataclasses() -> None:
     users = [SimpleUser("John", 30), SimpleUser("Jane", 25)]
     result = speedup.dump(list[SimpleUser], users)
-    assert result.startswith(b"[")
-    assert result.endswith(b"]")
-    assert b'"name":"John"' in result
-    assert b'"name":"Jane"' in result
+    assert result == b'[{"age":30,"name":"John"},{"age":25,"name":"Jane"}]'
 
 
 def test_load_list_of_dataclasses() -> None:
@@ -320,10 +308,8 @@ def test_list_of_ints() -> None:
 def test_dict_str_int() -> None:
     data = {"x": 1, "y": 2}
     result = speedup.dump(dict[str, int], data)
-    assert b'"x":1' in result
-    assert b'"y":2' in result
-    loaded = speedup.load(dict[str, int], result)
-    assert loaded == data
+    assert result == b'{"x":1,"y":2}'
+    assert speedup.load(dict[str, int], result) == data
 
 
 def test_optional_str_none() -> None:
@@ -348,9 +334,8 @@ def test_nested_list() -> None:
 def test_dict_with_dataclass_values() -> None:
     data = {"u1": SimpleUser("John", 30), "u2": SimpleUser("Jane", 25)}
     result = speedup.dump(dict[str, SimpleUser], data)
-    loaded = speedup.load(dict[str, SimpleUser], result)
-    assert loaded["u1"] == SimpleUser("John", 30)
-    assert loaded["u2"] == SimpleUser("Jane", 25)
+    assert result == b'{"u1":{"age":30,"name":"John"},"u2":{"age":25,"name":"Jane"}}'
+    assert speedup.load(dict[str, SimpleUser], result) == data
 
 
 def test_missing_required_field_error() -> None:
@@ -398,7 +383,7 @@ class WithDecimal:
 def test_decimal_dump() -> None:
     obj = WithDecimal(amount=Decimal("123.45"))
     result = speedup.dump(WithDecimal, obj)
-    assert b'"amount":"123.45"' in result
+    assert result == b'{"amount":"123.45"}'
 
 
 def test_decimal_load() -> None:
@@ -422,7 +407,7 @@ class WithDecimalPlaces:
 def test_decimal_places_load() -> None:
     data = b'{"amount":"123.456789"}'
     result = speedup.load(WithDecimalPlaces, data)
-    assert result.amount == Decimal("123.46")
+    assert result == WithDecimalPlaces(amount=Decimal("123.46"))
 
 
 @dataclass
@@ -433,7 +418,7 @@ class WithUuid:
 def test_uuid_dump() -> None:
     obj = WithUuid(id=uuid.UUID("550e8400-e29b-41d4-a716-446655440000"))
     result = speedup.dump(WithUuid, obj)
-    assert b'"id":"550e8400-e29b-41d4-a716-446655440000"' in result
+    assert result == b'{"id":"550e8400-e29b-41d4-a716-446655440000"}'
 
 
 def test_uuid_load() -> None:
@@ -457,7 +442,7 @@ class WithDateTime:
 def test_datetime_dump() -> None:
     obj = WithDateTime(created_at=datetime.datetime(2024, 1, 15, 12, 30, 45))
     result = speedup.dump(WithDateTime, obj)
-    assert b'"created_at":"2024-01-15T12:30:45"' in result
+    assert result == b'{"created_at":"2024-01-15T12:30:45"}'
 
 
 def test_datetime_load() -> None:
@@ -481,7 +466,7 @@ class WithDateTimeFormat:
 def test_datetime_custom_format_dump() -> None:
     obj = WithDateTimeFormat(created_at=datetime.datetime(2024, 1, 15, 12, 30, 45))
     result = speedup.dump(WithDateTimeFormat, obj)
-    assert b'"created_at":"2024-01-15 12:30:45"' in result
+    assert result == b'{"created_at":"2024-01-15 12:30:45"}'
 
 
 def test_datetime_custom_format_load() -> None:
@@ -498,7 +483,7 @@ class WithDate:
 def test_date_dump() -> None:
     obj = WithDate(date_field=datetime.date(2024, 1, 15))
     result = speedup.dump(WithDate, obj)
-    assert b'"date_field":"2024-01-15"' in result
+    assert result == b'{"date_field":"2024-01-15"}'
 
 
 def test_date_load() -> None:
@@ -522,7 +507,7 @@ class WithTime:
 def test_time_dump() -> None:
     obj = WithTime(time_field=datetime.time(12, 30, 45))
     result = speedup.dump(WithTime, obj)
-    assert b'"time_field":"12:30:45"' in result
+    assert result == b'{"time_field":"12:30:45"}'
 
 
 def test_time_load() -> None:
@@ -546,13 +531,13 @@ class WithStripWhitespaces:
 def test_str_strip_whitespaces_dump() -> None:
     obj = WithStripWhitespaces(name="  hello  ")
     result = speedup.dump(WithStripWhitespaces, obj)
-    assert b'"name":"hello"' in result
+    assert result == b'{"name":"hello"}'
 
 
 def test_str_strip_whitespaces_load() -> None:
     data = b'{"name":"  world  "}'
     result = speedup.load(WithStripWhitespaces, data)
-    assert result.name == "world"
+    assert result == WithStripWhitespaces(name="world")
 
 
 @dataclass
@@ -610,13 +595,13 @@ class WithOptionalEnum:
 def test_str_enum_dump() -> None:
     obj = WithStrEnum(name="Task 1", status=Status.ACTIVE)
     result = speedup.dump(WithStrEnum, obj)
-    assert b'"status":"active"' in result
+    assert result == b'{"name":"Task 1","status":"active"}'
 
 
 def test_str_enum_load() -> None:
     data = b'{"name":"Task 1","status":"pending"}'
     result = speedup.load(WithStrEnum, data)
-    assert result.status == Status.PENDING
+    assert result == WithStrEnum(name="Task 1", status=Status.PENDING)
 
 
 def test_str_enum_roundtrip() -> None:
@@ -629,13 +614,13 @@ def test_str_enum_roundtrip() -> None:
 def test_int_enum_dump() -> None:
     obj = WithIntEnum(name="Task 1", priority=Priority.HIGH)
     result = speedup.dump(WithIntEnum, obj)
-    assert b'"priority":3' in result
+    assert result == b'{"name":"Task 1","priority":3}'
 
 
 def test_int_enum_load() -> None:
     data = b'{"name":"Task 1","priority":2}'
     result = speedup.load(WithIntEnum, data)
-    assert result.priority == Priority.MEDIUM
+    assert result == WithIntEnum(name="Task 1", priority=Priority.MEDIUM)
 
 
 def test_int_enum_roundtrip() -> None:
@@ -648,9 +633,9 @@ def test_int_enum_roundtrip() -> None:
 def test_optional_enum_none() -> None:
     obj = WithOptionalEnum(name="Task 1")
     result = speedup.dump(WithOptionalEnum, obj)
-    assert b'"status"' not in result
+    assert result == b'{"name":"Task 1"}'
     loaded = speedup.load(WithOptionalEnum, b'{"name":"Task 1"}')
-    assert loaded.status is None
+    assert loaded == WithOptionalEnum(name="Task 1", status=None)
 
 
 def test_optional_enum_with_value() -> None:
@@ -668,16 +653,14 @@ class WithSet:
 def test_set_dump() -> None:
     obj = WithSet(tags={"a", "b", "c"})
     result = speedup.dump(WithSet, obj)
-    assert b'"tags":[' in result
-    assert b'"a"' in result
-    assert b'"b"' in result
-    assert b'"c"' in result
+    parsed = json.loads(result)
+    assert parsed == {"tags": ["a", "b", "c"]} or set(parsed["tags"]) == {"a", "b", "c"}
 
 
 def test_set_load() -> None:
     data = b'{"tags":["a","b","c"]}'
     result = speedup.load(WithSet, data)
-    assert result.tags == {"a", "b", "c"}
+    assert result == WithSet(tags={"a", "b", "c"})
 
 
 def test_set_roundtrip() -> None:
@@ -689,9 +672,8 @@ def test_set_roundtrip() -> None:
 
 def test_set_of_ints() -> None:
     result = speedup.dump(set[int], {1, 2, 3})
-    assert b"1" in result
-    assert b"2" in result
-    assert b"3" in result
+    parsed = json.loads(result)
+    assert set(parsed) == {1, 2, 3}
     loaded = speedup.load(set[int], b"[1,2,3]")
     assert loaded == {1, 2, 3}
 
@@ -704,16 +686,14 @@ class WithFrozenSet:
 def test_frozenset_dump() -> None:
     obj = WithFrozenSet(tags=frozenset({"a", "b", "c"}))
     result = speedup.dump(WithFrozenSet, obj)
-    assert b'"tags":[' in result
-    assert b'"a"' in result
-    assert b'"b"' in result
-    assert b'"c"' in result
+    parsed = json.loads(result)
+    assert set(parsed["tags"]) == {"a", "b", "c"}
 
 
 def test_frozenset_load() -> None:
     data = b'{"tags":["a","b","c"]}'
     result = speedup.load(WithFrozenSet, data)
-    assert result.tags == frozenset({"a", "b", "c"})
+    assert result == WithFrozenSet(tags=frozenset({"a", "b", "c"}))
 
 
 def test_frozenset_roundtrip() -> None:
@@ -725,9 +705,8 @@ def test_frozenset_roundtrip() -> None:
 
 def test_frozenset_of_ints() -> None:
     result = speedup.dump(frozenset[int], frozenset({1, 2, 3}))
-    assert b"1" in result
-    assert b"2" in result
-    assert b"3" in result
+    parsed = json.loads(result)
+    assert set(parsed) == {1, 2, 3}
     loaded = speedup.load(frozenset[int], b"[1,2,3]")
     assert loaded == frozenset({1, 2, 3})
 
@@ -740,13 +719,13 @@ class WithTuple:
 def test_tuple_dump() -> None:
     obj = WithTuple(items=(1, 2, 3))
     result = speedup.dump(WithTuple, obj)
-    assert b'"items":[1,2,3]' in result
+    assert result == b'{"items":[1,2,3]}'
 
 
 def test_tuple_load() -> None:
     data = b'{"items":[1,2,3]}'
     result = speedup.load(WithTuple, data)
-    assert result.items == (1, 2, 3)
+    assert result == WithTuple(items=(1, 2, 3))
 
 
 def test_tuple_roundtrip() -> None:
@@ -771,13 +750,220 @@ class WithOptionalSet:
 def test_optional_set_none() -> None:
     obj = WithOptionalSet()
     result = speedup.dump(WithOptionalSet, obj)
-    assert b'"tags"' not in result
+    assert result == b"{}"
     loaded = speedup.load(WithOptionalSet, b"{}")
-    assert loaded.tags is None
+    assert loaded == WithOptionalSet(tags=None)
 
 
 def test_optional_set_with_value() -> None:
     obj = WithOptionalSet(tags={"a", "b"})
     json_bytes = speedup.dump(WithOptionalSet, obj)
     loaded = speedup.load(WithOptionalSet, json_bytes)
+    assert loaded == obj
+
+
+def test_encoding_utf8_default() -> None:
+    obj = SimpleTypes(name="Привет", age=30, score=9.5, active=True)
+    result = speedup.dump(SimpleTypes, obj)
+    assert result == b'{"active":true,"age":30,"name":"\xd0\x9f\xd1\x80\xd0\xb8\xd0\xb2\xd0\xb5\xd1\x82","score":9.5}'
+    loaded = speedup.load(SimpleTypes, result)
+    assert loaded == obj
+
+
+def test_encoding_utf8_explicit() -> None:
+    obj = SimpleTypes(name="Привет", age=30, score=9.5, active=True)
+    result = speedup.dump(SimpleTypes, obj, encoding="utf-8")
+    loaded = speedup.load(SimpleTypes, result, encoding="utf-8")
+    assert loaded == obj
+
+
+def test_encoding_latin1_roundtrip() -> None:
+    obj = SimpleTypes(name="café", age=30, score=9.5, active=True)
+    result = speedup.dump(SimpleTypes, obj, encoding="latin-1")
+    loaded = speedup.load(SimpleTypes, result, encoding="latin-1")
+    assert loaded == obj
+
+
+def test_encoding_latin1_with_extended_chars() -> None:
+    obj = SimpleTypes(name="naïve", age=25, score=8.0, active=False)
+    result = speedup.dump(SimpleTypes, obj, encoding="latin-1")
+    loaded = speedup.load(SimpleTypes, result, encoding="latin-1")
+    assert loaded == obj
+
+
+def test_encoding_ascii() -> None:
+    obj = SimpleTypes(name="hello", age=30, score=9.5, active=True)
+    result = speedup.dump(SimpleTypes, obj, encoding="ascii")
+    loaded = speedup.load(SimpleTypes, result, encoding="ascii")
+    assert loaded == obj
+
+
+def test_encoding_ascii_error_on_non_ascii() -> None:
+    obj = SimpleTypes(name="Привет", age=30, score=9.5, active=True)
+    with pytest.raises(ValueError):
+        speedup.dump(SimpleTypes, obj, encoding="ascii")
+
+
+def test_encoding_windows1251_cyrillic() -> None:
+    obj = SimpleTypes(name="Привет", age=30, score=9.5, active=True)
+    result = speedup.dump(SimpleTypes, obj, encoding="windows-1251")
+    loaded = speedup.load(SimpleTypes, result, encoding="windows-1251")
+    assert loaded == obj
+
+
+def test_encoding_unknown_raises_error() -> None:
+    obj = SimpleTypes(name="test", age=30, score=9.5, active=True)
+    with pytest.raises(ValueError, match="Unknown encoding"):
+        speedup.dump(SimpleTypes, obj, encoding="unknown-encoding-xyz")
+
+
+def test_float_nan_raises_error() -> None:
+    obj = SimpleTypes(name="test", age=30, score=float("nan"), active=True)
+    with pytest.raises(ValueError, match="Cannot serialize NaN"):
+        speedup.dump(SimpleTypes, obj)
+
+
+def test_float_inf_raises_error() -> None:
+    obj = SimpleTypes(name="test", age=30, score=float("inf"), active=True)
+    with pytest.raises(ValueError, match="Cannot serialize infinite"):
+        speedup.dump(SimpleTypes, obj)
+
+
+def test_float_neg_inf_raises_error() -> None:
+    obj = SimpleTypes(name="test", age=30, score=float("-inf"), active=True)
+    with pytest.raises(ValueError, match="Cannot serialize infinite"):
+        speedup.dump(SimpleTypes, obj)
+
+
+@dataclass
+class DecimalOnly:
+    amount: Decimal
+
+
+def test_decimal_load_from_string() -> None:
+    data = b'{"amount":"123.45"}'
+    result = speedup.load(DecimalOnly, data)
+    assert result == DecimalOnly(amount=Decimal("123.45"))
+
+
+def test_decimal_load_from_int() -> None:
+    data = b'{"amount":123}'
+    result = speedup.load(DecimalOnly, data)
+    assert result == DecimalOnly(amount=Decimal("123"))
+
+
+def test_decimal_load_from_float() -> None:
+    data = b'{"amount":123.45}'
+    result = speedup.load(DecimalOnly, data)
+    assert result == DecimalOnly(amount=Decimal("123.45"))
+
+
+@dataclass
+class WithEmptyCollections:
+    items: list[str]
+    tags: set[str]
+    mapping: dict[str, int]
+    coords: tuple[int, ...]
+
+
+def test_empty_list_roundtrip() -> None:
+    obj = WithEmptyCollections(items=[], tags=set(), mapping={}, coords=())
+    json_bytes = speedup.dump(WithEmptyCollections, obj)
+    loaded = speedup.load(WithEmptyCollections, json_bytes)
+    assert loaded.items == []
+    assert loaded.tags == set()
+    assert loaded.mapping == {}
+    assert loaded.coords == ()
+
+
+@dataclass
+class WithNullBytes:
+    text: str
+
+
+def test_string_with_null_bytes() -> None:
+    obj = WithNullBytes(text="hello\x00world")
+    json_bytes = speedup.dump(WithNullBytes, obj)
+    loaded = speedup.load(WithNullBytes, json_bytes)
+    assert loaded == obj
+
+
+def test_large_integer() -> None:
+    obj = SimpleTypes(name="test", age=2**62, score=1.0, active=True)
+    json_bytes = speedup.dump(SimpleTypes, obj)
+    loaded = speedup.load(SimpleTypes, json_bytes)
+    assert loaded == obj
+
+
+@dataclass
+class Level3:
+    value: int
+
+
+@dataclass
+class Level2:
+    nested: Level3
+
+
+@dataclass
+class Level1:
+    nested: Level2
+
+
+def test_deep_nesting() -> None:
+    obj = Level1(nested=Level2(nested=Level3(value=42)))
+    json_bytes = speedup.dump(Level1, obj)
+    loaded = speedup.load(Level1, json_bytes)
+    assert loaded == obj
+
+
+@dataclass(frozen=True)
+class FrozenData:
+    name: str
+    value: int
+
+
+def test_frozen_dataclass_roundtrip() -> None:
+    obj = FrozenData(name="test", value=123)
+    json_bytes = speedup.dump(FrozenData, obj)
+    loaded = speedup.load(FrozenData, json_bytes)
+    assert loaded == obj
+
+
+@dataclass
+class WithDefaultFactory:
+    name: str
+    tags: list[str] = field(default_factory=list)
+
+
+def test_default_factory_with_value() -> None:
+    obj = WithDefaultFactory(name="test", tags=["a", "b"])
+    json_bytes = speedup.dump(WithDefaultFactory, obj)
+    loaded = speedup.load(WithDefaultFactory, json_bytes)
+    assert loaded == obj
+
+
+def test_default_factory_with_empty_list() -> None:
+    obj = WithDefaultFactory(name="test", tags=[])
+    json_bytes = speedup.dump(WithDefaultFactory, obj)
+    loaded = speedup.load(WithDefaultFactory, json_bytes)
+    assert loaded == obj
+
+
+@dataclass
+class WithUnicode:
+    text: str
+
+
+def test_unicode_normalization() -> None:
+    obj = WithUnicode(text="café")
+    json_bytes = speedup.dump(WithUnicode, obj)
+    loaded = speedup.load(WithUnicode, json_bytes)
+    assert loaded == obj
+
+
+def test_emoji_in_string() -> None:
+    obj = WithUnicode(text="Hello 👋 World 🌍")
+    json_bytes = speedup.dump(WithUnicode, obj)
+    loaded = speedup.load(WithUnicode, json_bytes)
     assert loaded == obj

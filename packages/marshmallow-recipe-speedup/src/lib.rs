@@ -1,12 +1,125 @@
 use pyo3::prelude::*;
+use pyo3::conversion::IntoPyObjectExt;
 use pyo3::types::{PyBytes, PyDict, PyList};
 use serde_json::{Map, Value};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::RwLock;
-use once_cell::sync::Lazy;
+use once_cell::sync::{Lazy, OnceCell};
+use encoding_rs::Encoding;
 
 static SCHEMA_CACHE: Lazy<RwLock<HashMap<u64, TypeDescriptor>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
+
+struct CachedPyTypes {
+    decimal_cls: Py<PyAny>,
+    uuid_cls: Py<PyAny>,
+    datetime_cls: Py<PyAny>,
+    date_cls: Py<PyAny>,
+    time_cls: Py<PyAny>,
+    set_cls: Py<PyAny>,
+    frozenset_cls: Py<PyAny>,
+    tuple_cls: Py<PyAny>,
+}
+
+static CACHED_PY_TYPES: OnceCell<CachedPyTypes> = OnceCell::new();
+
+fn get_cached_types(py: Python) -> PyResult<&'static CachedPyTypes> {
+    CACHED_PY_TYPES.get_or_try_init(|| {
+        let decimal_mod = py.import("decimal")?;
+        let uuid_mod = py.import("uuid")?;
+        let datetime_mod = py.import("datetime")?;
+        let builtins = py.import("builtins")?;
+
+        Ok(CachedPyTypes {
+            decimal_cls: decimal_mod.getattr("Decimal")?.unbind(),
+            uuid_cls: uuid_mod.getattr("UUID")?.unbind(),
+            datetime_cls: datetime_mod.getattr("datetime")?.unbind(),
+            date_cls: datetime_mod.getattr("date")?.unbind(),
+            time_cls: datetime_mod.getattr("time")?.unbind(),
+            set_cls: builtins.getattr("set")?.unbind(),
+            frozenset_cls: builtins.getattr("frozenset")?.unbind(),
+            tuple_cls: builtins.getattr("tuple")?.unbind(),
+        })
+    })
+}
+
+fn normalize_encoding_label(encoding: &str) -> &str {
+    if encoding.eq_ignore_ascii_case("latin-1")
+        || encoding.eq_ignore_ascii_case("latin1")
+        || encoding.eq_ignore_ascii_case("iso-8859-1")
+        || encoding.eq_ignore_ascii_case("iso8859-1")
+    {
+        return "windows-1252";
+    }
+    encoding
+}
+
+fn decode_to_utf8_bytes<'a>(bytes: &'a [u8], encoding: &str) -> PyResult<Cow<'a, [u8]>> {
+    if encoding.eq_ignore_ascii_case("utf-8") || encoding.eq_ignore_ascii_case("utf8") {
+        return Ok(Cow::Borrowed(bytes));
+    }
+    if encoding.eq_ignore_ascii_case("ascii") {
+        if bytes.iter().any(|&b| b > 127) {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "ASCII decoding error: byte > 127"
+            ));
+        }
+        return Ok(Cow::Borrowed(bytes));
+    }
+    let label = normalize_encoding_label(encoding);
+    let enc = Encoding::for_label(label.as_bytes())
+        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            format!("Unknown encoding: {}", encoding)
+        ))?;
+    let mut decoder = enc.new_decoder();
+    let max_len = decoder.max_utf8_buffer_length(bytes.len())
+        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("Buffer size overflow"))?;
+    let mut output = vec![0u8; max_len];
+    let (result, _, written, _) = decoder.decode_to_utf8(bytes, &mut output, true);
+    if result == encoding_rs::CoderResult::InputEmpty {
+        output.truncate(written);
+        Ok(Cow::Owned(output))
+    } else {
+        Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            format!("Failed to decode with encoding: {}", enc.name())
+        ))
+    }
+}
+
+fn encode_from_utf8_bytes<'a>(utf8_bytes: &'a [u8], encoding: &str) -> PyResult<Cow<'a, [u8]>> {
+    if encoding.eq_ignore_ascii_case("utf-8") || encoding.eq_ignore_ascii_case("utf8") {
+        return Ok(Cow::Borrowed(utf8_bytes));
+    }
+    if encoding.eq_ignore_ascii_case("ascii") {
+        if utf8_bytes.iter().any(|&b| b > 127) {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "ASCII encoding error: non-ASCII character in output"
+            ));
+        }
+        return Ok(Cow::Borrowed(utf8_bytes));
+    }
+    let label = normalize_encoding_label(encoding);
+    let enc = Encoding::for_label(label.as_bytes())
+        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            format!("Unknown encoding: {}", encoding)
+        ))?;
+    let utf8_str = std::str::from_utf8(utf8_bytes)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+    let mut encoder = enc.new_encoder();
+    let max_len = encoder.max_buffer_length_from_utf8_if_no_unmappables(utf8_str.len())
+        .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("Buffer size overflow"))?;
+    let mut output = vec![0u8; max_len];
+    let (result, _, written, _) = encoder.encode_from_utf8(utf8_str, &mut output, true);
+    if result == encoding_rs::CoderResult::InputEmpty {
+        output.truncate(written);
+        Ok(Cow::Owned(output))
+    } else {
+        Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            format!("Failed to encode with encoding: {}", enc.name())
+        ))
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum FieldType {
@@ -256,6 +369,25 @@ impl<'py> FromPyObject<'py> for TypeDescriptor {
 }
 
 #[inline]
+fn f64_to_json_number(f: f64, field_name: &str) -> PyResult<Value> {
+    if f.is_nan() {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+            "Cannot serialize NaN float value for field '{}'",
+            field_name
+        )));
+    }
+    if f.is_infinite() {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+            "Cannot serialize infinite float value for field '{}'",
+            field_name
+        )));
+    }
+    Ok(serde_json::Number::from_f64(f)
+        .map(Value::Number)
+        .expect("f64 should be finite after checks"))
+}
+
+#[inline]
 fn serialize_value(py: Python, value: &Bound<'_, PyAny>, field: &FieldDescriptor) -> PyResult<Value> {
     if value.is_none() {
         return Ok(Value::Null);
@@ -275,9 +407,7 @@ fn serialize_value(py: Python, value: &Bound<'_, PyAny>, field: &FieldDescriptor
         }
         FieldType::Float => {
             let f: f64 = value.extract()?;
-            Ok(serde_json::Number::from_f64(f)
-                .map(Value::Number)
-                .unwrap_or(Value::Null))
+            f64_to_json_number(f, &field.name)
         }
         FieldType::Bool => {
             let b: bool = value.extract()?;
@@ -294,9 +424,7 @@ fn serialize_value(py: Python, value: &Bound<'_, PyAny>, field: &FieldDescriptor
                         s
                     ))
                 })?;
-                Ok(serde_json::Number::from_f64(f)
-                    .map(Value::Number)
-                    .unwrap_or(Value::Null))
+                f64_to_json_number(f, &field.name)
             }
         }
         FieldType::Uuid => {
@@ -356,7 +484,7 @@ fn serialize_value(py: Python, value: &Bound<'_, PyAny>, field: &FieldDescriptor
             Ok(Value::Number(i.into()))
         }
         FieldType::Set | FieldType::FrozenSet | FieldType::Tuple => {
-            let iter = value.iter()?;
+            let iter = value.try_iter()?;
             let item_schema = field.item_schema.as_ref().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Collection field missing item_schema")
             })?;
@@ -389,11 +517,17 @@ unsafe fn get_slot_value_direct<'py>(
     py: Python<'py>,
     obj: &Bound<'_, PyAny>,
     offset: isize,
-) -> Bound<'py, PyAny> {
-    let obj_ptr = obj.as_ptr() as *const u8;
-    let slot_ptr = obj_ptr.offset(offset) as *const *mut pyo3::ffi::PyObject;
+) -> Option<Bound<'py, PyAny>> {
+    let obj_ptr = obj.as_ptr();
+    if obj_ptr.is_null() {
+        return None;
+    }
+    let slot_ptr = (obj_ptr as *const u8).offset(offset) as *const *mut pyo3::ffi::PyObject;
     let py_obj_ptr = *slot_ptr;
-    Py::<PyAny>::from_borrowed_ptr(py, py_obj_ptr).into_bound(py)
+    if py_obj_ptr.is_null() {
+        return None;
+    }
+    Some(Py::<PyAny>::from_borrowed_ptr(py, py_obj_ptr).into_bound(py))
 }
 
 #[inline]
@@ -407,10 +541,12 @@ fn serialize_dataclass(
     let ignore_none = none_value_handling.map(|s| s == "ignore").unwrap_or(true);
 
     for field in fields {
-        let py_value = if let Some(offset) = field.slot_offset {
-            unsafe { get_slot_value_direct(py, obj, offset) }
-        } else {
-            obj.getattr(field.name.as_str())?
+        let py_value = match field.slot_offset {
+            Some(offset) => match unsafe { get_slot_value_direct(py, obj, offset) } {
+                Some(value) => value,
+                None => obj.getattr(field.name.as_str())?,
+            },
+            None => obj.getattr(field.name.as_str())?,
         };
 
         if py_value.is_none() && ignore_none {
@@ -442,9 +578,7 @@ fn serialize_primitive(_py: Python, value: &Bound<'_, PyAny>, field_type: &Field
         }
         FieldType::Float => {
             let f: f64 = value.extract()?;
-            Ok(serde_json::Number::from_f64(f)
-                .map(Value::Number)
-                .unwrap_or(Value::Null))
+            f64_to_json_number(f, "float")
         }
         FieldType::Bool => {
             let b: bool = value.extract()?;
@@ -520,7 +654,7 @@ fn serialize_root_type(
             }
         }
         TypeKind::Set | TypeKind::FrozenSet | TypeKind::Tuple => {
-            let iter = value.iter()?;
+            let iter = value.try_iter()?;
             let item_descriptor = descriptor.item_type.as_ref().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing item_type for collection")
             })?;
@@ -558,7 +692,7 @@ fn dump_to_json(
     let json_value = serialize_root_type(py, obj, &descriptor, none_value_handling)?;
     let json_bytes = serde_json::to_vec(&json_value)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
-    Ok(PyBytes::new_bound(py, &json_bytes).unbind())
+    Ok(PyBytes::new(py, &json_bytes).unbind())
 }
 
 #[inline]
@@ -582,7 +716,7 @@ fn deserialize_value(
             if field.strip_whitespaces {
                 s = s.trim().to_string();
             }
-            Ok(s.to_object(py))
+            s.into_py_any(py)
         }
         FieldType::Int => {
             let i = value.as_i64().ok_or_else(|| {
@@ -591,7 +725,7 @@ fn deserialize_value(
                     field.name, value
                 ))
             })?;
-            Ok(i.to_object(py))
+            i.into_py_any(py)
         }
         FieldType::Float => {
             let f = value.as_f64().ok_or_else(|| {
@@ -600,7 +734,7 @@ fn deserialize_value(
                     field.name, value
                 ))
             })?;
-            Ok(f.to_object(py))
+            f.into_py_any(py)
         }
         FieldType::Bool => {
             let b = value.as_bool().ok_or_else(|| {
@@ -609,24 +743,30 @@ fn deserialize_value(
                     field.name, value
                 ))
             })?;
-            Ok(b.to_object(py))
+            b.into_py_any(py)
         }
         FieldType::Decimal => {
-            let s = value.as_str().ok_or_else(|| {
-                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                    "Expected string for decimal field '{}', got {:?}",
+            let decimal_str = if let Some(s) = value.as_str() {
+                s.to_string()
+            } else if let Some(i) = value.as_i64() {
+                i.to_string()
+            } else if let Some(f) = value.as_f64() {
+                f.to_string()
+            } else {
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Expected string or number for decimal field '{}', got {:?}",
                     field.name, value
-                ))
-            })?;
-            let decimal_mod = py.import_bound("decimal")?;
-            let decimal_cls = decimal_mod.getattr("Decimal")?;
-            let result = decimal_cls.call1((s,))?;
+                )));
+            };
+            let cached = get_cached_types(py)?;
+            let decimal_cls = cached.decimal_cls.bind(py);
+            let result = decimal_cls.call1((decimal_str,))?;
             if let Some(places) = field.decimal_places {
                 let quantize_str = format!("1e-{}", places);
                 let quantize_val = decimal_cls.call1((quantize_str,))?;
-                return Ok(result.call_method1("quantize", (quantize_val,))?.to_object(py));
+                return Ok(result.call_method1("quantize", (quantize_val,))?.unbind());
             }
-            Ok(result.to_object(py))
+            Ok(result.unbind())
         }
         FieldType::Uuid => {
             let s = value.as_str().ok_or_else(|| {
@@ -635,9 +775,8 @@ fn deserialize_value(
                     field.name, value
                 ))
             })?;
-            let uuid_mod = py.import_bound("uuid")?;
-            let uuid_cls = uuid_mod.getattr("UUID")?;
-            Ok(uuid_cls.call1((s,))?.to_object(py))
+            let cached = get_cached_types(py)?;
+            Ok(cached.uuid_cls.bind(py).call1((s,))?.unbind())
         }
         FieldType::DateTime => {
             let s = value.as_str().ok_or_else(|| {
@@ -646,12 +785,12 @@ fn deserialize_value(
                     field.name, value
                 ))
             })?;
-            let datetime_mod = py.import_bound("datetime")?;
-            let datetime_cls = datetime_mod.getattr("datetime")?;
+            let cached = get_cached_types(py)?;
+            let datetime_cls = cached.datetime_cls.bind(py);
             if let Some(ref fmt) = field.datetime_format {
-                Ok(datetime_cls.call_method1("strptime", (s, fmt.as_str()))?.to_object(py))
+                Ok(datetime_cls.call_method1("strptime", (s, fmt.as_str()))?.unbind())
             } else {
-                Ok(datetime_cls.call_method1("fromisoformat", (s,))?.to_object(py))
+                Ok(datetime_cls.call_method1("fromisoformat", (s,))?.unbind())
             }
         }
         FieldType::Date => {
@@ -661,9 +800,8 @@ fn deserialize_value(
                     field.name, value
                 ))
             })?;
-            let datetime_mod = py.import_bound("datetime")?;
-            let date_cls = datetime_mod.getattr("date")?;
-            Ok(date_cls.call_method1("fromisoformat", (s,))?.to_object(py))
+            let cached = get_cached_types(py)?;
+            Ok(cached.date_cls.bind(py).call_method1("fromisoformat", (s,))?.unbind())
         }
         FieldType::Time => {
             let s = value.as_str().ok_or_else(|| {
@@ -672,9 +810,8 @@ fn deserialize_value(
                     field.name, value
                 ))
             })?;
-            let datetime_mod = py.import_bound("datetime")?;
-            let time_cls = datetime_mod.getattr("time")?;
-            Ok(time_cls.call_method1("fromisoformat", (s,))?.to_object(py))
+            let cached = get_cached_types(py)?;
+            Ok(cached.time_cls.bind(py).call_method1("fromisoformat", (s,))?.unbind())
         }
         FieldType::List => {
             let arr = value.as_array().ok_or_else(|| {
@@ -690,7 +827,7 @@ fn deserialize_value(
             for item in arr.iter() {
                 items.push(deserialize_value(py, item, item_schema)?);
             }
-            Ok(PyList::new_bound(py, items).to_object(py))
+            Ok(PyList::new(py, items)?.unbind().into())
         }
         FieldType::Dict => {
             let obj = value.as_object().ok_or_else(|| {
@@ -702,12 +839,12 @@ fn deserialize_value(
             let value_schema = field.value_schema.as_ref().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Dict field missing value_schema")
             })?;
-            let dict = PyDict::new_bound(py);
+            let dict = PyDict::new(py);
             for (k, v) in obj {
                 let py_value = deserialize_value(py, v, value_schema)?;
                 dict.set_item(k, py_value)?;
             }
-            Ok(dict.to_object(py))
+            Ok(dict.unbind().into())
         }
         FieldType::Nested => {
             let obj = value.as_object().ok_or_else(|| {
@@ -731,7 +868,7 @@ fn deserialize_value(
             let enum_cls = field.enum_cls.as_ref().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("StrEnum field missing enum_cls")
             })?;
-            Ok(enum_cls.call_bound(py, (s,), None)?.to_object(py))
+            Ok(enum_cls.call(py, (s,), None)?)
         }
         FieldType::IntEnum => {
             let i = value.as_i64().ok_or_else(|| {
@@ -743,7 +880,7 @@ fn deserialize_value(
             let enum_cls = field.enum_cls.as_ref().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("IntEnum field missing enum_cls")
             })?;
-            Ok(enum_cls.call_bound(py, (i,), None)?.to_object(py))
+            Ok(enum_cls.call(py, (i,), None)?)
         }
         FieldType::Set => {
             let arr = value.as_array().ok_or_else(|| {
@@ -759,9 +896,8 @@ fn deserialize_value(
             for item in arr.iter() {
                 items.push(deserialize_value(py, item, item_schema)?);
             }
-            let builtins = py.import_bound("builtins")?;
-            let set_cls = builtins.getattr("set")?;
-            Ok(set_cls.call1((PyList::new_bound(py, items),))?.to_object(py))
+            let cached = get_cached_types(py)?;
+            Ok(cached.set_cls.bind(py).call1((PyList::new(py, items)?,))?.unbind())
         }
         FieldType::FrozenSet => {
             let arr = value.as_array().ok_or_else(|| {
@@ -777,9 +913,8 @@ fn deserialize_value(
             for item in arr.iter() {
                 items.push(deserialize_value(py, item, item_schema)?);
             }
-            let builtins = py.import_bound("builtins")?;
-            let frozenset_cls = builtins.getattr("frozenset")?;
-            Ok(frozenset_cls.call1((PyList::new_bound(py, items),))?.to_object(py))
+            let cached = get_cached_types(py)?;
+            Ok(cached.frozenset_cls.bind(py).call1((PyList::new(py, items)?,))?.unbind())
         }
         FieldType::Tuple => {
             let arr = value.as_array().ok_or_else(|| {
@@ -795,9 +930,8 @@ fn deserialize_value(
             for item in arr.iter() {
                 items.push(deserialize_value(py, item, item_schema)?);
             }
-            let builtins = py.import_bound("builtins")?;
-            let tuple_cls = builtins.getattr("tuple")?;
-            Ok(tuple_cls.call1((PyList::new_bound(py, items),))?.to_object(py))
+            let cached = get_cached_types(py)?;
+            Ok(cached.tuple_cls.bind(py).call1((PyList::new(py, items)?,))?.unbind())
         }
         FieldType::Union => {
             let variants = field.union_variants.as_ref().ok_or_else(|| {
@@ -819,17 +953,17 @@ fn deserialize_value(
 #[cold]
 #[inline(never)]
 fn wrap_error_with_field(py: Python, inner: PyErr, field_name: &str) -> PyErr {
-    let inner_value = inner.value_bound(py);
+    let inner_value = inner.value(py);
     if let Ok(inner_dict) = inner_value.downcast::<PyDict>() {
-        let outer_dict = PyDict::new_bound(py);
+        let outer_dict = PyDict::new(py);
         let _ = outer_dict.set_item(field_name, inner_dict);
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(outer_dict.to_object(py))
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(outer_dict.into_any().unbind())
     } else if let Ok(args) = inner_value.getattr("args") {
         if let Ok(first_arg) = args.get_item(0) {
             if let Ok(inner_dict) = first_arg.downcast::<PyDict>() {
-                let outer_dict = PyDict::new_bound(py);
+                let outer_dict = PyDict::new(py);
                 let _ = outer_dict.set_item(field_name, inner_dict);
-                return PyErr::new::<pyo3::exceptions::PyValueError, _>(outer_dict.to_object(py));
+                return PyErr::new::<pyo3::exceptions::PyValueError, _>(outer_dict.into_any().unbind());
             }
         }
         inner
@@ -841,10 +975,11 @@ fn wrap_error_with_field(py: Python, inner: PyErr, field_name: &str) -> PyErr {
 #[cold]
 #[inline(never)]
 fn missing_field_error(py: Python, field_name: &str) -> PyErr {
-    let dict = PyDict::new_bound(py);
-    let error_list = PyList::new_bound(py, vec!["Missing data for required field."]);
+    let dict = PyDict::new(py);
+    let error_list = PyList::new(py, vec!["Missing data for required field."]).unwrap();
     let _ = dict.set_item(field_name, error_list);
-    PyErr::new::<pyo3::exceptions::PyValueError, _>(dict.to_object(py))
+    let py_obj: PyObject = dict.unbind().into();
+    PyErr::new::<pyo3::exceptions::PyValueError, _>(py_obj)
 }
 
 #[inline]
@@ -858,65 +993,68 @@ fn deserialize_primitive(py: Python, value: &Value, field_type: &FieldType) -> P
             let s = value.as_str().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected string")
             })?;
-            Ok(s.to_object(py))
+            s.into_py_any(py)
         }
         FieldType::Int => {
             let i = value.as_i64().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected integer")
             })?;
-            Ok(i.to_object(py))
+            i.into_py_any(py)
         }
         FieldType::Float => {
             let f = value.as_f64().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected float")
             })?;
-            Ok(f.to_object(py))
+            f.into_py_any(py)
         }
         FieldType::Bool => {
             let b = value.as_bool().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected boolean")
             })?;
-            Ok(b.to_object(py))
+            b.into_py_any(py)
         }
         FieldType::Decimal => {
-            let s = value.as_str().ok_or_else(|| {
-                PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected string for decimal")
-            })?;
-            let decimal_mod = py.import_bound("decimal")?;
-            let decimal_cls = decimal_mod.getattr("Decimal")?;
-            Ok(decimal_cls.call1((s,))?.to_object(py))
+            let decimal_str = if let Some(s) = value.as_str() {
+                s.to_string()
+            } else if let Some(i) = value.as_i64() {
+                i.to_string()
+            } else if let Some(f) = value.as_f64() {
+                f.to_string()
+            } else {
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                    "Expected string or number for decimal"
+                ));
+            };
+            let cached = get_cached_types(py)?;
+            Ok(cached.decimal_cls.bind(py).call1((decimal_str,))?.unbind())
         }
         FieldType::Uuid => {
             let s = value.as_str().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected string for uuid")
             })?;
-            let uuid_mod = py.import_bound("uuid")?;
-            let uuid_cls = uuid_mod.getattr("UUID")?;
-            Ok(uuid_cls.call1((s,))?.to_object(py))
+            let cached = get_cached_types(py)?;
+            Ok(cached.uuid_cls.bind(py).call1((s,))?.unbind())
         }
         FieldType::DateTime => {
             let s = value.as_str().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected string for datetime")
             })?;
-            let datetime_mod = py.import_bound("datetime")?;
-            let datetime_cls = datetime_mod.getattr("datetime")?;
-            Ok(datetime_cls.call_method1("fromisoformat", (s,))?.to_object(py))
+            let cached = get_cached_types(py)?;
+            Ok(cached.datetime_cls.bind(py).call_method1("fromisoformat", (s,))?.unbind())
         }
         FieldType::Date => {
             let s = value.as_str().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected string for date")
             })?;
-            let datetime_mod = py.import_bound("datetime")?;
-            let date_cls = datetime_mod.getattr("date")?;
-            Ok(date_cls.call_method1("fromisoformat", (s,))?.to_object(py))
+            let cached = get_cached_types(py)?;
+            Ok(cached.date_cls.bind(py).call_method1("fromisoformat", (s,))?.unbind())
         }
         FieldType::Time => {
             let s = value.as_str().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected string for time")
             })?;
-            let datetime_mod = py.import_bound("datetime")?;
-            let time_cls = datetime_mod.getattr("time")?;
-            Ok(time_cls.call_method1("fromisoformat", (s,))?.to_object(py))
+            let cached = get_cached_types(py)?;
+            Ok(cached.time_cls.bind(py).call_method1("fromisoformat", (s,))?.unbind())
         }
         _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
             "Unsupported primitive type",
@@ -931,7 +1069,7 @@ fn deserialize_dataclass(
     fields: &[FieldDescriptor],
     cls: &Py<PyAny>,
 ) -> PyResult<PyObject> {
-    let kwargs = PyDict::new_bound(py);
+    let kwargs = PyDict::new(py);
 
     for field in fields {
         let key = field.serialized_name.as_ref().unwrap_or(&field.name);
@@ -955,7 +1093,7 @@ fn deserialize_dataclass(
         }
     }
 
-    cls.call_bound(py, (), Some(&kwargs))
+    cls.call(py, (), Some(&kwargs))
 }
 
 #[inline]
@@ -996,7 +1134,7 @@ fn deserialize_root_type(
                 items.push(py_item);
             }
 
-            Ok(PyList::new_bound(py, items).to_object(py))
+            Ok(PyList::new(py, items)?.unbind().into())
         }
         TypeKind::Dict => {
             let obj = json_value.as_object().ok_or_else(|| {
@@ -1007,13 +1145,13 @@ fn deserialize_root_type(
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing value_type for dict")
             })?;
 
-            let dict = PyDict::new_bound(py);
+            let dict = PyDict::new(py);
             for (k, v) in obj {
                 let val = deserialize_root_type(py, v, value_descriptor)
                     .map_err(|e| wrap_error_with_field(py, e, k))?;
                 dict.set_item(k, val)?;
             }
-            Ok(dict.to_object(py))
+            Ok(dict.unbind().into())
         }
         TypeKind::Optional => {
             if json_value.is_null() {
@@ -1038,9 +1176,8 @@ fn deserialize_root_type(
                     .map_err(|e| wrap_error_with_field(py, e, &idx.to_string()))?;
                 items.push(py_item);
             }
-            let builtins = py.import_bound("builtins")?;
-            let set_cls = builtins.getattr("set")?;
-            Ok(set_cls.call1((PyList::new_bound(py, items),))?.to_object(py))
+            let cached = get_cached_types(py)?;
+            Ok(cached.set_cls.bind(py).call1((PyList::new(py, items)?,))?.unbind())
         }
         TypeKind::FrozenSet => {
             let arr = json_value.as_array().ok_or_else(|| {
@@ -1055,9 +1192,8 @@ fn deserialize_root_type(
                     .map_err(|e| wrap_error_with_field(py, e, &idx.to_string()))?;
                 items.push(py_item);
             }
-            let builtins = py.import_bound("builtins")?;
-            let frozenset_cls = builtins.getattr("frozenset")?;
-            Ok(frozenset_cls.call1((PyList::new_bound(py, items),))?.to_object(py))
+            let cached = get_cached_types(py)?;
+            Ok(cached.frozenset_cls.bind(py).call1((PyList::new(py, items)?,))?.unbind())
         }
         TypeKind::Tuple => {
             let arr = json_value.as_array().ok_or_else(|| {
@@ -1072,9 +1208,8 @@ fn deserialize_root_type(
                     .map_err(|e| wrap_error_with_field(py, e, &idx.to_string()))?;
                 items.push(py_item);
             }
-            let builtins = py.import_bound("builtins")?;
-            let tuple_cls = builtins.getattr("tuple")?;
-            Ok(tuple_cls.call1((PyList::new_bound(py, items),))?.to_object(py))
+            let cached = get_cached_types(py)?;
+            Ok(cached.tuple_cls.bind(py).call1((PyList::new(py, items)?,))?.unbind())
         }
         TypeKind::Union => {
             let variants = descriptor.union_variants.as_ref().ok_or_else(|| {
@@ -1106,15 +1241,10 @@ fn load_from_json(
 }
 
 #[pyfunction]
-fn hello() -> String {
-    "Hello from Rust!".to_string()
-}
-
-#[pyfunction]
 #[pyo3(signature = (schema_id, raw_schema))]
 fn register_schema(_py: Python, schema_id: u64, raw_schema: &Bound<'_, PyDict>) -> PyResult<()> {
     let descriptor = build_type_descriptor_from_dict(raw_schema)?;
-    let mut cache = SCHEMA_CACHE.write().unwrap();
+    let mut cache = SCHEMA_CACHE.write().unwrap_or_else(|e| e.into_inner());
     cache.insert(schema_id, descriptor);
     Ok(())
 }
@@ -1480,15 +1610,16 @@ fn build_schema_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<SchemaDescriptor>
 }
 
 #[pyfunction]
-#[pyo3(signature = (schema_id, obj, none_value_handling=None, validators=None))]
+#[pyo3(signature = (schema_id, obj, none_value_handling=None, validators=None, encoding="utf-8"))]
 fn dump_cached(
     py: Python,
     schema_id: u64,
     obj: &Bound<'_, PyAny>,
     none_value_handling: Option<&str>,
     validators: Option<&Bound<'_, PyDict>>,
+    encoding: &str,
 ) -> PyResult<Py<PyBytes>> {
-    let cache = SCHEMA_CACHE.read().unwrap();
+    let cache = SCHEMA_CACHE.read().unwrap_or_else(|e| e.into_inner());
     let descriptor = cache.get(&schema_id).ok_or_else(|| {
         PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Schema {} not registered", schema_id))
     })?;
@@ -1500,7 +1631,8 @@ fn dump_cached(
     let json_value = serialize_root_type(py, obj, descriptor, none_value_handling)?;
     let json_bytes = serde_json::to_vec(&json_value)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
-    Ok(PyBytes::new_bound(py, &json_bytes).unbind())
+    let output_bytes = encode_from_utf8_bytes(&json_bytes, encoding)?;
+    Ok(PyBytes::new(py, &output_bytes).unbind())
 }
 
 fn validate_object(
@@ -1522,20 +1654,22 @@ fn validate_object(
 }
 
 #[pyfunction]
-#[pyo3(signature = (schema_id, json_bytes, post_loads=None, validators=None))]
+#[pyo3(signature = (schema_id, json_bytes, post_loads=None, validators=None, encoding="utf-8"))]
 fn load_cached(
     py: Python,
     schema_id: u64,
     json_bytes: &[u8],
     post_loads: Option<&Bound<'_, PyDict>>,
     validators: Option<&Bound<'_, PyDict>>,
+    encoding: &str,
 ) -> PyResult<PyObject> {
-    let cache = SCHEMA_CACHE.read().unwrap();
+    let cache = SCHEMA_CACHE.read().unwrap_or_else(|e| e.into_inner());
     let descriptor = cache.get(&schema_id).ok_or_else(|| {
         PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Schema {} not registered", schema_id))
     })?;
 
-    let json_value: Value = serde_json::from_slice(json_bytes)
+    let utf8_bytes = decode_to_utf8_bytes(json_bytes, encoding)?;
+    let json_value: Value = serde_json::from_slice(&utf8_bytes)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
 
     deserialize_root_type_cached(py, &json_value, descriptor, post_loads, validators)
@@ -1577,7 +1711,7 @@ fn deserialize_root_type_cached(
                     .map_err(|e| wrap_error_with_field(py, e, &idx.to_string()))?;
                 items.push(py_item);
             }
-            Ok(PyList::new_bound(py, items).to_object(py))
+            Ok(PyList::new(py, items)?.unbind().into())
         }
         TypeKind::Dict => {
             let obj = json_value.as_object().ok_or_else(|| {
@@ -1586,13 +1720,13 @@ fn deserialize_root_type_cached(
             let value_descriptor = descriptor.value_type.as_ref().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing value_type for dict")
             })?;
-            let dict = PyDict::new_bound(py);
+            let dict = PyDict::new(py);
             for (k, v) in obj {
                 let val = deserialize_root_type_cached(py, v, value_descriptor, post_loads, validators)
                     .map_err(|e| wrap_error_with_field(py, e, k))?;
                 dict.set_item(k, val)?;
             }
-            Ok(dict.to_object(py))
+            Ok(dict.unbind().into())
         }
         TypeKind::Optional => {
             if json_value.is_null() {
@@ -1617,9 +1751,8 @@ fn deserialize_root_type_cached(
                     .map_err(|e| wrap_error_with_field(py, e, &idx.to_string()))?;
                 items.push(py_item);
             }
-            let builtins = py.import_bound("builtins")?;
-            let set_cls = builtins.getattr("set")?;
-            Ok(set_cls.call1((PyList::new_bound(py, items),))?.to_object(py))
+            let cached = get_cached_types(py)?;
+            Ok(cached.set_cls.bind(py).call1((PyList::new(py, items)?,))?.unbind())
         }
         TypeKind::FrozenSet => {
             let arr = json_value.as_array().ok_or_else(|| {
@@ -1634,9 +1767,8 @@ fn deserialize_root_type_cached(
                     .map_err(|e| wrap_error_with_field(py, e, &idx.to_string()))?;
                 items.push(py_item);
             }
-            let builtins = py.import_bound("builtins")?;
-            let frozenset_cls = builtins.getattr("frozenset")?;
-            Ok(frozenset_cls.call1((PyList::new_bound(py, items),))?.to_object(py))
+            let cached = get_cached_types(py)?;
+            Ok(cached.frozenset_cls.bind(py).call1((PyList::new(py, items)?,))?.unbind())
         }
         TypeKind::Tuple => {
             let arr = json_value.as_array().ok_or_else(|| {
@@ -1651,9 +1783,8 @@ fn deserialize_root_type_cached(
                     .map_err(|e| wrap_error_with_field(py, e, &idx.to_string()))?;
                 items.push(py_item);
             }
-            let builtins = py.import_bound("builtins")?;
-            let tuple_cls = builtins.getattr("tuple")?;
-            Ok(tuple_cls.call1((PyList::new_bound(py, items),))?.to_object(py))
+            let cached = get_cached_types(py)?;
+            Ok(cached.tuple_cls.bind(py).call1((PyList::new(py, items)?,))?.unbind())
         }
         TypeKind::Union => {
             let variants = descriptor.union_variants.as_ref().ok_or_else(|| {
@@ -1679,7 +1810,7 @@ fn deserialize_dataclass_cached(
     post_loads: Option<&Bound<'_, PyDict>>,
     validators: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<PyObject> {
-    let kwargs = PyDict::new_bound(py);
+    let kwargs = PyDict::new(py);
 
     for field in fields {
         let key = field.serialized_name.as_ref().unwrap_or(&field.name);
@@ -1701,7 +1832,7 @@ fn deserialize_dataclass_cached(
             if let Some(pl) = post_loads {
                 if let Some(post_load_fn) = pl.get_item(&field.name)? {
                     if !post_load_fn.is_none() {
-                        py_value = post_load_fn.call1((py_value,))?.to_object(py);
+                        py_value = post_load_fn.call1((py_value,))?.unbind();
                     }
                 }
             }
@@ -1729,7 +1860,6 @@ fn deserialize_dataclass_cached(
 
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(hello, m)?)?;
     m.add_function(wrap_pyfunction!(dump_to_json, m)?)?;
     m.add_function(wrap_pyfunction!(load_from_json, m)?)?;
     m.add_function(wrap_pyfunction!(register_schema, m)?)?;

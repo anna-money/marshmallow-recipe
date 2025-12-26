@@ -4,10 +4,9 @@ from collections.abc import Callable
 from typing import Annotated, Any, get_args, get_origin, get_type_hints
 
 import marshmallow
+from marshmallow_recipe_speedup import _core  # type: ignore[attr-defined]
 
 from marshmallow_recipe.speedup._descriptor import TypeDescriptor, build_type_descriptor
-
-from marshmallow_recipe_speedup import _core  # type: ignore[attr-defined]
 
 __all__ = ["dump", "load"]
 
@@ -187,20 +186,23 @@ def dump[T](
     *,
     naming_case: typing.Callable[[str], str] | None = None,
     none_value_handling: str | None = None,
+    encoding: str = "utf-8",
 ) -> bytes:
     schema_id = _ensure_registered(cls, naming_case)
     _, validators = _schema_cache[schema_id]
     none_handling = none_value_handling if none_value_handling else "ignore"
     try:
-        return _core.dump_cached(schema_id, data, none_handling, validators)
+        return _core.dump_cached(schema_id, data, none_handling, validators, encoding)
     except ValueError as e:
         raise _convert_rust_error_to_validation_error(e)
 
 
-def load[T](cls: type[T], data: bytes, *, naming_case: typing.Callable[[str], str] | None = None) -> T:
+def load[T](
+    cls: type[T], data: bytes, *, naming_case: typing.Callable[[str], str] | None = None, encoding: str = "utf-8"
+) -> T:
     schema_id = _ensure_registered(cls, naming_case)
     post_loads, validators = _schema_cache[schema_id]
     try:
-        return _core.load_cached(schema_id, data, post_loads, validators)  # type: ignore[return-value]
+        return _core.load_cached(schema_id, data, post_loads, validators, encoding)  # type: ignore[return-value]
     except ValueError as e:
         raise _convert_rust_error_to_validation_error(e)

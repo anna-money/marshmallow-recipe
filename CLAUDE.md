@@ -15,6 +15,12 @@
 - Use classmethod instead of staticmethod if there are calls to a different static or class method
 - **Always use `__slots__`** for classes to optimize memory usage and prevent dynamic attribute assignment
 - Define `__slots__` as a tuple listing all instance attributes before the `__init__` method
+- Do not use deprecated API
+- No local imports
+- marshmallow_recipe should work the same as marshmallow_recipe.speedup
+
+### Tests Guidelines
+- Always assert objects in full, do not do that field by field
 
 ### Development Workflow
 
@@ -25,3 +31,4 @@
 - **Always make changes** in-line with code practices within the repository
 - All PRs **must be** reflected in CHANGELOG.md
 - **When adding new features**: MUST update `examples/` with usage examples and update `context7.json` rules 
+- Use Makefile where possible. Ask to modify/add it when you cannot do that.
