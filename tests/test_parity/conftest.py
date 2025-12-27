@@ -221,3 +221,58 @@ class GenericWithSet[T]:
 class GenericWithAnnotated[T]:
     value: T
     custom_name: T = dataclasses.field(metadata=mr.meta(name="renamed_field"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntValidation:
+    value: int = dataclasses.field(metadata=mr.meta(validate=lambda x: x > 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithFloatValidation:
+    value: float = dataclasses.field(metadata=mr.meta(validate=lambda x: x >= 0.0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrValidation:
+    value: str = dataclasses.field(metadata=mr.meta(validate=lambda x: len(x) > 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithEmailValidation:
+    email: str = dataclasses.field(metadata=mr.str_meta(validate=mr.email_validate()))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithRegexValidation:
+    code: str = dataclasses.field(metadata=mr.str_meta(validate=mr.regexp_validate(r"^[A-Z]{3}$")))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalValidation:
+    value: decimal.Decimal = dataclasses.field(metadata=mr.meta(validate=lambda x: x > decimal.Decimal("0")))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithListItemValidation:
+    items: list[int] = dataclasses.field(metadata=mr.list_meta(validate_item=lambda x: x > 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithSetItemValidation:
+    tags: set[str] = dataclasses.field(metadata=mr.set_meta(validate_item=lambda x: len(x) > 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithTupleItemValidation:
+    values: tuple[int, ...] = dataclasses.field(metadata=mr.tuple_meta(validate_item=lambda x: x != 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithPostLoadTransform:
+    name: str = dataclasses.field(metadata=mr.str_meta(post_load=str.upper))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithPostLoadAndStrip:
+    value: str = dataclasses.field(metadata=mr.str_meta(strip_whitespaces=True, post_load=str.lower))

@@ -1,7 +1,7 @@
 import dataclasses
 import typing
 from collections.abc import Callable
-from typing import Annotated, Any, get_args, get_origin, get_type_hints
+from typing import Any
 
 import marshmallow
 from marshmallow_recipe_speedup import _core  # type: ignore[attr-defined]
@@ -28,11 +28,6 @@ def _convert_rust_error_to_validation_error(e: ValueError) -> marshmallow.Valida
     if hasattr(e, "args") and len(e.args) > 0 and isinstance(e.args[0], dict):
         return marshmallow.ValidationError(e.args[0])
     raise e
-
-
-def _build_raw_schema(cls: type, naming_case: Callable[[str], str] | None) -> dict:
-    descriptor = build_type_descriptor(cls, naming_case)
-    return _descriptor_to_dict(descriptor)
 
 
 def _descriptor_to_dict(descriptor: TypeDescriptor) -> dict:
@@ -130,66 +125,44 @@ def _field_to_dict(field: Any) -> dict:
     return result
 
 
-def _extract_callbacks(cls: type) -> tuple[dict | None, dict | None]:
-    if not dataclasses.is_dataclass(cls):
-        return None, None
-
+def _extract_callbacks_from_descriptor(descriptor: TypeDescriptor) -> tuple[dict | None, dict | None]:
     post_loads: dict[str, Callable] = {}
     validators: dict[str, list[Callable]] = {}
 
-    type_hints = get_type_hints(cls, include_extras=True)
+    if descriptor.fields:
+        for field in descriptor.fields:
+            if hasattr(field, "post_load") and field.post_load is not None:
+                post_loads[field.name] = field.post_load
 
-    for field in dataclasses.fields(cls):
-        hint = type_hints[field.name]
-        post_load, field_validators = _extract_field_callbacks(hint, field.metadata)
+            if hasattr(field, "validators") and field.validators is not None:
+                validators[field.name] = field.validators
 
-        if post_load is not None:
-            post_loads[field.name] = post_load
-        if field_validators:
-            validators[field.name] = field_validators
+            if (
+                hasattr(field, "item_schema")
+                and field.item_schema is not None
+                and hasattr(field.item_schema, "validators")
+                and field.item_schema.validators is not None
+            ):
+                validators[f"{field.name}.__item__"] = field.item_schema.validators
+
+            if (
+                hasattr(field, "value_schema")
+                and field.value_schema is not None
+                and hasattr(field.value_schema, "validators")
+                and field.value_schema.validators is not None
+            ):
+                validators[f"{field.name}.__value__"] = field.value_schema.validators
 
     return post_loads if post_loads else None, validators if validators else None
-
-
-def _extract_field_callbacks(
-    hint: Any, metadata: typing.Mapping[str, Any] | None
-) -> tuple[Callable | None, list[Callable]]:
-    post_load: Callable | None = None
-    field_validators: list[Callable] = []
-
-    if metadata:
-        post_load = metadata.get("post_load")
-        validate = metadata.get("validate")
-        if validate is not None:
-            if isinstance(validate, list | tuple):
-                field_validators.extend(validate)
-            else:
-                field_validators.append(validate)
-
-    origin = get_origin(hint)
-    args = get_args(hint)
-
-    if origin is Annotated:
-        for arg in args[1:]:
-            if isinstance(arg, dict):
-                if "post_load" in arg and post_load is None:
-                    post_load = arg["post_load"]
-                if "validate" in arg:
-                    validate = arg["validate"]
-                    if isinstance(validate, list | tuple):
-                        field_validators.extend(validate)
-                    else:
-                        field_validators.append(validate)
-
-    return post_load, field_validators
 
 
 def _ensure_registered(cls: type, naming_case: Callable[[str], str] | None) -> int:
     schema_id = _get_schema_id(cls, naming_case)
 
     if schema_id not in _schema_cache:
-        raw_schema = _build_raw_schema(cls, naming_case)
-        callbacks = _extract_callbacks(cls)
+        descriptor = build_type_descriptor(cls, naming_case)
+        raw_schema = _descriptor_to_dict(descriptor)
+        callbacks = _extract_callbacks_from_descriptor(descriptor)
         _schema_cache[schema_id] = callbacks
         assert _core is not None
         _core.register_schema(schema_id, raw_schema)

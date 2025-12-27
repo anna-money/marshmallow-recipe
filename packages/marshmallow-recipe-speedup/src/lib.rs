@@ -67,6 +67,16 @@ fn create_field_validation_error(py: Python, field_name: &str, message: &str) ->
     PyErr::from_value(error_instance.into_any())
 }
 
+fn create_validation_error(py: Python, field_name: &str, message: &str) -> PyErr {
+    let marshmallow = py.import("marshmallow").unwrap();
+    let validation_error_cls = marshmallow.getattr("ValidationError").unwrap();
+    let error_dict = PyDict::new(py);
+    let msg_list = PyList::new(py, vec![message]).unwrap();
+    error_dict.set_item(field_name, msg_list).unwrap();
+    let error_instance = validation_error_cls.call1((error_dict,)).unwrap();
+    PyErr::from_value(error_instance.into_any())
+}
+
 fn decode_to_utf8_bytes<'a>(bytes: &'a [u8], encoding: &str) -> PyResult<Cow<'a, [u8]>> {
     if encoding.eq_ignore_ascii_case("utf-8") || encoding.eq_ignore_ascii_case("utf8") {
         return Ok(Cow::Borrowed(bytes));
@@ -780,6 +790,15 @@ fn deserialize_value(
     value: &Value,
     field: &FieldDescriptor,
 ) -> PyResult<PyObject> {
+    deserialize_value_with_validators(py, value, field, None)
+}
+
+fn deserialize_value_with_validators(
+    py: Python,
+    value: &Value,
+    field: &FieldDescriptor,
+    validators: Option<&Bound<'_, PyDict>>,
+) -> PyResult<PyObject> {
     if value.is_null() {
         return Ok(py.None());
     }
@@ -882,8 +901,21 @@ fn deserialize_value(
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("List field missing item_schema")
             })?;
             let mut items = Vec::with_capacity(arr.len());
+            let item_validator_key = format!("{}.__item__", field.name);
             for item in arr.iter() {
-                items.push(deserialize_value(py, item, item_schema)?);
+                let py_item = deserialize_value(py, item, item_schema)?;
+                if let Some(v) = validators {
+                    if let Ok(Some(item_validators)) = v.get_item(&item_validator_key) {
+                        let validator_list: &Bound<'_, PyList> = item_validators.downcast()?;
+                        for validator in validator_list.iter() {
+                            let result = validator.call1((py_item.bind(py),))?;
+                            if !result.is_truthy()? {
+                                return Err(create_validation_error(py, &field.name, "Validation failed."));
+                            }
+                        }
+                    }
+                }
+                items.push(py_item);
             }
             Ok(PyList::new(py, items)?.unbind().into())
         }
@@ -950,8 +982,21 @@ fn deserialize_value(
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Set field missing item_schema")
             })?;
             let mut items = Vec::with_capacity(arr.len());
+            let item_validator_key = format!("{}.__item__", field.name);
             for item in arr.iter() {
-                items.push(deserialize_value(py, item, item_schema)?);
+                let py_item = deserialize_value(py, item, item_schema)?;
+                if let Some(v) = validators {
+                    if let Ok(Some(item_validators)) = v.get_item(&item_validator_key) {
+                        let validator_list: &Bound<'_, PyList> = item_validators.downcast()?;
+                        for validator in validator_list.iter() {
+                            let result = validator.call1((py_item.bind(py),))?;
+                            if !result.is_truthy()? {
+                                return Err(create_validation_error(py, &field.name, "Validation failed."));
+                            }
+                        }
+                    }
+                }
+                items.push(py_item);
             }
             let cached = get_cached_types(py)?;
             Ok(cached.set_cls.bind(py).call1((PyList::new(py, items)?,))?.unbind())
@@ -984,8 +1029,21 @@ fn deserialize_value(
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Tuple field missing item_schema")
             })?;
             let mut items = Vec::with_capacity(arr.len());
+            let item_validator_key = format!("{}.__item__", field.name);
             for item in arr.iter() {
-                items.push(deserialize_value(py, item, item_schema)?);
+                let py_item = deserialize_value(py, item, item_schema)?;
+                if let Some(v) = validators {
+                    if let Ok(Some(item_validators)) = v.get_item(&item_validator_key) {
+                        let validator_list: &Bound<'_, PyList> = item_validators.downcast()?;
+                        for validator in validator_list.iter() {
+                            let result = validator.call1((py_item.bind(py),))?;
+                            if !result.is_truthy()? {
+                                return Err(create_validation_error(py, &field.name, "Validation failed."));
+                            }
+                        }
+                    }
+                }
+                items.push(py_item);
             }
             let cached = get_cached_types(py)?;
             Ok(cached.tuple_cls.bind(py).call1((PyList::new(py, items)?,))?.unbind())
@@ -1956,7 +2014,7 @@ fn deserialize_dataclass_direct_slots(
                         .map_err(|e| wrap_error_with_field(py, e, &field.name))?
                 }
             } else {
-                deserialize_value(py, json_field, field)
+                deserialize_value_with_validators(py, json_field, field, validators)
                     .map_err(|e| wrap_error_with_field(py, e, &field.name))?
             };
 
@@ -1972,7 +2030,10 @@ fn deserialize_dataclass_direct_slots(
                 if let Some(field_validators) = v.get_item(&field.name)? {
                     let validator_list: &Bound<'_, PyList> = field_validators.downcast()?;
                     for validator in validator_list.iter() {
-                        validator.call1((value.bind(py),))?;
+                        let result = validator.call1((value.bind(py),))?;
+                        if !result.is_truthy()? {
+                            return Err(create_validation_error(py, &field.name, "Validation failed."));
+                        }
                     }
                 }
             }
@@ -2022,7 +2083,7 @@ fn deserialize_dataclass_cached(
                 deserialize_dataclass_cached(py, nested_obj, &nested_schema.fields, nested_cls, post_loads, validators)
                     .map_err(|e| wrap_error_with_field(py, e, &field.name))?
             } else {
-                deserialize_value(py, json_field, field)
+                deserialize_value_with_validators(py, json_field, field, validators)
                     .map_err(|e| wrap_error_with_field(py, e, &field.name))?
             };
 
@@ -2038,7 +2099,10 @@ fn deserialize_dataclass_cached(
                 if let Some(field_validators) = v.get_item(&field.name)? {
                     let validator_list: &Bound<'_, PyList> = field_validators.downcast()?;
                     for validator in validator_list.iter() {
-                        validator.call1((py_value.bind(py),))?;
+                        let result = validator.call1((py_value.bind(py),))?;
+                        if !result.is_truthy()? {
+                            return Err(create_validation_error(py, &field.name, "Validation failed."));
+                        }
                     }
                 }
             }

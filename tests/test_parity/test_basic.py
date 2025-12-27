@@ -36,3 +36,16 @@ def test_decimal_dump_no_places(impl: Any) -> None:
     obj = WithDecimal(value=decimal.Decimal("123.456"))
     result = impl.dump(WithDecimal, obj)
     assert result == '{"value": "123.46"}'
+
+
+def test_field_order_preserved(impl: Any) -> None:
+    obj = SimpleTypes(name="Alice", age=25)
+    result = impl.dump(SimpleTypes, obj)
+    assert result == '{"age": 25, "name": "Alice"}'
+    assert result.index('"age"') < result.index('"name"')
+
+
+def test_field_order_multiple_fields(impl: Any) -> None:
+    obj = WithDecimal(value=decimal.Decimal("99.99"))
+    result = impl.dump(WithDecimal, obj)
+    assert result == '{"value": "99.99"}'

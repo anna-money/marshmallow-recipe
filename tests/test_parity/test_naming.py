@@ -35,3 +35,25 @@ def test_naming_case_nested(impl: Any) -> None:
     result = impl.dump(Person, obj, naming_case=mr.CAMEL_CASE)
     expected = '{"address": {"city": "NYC", "street": "Main St", "zipCode": "10001"}, ' '"age": 25, "name": "Test"}'
     assert result == expected
+
+
+def test_upper_snake_case_dump(impl: Any) -> None:
+    obj = WithSnakeCase(first_name="Tom", last_name="Jones", email_address="tom@example.com")
+    result = impl.dump(WithSnakeCase, obj, naming_case=mr.UPPER_SNAKE_CASE)
+    expected = '{"EMAIL_ADDRESS": "tom@example.com", "FIRST_NAME": "Tom", "LAST_NAME": "Jones"}'
+    assert result == expected
+
+
+def test_upper_snake_case_load(impl: Any) -> None:
+    data = b'{"FIRST_NAME": "Sarah", "LAST_NAME": "Wilson", "EMAIL_ADDRESS": "sarah@example.com"}'
+    result = impl.load(WithSnakeCase, data, naming_case=mr.UPPER_SNAKE_CASE)
+    assert result == WithSnakeCase(first_name="Sarah", last_name="Wilson", email_address="sarah@example.com")
+
+
+def test_upper_snake_case_roundtrip(impl: Any) -> None:
+    obj = WithSnakeCase(first_name="Mike", last_name="Davis", email_address="mike@example.com")
+    dumped = impl.dump(WithSnakeCase, obj, naming_case=mr.UPPER_SNAKE_CASE)
+    loaded = impl.load(
+        WithSnakeCase, dumped.encode() if isinstance(dumped, str) else dumped, naming_case=mr.UPPER_SNAKE_CASE
+    )
+    assert loaded == obj

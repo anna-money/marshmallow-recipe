@@ -65,6 +65,8 @@ class FieldDescriptor:
     default_value: Any = dataclasses.MISSING
     default_factory: Callable[[], Any] | None = None
     field_init: bool = True
+    validators: list[Callable] | None = None
+    post_load: Callable | None = None
 
 
 @dataclasses.dataclass(slots=True, kw_only=True)
@@ -252,6 +254,8 @@ def _build_field_descriptor(
     decimal_places: int | None = None
     decimal_as_string = True
     datetime_format: str | None = None
+    validators: list[Callable] | None = None
+    post_load_callback: Callable | None = None
 
     if metadata:
         serialized_name = metadata.get("name")
@@ -259,6 +263,10 @@ def _build_field_descriptor(
         decimal_places = metadata.get("places")
         decimal_as_string = metadata.get("as_string", True)
         datetime_format = metadata.get("format")
+        post_load_callback = metadata.get("post_load")
+        validate = metadata.get("validate")
+        if validate is not None:
+            validators = list(validate) if isinstance(validate, list | tuple) else [validate]
 
     origin = get_origin(hint)
     args = get_args(hint)
@@ -291,7 +299,7 @@ def _build_field_descriptor(
     if serialized_name is None and naming_case is not None:
         serialized_name = naming_case(name)
 
-    field_type, nested_info = _analyze_type(hint, origin, args, naming_case)
+    field_type, nested_info = _analyze_type(hint, origin, args, naming_case, metadata)
     slot_offset = get_slot_offset(cls, name) if cls else None
 
     if field_type == "decimal" and decimal_places is None:
@@ -310,12 +318,18 @@ def _build_field_descriptor(
         default_value=default_value,
         default_factory=default_factory,
         field_init=field_init,
+        validators=validators,
+        post_load=post_load_callback,
         **nested_info,
     )
 
 
 def _analyze_type(
-    hint: Any, origin: Any, args: tuple[Any, ...], naming_case: Callable[[str], str] | None = None
+    hint: Any,
+    origin: Any,
+    args: tuple[Any, ...],
+    naming_case: Callable[[str], str] | None = None,
+    metadata: Mapping[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     if origin is None:
         if hint is str:
@@ -349,30 +363,50 @@ def _analyze_type(
 
     if origin is list:
         item_hint = args[0] if args else Any
-        item_descriptor = _build_field_descriptor(None, "item", item_hint, None, naming_case)
+        item_metadata = None
+        if metadata and "validate_item" in metadata:
+            from marshmallow_recipe.metadata import Metadata
+
+            item_metadata = Metadata({"validate": metadata["validate_item"]})
+        item_descriptor = _build_field_descriptor(None, "item", item_hint, item_metadata, naming_case)
         return "list", {"item_schema": item_descriptor}
 
     if origin is dict:
         key_hint = args[0] if args else str
         value_hint = args[1] if len(args) > 1 else Any
-        key_type, _ = _analyze_type(key_hint, None, (), naming_case)
+        key_type, _ = _analyze_type(key_hint, None, (), naming_case, None)
         value_descriptor = _build_field_descriptor(None, "value", value_hint, None, naming_case)
         return "dict", {"key_type": key_type, "value_schema": value_descriptor}
 
     if origin is set:
         item_hint = args[0] if args else Any
-        item_descriptor = _build_field_descriptor(None, "item", item_hint, None, naming_case)
+        item_metadata = None
+        if metadata and "validate_item" in metadata:
+            from marshmallow_recipe.metadata import Metadata
+
+            item_metadata = Metadata({"validate": metadata["validate_item"]})
+        item_descriptor = _build_field_descriptor(None, "item", item_hint, item_metadata, naming_case)
         return "set", {"item_schema": item_descriptor}
 
     if origin is frozenset:
         item_hint = args[0] if args else Any
-        item_descriptor = _build_field_descriptor(None, "item", item_hint, None, naming_case)
+        item_metadata = None
+        if metadata and "validate_item" in metadata:
+            from marshmallow_recipe.metadata import Metadata
+
+            item_metadata = Metadata({"validate": metadata["validate_item"]})
+        item_descriptor = _build_field_descriptor(None, "item", item_hint, item_metadata, naming_case)
         return "frozenset", {"item_schema": item_descriptor}
 
     if origin is tuple:
         if len(args) == 2 and args[1] is ...:
             item_hint = args[0]
-            item_descriptor = _build_field_descriptor(None, "item", item_hint, None, naming_case)
+            item_metadata = None
+            if metadata and "validate_item" in metadata:
+                from marshmallow_recipe.metadata import Metadata
+
+                item_metadata = Metadata({"validate": metadata["validate_item"]})
+            item_descriptor = _build_field_descriptor(None, "item", item_hint, item_metadata, naming_case)
             return "tuple", {"item_schema": item_descriptor}
         raise NotImplementedError("Only homogeneous tuple[T, ...] is supported")
 
