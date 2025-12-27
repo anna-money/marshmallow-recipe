@@ -17,6 +17,7 @@ struct CachedPyTypes {
     datetime_cls: Py<PyAny>,
     date_cls: Py<PyAny>,
     time_cls: Py<PyAny>,
+    utc_tz: Py<PyAny>,
     set_cls: Py<PyAny>,
     frozenset_cls: Py<PyAny>,
     tuple_cls: Py<PyAny>,
@@ -38,6 +39,7 @@ fn get_cached_types(py: Python) -> PyResult<&'static CachedPyTypes> {
             datetime_cls: datetime_mod.getattr("datetime")?.unbind(),
             date_cls: datetime_mod.getattr("date")?.unbind(),
             time_cls: datetime_mod.getattr("time")?.unbind(),
+            utc_tz: datetime_mod.getattr("UTC")?.unbind(),
             set_cls: builtins.getattr("set")?.unbind(),
             frozenset_cls: builtins.getattr("frozenset")?.unbind(),
             tuple_cls: builtins.getattr("tuple")?.unbind(),
@@ -889,8 +891,15 @@ fn deserialize_value_with_validators(
             } else {
                 datetime_cls.call_method1("fromisoformat", (s,))
             };
-            result.map(|dt| dt.unbind())
-                .map_err(|_| create_field_validation_error(py, &field.name, "Not a valid datetime."))
+            let dt = result.map_err(|_| create_field_validation_error(py, &field.name, "Not a valid datetime."))?;
+            let tzinfo = dt.getattr("tzinfo")?;
+            if tzinfo.is_none() {
+                let kwargs = PyDict::new(py);
+                kwargs.set_item("tzinfo", cached.utc_tz.bind(py))?;
+                Ok(dt.call_method("replace", (), Some(&kwargs))?.unbind())
+            } else {
+                Ok(dt.unbind())
+            }
         }
         FieldType::Date => {
             let s = value.as_str().ok_or_else(|| {

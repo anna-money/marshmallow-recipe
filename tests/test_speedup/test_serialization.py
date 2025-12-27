@@ -448,11 +448,11 @@ def test_datetime_dump() -> None:
 def test_datetime_load() -> None:
     data = b'{"created_at":"2024-01-15T12:30:45"}'
     result = speedup.load(WithDateTime, data)
-    assert result == WithDateTime(created_at=datetime.datetime(2024, 1, 15, 12, 30, 45))
+    assert result == WithDateTime(created_at=datetime.datetime(2024, 1, 15, 12, 30, 45, tzinfo=datetime.UTC))
 
 
 def test_datetime_roundtrip() -> None:
-    obj = WithDateTime(created_at=datetime.datetime(2024, 1, 15, 12, 30, 45))
+    obj = WithDateTime(created_at=datetime.datetime(2024, 1, 15, 12, 30, 45, tzinfo=datetime.UTC))
     json_bytes = speedup.dump(WithDateTime, obj)
     loaded = speedup.load(WithDateTime, json_bytes)
     assert loaded == obj
@@ -472,7 +472,7 @@ def test_datetime_custom_format_dump() -> None:
 def test_datetime_custom_format_load() -> None:
     data = b'{"created_at":"2024-01-15 12:30:45"}'
     result = speedup.load(WithDateTimeFormat, data)
-    assert result == WithDateTimeFormat(created_at=datetime.datetime(2024, 1, 15, 12, 30, 45))
+    assert result == WithDateTimeFormat(created_at=datetime.datetime(2024, 1, 15, 12, 30, 45, tzinfo=datetime.UTC))
 
 
 @dataclass
@@ -553,7 +553,7 @@ def test_all_new_types_roundtrip() -> None:
     obj = WithAllNewTypes(
         amount=Decimal("123.45"),
         id=uuid.UUID("550e8400-e29b-41d4-a716-446655440000"),
-        created_at=datetime.datetime(2024, 1, 15, 12, 30, 45),
+        created_at=datetime.datetime(2024, 1, 15, 12, 30, 45, tzinfo=datetime.UTC),
         date_field=datetime.date(2024, 1, 15),
         time_field=datetime.time(12, 30, 45),
     )

@@ -286,3 +286,13 @@ class WithDecimalRoundUp:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithDecimalRoundDown:
     value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=2, rounding=decimal.ROUND_DOWN))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDateTimeCustomFormat:
+    scheduled_at: datetime.datetime = dataclasses.field(metadata=mr.datetime_meta(format="%Y/%m/%d"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDateTimeCustomFormatFull:
+    created_at: datetime.datetime = dataclasses.field(metadata=mr.datetime_meta(format="%Y-%m-%d %H:%M:%S"))
