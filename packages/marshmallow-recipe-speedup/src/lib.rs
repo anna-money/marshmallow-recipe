@@ -59,14 +59,19 @@ fn normalize_encoding_label(encoding: &str) -> &str {
     encoding
 }
 
-fn create_field_validation_error(py: Python, field_name: &str, message: &str) -> PyErr {
+fn create_field_validation_error_with_custom(py: Python, field_name: &str, default_message: &str, custom_message: Option<&str>) -> PyErr {
     let error_dict = PyDict::new(py);
+    let message = custom_message.unwrap_or(default_message);
     let msg_list = PyList::new(py, vec![message]).unwrap();
     error_dict.set_item(field_name, msg_list).unwrap();
     let builtins = py.import("builtins").unwrap();
     let value_error = builtins.getattr("ValueError").unwrap();
     let error_instance = value_error.call1((error_dict,)).unwrap();
     PyErr::from_value(error_instance.into_any())
+}
+
+fn create_field_validation_error(py: Python, field_name: &str, message: &str) -> PyErr {
+    create_field_validation_error_with_custom(py, field_name, message, None)
 }
 
 fn create_validation_error(py: Python, field_name: &str, message: &str) -> PyErr {
@@ -218,6 +223,9 @@ pub struct FieldDescriptor {
     pub default_value: Option<Py<PyAny>>,
     pub default_factory: Option<Py<PyAny>>,
     pub field_init: bool,
+    pub required_error: Option<String>,
+    pub none_error: Option<String>,
+    pub invalid_error: Option<String>,
 }
 
 impl Clone for FieldDescriptor {
@@ -243,6 +251,9 @@ impl Clone for FieldDescriptor {
             default_value: self.default_value.as_ref().map(|v| v.clone_ref(py)),
             default_factory: self.default_factory.as_ref().map(|f| f.clone_ref(py)),
             field_init: self.field_init,
+            required_error: self.required_error.clone(),
+            none_error: self.none_error.clone(),
+            invalid_error: self.invalid_error.clone(),
         })
     }
 }
@@ -267,6 +278,9 @@ impl<'py> FromPyObject<'py> for FieldDescriptor {
         let decimal_as_string: bool = ob.getattr("decimal_as_string")?.extract().unwrap_or(true);
         let decimal_rounding: Option<Py<PyAny>> = ob.getattr("decimal_rounding")?.extract().ok();
         let datetime_format: Option<String> = ob.getattr("datetime_format")?.extract().ok().flatten();
+        let required_error: Option<String> = ob.getattr("required_error")?.extract().ok().flatten();
+        let none_error: Option<String> = ob.getattr("none_error")?.extract().ok().flatten();
+        let invalid_error: Option<String> = ob.getattr("invalid_error")?.extract().ok().flatten();
         let enum_cls: Option<Py<PyAny>> = ob.getattr("enum_cls")?.extract().ok();
         let union_variants: Option<Vec<FieldDescriptor>> = ob.getattr("union_variants")?.extract().ok();
 
@@ -295,6 +309,9 @@ impl<'py> FromPyObject<'py> for FieldDescriptor {
             default_value,
             default_factory,
             field_init,
+            required_error,
+            none_error,
+            invalid_error,
         })
     }
 }
@@ -812,13 +829,17 @@ fn deserialize_value_with_validators(
     validators: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<PyObject> {
     if value.is_null() {
+        if !field.optional {
+            let message = field.none_error.as_deref().unwrap_or("Field may not be null.");
+            return Err(create_field_validation_error(py, &field.name, message));
+        }
         return Ok(py.None());
     }
 
     match field.field_type {
         FieldType::Str => {
             let mut s = value.as_str().ok_or_else(|| {
-                create_field_validation_error(py, &field.name, "Not a valid string.")
+                create_field_validation_error_with_custom(py, &field.name, "Not a valid string.", field.invalid_error.as_deref())
             })?.to_string();
             if field.strip_whitespaces {
                 s = s.trim().to_string();
@@ -827,19 +848,19 @@ fn deserialize_value_with_validators(
         }
         FieldType::Int => {
             let i = value.as_i64().ok_or_else(|| {
-                create_field_validation_error(py, &field.name, "Not a valid integer.")
+                create_field_validation_error_with_custom(py, &field.name, "Not a valid integer.", field.invalid_error.as_deref())
             })?;
             i.into_py_any(py)
         }
         FieldType::Float => {
             let f = value.as_f64().ok_or_else(|| {
-                create_field_validation_error(py, &field.name, "Not a valid number.")
+                create_field_validation_error_with_custom(py, &field.name, "Not a valid number.", field.invalid_error.as_deref())
             })?;
             f.into_py_any(py)
         }
         FieldType::Bool => {
             let b = value.as_bool().ok_or_else(|| {
-                create_field_validation_error(py, &field.name, "Not a valid boolean.")
+                create_field_validation_error_with_custom(py, &field.name, "Not a valid boolean.", field.invalid_error.as_deref())
             })?;
             b.into_py_any(py)
         }
@@ -873,7 +894,7 @@ fn deserialize_value_with_validators(
         }
         FieldType::Uuid => {
             let s = value.as_str().ok_or_else(|| {
-                create_field_validation_error(py, &field.name, "Not a valid UUID.")
+                create_field_validation_error_with_custom(py, &field.name, "Not a valid UUID.", field.invalid_error.as_deref())
             })?;
             let cached = get_cached_types(py)?;
             cached.uuid_cls.bind(py).call1((s,))
@@ -882,7 +903,7 @@ fn deserialize_value_with_validators(
         }
         FieldType::DateTime => {
             let s = value.as_str().ok_or_else(|| {
-                create_field_validation_error(py, &field.name, "Not a valid datetime.")
+                create_field_validation_error_with_custom(py, &field.name, "Not a valid datetime.", field.invalid_error.as_deref())
             })?;
             let cached = get_cached_types(py)?;
             let datetime_cls = cached.datetime_cls.bind(py);
@@ -903,7 +924,7 @@ fn deserialize_value_with_validators(
         }
         FieldType::Date => {
             let s = value.as_str().ok_or_else(|| {
-                create_field_validation_error(py, &field.name, "Not a valid date.")
+                create_field_validation_error_with_custom(py, &field.name, "Not a valid date.", field.invalid_error.as_deref())
             })?;
             let cached = get_cached_types(py)?;
             cached.date_cls.bind(py).call_method1("fromisoformat", (s,))
@@ -912,7 +933,7 @@ fn deserialize_value_with_validators(
         }
         FieldType::Time => {
             let s = value.as_str().ok_or_else(|| {
-                create_field_validation_error(py, &field.name, "Not a valid time.")
+                create_field_validation_error_with_custom(py, &field.name, "Not a valid time.", field.invalid_error.as_deref())
             })?;
             let cached = get_cached_types(py)?;
             cached.time_cls.bind(py).call_method1("fromisoformat", (s,))
@@ -1096,12 +1117,18 @@ fn deserialize_value_with_validators(
 fn wrap_error_with_field(py: Python, inner: PyErr, field_name: &str) -> PyErr {
     let inner_value = inner.value(py);
     if let Ok(inner_dict) = inner_value.downcast::<PyDict>() {
+        if inner_dict.contains(field_name).unwrap_or(false) {
+            return inner;
+        }
         let outer_dict = PyDict::new(py);
         let _ = outer_dict.set_item(field_name, inner_dict);
         PyErr::new::<pyo3::exceptions::PyValueError, _>(outer_dict.into_any().unbind())
     } else if let Ok(args) = inner_value.getattr("args") {
         if let Ok(first_arg) = args.get_item(0) {
             if let Ok(inner_dict) = first_arg.downcast::<PyDict>() {
+                if inner_dict.contains(field_name).unwrap_or(false) {
+                    return inner;
+                }
                 let outer_dict = PyDict::new(py);
                 let _ = outer_dict.set_item(field_name, inner_dict);
                 return PyErr::new::<pyo3::exceptions::PyValueError, _>(outer_dict.into_any().unbind());
@@ -1115,9 +1142,10 @@ fn wrap_error_with_field(py: Python, inner: PyErr, field_name: &str) -> PyErr {
 
 #[cold]
 #[inline(never)]
-fn missing_field_error(py: Python, field_name: &str) -> PyErr {
+fn missing_field_error(py: Python, field_name: &str, custom_message: Option<&str>) -> PyErr {
     let dict = PyDict::new(py);
-    let error_list = PyList::new(py, vec!["Missing data for required field."]).unwrap();
+    let message = custom_message.unwrap_or("Missing data for required field.");
+    let error_list = PyList::new(py, vec![message]).unwrap();
     let _ = dict.set_item(field_name, error_list);
     let py_obj: PyObject = dict.unbind().into();
     PyErr::new::<pyo3::exceptions::PyValueError, _>(py_obj)
@@ -1228,7 +1256,7 @@ fn deserialize_dataclass(
             };
             kwargs.set_item(field.name_interned.bind(py), py_value)?;
         } else if !field.optional {
-            return Err(missing_field_error(py, &field.name));
+            return Err(missing_field_error(py, &field.name, field.required_error.as_deref()));
         }
     }
 
@@ -1770,6 +1798,10 @@ fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescriptor> {
         None
     };
 
+    let required_error: Option<String> = raw.get_item("required_error")?.and_then(|v| v.extract().ok());
+    let none_error: Option<String> = raw.get_item("none_error")?.and_then(|v| v.extract().ok());
+    let invalid_error: Option<String> = raw.get_item("invalid_error")?.and_then(|v| v.extract().ok());
+
     let field_init: bool = raw.get_item("field_init")?
         .map(|v| v.extract().unwrap_or(true))
         .unwrap_or(true);
@@ -1795,6 +1827,9 @@ fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescriptor> {
         default_value,
         default_factory,
         field_init,
+        required_error,
+        none_error,
+        invalid_error,
     })
 }
 
@@ -2083,7 +2118,7 @@ fn deserialize_dataclass_direct_slots(
         } else if field.optional {
             py.None()
         } else {
-            return Err(missing_field_error(py, &field.name));
+            return Err(missing_field_error(py, &field.name, field.required_error.as_deref()));
         };
 
         if let Some(offset) = field.slot_offset {
@@ -2146,7 +2181,7 @@ fn deserialize_dataclass_cached(
 
             kwargs.set_item(field.name_interned.bind(py), py_value)?;
         } else if !field.optional {
-            return Err(missing_field_error(py, &field.name));
+            return Err(missing_field_error(py, &field.name, field.required_error.as_deref()));
         }
     }
 

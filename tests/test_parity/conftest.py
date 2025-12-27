@@ -296,3 +296,18 @@ class WithDateTimeCustomFormat:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithDateTimeCustomFormatFull:
     created_at: datetime.datetime = dataclasses.field(metadata=mr.datetime_meta(format="%Y-%m-%d %H:%M:%S"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithCustomRequiredError:
+    name: str = dataclasses.field(metadata=mr.str_meta(required_error="Custom required message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithCustomInvalidError:
+    age: int = dataclasses.field(metadata=mr.meta(invalid_error="Custom invalid message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithCustomNoneError:
+    value: str = dataclasses.field(metadata=mr.str_meta(none_error="Custom none message"))

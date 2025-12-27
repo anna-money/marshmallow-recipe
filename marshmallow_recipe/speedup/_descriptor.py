@@ -68,6 +68,9 @@ class FieldDescriptor:
     field_init: bool = True
     validators: list[Callable] | None = None
     post_load: Callable | None = None
+    required_error: str | None = None
+    none_error: str | None = None
+    invalid_error: str | None = None
 
 
 @dataclasses.dataclass(slots=True, kw_only=True)
@@ -258,6 +261,9 @@ def _build_field_descriptor(
     datetime_format: str | None = None
     validators: list[Callable] | None = None
     post_load_callback: Callable | None = None
+    required_error_msg: str | None = None
+    none_error_msg: str | None = None
+    invalid_error_msg: str | None = None
 
     if metadata:
         serialized_name = metadata.get("name")
@@ -267,6 +273,9 @@ def _build_field_descriptor(
         decimal_rounding = metadata.get("rounding")
         datetime_format = metadata.get("format")
         post_load_callback = metadata.get("post_load")
+        required_error_msg = metadata.get("required_error")
+        none_error_msg = metadata.get("none_error")
+        invalid_error_msg = metadata.get("invalid_error")
         validate = metadata.get("validate")
         if validate is not None:
             validators = list(validate) if isinstance(validate, list | tuple) else [validate]
@@ -324,6 +333,9 @@ def _build_field_descriptor(
         field_init=field_init,
         validators=validators,
         post_load=post_load_callback,
+        required_error=required_error_msg,
+        none_error=none_error_msg,
+        invalid_error=invalid_error_msg,
         **nested_info,
     )
 

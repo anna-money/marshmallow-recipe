@@ -125,6 +125,15 @@ def _field_to_dict(field: Any) -> dict:
     if not field.field_init:
         result["field_init"] = False
 
+    if field.required_error is not None:
+        result["required_error"] = field.required_error
+
+    if field.none_error is not None:
+        result["none_error"] = field.none_error
+
+    if field.invalid_error is not None:
+        result["invalid_error"] = field.invalid_error
+
     return result
 
 
