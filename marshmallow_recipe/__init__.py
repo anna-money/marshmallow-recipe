@@ -146,3 +146,10 @@ def _parse_version(v: str) -> VersionInfo:
 
 
 version_info = _parse_version(__version__)
+
+try:
+    from marshmallow_recipe import speedup
+
+    __all__ += ("speedup",)  # type: ignore
+except ImportError:
+    pass
