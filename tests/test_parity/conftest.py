@@ -4,6 +4,8 @@ import decimal
 import enum
 import uuid
 
+import marshmallow_recipe as mr
+
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class SimpleTypes:
@@ -118,3 +120,15 @@ class ForEdgeCases:
     text: str
     number: int
     small_float: float
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStripWhitespace:
+    name: str = dataclasses.field(metadata=mr.str_meta(strip_whitespaces=True))
+    email: str = dataclasses.field(metadata=mr.str_meta(strip_whitespaces=True))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithCustomName:
+    internal_id: int = dataclasses.field(metadata=mr.meta(name="id"))
+    user_email: str = dataclasses.field(metadata=mr.meta(name="email"))
