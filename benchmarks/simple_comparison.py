@@ -3,8 +3,7 @@ import json
 import timeit
 from typing import Annotated
 
-import marshmallow_recipe as mr_v1
-from marshmallow_recipe import v2 as mr_v2
+import marshmallow_recipe as mr
 
 
 @dataclasses.dataclass
@@ -108,70 +107,70 @@ def run_benchmarks():
         for i in range(50)
     ]
 
-    simple_types_dumped_v1 = json.dumps(mr_v1.dump(SimpleTypes, test_data["simple_types"])).encode()
-    simple_types_dumped_v2 = mr_v2.dump(SimpleTypes, test_data["simple_types"])
-    nested_dumped_v1 = json.dumps(mr_v1.dump(UserWithAddress, test_data["nested"])).encode()
-    nested_dumped_v2 = mr_v2.dump(UserWithAddress, test_data["nested"])
-    complex_dumped_v1 = json.dumps(mr_v1.dump(Order, test_data["complex"])).encode()
-    complex_dumped_v2 = mr_v2.dump(Order, test_data["complex"])
-    list_simple_dumped_v1 = json.dumps(mr_v1.dump_many(list_simple)).encode()
-    list_simple_dumped_v2 = mr_v2.dump(list[SimpleTypes], list_simple)
-    list_nested_dumped_v1 = json.dumps(mr_v1.dump_many(list_nested)).encode()
-    list_nested_dumped_v2 = mr_v2.dump(list[UserWithAddress], list_nested)
+    simple_types_dumped_v1 = json.dumps(mr.dump(SimpleTypes, test_data["simple_types"])).encode()
+    simple_types_dumped_v2 = mr.speedup.dump(SimpleTypes, test_data["simple_types"])
+    nested_dumped_v1 = json.dumps(mr.dump(UserWithAddress, test_data["nested"])).encode()
+    nested_dumped_v2 = mr.speedup.dump(UserWithAddress, test_data["nested"])
+    complex_dumped_v1 = json.dumps(mr.dump(Order, test_data["complex"])).encode()
+    complex_dumped_v2 = mr.speedup.dump(Order, test_data["complex"])
+    list_simple_dumped_v1 = json.dumps(mr.dump_many(list_simple)).encode()
+    list_simple_dumped_v2 = mr.speedup.dump(list[SimpleTypes], list_simple)
+    list_nested_dumped_v1 = json.dumps(mr.dump_many(list_nested)).encode()
+    list_nested_dumped_v2 = mr.speedup.dump(list[UserWithAddress], list_nested)
 
     benchmark_tests = [
-        ("Simple Types - Dump", lambda: json.dumps(mr_v1.dump(SimpleTypes, test_data["simple_types"])).encode()),
-        ("Simple Types - Dump (v2)", lambda: mr_v2.dump(SimpleTypes, test_data["simple_types"])),
-        ("Simple Types - Load", lambda: mr_v1.load(SimpleTypes, json.loads(simple_types_dumped_v1.decode()))),
+        ("Simple Types - Dump", lambda: json.dumps(mr.dump(SimpleTypes, test_data["simple_types"])).encode()),
+        ("Simple Types - Dump (v2)", lambda: mr.speedup.dump(SimpleTypes, test_data["simple_types"])),
+        ("Simple Types - Load", lambda: mr.load(SimpleTypes, json.loads(simple_types_dumped_v1.decode()))),
         (
             "Simple Types - Load (v2)",
-            lambda: mr_v2.load(SimpleTypes, simple_types_dumped_v2),
+            lambda: mr.speedup.load(SimpleTypes, simple_types_dumped_v2),
         ),
-        ("Nested - Dump", lambda: json.dumps(mr_v1.dump(UserWithAddress, test_data["nested"])).encode()),
-        ("Nested - Dump (v2)", lambda: mr_v2.dump(UserWithAddress, test_data["nested"])),
+        ("Nested - Dump", lambda: json.dumps(mr.dump(UserWithAddress, test_data["nested"])).encode()),
+        ("Nested - Dump (v2)", lambda: mr.speedup.dump(UserWithAddress, test_data["nested"])),
         (
             "Nested - Load",
-            lambda: mr_v1.load(UserWithAddress, json.loads(nested_dumped_v1.decode())),
+            lambda: mr.load(UserWithAddress, json.loads(nested_dumped_v1.decode())),
         ),
         (
             "Nested - Load (v2)",
-            lambda: mr_v2.load(UserWithAddress, nested_dumped_v2),
+            lambda: mr.speedup.load(UserWithAddress, nested_dumped_v2),
         ),
-        ("Complex - Dump", lambda: json.dumps(mr_v1.dump(Order, test_data["complex"])).encode()),
-        ("Complex - Dump (v2)", lambda: mr_v2.dump(Order, test_data["complex"])),
+        ("Complex - Dump", lambda: json.dumps(mr.dump(Order, test_data["complex"])).encode()),
+        ("Complex - Dump (v2)", lambda: mr.speedup.dump(Order, test_data["complex"])),
         (
             "Complex - Load",
-            lambda: mr_v1.load(Order, json.loads(complex_dumped_v1.decode())),
+            lambda: mr.load(Order, json.loads(complex_dumped_v1.decode())),
         ),
         (
             "Complex - Load (v2)",
-            lambda: mr_v2.load(Order, complex_dumped_v2),
+            lambda: mr.speedup.load(Order, complex_dumped_v2),
         ),
-        ("List[SimpleTypes] (100 items) - Dump", lambda: json.dumps(mr_v1.dump_many(list_simple)).encode()),
+        ("List[SimpleTypes] (100 items) - Dump", lambda: json.dumps(mr.dump_many(list_simple)).encode()),
         (
             "List[SimpleTypes] (100 items) - Dump (v2)",
-            lambda: mr_v2.dump(list[SimpleTypes], list_simple),
+            lambda: mr.speedup.dump(list[SimpleTypes], list_simple),
         ),
         (
             "List[SimpleTypes] (100 items) - Load",
-            lambda: mr_v1.load_many(SimpleTypes, json.loads(list_simple_dumped_v1.decode())),
+            lambda: mr.load_many(SimpleTypes, json.loads(list_simple_dumped_v1.decode())),
         ),
         (
             "List[SimpleTypes] (100 items) - Load (v2)",
-            lambda: mr_v2.load(list[SimpleTypes], list_simple_dumped_v2),
+            lambda: mr.speedup.load(list[SimpleTypes], list_simple_dumped_v2),
         ),
-        ("List[Nested] (50 items) - Dump", lambda: json.dumps(mr_v1.dump_many(list_nested)).encode()),
+        ("List[Nested] (50 items) - Dump", lambda: json.dumps(mr.dump_many(list_nested)).encode()),
         (
             "List[Nested] (50 items) - Dump (v2)",
-            lambda: mr_v2.dump(list[UserWithAddress], list_nested),
+            lambda: mr.speedup.dump(list[UserWithAddress], list_nested),
         ),
         (
             "List[Nested] (50 items) - Load",
-            lambda: mr_v1.load_many(UserWithAddress, json.loads(list_nested_dumped_v1.decode())),
+            lambda: mr.load_many(UserWithAddress, json.loads(list_nested_dumped_v1.decode())),
         ),
         (
             "List[Nested] (50 items) - Load (v2)",
-            lambda: mr_v2.load(list[UserWithAddress], list_nested_dumped_v2),
+            lambda: mr.speedup.load(list[UserWithAddress], list_nested_dumped_v2),
         ),
     ]
 

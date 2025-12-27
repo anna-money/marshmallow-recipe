@@ -3,8 +3,7 @@ import json
 import timeit
 from typing import Annotated
 
-import marshmallow_recipe as mr_v1
-from marshmallow_recipe import v2 as mr_v2
+import marshmallow_recipe as mr
 
 
 @dataclasses.dataclass
@@ -73,9 +72,9 @@ def format_time(ms: float) -> str:
 def run_comprehensive_benchmarks():
     """Run comprehensive benchmarks with various scenarios."""
     print("=" * 100)
-    print("COMPREHENSIVE MARSHMALLOW_RECIPE PERFORMANCE COMPARISON: v1 vs v2")
+    print("COMPREHENSIVE MARSHMALLOW_RECIPE PERFORMANCE COMPARISON: marshmallow vs speedup")
     print("=" * 100)
-    print("Note: Fair comparison includes JSON serialization for v1 (dict -> JSON bytes)")
+    print("Note: Fair comparison includes JSON serialization for marshmallow (dict -> JSON bytes)")
     print("=" * 100)
     print()
 
@@ -133,16 +132,16 @@ def run_comprehensive_benchmarks():
     print()
 
     benchmarks = [
-        ("Simple Types", lambda: json.dumps(mr_v1.dump(SimpleTypes, simple_data)).encode(), lambda: mr_v2.dump(SimpleTypes, simple_data)),
-        ("Nested", lambda: json.dumps(mr_v1.dump(UserWithAddress, nested_data)).encode(), lambda: mr_v2.dump(UserWithAddress, nested_data)),
-        ("Complex", lambda: json.dumps(mr_v1.dump(Order, complex_data)).encode(), lambda: mr_v2.dump(Order, complex_data)),
-        ("Optional (None)", lambda: json.dumps(mr_v1.dump(WithOptional, optional_data)).encode(), lambda: mr_v2.dump(WithOptional, optional_data)),
-        ("Optional (Value)", lambda: json.dumps(mr_v1.dump(WithOptional, optional_with_value)).encode(), lambda: mr_v2.dump(WithOptional, optional_with_value)),
+        ("Simple Types", lambda: json.dumps(mr.dump(SimpleTypes, simple_data)).encode(), lambda: mr.speedup.dump(SimpleTypes, simple_data)),
+        ("Nested", lambda: json.dumps(mr.dump(UserWithAddress, nested_data)).encode(), lambda: mr.speedup.dump(UserWithAddress, nested_data)),
+        ("Complex", lambda: json.dumps(mr.dump(Order, complex_data)).encode(), lambda: mr.speedup.dump(Order, complex_data)),
+        ("Optional (None)", lambda: json.dumps(mr.dump(WithOptional, optional_data)).encode(), lambda: mr.speedup.dump(WithOptional, optional_data)),
+        ("Optional (Value)", lambda: json.dumps(mr.dump(WithOptional, optional_with_value)).encode(), lambda: mr.speedup.dump(WithOptional, optional_with_value)),
     ]
 
     warmup = [func() for _, v1, v2 in benchmarks for func in (v1, v2)]
 
-    print(f"{'Scenario':<30} {'v1 Time':<15} {'v2 Time':<15} {'Speedup':<15}")
+    print(f"{'Scenario':<30} {'Marshmallow':<15} {'Speedup':<15} {'Ratio':<15}")
     print("-" * 75)
 
     dump_results = []
@@ -153,7 +152,7 @@ def run_comprehensive_benchmarks():
 
         dump_results.append({"name": name, "v1": v1_time, "v2": v2_time, "speedup": speedup})
 
-        speedup_indicator = f"{speedup:.2f}x v2↑" if speedup > 1 else f"{1/speedup:.2f}x v1↑"
+        speedup_indicator = f"{speedup:.2f}x faster" if speedup > 1 else f"{1/speedup:.2f}x slower"
         print(f"{name:<30} {format_time(v1_time):<15} {format_time(v2_time):<15} {speedup_indicator:<15}")
 
     print()
@@ -162,28 +161,28 @@ def run_comprehensive_benchmarks():
     print("=" * 100)
     print()
 
-    simple_json_v1 = json.dumps(mr_v1.dump(SimpleTypes, simple_data)).encode()
-    simple_json_v2 = mr_v2.dump(SimpleTypes, simple_data)
-    nested_json_v1 = json.dumps(mr_v1.dump(UserWithAddress, nested_data)).encode()
-    nested_json_v2 = mr_v2.dump(UserWithAddress, nested_data)
-    complex_json_v1 = json.dumps(mr_v1.dump(Order, complex_data)).encode()
-    complex_json_v2 = mr_v2.dump(Order, complex_data)
-    optional_json_v1 = json.dumps(mr_v1.dump(WithOptional, optional_data)).encode()
-    optional_json_v2 = mr_v2.dump(WithOptional, optional_data)
-    optional_with_value_json_v1 = json.dumps(mr_v1.dump(WithOptional, optional_with_value)).encode()
-    optional_with_value_json_v2 = mr_v2.dump(WithOptional, optional_with_value)
+    simple_json_v1 = json.dumps(mr.dump(SimpleTypes, simple_data)).encode()
+    simple_json_v2 = mr.speedup.dump(SimpleTypes, simple_data)
+    nested_json_v1 = json.dumps(mr.dump(UserWithAddress, nested_data)).encode()
+    nested_json_v2 = mr.speedup.dump(UserWithAddress, nested_data)
+    complex_json_v1 = json.dumps(mr.dump(Order, complex_data)).encode()
+    complex_json_v2 = mr.speedup.dump(Order, complex_data)
+    optional_json_v1 = json.dumps(mr.dump(WithOptional, optional_data)).encode()
+    optional_json_v2 = mr.speedup.dump(WithOptional, optional_data)
+    optional_with_value_json_v1 = json.dumps(mr.dump(WithOptional, optional_with_value)).encode()
+    optional_with_value_json_v2 = mr.speedup.dump(WithOptional, optional_with_value)
 
     load_benchmarks = [
-        ("Simple Types", lambda: mr_v1.load(SimpleTypes, json.loads(simple_json_v1.decode())), lambda: mr_v2.load(SimpleTypes, simple_json_v2)),
-        ("Nested", lambda: mr_v1.load(UserWithAddress, json.loads(nested_json_v1.decode())), lambda: mr_v2.load(UserWithAddress, nested_json_v2)),
-        ("Complex", lambda: mr_v1.load(Order, json.loads(complex_json_v1.decode())), lambda: mr_v2.load(Order, complex_json_v2)),
-        ("Optional (None)", lambda: mr_v1.load(WithOptional, json.loads(optional_json_v1.decode())), lambda: mr_v2.load(WithOptional, optional_json_v2)),
-        ("Optional (Value)", lambda: mr_v1.load(WithOptional, json.loads(optional_with_value_json_v1.decode())), lambda: mr_v2.load(WithOptional, optional_with_value_json_v2)),
+        ("Simple Types", lambda: mr.load(SimpleTypes, json.loads(simple_json_v1.decode())), lambda: mr.speedup.load(SimpleTypes, simple_json_v2)),
+        ("Nested", lambda: mr.load(UserWithAddress, json.loads(nested_json_v1.decode())), lambda: mr.speedup.load(UserWithAddress, nested_json_v2)),
+        ("Complex", lambda: mr.load(Order, json.loads(complex_json_v1.decode())), lambda: mr.speedup.load(Order, complex_json_v2)),
+        ("Optional (None)", lambda: mr.load(WithOptional, json.loads(optional_json_v1.decode())), lambda: mr.speedup.load(WithOptional, optional_json_v2)),
+        ("Optional (Value)", lambda: mr.load(WithOptional, json.loads(optional_with_value_json_v1.decode())), lambda: mr.speedup.load(WithOptional, optional_with_value_json_v2)),
     ]
 
     warmup = [func() for _, v1, v2 in load_benchmarks for func in (v1, v2)]
 
-    print(f"{'Scenario':<30} {'v1 Time':<15} {'v2 Time':<15} {'Speedup':<15}")
+    print(f"{'Scenario':<30} {'Marshmallow':<15} {'Speedup':<15} {'Ratio':<15}")
     print("-" * 75)
 
     load_results = []
@@ -194,7 +193,7 @@ def run_comprehensive_benchmarks():
 
         load_results.append({"name": name, "v1": v1_time, "v2": v2_time, "speedup": speedup})
 
-        speedup_indicator = f"{speedup:.2f}x v2↑" if speedup > 1 else f"{1/speedup:.2f}x v1↑"
+        speedup_indicator = f"{speedup:.2f}x faster" if speedup > 1 else f"{1/speedup:.2f}x slower"
         print(f"{name:<30} {format_time(v1_time):<15} {format_time(v2_time):<15} {speedup_indicator:<15}")
 
     print()
@@ -204,14 +203,14 @@ def run_comprehensive_benchmarks():
     print()
 
     list_benchmarks = [
-        ("100 Simple Types", lambda: json.dumps(mr_v1.dump_many(list_simple_100)).encode(), lambda: mr_v2.dump(list[SimpleTypes], list_simple_100)),
-        ("1000 Simple Types", lambda: json.dumps(mr_v1.dump_many(list_simple_1000)).encode(), lambda: mr_v2.dump(list[SimpleTypes], list_simple_1000)),
-        ("50 Nested", lambda: json.dumps(mr_v1.dump_many(list_nested_50)).encode(), lambda: mr_v2.dump(list[UserWithAddress], list_nested_50)),
+        ("100 Simple Types", lambda: json.dumps(mr.dump_many(list_simple_100)).encode(), lambda: mr.speedup.dump(list[SimpleTypes], list_simple_100)),
+        ("1000 Simple Types", lambda: json.dumps(mr.dump_many(list_simple_1000)).encode(), lambda: mr.speedup.dump(list[SimpleTypes], list_simple_1000)),
+        ("50 Nested", lambda: json.dumps(mr.dump_many(list_nested_50)).encode(), lambda: mr.speedup.dump(list[UserWithAddress], list_nested_50)),
     ]
 
     warmup = [func() for _, v1, v2 in list_benchmarks for func in (v1, v2)]
 
-    print(f"{'Scenario':<30} {'v1 Time':<15} {'v2 Time':<15} {'Speedup':<15}")
+    print(f"{'Scenario':<30} {'Marshmallow':<15} {'Speedup':<15} {'Ratio':<15}")
     print("-" * 75)
 
     list_dump_results = []
@@ -222,7 +221,7 @@ def run_comprehensive_benchmarks():
 
         list_dump_results.append({"name": name, "v1": v1_time, "v2": v2_time, "speedup": speedup})
 
-        speedup_indicator = f"{speedup:.2f}x v2↑" if speedup > 1 else f"{1/speedup:.2f}x v1↑"
+        speedup_indicator = f"{speedup:.2f}x faster" if speedup > 1 else f"{1/speedup:.2f}x slower"
         print(f"{name:<30} {format_time(v1_time):<15} {format_time(v2_time):<15} {speedup_indicator:<15}")
 
     print()
@@ -231,22 +230,22 @@ def run_comprehensive_benchmarks():
     print("=" * 100)
     print()
 
-    list_simple_100_json_v1 = json.dumps(mr_v1.dump_many(list_simple_100)).encode()
-    list_simple_100_json_v2 = mr_v2.dump(list[SimpleTypes], list_simple_100)
-    list_simple_1000_json_v1 = json.dumps(mr_v1.dump_many(list_simple_1000)).encode()
-    list_simple_1000_json_v2 = mr_v2.dump(list[SimpleTypes], list_simple_1000)
-    list_nested_50_json_v1 = json.dumps(mr_v1.dump_many(list_nested_50)).encode()
-    list_nested_50_json_v2 = mr_v2.dump(list[UserWithAddress], list_nested_50)
+    list_simple_100_json_v1 = json.dumps(mr.dump_many(list_simple_100)).encode()
+    list_simple_100_json_v2 = mr.speedup.dump(list[SimpleTypes], list_simple_100)
+    list_simple_1000_json_v1 = json.dumps(mr.dump_many(list_simple_1000)).encode()
+    list_simple_1000_json_v2 = mr.speedup.dump(list[SimpleTypes], list_simple_1000)
+    list_nested_50_json_v1 = json.dumps(mr.dump_many(list_nested_50)).encode()
+    list_nested_50_json_v2 = mr.speedup.dump(list[UserWithAddress], list_nested_50)
 
     list_load_benchmarks = [
-        ("100 Simple Types", lambda: mr_v1.load_many(SimpleTypes, json.loads(list_simple_100_json_v1.decode())), lambda: mr_v2.load(list[SimpleTypes], list_simple_100_json_v2)),
-        ("1000 Simple Types", lambda: mr_v1.load_many(SimpleTypes, json.loads(list_simple_1000_json_v1.decode())), lambda: mr_v2.load(list[SimpleTypes], list_simple_1000_json_v2)),
-        ("50 Nested", lambda: mr_v1.load_many(UserWithAddress, json.loads(list_nested_50_json_v1.decode())), lambda: mr_v2.load(list[UserWithAddress], list_nested_50_json_v2)),
+        ("100 Simple Types", lambda: mr.load_many(SimpleTypes, json.loads(list_simple_100_json_v1.decode())), lambda: mr.speedup.load(list[SimpleTypes], list_simple_100_json_v2)),
+        ("1000 Simple Types", lambda: mr.load_many(SimpleTypes, json.loads(list_simple_1000_json_v1.decode())), lambda: mr.speedup.load(list[SimpleTypes], list_simple_1000_json_v2)),
+        ("50 Nested", lambda: mr.load_many(UserWithAddress, json.loads(list_nested_50_json_v1.decode())), lambda: mr.speedup.load(list[UserWithAddress], list_nested_50_json_v2)),
     ]
 
     warmup = [func() for _, v1, v2 in list_load_benchmarks for func in (v1, v2)]
 
-    print(f"{'Scenario':<30} {'v1 Time':<15} {'v2 Time':<15} {'Speedup':<15}")
+    print(f"{'Scenario':<30} {'Marshmallow':<15} {'Speedup':<15} {'Ratio':<15}")
     print("-" * 75)
 
     list_load_results = []
@@ -257,7 +256,7 @@ def run_comprehensive_benchmarks():
 
         list_load_results.append({"name": name, "v1": v1_time, "v2": v2_time, "speedup": speedup})
 
-        speedup_indicator = f"{speedup:.2f}x v2↑" if speedup > 1 else f"{1/speedup:.2f}x v1↑"
+        speedup_indicator = f"{speedup:.2f}x faster" if speedup > 1 else f"{1/speedup:.2f}x slower"
         print(f"{name:<30} {format_time(v1_time):<15} {format_time(v2_time):<15} {speedup_indicator:<15}")
 
     print()
@@ -266,14 +265,14 @@ def run_comprehensive_benchmarks():
     print("=" * 100)
     print()
 
-    dict_dump_v1 = lambda: json.dumps(mr_v1.dump(DictUser, DictUser(users=dict_users))).encode()
-    dict_dump_v2 = lambda: mr_v2.dump(DictUser, DictUser(users=dict_users))
+    dict_dump_v1 = lambda: json.dumps(mr.dump(DictUser, DictUser(users=dict_users))).encode()
+    dict_dump_v2 = lambda: mr.speedup.dump(DictUser, DictUser(users=dict_users))
 
     dict_json_v1 = dict_dump_v1()
     dict_json_v2 = dict_dump_v2()
 
-    dict_load_v1 = lambda: mr_v1.load(DictUser, json.loads(dict_json_v1.decode()))
-    dict_load_v2 = lambda: mr_v2.load(DictUser, dict_json_v2)
+    dict_load_v1 = lambda: mr.load(DictUser, json.loads(dict_json_v1.decode()))
+    dict_load_v2 = lambda: mr.speedup.load(DictUser, dict_json_v2)
 
     warmup = [dict_dump_v1(), dict_dump_v2(), dict_load_v1(), dict_load_v2()]
 
