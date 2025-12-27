@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::conversion::IntoPyObjectExt;
-use pyo3::types::{PyBytes, PyDict, PyList};
+use pyo3::types::{PyBytes, PyDict, PyList, PyString};
 use serde_json::{Map, Value};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -185,6 +185,7 @@ impl<'py> FromPyObject<'py> for FieldType {
 #[derive(Debug)]
 pub struct FieldDescriptor {
     pub name: String,
+    pub name_interned: Py<PyString>,
     pub serialized_name: Option<String>,
     pub field_type: FieldType,
     pub optional: bool,
@@ -205,6 +206,7 @@ impl Clone for FieldDescriptor {
     fn clone(&self) -> Self {
         Python::with_gil(|py| FieldDescriptor {
             name: self.name.clone(),
+            name_interned: self.name_interned.clone_ref(py),
             serialized_name: self.serialized_name.clone(),
             field_type: self.field_type.clone(),
             optional: self.optional,
@@ -225,7 +227,9 @@ impl Clone for FieldDescriptor {
 
 impl<'py> FromPyObject<'py> for FieldDescriptor {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let py = ob.py();
         let name: String = ob.getattr("name")?.extract()?;
+        let name_interned = PyString::intern(py, &name).unbind();
         let serialized_name: Option<String> = ob.getattr("serialized_name")?.extract()?;
         let field_type: FieldType = ob.getattr("field_type")?.extract()?;
         let optional: bool = ob.getattr("optional")?.extract()?;
@@ -245,6 +249,7 @@ impl<'py> FromPyObject<'py> for FieldDescriptor {
 
         Ok(FieldDescriptor {
             name,
+            name_interned,
             serialized_name,
             field_type,
             optional,
@@ -480,7 +485,7 @@ fn serialize_value(py: Python, value: &Bound<'_, PyAny>, field: &FieldDescriptor
             let value_schema = field.value_schema.as_ref().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Dict field missing value_schema")
             })?;
-            let mut map = Map::new();
+            let mut map = Map::with_capacity(dict.len());
             for (k, v) in dict.iter() {
                 let key: String = k.extract()?;
                 let val = serialize_value(py, &v, value_schema, global_decimal_places)?;
@@ -509,7 +514,8 @@ fn serialize_value(py: Python, value: &Bound<'_, PyAny>, field: &FieldDescriptor
             let item_schema = field.item_schema.as_ref().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Collection field missing item_schema")
             })?;
-            let mut items = Vec::new();
+            let len_hint = value.len().unwrap_or(0);
+            let mut items = Vec::with_capacity(len_hint);
             for item_result in iter {
                 let item = item_result?;
                 items.push(serialize_value(py, &item, item_schema, global_decimal_places)?);
@@ -559,7 +565,7 @@ fn serialize_dataclass(
     none_value_handling: Option<&str>,
     decimal_places: Option<i32>,
 ) -> PyResult<Value> {
-    let mut map = Map::new();
+    let mut map = Map::with_capacity(fields.len());
     let ignore_none = none_value_handling.map(|s| s == "ignore").unwrap_or(true);
 
     for field in fields {
@@ -658,7 +664,7 @@ fn serialize_root_type(
             let value_descriptor = descriptor.value_type.as_ref().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing value_type for dict")
             })?;
-            let mut map = Map::new();
+            let mut map = Map::with_capacity(dict.len());
             for (k, v) in dict.iter() {
                 let key: String = k.extract()?;
                 let val = serialize_root_type(py, &v, value_descriptor, none_value_handling, decimal_places)?;
@@ -681,7 +687,8 @@ fn serialize_root_type(
             let item_descriptor = descriptor.item_type.as_ref().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing item_type for collection")
             })?;
-            let mut items = Vec::new();
+            let len_hint = value.len().unwrap_or(0);
+            let mut items = Vec::with_capacity(len_hint);
             for item_result in iter {
                 let item = item_result?;
                 items.push(serialize_root_type(py, &item, item_descriptor, none_value_handling, decimal_places)?);
@@ -1082,7 +1089,7 @@ fn deserialize_dataclass(
                 deserialize_value(py, json_field, field)
                     .map_err(|e| wrap_error_with_field(py, e, &field.name))?
             };
-            kwargs.set_item(&field.name, py_value)?;
+            kwargs.set_item(field.name_interned.bind(py), py_value)?;
         } else if !field.optional {
             return Err(missing_field_error(py, &field.name));
         }
@@ -1467,9 +1474,11 @@ fn parse_field_type(s: &str) -> PyResult<FieldType> {
 }
 
 fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescriptor> {
+    let py = raw.py();
     let name: String = raw.get_item("name")?.ok_or_else(|| {
         PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing name")
     })?.extract()?;
+    let name_interned = PyString::intern(py, &name).unbind();
 
     let serialized_name: Option<String> = raw.get_item("serialized_name")?
         .and_then(|v| v.extract().ok());
@@ -1570,6 +1579,7 @@ fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescriptor> {
 
     Ok(FieldDescriptor {
         name,
+        name_interned,
         serialized_name,
         field_type: parse_field_type(&field_type)?,
         optional,
@@ -1843,7 +1853,7 @@ fn deserialize_dataclass_cached(
                 }
             }
 
-            kwargs.set_item(&field.name, py_value)?;
+            kwargs.set_item(field.name_interned.bind(py), py_value)?;
         } else if !field.optional {
             return Err(missing_field_error(py, &field.name));
         }
