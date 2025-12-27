@@ -59,6 +59,7 @@ class FieldDescriptor:
     strip_whitespaces: bool = False
     decimal_places: int | None = None
     decimal_as_string: bool = True
+    decimal_rounding: str | None = None
     datetime_format: str | None = None
     enum_cls: type | None = None
     union_variants: list[FieldDescriptor] | None = None
@@ -253,6 +254,7 @@ def _build_field_descriptor(
     strip_whitespaces = False
     decimal_places: int | None = None
     decimal_as_string = True
+    decimal_rounding: str | None = None
     datetime_format: str | None = None
     validators: list[Callable] | None = None
     post_load_callback: Callable | None = None
@@ -262,6 +264,7 @@ def _build_field_descriptor(
         strip_whitespaces = metadata.get("strip_whitespaces", False)
         decimal_places = metadata.get("places")
         decimal_as_string = metadata.get("as_string", True)
+        decimal_rounding = metadata.get("rounding")
         datetime_format = metadata.get("format")
         post_load_callback = metadata.get("post_load")
         validate = metadata.get("validate")
@@ -314,6 +317,7 @@ def _build_field_descriptor(
         strip_whitespaces=strip_whitespaces,
         decimal_places=decimal_places,
         decimal_as_string=decimal_as_string,
+        decimal_rounding=decimal_rounding,
         datetime_format=datetime_format,
         default_value=default_value,
         default_factory=default_factory,

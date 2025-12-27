@@ -276,3 +276,13 @@ class WithPostLoadTransform:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithPostLoadAndStrip:
     value: str = dataclasses.field(metadata=mr.str_meta(strip_whitespaces=True, post_load=str.lower))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalRoundUp:
+    value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=2, rounding=decimal.ROUND_UP))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalRoundDown:
+    value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=2, rounding=decimal.ROUND_DOWN))

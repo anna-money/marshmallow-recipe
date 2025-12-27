@@ -87,6 +87,9 @@ def _field_to_dict(field: Any) -> dict:
     if not field.decimal_as_string:
         result["decimal_as_string"] = False
 
+    if field.decimal_rounding is not None:
+        result["decimal_rounding"] = field.decimal_rounding
+
     if field.datetime_format is not None:
         result["datetime_format"] = field.datetime_format
 

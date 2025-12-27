@@ -209,6 +209,7 @@ pub struct FieldDescriptor {
     pub strip_whitespaces: bool,
     pub decimal_places: Option<i32>,
     pub decimal_as_string: bool,
+    pub decimal_rounding: Option<Py<PyAny>>,
     pub datetime_format: Option<String>,
     pub enum_cls: Option<Py<PyAny>>,
     pub union_variants: Option<Vec<Box<FieldDescriptor>>>,
@@ -233,6 +234,7 @@ impl Clone for FieldDescriptor {
             strip_whitespaces: self.strip_whitespaces,
             decimal_places: self.decimal_places,
             decimal_as_string: self.decimal_as_string,
+            decimal_rounding: self.decimal_rounding.as_ref().map(|r| r.clone_ref(py)),
             datetime_format: self.datetime_format.clone(),
             enum_cls: self.enum_cls.as_ref().map(|c| c.clone_ref(py)),
             union_variants: self.union_variants.clone(),
@@ -261,6 +263,7 @@ impl<'py> FromPyObject<'py> for FieldDescriptor {
         let strip_whitespaces: bool = ob.getattr("strip_whitespaces")?.extract().unwrap_or(false);
         let decimal_places: Option<i32> = ob.getattr("decimal_places")?.extract().ok().flatten();
         let decimal_as_string: bool = ob.getattr("decimal_as_string")?.extract().unwrap_or(true);
+        let decimal_rounding: Option<Py<PyAny>> = ob.getattr("decimal_rounding")?.extract().ok();
         let datetime_format: Option<String> = ob.getattr("datetime_format")?.extract().ok().flatten();
         let enum_cls: Option<Py<PyAny>> = ob.getattr("enum_cls")?.extract().ok();
         let union_variants: Option<Vec<FieldDescriptor>> = ob.getattr("union_variants")?.extract().ok();
@@ -283,6 +286,7 @@ impl<'py> FromPyObject<'py> for FieldDescriptor {
             strip_whitespaces,
             decimal_places,
             decimal_as_string,
+            decimal_rounding,
             datetime_format,
             enum_cls,
             union_variants: union_variants.map(|v| v.into_iter().map(Box::new).collect()),
@@ -474,7 +478,13 @@ fn serialize_value(py: Python, value: &Bound<'_, PyAny>, field: &FieldDescriptor
                 let decimal_cls = cached.decimal_cls.bind(py);
                 let quantize_str = format!("0.{}", "0".repeat(places as usize));
                 let quantizer = decimal_cls.call1((quantize_str,))?;
-                value.call_method1("quantize", (quantizer,))?
+                if let Some(ref rounding) = field.decimal_rounding {
+                    let kwargs = PyDict::new(py);
+                    kwargs.set_item("rounding", rounding.bind(py))?;
+                    value.call_method("quantize", (quantizer,), Some(&kwargs))?
+                } else {
+                    value.call_method1("quantize", (quantizer,))?
+                }
             } else {
                 value.clone()
             };
@@ -848,7 +858,14 @@ fn deserialize_value_with_validators(
             if let Some(places) = field.decimal_places {
                 let quantize_str = format!("1e-{}", places);
                 let quantize_val = decimal_cls.call1((quantize_str,))?;
-                return Ok(result.call_method1("quantize", (quantize_val,))?.unbind());
+                let quantized = if let Some(ref rounding) = field.decimal_rounding {
+                    let kwargs = PyDict::new(py);
+                    kwargs.set_item("rounding", rounding.bind(py))?;
+                    result.call_method("quantize", (quantize_val,), Some(&kwargs))?
+                } else {
+                    result.call_method1("quantize", (quantize_val,))?
+                };
+                return Ok(quantized.unbind());
             }
             Ok(result.unbind())
         }
@@ -1734,6 +1751,16 @@ fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescriptor> {
         None
     };
 
+    let decimal_rounding: Option<Py<PyAny>> = if let Some(dr) = raw.get_item("decimal_rounding")? {
+        if !dr.is_none() {
+            Some(dr.extract()?)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     let field_init: bool = raw.get_item("field_init")?
         .map(|v| v.extract().unwrap_or(true))
         .unwrap_or(true);
@@ -1752,6 +1779,7 @@ fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescriptor> {
         strip_whitespaces,
         decimal_places,
         decimal_as_string,
+        decimal_rounding,
         datetime_format,
         enum_cls,
         union_variants,
