@@ -131,7 +131,7 @@ def _extract_callbacks(cls: type) -> tuple[dict | None, dict | None]:
         if field_validators:
             validators[field.name] = field_validators
 
-    return (post_loads if post_loads else None, validators if validators else None)
+    return post_loads if post_loads else None, validators if validators else None
 
 
 def _extract_field_callbacks(
@@ -186,13 +186,14 @@ def dump[T](
     *,
     naming_case: typing.Callable[[str], str] | None = None,
     none_value_handling: str | None = None,
+    decimal_places: int | None = None,
     encoding: str = "utf-8",
 ) -> bytes:
     schema_id = _ensure_registered(cls, naming_case)
     _, validators = _schema_cache[schema_id]
     none_handling = none_value_handling if none_value_handling else "ignore"
     try:
-        return _core.dump_cached(schema_id, data, none_handling, validators, encoding)
+        return _core.dump_cached(schema_id, data, none_handling, validators, decimal_places, encoding)
     except ValueError as e:
         raise _convert_rust_error_to_validation_error(e)
 

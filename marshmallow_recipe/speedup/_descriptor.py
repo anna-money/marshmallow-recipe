@@ -175,7 +175,8 @@ def build_schema_descriptor(cls: type, naming_case: Callable[[str], str] | None 
 
     for field in dataclasses.fields(cls):
         hint = type_hints[field.name]
-        field_descriptor = _build_field_descriptor(cls, field.name, hint, field.metadata, naming_case)
+        has_default = field.default is not dataclasses.MISSING or field.default_factory is not dataclasses.MISSING
+        field_descriptor = _build_field_descriptor(cls, field.name, hint, field.metadata, naming_case, has_default)
         fields.append(field_descriptor)
 
     return SchemaDescriptor(cls=cls, fields=fields)
@@ -187,8 +188,9 @@ def _build_field_descriptor(
     hint: Any,
     metadata: Mapping[str, Any] | None = None,
     naming_case: Callable[[str], str] | None = None,
+    has_default: bool = False,
 ) -> FieldDescriptor:
-    optional = False
+    optional = has_default
     serialized_name = None
     strip_whitespaces = False
     decimal_places: int | None = None
@@ -235,6 +237,9 @@ def _build_field_descriptor(
 
     field_type, nested_info = _analyze_type(hint, origin, args, naming_case)
     slot_offset = get_slot_offset(cls, name) if cls else None
+
+    if field_type == "decimal" and decimal_places is None:
+        decimal_places = 2
 
     return FieldDescriptor(
         name=name,
