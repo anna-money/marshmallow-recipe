@@ -132,3 +132,92 @@ class WithStripWhitespace:
 class WithCustomName:
     internal_id: int = dataclasses.field(metadata=mr.meta(name="id"))
     user_email: str = dataclasses.field(metadata=mr.meta(name="email"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class GenericContainer[T]:
+    items: list[T]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class GenericValue[T]:
+    value: T
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class GenericPair[T1, T2]:
+    first: T1
+    second: T2
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class GenericParentBase[T]:
+    t1: T
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class GenericChildWithConcreteParent[T](GenericParentBase[int]):
+    t2: T
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class NonGenericChildFromGenericParent(GenericParentBase[str]):
+    extra: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Value1:
+    v1: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Value2(Value1):
+    v2: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class GenericWithIterable[TItem]:
+    value: Value1
+    iterable: list[TItem]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class GenericWithFieldOverride[TValue, TItem](GenericWithIterable[TItem]):
+    value: TValue  # type: ignore[assignment]
+    iterable: set[TItem]  # type: ignore[assignment]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class GenericResult[TValue]:
+    success: bool
+    value: TValue | None = None
+    error: str | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class GenericApiResponse[T]:
+    request_id: str
+    result: GenericResult[T]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class User:
+    id: int
+    name: str
+    email: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class GenericWithDict[T]:
+    lookup: dict[str, T]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class GenericWithSet[T]:
+    unique_items: set[T]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class GenericWithAnnotated[T]:
+    value: T
+    custom_name: T = dataclasses.field(metadata=mr.meta(name="renamed_field"))

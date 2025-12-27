@@ -8,7 +8,9 @@ import enum
 import types
 import uuid
 from collections.abc import Callable, Mapping
-from typing import Annotated, Any, ClassVar, Union, get_args, get_origin, get_type_hints
+from typing import Annotated, Any, ClassVar, Union, get_args, get_origin
+
+from marshmallow_recipe.generics import get_fields_type_map
 
 
 class _PyMemberDef(ctypes.Structure):
@@ -164,6 +166,16 @@ def build_type_descriptor(cls: Any, naming_case: Callable[[str], str] | None = N
 
         raise NotImplementedError(f"Unsupported type: {cls}")
 
+    if dataclasses.is_dataclass(origin):
+        schema = build_schema_descriptor(cls, naming_case)
+        return TypeDescriptor(
+            type_kind="dataclass",
+            cls=origin,  # type: ignore[arg-type]
+            fields=schema.fields,
+            can_use_direct_slots=schema.can_use_direct_slots,
+            has_post_init=schema.has_post_init,
+        )
+
     raise NotImplementedError(f"Unsupported generic type: {origin}[{args}]")
 
 
@@ -180,31 +192,33 @@ def _get_primitive_type_name(hint: type) -> str:
 
 
 def build_schema_descriptor(cls: type, naming_case: Callable[[str], str] | None = None) -> SchemaDescriptor:
-    if not dataclasses.is_dataclass(cls):
-        raise TypeError(f"{cls} is not a dataclass")
+    origin: type = get_origin(cls) or cls  # type: ignore[assignment]
 
-    type_hints = get_type_hints(cls, include_extras=True)
+    if not dataclasses.is_dataclass(origin):
+        raise TypeError(f"{origin} is not a dataclass")
+
+    type_hints = get_fields_type_map(cls)
     fields: list[FieldDescriptor] = []
 
-    has_post_init = hasattr(cls, "__post_init__")
-    dc_params = getattr(cls, "__dataclass_params__", None)
+    has_post_init = hasattr(origin, "__post_init__")
+    dc_params = getattr(origin, "__dataclass_params__", None)
     dataclass_init_enabled = dc_params.init if dc_params else True
-    has_slots = hasattr(cls, "__slots__")
+    has_slots = hasattr(origin, "__slots__")
 
     all_fields_have_init = True
-    for field in dataclasses.fields(cls):
+    for field in dataclasses.fields(origin):
         if not field.init:
             all_fields_have_init = False
 
     can_use_direct_slots = has_slots and dataclass_init_enabled and not has_post_init and all_fields_have_init
 
-    for field in dataclasses.fields(cls):
+    for field in dataclasses.fields(origin):
         hint = type_hints[field.name]
         has_default = field.default is not dataclasses.MISSING or field.default_factory is not dataclasses.MISSING
         default_value = field.default if field.default is not dataclasses.MISSING else dataclasses.MISSING
         default_factory = field.default_factory if field.default_factory is not dataclasses.MISSING else None
         field_descriptor = _build_field_descriptor(
-            cls,
+            origin,
             field.name,
             hint,
             field.metadata,
@@ -217,7 +231,7 @@ def build_schema_descriptor(cls: type, naming_case: Callable[[str], str] | None 
         fields.append(field_descriptor)
 
     return SchemaDescriptor(
-        cls=cls, fields=fields, can_use_direct_slots=can_use_direct_slots, has_post_init=has_post_init
+        cls=origin, fields=fields, can_use_direct_slots=can_use_direct_slots, has_post_init=has_post_init
     )
 
 
@@ -367,5 +381,9 @@ def _analyze_type(
         if len(non_none_args) > 1:
             variants = [_build_field_descriptor(None, "variant", a, None, naming_case) for a in non_none_args]
             return "union", {"union_variants": variants}
+
+    if dataclasses.is_dataclass(origin):
+        nested_schema = build_schema_descriptor(hint, naming_case)
+        return "nested", {"nested_schema": nested_schema}
 
     raise NotImplementedError(f"Unsupported generic type: {origin}[{args}]")
