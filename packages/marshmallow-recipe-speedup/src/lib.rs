@@ -20,6 +20,7 @@ struct CachedPyTypes {
     set_cls: Py<PyAny>,
     frozenset_cls: Py<PyAny>,
     tuple_cls: Py<PyAny>,
+    object_cls: Py<PyAny>,
 }
 
 static CACHED_PY_TYPES: OnceCell<CachedPyTypes> = OnceCell::new();
@@ -40,6 +41,7 @@ fn get_cached_types(py: Python) -> PyResult<&'static CachedPyTypes> {
             set_cls: builtins.getattr("set")?.unbind(),
             frozenset_cls: builtins.getattr("frozenset")?.unbind(),
             tuple_cls: builtins.getattr("tuple")?.unbind(),
+            object_cls: builtins.getattr("object")?.unbind(),
         })
     })
 }
@@ -200,6 +202,9 @@ pub struct FieldDescriptor {
     pub datetime_format: Option<String>,
     pub enum_cls: Option<Py<PyAny>>,
     pub union_variants: Option<Vec<Box<FieldDescriptor>>>,
+    pub default_value: Option<Py<PyAny>>,
+    pub default_factory: Option<Py<PyAny>>,
+    pub field_init: bool,
 }
 
 impl Clone for FieldDescriptor {
@@ -221,6 +226,9 @@ impl Clone for FieldDescriptor {
             datetime_format: self.datetime_format.clone(),
             enum_cls: self.enum_cls.as_ref().map(|c| c.clone_ref(py)),
             union_variants: self.union_variants.clone(),
+            default_value: self.default_value.as_ref().map(|v| v.clone_ref(py)),
+            default_factory: self.default_factory.as_ref().map(|f| f.clone_ref(py)),
+            field_init: self.field_init,
         })
     }
 }
@@ -247,6 +255,10 @@ impl<'py> FromPyObject<'py> for FieldDescriptor {
         let enum_cls: Option<Py<PyAny>> = ob.getattr("enum_cls")?.extract().ok();
         let union_variants: Option<Vec<FieldDescriptor>> = ob.getattr("union_variants")?.extract().ok();
 
+        let default_value: Option<Py<PyAny>> = ob.getattr("default_value")?.extract().ok();
+        let default_factory: Option<Py<PyAny>> = ob.getattr("default_factory")?.extract().ok();
+        let field_init: bool = ob.getattr("field_init")?.extract().unwrap_or(true);
+
         Ok(FieldDescriptor {
             name,
             name_interned,
@@ -264,6 +276,9 @@ impl<'py> FromPyObject<'py> for FieldDescriptor {
             datetime_format,
             enum_cls,
             union_variants: union_variants.map(|v| v.into_iter().map(Box::new).collect()),
+            default_value,
+            default_factory,
+            field_init,
         })
     }
 }
@@ -272,6 +287,8 @@ impl<'py> FromPyObject<'py> for FieldDescriptor {
 pub struct SchemaDescriptor {
     pub cls: Py<PyAny>,
     pub fields: Vec<FieldDescriptor>,
+    pub can_use_direct_slots: bool,
+    pub has_post_init: bool,
 }
 
 impl Clone for SchemaDescriptor {
@@ -279,6 +296,8 @@ impl Clone for SchemaDescriptor {
         Python::with_gil(|py| SchemaDescriptor {
             cls: self.cls.clone_ref(py),
             fields: self.fields.clone(),
+            can_use_direct_slots: self.can_use_direct_slots,
+            has_post_init: self.has_post_init,
         })
     }
 }
@@ -287,7 +306,9 @@ impl<'py> FromPyObject<'py> for SchemaDescriptor {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         let cls: Py<PyAny> = ob.getattr("cls")?.extract()?;
         let fields: Vec<FieldDescriptor> = ob.getattr("fields")?.extract()?;
-        Ok(SchemaDescriptor { cls, fields })
+        let can_use_direct_slots: bool = ob.getattr("can_use_direct_slots")?.extract().unwrap_or(false);
+        let has_post_init: bool = ob.getattr("has_post_init")?.extract().unwrap_or(false);
+        Ok(SchemaDescriptor { cls, fields, can_use_direct_slots, has_post_init })
     }
 }
 
@@ -336,6 +357,8 @@ pub struct TypeDescriptor {
     pub cls: Option<Py<PyAny>>,
     pub fields: Vec<FieldDescriptor>,
     pub union_variants: Option<Vec<Box<TypeDescriptor>>>,
+    pub can_use_direct_slots: bool,
+    pub has_post_init: bool,
 }
 
 impl Clone for TypeDescriptor {
@@ -351,6 +374,8 @@ impl Clone for TypeDescriptor {
             cls: self.cls.as_ref().map(|c| c.clone_ref(py)),
             fields: self.fields.clone(),
             union_variants: self.union_variants.clone(),
+            can_use_direct_slots: self.can_use_direct_slots,
+            has_post_init: self.has_post_init,
         })
     }
 }
@@ -367,6 +392,8 @@ impl<'py> FromPyObject<'py> for TypeDescriptor {
         let cls: Option<Py<PyAny>> = ob.getattr("cls")?.extract().ok();
         let fields: Vec<FieldDescriptor> = ob.getattr("fields")?.extract().unwrap_or_default();
         let union_variants: Option<Vec<TypeDescriptor>> = ob.getattr("union_variants")?.extract().ok();
+        let can_use_direct_slots: bool = ob.getattr("can_use_direct_slots")?.extract().unwrap_or(false);
+        let has_post_init: bool = ob.getattr("has_post_init")?.extract().unwrap_or(false);
 
         Ok(TypeDescriptor {
             type_kind,
@@ -379,6 +406,8 @@ impl<'py> FromPyObject<'py> for TypeDescriptor {
             cls,
             fields,
             union_variants: union_variants.map(|v| v.into_iter().map(Box::new).collect()),
+            can_use_direct_slots,
+            has_post_init,
         })
     }
 }
@@ -555,6 +584,25 @@ unsafe fn get_slot_value_direct<'py>(
         return None;
     }
     Some(Py::<PyAny>::from_borrowed_ptr(py, py_obj_ptr).into_bound(py))
+}
+
+#[inline]
+unsafe fn set_slot_value_direct(
+    obj: &Bound<'_, PyAny>,
+    offset: isize,
+    value: PyObject,
+) {
+    let obj_ptr = obj.as_ptr();
+    if obj_ptr.is_null() {
+        return;
+    }
+    let slot_ptr = (obj_ptr as *mut u8).offset(offset) as *mut *mut pyo3::ffi::PyObject;
+    let old_ptr = *slot_ptr;
+    let new_ptr = value.into_ptr();
+    *slot_ptr = new_ptr;
+    if !old_ptr.is_null() {
+        pyo3::ffi::Py_DECREF(old_ptr);
+    }
 }
 
 #[inline]
@@ -860,7 +908,12 @@ fn deserialize_value(
             let nested_schema = field.nested_schema.as_ref().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Nested field missing nested_schema")
             })?;
-            deserialize_dataclass(py, obj, &nested_schema.fields, &nested_schema.cls)
+            let cls = nested_schema.cls.bind(py);
+            if nested_schema.can_use_direct_slots {
+                deserialize_dataclass_direct_slots(py, obj, &nested_schema.fields, cls, None, None)
+            } else {
+                deserialize_dataclass(py, obj, &nested_schema.fields, &nested_schema.cls)
+            }
         }
         FieldType::StrEnum => {
             let s = value.as_str().ok_or_else(|| {
@@ -1271,6 +1324,14 @@ fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<TypeDesc
                 .map(|f| build_field_from_dict(f))
                 .collect::<PyResult<_>>()?;
 
+            let can_use_direct_slots: bool = raw.get_item("can_use_direct_slots")?
+                .map(|v| v.extract().unwrap_or(false))
+                .unwrap_or(false);
+
+            let has_post_init: bool = raw.get_item("has_post_init")?
+                .map(|v| v.extract().unwrap_or(false))
+                .unwrap_or(false);
+
             Ok(TypeDescriptor {
                 type_kind: TypeKind::Dataclass,
                 primitive_type: None,
@@ -1282,6 +1343,8 @@ fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<TypeDesc
                 cls: Some(cls),
                 fields,
                 union_variants: None,
+                can_use_direct_slots,
+                has_post_init,
             })
         }
         "primitive" => {
@@ -1300,6 +1363,8 @@ fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<TypeDesc
                 cls: None,
                 fields: vec![],
                 union_variants: None,
+                can_use_direct_slots: false,
+                has_post_init: false,
             })
         }
         "list" => {
@@ -1319,6 +1384,8 @@ fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<TypeDesc
                 cls: None,
                 fields: vec![],
                 union_variants: None,
+                can_use_direct_slots: false,
+                has_post_init: false,
             })
         }
         "dict" => {
@@ -1341,6 +1408,8 @@ fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<TypeDesc
                 cls: None,
                 fields: vec![],
                 union_variants: None,
+                can_use_direct_slots: false,
+                has_post_init: false,
             })
         }
         "optional" => {
@@ -1360,6 +1429,8 @@ fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<TypeDesc
                 cls: None,
                 fields: vec![],
                 union_variants: None,
+                can_use_direct_slots: false,
+                has_post_init: false,
             })
         }
         "set" => {
@@ -1379,6 +1450,8 @@ fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<TypeDesc
                 cls: None,
                 fields: vec![],
                 union_variants: None,
+                can_use_direct_slots: false,
+                has_post_init: false,
             })
         }
         "frozenset" => {
@@ -1398,6 +1471,8 @@ fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<TypeDesc
                 cls: None,
                 fields: vec![],
                 union_variants: None,
+                can_use_direct_slots: false,
+                has_post_init: false,
             })
         }
         "tuple" => {
@@ -1417,6 +1492,8 @@ fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<TypeDesc
                 cls: None,
                 fields: vec![],
                 union_variants: None,
+                can_use_direct_slots: false,
+                has_post_init: false,
             })
         }
         "union" => {
@@ -1439,6 +1516,8 @@ fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<TypeDesc
                 cls: None,
                 fields: vec![],
                 union_variants: Some(variants),
+                can_use_direct_slots: false,
+                has_post_init: false,
             })
         }
         _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
@@ -1577,6 +1656,30 @@ fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescriptor> {
         None
     };
 
+    let default_value: Option<Py<PyAny>> = if let Some(dv) = raw.get_item("default_value")? {
+        if !dv.is_none() {
+            Some(dv.extract()?)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let default_factory: Option<Py<PyAny>> = if let Some(df) = raw.get_item("default_factory")? {
+        if !df.is_none() {
+            Some(df.extract()?)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let field_init: bool = raw.get_item("field_init")?
+        .map(|v| v.extract().unwrap_or(true))
+        .unwrap_or(true);
+
     Ok(FieldDescriptor {
         name,
         name_interned,
@@ -1594,6 +1697,9 @@ fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescriptor> {
         datetime_format,
         enum_cls,
         union_variants,
+        default_value,
+        default_factory,
+        field_init,
     })
 }
 
@@ -1611,7 +1717,15 @@ fn build_schema_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<SchemaDescriptor>
         .map(|f| build_field_from_dict(f))
         .collect::<PyResult<_>>()?;
 
-    Ok(SchemaDescriptor { cls, fields })
+    let can_use_direct_slots: bool = raw.get_item("can_use_direct_slots")?
+        .map(|v| v.extract().unwrap_or(false))
+        .unwrap_or(false);
+
+    let has_post_init: bool = raw.get_item("has_post_init")?
+        .map(|v| v.extract().unwrap_or(false))
+        .unwrap_or(false);
+
+    Ok(SchemaDescriptor { cls, fields, can_use_direct_slots, has_post_init })
 }
 
 #[pyfunction]
@@ -1696,7 +1810,11 @@ fn deserialize_root_type_cached(
             let cls = descriptor.cls.as_ref().ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing cls for dataclass")
             })?;
-            deserialize_dataclass_cached(py, obj, &descriptor.fields, cls.bind(py), post_loads, validators)
+            if descriptor.can_use_direct_slots {
+                deserialize_dataclass_direct_slots(py, obj, &descriptor.fields, cls.bind(py), post_loads, validators)
+            } else {
+                deserialize_dataclass_cached(py, obj, &descriptor.fields, cls.bind(py), post_loads, validators)
+            }
         }
         TypeKind::Primitive => {
             let field_type = descriptor.primitive_type.as_ref().ok_or_else(|| {
@@ -1808,6 +1926,80 @@ fn deserialize_root_type_cached(
     }
 }
 
+fn deserialize_dataclass_direct_slots(
+    py: Python,
+    json_obj: &Map<String, Value>,
+    fields: &[FieldDescriptor],
+    cls: &Bound<'_, PyAny>,
+    post_loads: Option<&Bound<'_, PyDict>>,
+    validators: Option<&Bound<'_, PyDict>>,
+) -> PyResult<PyObject> {
+    let cached_types = get_cached_types(py)?;
+    let object_type = cached_types.object_cls.bind(py);
+    let instance = object_type.call_method1("__new__", (cls,))?;
+
+    for field in fields {
+        let key = field.serialized_name.as_ref().unwrap_or(&field.name);
+
+        let py_value = if let Some(json_field) = json_obj.get(key) {
+            let mut value = if field.field_type == FieldType::Nested {
+                let nested_schema = field.nested_schema.as_ref().unwrap();
+                let nested_obj = json_field.as_object().ok_or_else(|| {
+                    PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected JSON object for nested field")
+                })?;
+                let nested_cls = nested_schema.cls.bind(py);
+                if nested_schema.can_use_direct_slots {
+                    deserialize_dataclass_direct_slots(py, nested_obj, &nested_schema.fields, nested_cls, post_loads, validators)
+                        .map_err(|e| wrap_error_with_field(py, e, &field.name))?
+                } else {
+                    deserialize_dataclass_cached(py, nested_obj, &nested_schema.fields, nested_cls, post_loads, validators)
+                        .map_err(|e| wrap_error_with_field(py, e, &field.name))?
+                }
+            } else {
+                deserialize_value(py, json_field, field)
+                    .map_err(|e| wrap_error_with_field(py, e, &field.name))?
+            };
+
+            if let Some(pl) = post_loads {
+                if let Some(post_load_fn) = pl.get_item(&field.name)? {
+                    if !post_load_fn.is_none() {
+                        value = post_load_fn.call1((value,))?.unbind();
+                    }
+                }
+            }
+
+            if let Some(v) = validators {
+                if let Some(field_validators) = v.get_item(&field.name)? {
+                    let validator_list: &Bound<'_, PyList> = field_validators.downcast()?;
+                    for validator in validator_list.iter() {
+                        validator.call1((value.bind(py),))?;
+                    }
+                }
+            }
+
+            value
+        } else if let Some(ref default_factory) = field.default_factory {
+            default_factory.call0(py)?
+        } else if let Some(ref default_value) = field.default_value {
+            default_value.clone_ref(py)
+        } else if field.optional {
+            py.None()
+        } else {
+            return Err(missing_field_error(py, &field.name));
+        };
+
+        if let Some(offset) = field.slot_offset {
+            unsafe {
+                set_slot_value_direct(&instance, offset, py_value);
+            }
+        } else {
+            instance.setattr(field.name_interned.bind(py), py_value)?;
+        }
+    }
+
+    Ok(instance.unbind())
+}
+
 fn deserialize_dataclass_cached(
     py: Python,
     json_obj: &Map<String, Value>,
@@ -1834,7 +2026,6 @@ fn deserialize_dataclass_cached(
                     .map_err(|e| wrap_error_with_field(py, e, &field.name))?
             };
 
-            // Apply post_load if exists
             if let Some(pl) = post_loads {
                 if let Some(post_load_fn) = pl.get_item(&field.name)? {
                     if !post_load_fn.is_none() {
@@ -1843,7 +2034,6 @@ fn deserialize_dataclass_cached(
                 }
             }
 
-            // Apply validators if exist
             if let Some(v) = validators {
                 if let Some(field_validators) = v.get_item(&field.name)? {
                     let validator_list: &Bound<'_, PyList> = field_validators.downcast()?;

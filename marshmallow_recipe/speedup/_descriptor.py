@@ -60,12 +60,17 @@ class FieldDescriptor:
     datetime_format: str | None = None
     enum_cls: type | None = None
     union_variants: list[FieldDescriptor] | None = None
+    default_value: Any = dataclasses.MISSING
+    default_factory: Callable[[], Any] | None = None
+    field_init: bool = True
 
 
 @dataclasses.dataclass(slots=True, kw_only=True)
 class SchemaDescriptor:
     cls: type
     fields: list[FieldDescriptor]
+    can_use_direct_slots: bool = False
+    has_post_init: bool = False
 
 
 @dataclasses.dataclass(slots=True, kw_only=True)
@@ -80,6 +85,8 @@ class TypeDescriptor:
     cls: type | None = None
     fields: list[FieldDescriptor] = dataclasses.field(default_factory=list)
     union_variants: list[TypeDescriptor] | None = None
+    can_use_direct_slots: bool = False
+    has_post_init: bool = False
 
 
 def build_type_descriptor(cls: Any, naming_case: Callable[[str], str] | None = None) -> TypeDescriptor:
@@ -147,7 +154,13 @@ def build_type_descriptor(cls: Any, naming_case: Callable[[str], str] | None = N
 
         if dataclasses.is_dataclass(cls):
             schema = build_schema_descriptor(cls, naming_case)  # type: ignore[arg-type]
-            return TypeDescriptor(type_kind="dataclass", cls=schema.cls, fields=schema.fields)
+            return TypeDescriptor(
+                type_kind="dataclass",
+                cls=schema.cls,
+                fields=schema.fields,
+                can_use_direct_slots=schema.can_use_direct_slots,
+                has_post_init=schema.has_post_init,
+            )
 
         raise NotImplementedError(f"Unsupported type: {cls}")
 
@@ -173,13 +186,39 @@ def build_schema_descriptor(cls: type, naming_case: Callable[[str], str] | None 
     type_hints = get_type_hints(cls, include_extras=True)
     fields: list[FieldDescriptor] = []
 
+    has_post_init = hasattr(cls, "__post_init__")
+    dc_params = getattr(cls, "__dataclass_params__", None)
+    dataclass_init_enabled = dc_params.init if dc_params else True
+    has_slots = hasattr(cls, "__slots__")
+
+    all_fields_have_init = True
+    for field in dataclasses.fields(cls):
+        if not field.init:
+            all_fields_have_init = False
+
+    can_use_direct_slots = has_slots and dataclass_init_enabled and not has_post_init and all_fields_have_init
+
     for field in dataclasses.fields(cls):
         hint = type_hints[field.name]
         has_default = field.default is not dataclasses.MISSING or field.default_factory is not dataclasses.MISSING
-        field_descriptor = _build_field_descriptor(cls, field.name, hint, field.metadata, naming_case, has_default)
+        default_value = field.default if field.default is not dataclasses.MISSING else dataclasses.MISSING
+        default_factory = field.default_factory if field.default_factory is not dataclasses.MISSING else None
+        field_descriptor = _build_field_descriptor(
+            cls,
+            field.name,
+            hint,
+            field.metadata,
+            naming_case,
+            has_default,
+            default_value=default_value,
+            default_factory=default_factory,
+            field_init=field.init,
+        )
         fields.append(field_descriptor)
 
-    return SchemaDescriptor(cls=cls, fields=fields)
+    return SchemaDescriptor(
+        cls=cls, fields=fields, can_use_direct_slots=can_use_direct_slots, has_post_init=has_post_init
+    )
 
 
 def _build_field_descriptor(
@@ -189,6 +228,9 @@ def _build_field_descriptor(
     metadata: Mapping[str, Any] | None = None,
     naming_case: Callable[[str], str] | None = None,
     has_default: bool = False,
+    default_value: Any = dataclasses.MISSING,
+    default_factory: Callable[[], Any] | None = None,
+    field_init: bool = True,
 ) -> FieldDescriptor:
     optional = has_default
     serialized_name = None
@@ -251,6 +293,9 @@ def _build_field_descriptor(
         decimal_places=decimal_places,
         decimal_as_string=decimal_as_string,
         datetime_format=datetime_format,
+        default_value=default_value,
+        default_factory=default_factory,
+        field_init=field_init,
         **nested_info,
     )
 

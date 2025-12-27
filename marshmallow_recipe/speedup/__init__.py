@@ -65,6 +65,12 @@ def _descriptor_to_dict(descriptor: TypeDescriptor) -> dict:
     if descriptor.union_variants is not None:
         result["union_variants"] = [_descriptor_to_dict(v) for v in descriptor.union_variants]
 
+    if descriptor.can_use_direct_slots:
+        result["can_use_direct_slots"] = True
+
+    if descriptor.has_post_init:
+        result["has_post_init"] = True
+
     return result
 
 
@@ -90,10 +96,12 @@ def _field_to_dict(field: Any) -> dict:
         result["datetime_format"] = field.datetime_format
 
     if field.nested_schema is not None:
-        result["nested_schema"] = {
-            "cls": field.nested_schema.cls,
-            "fields": [_field_to_dict(f) for f in field.nested_schema.fields],
-        }
+        nested = {"cls": field.nested_schema.cls, "fields": [_field_to_dict(f) for f in field.nested_schema.fields]}
+        if field.nested_schema.can_use_direct_slots:
+            nested["can_use_direct_slots"] = True
+        if field.nested_schema.has_post_init:
+            nested["has_post_init"] = True
+        result["nested_schema"] = nested
 
     if field.item_schema is not None:
         result["item_schema"] = _field_to_dict(field.item_schema)
@@ -109,6 +117,15 @@ def _field_to_dict(field: Any) -> dict:
 
     if field.union_variants is not None:
         result["union_variants"] = [_field_to_dict(v) for v in field.union_variants]
+
+    if field.default_value is not dataclasses.MISSING:
+        result["default_value"] = field.default_value
+
+    if field.default_factory is not None:
+        result["default_factory"] = field.default_factory
+
+    if not field.field_init:
+        result["field_init"] = False
 
     return result
 
