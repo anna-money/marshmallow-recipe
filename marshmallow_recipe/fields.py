@@ -900,7 +900,7 @@ def raw_field(
     description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
-    return m.fields.Raw(
+    return JsonRawField(
         allow_none=True,
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
@@ -976,6 +976,7 @@ FrozenSetField: type[m.fields.List]
 TupleField: type[m.fields.List]
 StrField: type[m.fields.Str]
 UnionField: type[m.fields.Field]
+JsonRawField: type[m.fields.Raw]
 
 
 def build_error_messages(
@@ -1269,6 +1270,34 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     UnionField = UnionFieldV3
 
     NestedField = m.fields.Nested
+
+    class JsonRawFieldV3(m.fields.Raw):
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            self.__validate_json_serializable(value, attr)
+            return value
+
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            self.__validate_json_serializable(value, attr)
+            return value
+
+        def __validate_json_serializable(self, value: Any, attr: Any) -> None:
+            stack = [value]
+            while stack:
+                v = stack.pop()
+                if v is None or isinstance(v, bool | str | int | float):
+                    continue
+                if isinstance(v, list):
+                    stack.extend(v)
+                    continue
+                if isinstance(v, dict):
+                    for k, val in v.items():
+                        if not isinstance(k, str):
+                            raise self.make_error("invalid", input=value, field_name=attr)
+                        stack.append(val)
+                    continue
+                raise self.make_error("invalid", input=value, field_name=attr)
+
+    JsonRawField = JsonRawFieldV3
 else:
 
     def with_type_checks_on_serialize_v2[TField: m.fields.Field](
@@ -1650,3 +1679,31 @@ else:
             return super().schema
 
     NestedField = NestedFieldV2
+
+    class JsonRawFieldV2(m.fields.Raw):
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            self.__validate_json_serializable(value, attr)
+            return value
+
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            self.__validate_json_serializable(value, attr)
+            return value
+
+        def __validate_json_serializable(self, value: Any, attr: Any) -> None:
+            stack = [value]
+            while stack:
+                v = stack.pop()
+                if v is None or isinstance(v, bool | str | int | float):
+                    continue
+                if isinstance(v, list):
+                    stack.extend(v)
+                    continue
+                if isinstance(v, dict):
+                    for k, val in v.items():
+                        if not isinstance(k, str):
+                            self.fail("invalid")
+                        stack.append(val)
+                    continue
+                self.fail("invalid")
+
+    JsonRawField = JsonRawFieldV2
