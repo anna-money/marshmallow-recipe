@@ -23,7 +23,7 @@ transaction = Transaction(
     processed_at=None,
     amount=decimal.Decimal(42),
     transaction_amount=decimal.Decimal(42),
- )
+)
 
 # to warm up the lib caches
 assert mr.load_many(Transaction, mr.dump_many([transaction] * 1024))

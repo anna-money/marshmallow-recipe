@@ -1272,15 +1272,15 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     NestedField = m.fields.Nested
 
     class JsonRawFieldV3(m.fields.Raw):
-        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
-            self.__validate_json_serializable(value, attr)
-            return value
+        default_error_messages = {"invalid": "Not a valid JSON-serializable value."}  # noqa: RUF012
 
-        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
-            self.__validate_json_serializable(value, attr)
-            return value
+        def _validate(self, value: Any) -> None:
+            if self.allow_none and value is None:
+                return
+            super()._validate(value)
+            self.__validate_json_serializable(value)
 
-        def __validate_json_serializable(self, value: Any, attr: Any) -> None:
+        def __validate_json_serializable(self, value: Any) -> None:
             stack = [value]
             while stack:
                 v = stack.pop()
@@ -1292,10 +1292,10 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 if isinstance(v, dict):
                     for k, val in v.items():
                         if not isinstance(k, str):
-                            raise self.make_error("invalid", input=value, field_name=attr)
+                            raise self.make_error("invalid")
                         stack.append(val)
                     continue
-                raise self.make_error("invalid", input=value, field_name=attr)
+                raise self.make_error("invalid")
 
     JsonRawField = JsonRawFieldV3
 else:
@@ -1681,15 +1681,15 @@ else:
     NestedField = NestedFieldV2
 
     class JsonRawFieldV2(m.fields.Raw):
-        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
-            self.__validate_json_serializable(value, attr)
-            return value
+        default_error_messages = {"invalid": "Not a valid JSON-serializable value."}  # noqa: RUF012
 
-        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
-            self.__validate_json_serializable(value, attr)
-            return value
+        def _validate(self, value: Any) -> None:
+            if self.allow_none and value is None:
+                return
+            super()._validate(value)
+            self.__validate_json_serializable(value)
 
-        def __validate_json_serializable(self, value: Any, attr: Any) -> None:
+        def __validate_json_serializable(self, value: Any) -> None:
             stack = [value]
             while stack:
                 v = stack.pop()
