@@ -1,3 +1,8 @@
+## v0.0.69 (unreleased)
+
+* [Add JsonRawField with JSON validation for Any type fields](https://github.com/anna-money/marshmallow-recipe/pull/212)
+
+
 ## v0.0.68 (2025-12-16)
 
 * Add `description` parameter to all metadata functions (`mr.meta`, `mr.str_meta`, `mr.decimal_meta`, `mr.datetime_meta`, `mr.time_meta`, `mr.list_meta`, `mr.set_meta`, `mr.tuple_meta`)

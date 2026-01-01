@@ -83,19 +83,19 @@ EMPTY_SCHEMA = m.Schema()
     "type, metadata, field",
     [
         # Any
-        (Any, {}, m.fields.Raw(allow_none=True, **default_fields(None))),
-        (Any, mr.meta(name="i"), m.fields.Raw(allow_none=True, **default_fields(None), **data_key_fields("i"))),
+        (Any, {}, mr.JsonRawField(allow_none=True, **default_fields(None))),
+        (Any, mr.meta(name="i"), mr.JsonRawField(allow_none=True, **default_fields(None), **data_key_fields("i"))),
         # Annotated[Any]
-        (Annotated[Any, "$"], {}, m.fields.Raw(allow_none=True, **default_fields(None))),
+        (Annotated[Any, "$"], {}, mr.JsonRawField(allow_none=True, **default_fields(None))),
         (
             Annotated[Any, "$"],
             mr.meta(name="i"),
-            m.fields.Raw(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.JsonRawField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             Annotated[Any, mr.meta(name="i")],
             {},
-            m.fields.Raw(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.JsonRawField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: bool
         (bool, {}, m.fields.Bool(required=True)),
