@@ -312,7 +312,7 @@ def uuid_field(
             **default_fields(m.missing),
             **data_key_fields(name),
             **description_fields(description),
-            error_messages=build_error_messages(
+            error_messages=build_uuid_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
         )
@@ -326,7 +326,7 @@ def uuid_field(
             validate=validate,
             **data_key_fields(name),
             **description_fields(description),
-            error_messages=build_error_messages(
+            error_messages=build_uuid_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
         )
@@ -337,7 +337,7 @@ def uuid_field(
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
         **description_fields(description),
-        error_messages=build_error_messages(
+        error_messages=build_uuid_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
     )
@@ -989,6 +989,20 @@ def build_error_messages(
         error_messages["null"] = none_error
     if invalid_error is not None:
         error_messages["invalid"] = invalid_error
+
+    return error_messages if error_messages else None
+
+
+def build_uuid_error_messages(
+    *, required_error: str | None = None, none_error: str | None = None, invalid_error: str | None = None
+) -> dict[str, str] | None:
+    error_messages = {}
+    if required_error is not None:
+        error_messages["required"] = required_error
+    if none_error is not None:
+        error_messages["null"] = none_error
+    if invalid_error is not None:
+        error_messages["invalid_uuid"] = invalid_error
 
     return error_messages if error_messages else None
 

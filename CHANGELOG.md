@@ -1,6 +1,7 @@
 ## v0.0.69 (unreleased)
 
 * [Add JsonRawField with JSON validation for Any type fields](https://github.com/anna-money/marshmallow-recipe/pull/212)
+* [Fix UUID invalid_error not being applied](https://github.com/anna-money/marshmallow-recipe/pull/213)
 
 
 ## v0.0.68 (2025-12-16)
