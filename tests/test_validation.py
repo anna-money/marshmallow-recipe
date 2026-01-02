@@ -404,6 +404,22 @@ def test_error_messages_optional_field() -> None:
     assert mr.load(Config, {}) == Config(value=None)
 
 
+def test_error_messages_uuid_field() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Entity:
+        id: Annotated[uuid.UUID, mr.meta(required_error="ID is required", invalid_error="Invalid UUID format")]
+
+    # Test custom required error message
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.load(Entity, {})
+    assert exc_info.value.messages == {"id": ["ID is required"]}
+
+    # Test custom invalid error message
+    with pytest.raises(m.ValidationError) as exc_info:
+        mr.load(Entity, {"id": "not-a-uuid"})
+    assert exc_info.value.messages == {"id": ["Invalid UUID format"]}
+
+
 def test_error_messages_multiple_fields() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class User:
