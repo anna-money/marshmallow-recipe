@@ -3,6 +3,7 @@
 * [Add JsonRawField with JSON validation for Any type fields](https://github.com/anna-money/marshmallow-recipe/pull/212)
 * [Fix UUID invalid_error not being applied](https://github.com/anna-money/marshmallow-recipe/pull/213)
 * [Fix int values being converted to float when dumping float fields](https://github.com/anna-money/marshmallow-recipe/pull/214)
+* [Fix marshmallow 3 validator deprecation warning](https://github.com/anna-money/marshmallow-recipe/pull/215)
 
 
 ## v0.0.68 (2025-12-16)
