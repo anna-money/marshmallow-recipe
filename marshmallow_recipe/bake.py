@@ -10,6 +10,7 @@ import uuid
 from typing import Annotated, Any, NamedTuple, NewType, Protocol, Union, cast, get_args, get_origin
 
 import marshmallow as m
+import marshmallow.validate
 
 from .fields import (
     bool_field,
@@ -38,6 +39,7 @@ from .metadata import EMPTY_METADATA, Metadata, is_metadata
 from .missing import MISSING
 from .naming_case import NamingCase
 from .options import NoneValueHandling, try_get_options_for
+from .validation import ValidationFunc
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -51,6 +53,39 @@ class _SchemaTypeKey:
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 _schema_types: dict[_SchemaTypeKey, type[m.Schema]] = {}
+
+
+def __wrap_validator(validator: ValidationFunc) -> ValidationFunc:
+    if isinstance(validator, marshmallow.validate.Validator):
+        return validator
+
+    def __wrapped(value: Any) -> Any:
+        result = validator(value)
+        if result is False:
+            raise m.ValidationError("Invalid value.")
+        return result
+
+    return __wrapped
+
+
+def __wrap_validators(
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None,
+) -> ValidationFunc | list[ValidationFunc] | None:
+    if validate is None:
+        return None
+    if isinstance(validate, collections.abc.Sequence):
+        return [__wrap_validator(v) for v in validate]
+    return __wrap_validator(validate)
+
+
+def __wrap_metadata_validators(metadata: Metadata) -> Metadata:
+    if _MARSHMALLOW_VERSION_MAJOR < 3:
+        return metadata
+    validate = metadata.get("validate")
+    if validate is None:
+        return metadata
+    wrapped = __wrap_validators(validate)
+    return Metadata(dict(metadata, validate=wrapped))
 
 
 class _FieldDescription(NamedTuple):
@@ -178,6 +213,7 @@ def _get_field_for(
     field_decimal_places: int | None,
     decimal_places: int | None,
 ) -> m.fields.Field:
+    metadata = __wrap_metadata_validators(metadata)
     if t is Any:
         return raw_field(**metadata)
 
