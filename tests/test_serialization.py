@@ -997,6 +997,7 @@ def test_integral_float() -> None:
     instance = Container(value=1)
     dumped = mr.dump(Container, instance)
     assert dumped == {"value": 1}
+    assert type(dumped["value"]) is int
     assert mr.load(Container, dumped) == instance
 
 
