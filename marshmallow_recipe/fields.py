@@ -255,7 +255,7 @@ def float_field(
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
-        return m.fields.Float(
+        return FloatField(
             allow_none=allow_none,
             validate=validate,
             **default_fields(m.missing),
@@ -269,7 +269,7 @@ def float_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return m.fields.Float(
+        return FloatField(
             required=True,
             allow_none=allow_none,
             validate=validate,
@@ -280,7 +280,7 @@ def float_field(
             ),
         )
 
-    return m.fields.Float(
+    return FloatField(
         allow_none=allow_none,
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
@@ -1100,6 +1100,14 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     StrField = StrFieldV3
 
+    class FloatFieldV3(m.fields.Float):
+        def _format_num(self, value: Any) -> float | int:
+            if isinstance(value, int):
+                return value
+            return super()._format_num(value)
+
+    FloatField = FloatFieldV3
+
     class DateTimeFieldV3(m.fields.DateTime):
         SERIALIZATION_FUNCS = {  # noqa: RUF012
             **m.fields.DateTime.SERIALIZATION_FUNCS,  # type: ignore
@@ -1413,6 +1421,14 @@ else:
             super()._validate(value)
 
     StrField = StrFieldV2
+
+    class FloatFieldV2(m.fields.Float):
+        def _format_num(self, value: Any) -> float | int:
+            if isinstance(value, int):
+                return value
+            return super()._format_num(value)
+
+    FloatField = FloatFieldV2
 
     class DateTimeFieldV2(m.fields.DateTime):
         @staticmethod

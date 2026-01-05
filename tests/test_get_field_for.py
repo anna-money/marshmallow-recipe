@@ -158,19 +158,19 @@ EMPTY_SCHEMA = m.Schema()
             m.fields.Int(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: float
-        (float, {}, m.fields.Float(required=True)),
-        (Optional[float], {}, m.fields.Float(allow_none=True, **default_fields(None))),
-        (float | None, {}, m.fields.Float(allow_none=True, **default_fields(None))),
-        (float, mr.meta(name="i"), m.fields.Float(required=True, **data_key_fields("i"))),
+        (float, {}, mr.FloatField(required=True)),
+        (Optional[float], {}, mr.FloatField(allow_none=True, **default_fields(None))),
+        (float | None, {}, mr.FloatField(allow_none=True, **default_fields(None))),
+        (float, mr.meta(name="i"), mr.FloatField(required=True, **data_key_fields("i"))),
         (
             Optional[float],
             mr.meta(name="i"),
-            m.fields.Float(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.FloatField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             float | None,
             mr.meta(name="i"),
-            m.fields.Float(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.FloatField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: uuid
         (uuid.UUID, {}, m.fields.UUID(required=True)),
