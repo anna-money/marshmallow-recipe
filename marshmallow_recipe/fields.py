@@ -1147,6 +1147,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     DateField = DateFieldV3
 
     class SetFieldV3(m.fields.List):
+        default_error_messages = {"invalid": "Not a valid set."}  # noqa: RUF012
+
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             result = super()._deserialize(value, attr, data, **kwargs)
             return None if None else set(result)
@@ -1154,6 +1156,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     SetField = SetFieldV3
 
     class FrozenSetFieldV3(m.fields.List):
+        default_error_messages = {"invalid": "Not a valid frozenset."}  # noqa: RUF012
+
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             result = super()._deserialize(value, attr, data, **kwargs)
             return None if None else frozenset(result)
@@ -1161,6 +1165,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     FrozenSetField = FrozenSetFieldV3
 
     class TupleFieldV3(m.fields.List):
+        default_error_messages = {"invalid": "Not a valid tuple."}  # noqa: RUF012
+
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             result = super()._deserialize(value, attr, data, **kwargs)
             return None if None else tuple(result)
@@ -1264,7 +1270,10 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     EnumField = EnumFieldV3
 
-    DictField = m.fields.Dict
+    class DictFieldV3(m.fields.Dict):
+        default_error_messages = {"invalid": "Not a valid dict."}  # noqa: RUF012
+
+    DictField = DictFieldV3
 
     class UnionFieldV3(m.fields.Field):
         def __init__(self, fields: list[m.fields.Field], **kwargs: Any):
@@ -1477,6 +1486,8 @@ else:
     DateField = DateFieldV2
 
     class SetFieldV2(m.fields.List):
+        default_error_messages = {"invalid": "Not a valid set."}  # noqa: RUF012
+
         def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:
             result = super()._deserialize(value, attr, data)
             return None if None else set(result)
@@ -1484,6 +1495,8 @@ else:
     SetField = SetFieldV2
 
     class FrozenSetFieldV2(m.fields.List):
+        default_error_messages = {"invalid": "Not a valid frozenset."}  # noqa: RUF012
+
         def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:
             result = super()._deserialize(value, attr, data)
             return None if None else frozenset(result)
@@ -1491,6 +1504,8 @@ else:
     FrozenSetField = FrozenSetFieldV2
 
     class TupleFieldV2(m.fields.List):
+        default_error_messages = {"invalid": "Not a valid tuple."}  # noqa: RUF012
+
         def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:
             result = super()._deserialize(value, attr, data)
             return None if None else tuple(result)
@@ -1595,7 +1610,7 @@ else:
     EnumField = EnumFieldV2
 
     class TypedDict(m.fields.Field):
-        default_error_messages = {"invalid": "Not a valid mapping type."}  # noqa: RUF012
+        default_error_messages = {"invalid": "Not a valid dict."}  # noqa: RUF012
 
         def __init__(
             self, keys: m.fields.Field | None = None, values: m.fields.Field | None = None, *args: Any, **kwargs: Any
