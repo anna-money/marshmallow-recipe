@@ -271,6 +271,34 @@ def tuple_metadata(
     return Metadata(values)
 
 
+def frozenset_metadata(
+    *,
+    name: str = MISSING,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    validate_item: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
+    description: str | None = None,
+) -> Metadata:
+    values = dict[str, Any]()
+    if name is not MISSING:
+        values.update(name=name)
+    if validate is not None:
+        values.update(validate=validate)
+    if validate_item is not None:
+        values.update(validate_item=validate_item)
+    if required_error is not None:
+        values.update(required_error=required_error)
+    if none_error is not None:
+        values.update(none_error=none_error)
+    if invalid_error is not None:
+        values.update(invalid_error=invalid_error)
+    if description is not None:
+        values.update(description=description)
+    return Metadata(values)
+
+
 sequence_metadata = list_metadata
 
 # shortcuts
@@ -279,6 +307,7 @@ decimal_meta = decimal_metadata
 datetime_meta = datetime_metadata
 list_meta = list_metadata
 set_meta = set_metadata
+frozenset_meta = frozenset_metadata
 sequence_meta = sequence_metadata
 str_meta = str_metadata
 tuple_meta = tuple_metadata
