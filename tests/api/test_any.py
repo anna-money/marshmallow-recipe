@@ -9,7 +9,7 @@ import pytest
 
 import marshmallow_recipe as mr
 
-from .conftest import Serializer, WithAnyField, WithAnyNamingCase, WithDictAny, WithListAny, WithRequiredAny
+from .conftest import Serializer, ValueOf, WithAnyField, WithAnyNamingCase, WithDictAny, WithListAny, WithRequiredAny
 
 
 class TestAnyDump:
@@ -139,39 +139,23 @@ class TestAnyDump:
         assert result == b'{"data":null,"name":"test"}'
 
     def test_rejects_datetime(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class Holder:
-            value: Any
-
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(Holder, Holder(value=datetime.datetime.now()))
+            impl.dump(ValueOf[Any], ValueOf[Any](value=datetime.datetime.now()))
         assert exc.value.messages == {"value": ["Not a valid JSON-serializable value."]}
 
     def test_rejects_date(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class Holder:
-            value: Any
-
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(Holder, Holder(value=datetime.date.today()))
+            impl.dump(ValueOf[Any], ValueOf[Any](value=datetime.date.today()))
         assert exc.value.messages == {"value": ["Not a valid JSON-serializable value."]}
 
     def test_rejects_uuid(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class Holder:
-            value: Any
-
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(Holder, Holder(value=uuid.uuid4()))
+            impl.dump(ValueOf[Any], ValueOf[Any](value=uuid.uuid4()))
         assert exc.value.messages == {"value": ["Not a valid JSON-serializable value."]}
 
     def test_rejects_decimal(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class Holder:
-            value: Any
-
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(Holder, Holder(value=decimal.Decimal("3.14")))
+            impl.dump(ValueOf[Any], ValueOf[Any](value=decimal.Decimal("3.14")))
         assert exc.value.messages == {"value": ["Not a valid JSON-serializable value."]}
 
     def test_rejects_custom_object(self, impl: Serializer) -> None:
@@ -179,61 +163,33 @@ class TestAnyDump:
         class CustomObject:
             field: str
 
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class Holder:
-            value: Any
-
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(Holder, Holder(value=CustomObject(field="test")))
+            impl.dump(ValueOf[Any], ValueOf[Any](value=CustomObject(field="test")))
         assert exc.value.messages == {"value": ["Not a valid JSON-serializable value."]}
 
     def test_rejects_set(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class Holder:
-            value: Any
-
         with pytest.raises(marshmallow.ValidationError):
-            impl.dump(Holder, Holder(value={1, 2, 3}))
+            impl.dump(ValueOf[Any], ValueOf[Any](value={1, 2, 3}))
 
     def test_rejects_tuple(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class Holder:
-            value: Any
-
         with pytest.raises(marshmallow.ValidationError):
-            impl.dump(Holder, Holder(value=(1, 2, 3)))
+            impl.dump(ValueOf[Any], ValueOf[Any](value=(1, 2, 3)))
 
     def test_rejects_bytes(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class Holder:
-            value: Any
-
         with pytest.raises(marshmallow.ValidationError):
-            impl.dump(Holder, Holder(value=b"bytes"))
+            impl.dump(ValueOf[Any], ValueOf[Any](value=b"bytes"))
 
     def test_rejects_dict_with_non_string_keys(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class Holder:
-            value: Any
-
         with pytest.raises(marshmallow.ValidationError):
-            impl.dump(Holder, Holder(value={1: "value"}))
+            impl.dump(ValueOf[Any], ValueOf[Any](value={1: "value"}))
 
     def test_rejects_list_with_invalid_items(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class Holder:
-            value: Any
-
         with pytest.raises(marshmallow.ValidationError):
-            impl.dump(Holder, Holder(value=[1, 2, datetime.datetime.now()]))
+            impl.dump(ValueOf[Any], ValueOf[Any](value=[1, 2, datetime.datetime.now()]))
 
     def test_rejects_nested_invalid_structures(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class Holder:
-            value: Any
-
         with pytest.raises(marshmallow.ValidationError):
-            impl.dump(Holder, Holder(value={"nested": {"deeply": {"invalid": uuid.uuid4()}}}))
+            impl.dump(ValueOf[Any], ValueOf[Any](value={"nested": {"deeply": {"invalid": uuid.uuid4()}}}))
 
 
 class TestAnyLoad:
