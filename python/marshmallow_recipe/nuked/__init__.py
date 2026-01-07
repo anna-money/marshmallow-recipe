@@ -3,11 +3,10 @@ import typing
 from collections.abc import Callable
 
 import marshmallow
-import marshmallow_recipe_speedup as mrs
 
-from marshmallow_recipe.hooks import get_pre_loads
-from marshmallow_recipe.options import NoneValueHandling
-
+from .. import _nuked as nuked  # type: ignore[attr-defined]
+from ..hooks import get_pre_loads
+from ..options import NoneValueHandling
 from ._descriptor import TypeDescriptor, build_type_descriptor
 from ._schema import descriptor_to_dict, extract_post_loads
 
@@ -48,7 +47,7 @@ def _ensure_registered(cls: type, naming_case: Callable[[str], str] | None) -> i
         raw_schema = descriptor_to_dict(descriptor)
         post_loads = extract_post_loads(descriptor)
         _schema_cache[schema_id] = (post_loads, descriptor)
-        mrs.register(schema_id, raw_schema)
+        nuked.register(schema_id, raw_schema)
 
     return schema_id
 
@@ -69,7 +68,7 @@ def dump_to_bytes[T](
     effective_none_handling = none_value_handling or descriptor.none_value_handling or NoneValueHandling.IGNORE
 
     try:
-        return mrs.dump_to_bytes(schema_id, data, effective_none_handling.value, decimal_places, encoding)
+        return nuked.dump_to_bytes(schema_id, data, effective_none_handling.value, decimal_places, encoding)
     except ValueError as e:
         raise _convert_rust_error_to_validation_error(e)
 
@@ -80,7 +79,7 @@ def load_from_bytes[T](
     schema_id = _ensure_registered(cls, naming_case)
     post_loads, _ = _schema_cache[schema_id]
     try:
-        return mrs.load_from_bytes(schema_id, data, post_loads, encoding)  # type: ignore[return-value]
+        return nuked.load_from_bytes(schema_id, data, post_loads, encoding)  # type: ignore[return-value]
     except ValueError as e:
         raise _convert_rust_error_to_validation_error(e)
 
@@ -100,7 +99,7 @@ def dump[T](
     effective_none_handling = none_value_handling or descriptor.none_value_handling or NoneValueHandling.IGNORE
 
     try:
-        return mrs.dump(schema_id, data, effective_none_handling.value, decimal_places)
+        return nuked.dump(schema_id, data, effective_none_handling.value, decimal_places)
     except ValueError as e:
         raise _convert_rust_error_to_validation_error(e)
 
@@ -113,6 +112,6 @@ def load[T](cls: type[T], data: typing.Any, *, naming_case: typing.Callable[[str
         data = pre_load(data)
 
     try:
-        return mrs.load(schema_id, data, post_loads)  # type: ignore[return-value]
+        return nuked.load(schema_id, data, post_loads)  # type: ignore[return-value]
     except ValueError as e:
         raise _convert_rust_error_to_validation_error(e)
