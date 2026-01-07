@@ -1,4 +1,4 @@
-.PHONY: all uv rust deps lint test test-release build build-wheel build-sdist
+.PHONY: all uv rust deps lint test build build-wheel build-sdist
 
 all: deps lint test
 
@@ -16,26 +16,21 @@ rust:
 
 deps: uv rust
 	@uv sync --extra dev
-	@cd packages/marshmallow-recipe-speedup && uv run maturin develop --release
+	@uv run maturin develop --release
 
 lint: deps
-	@uv run ruff format marshmallow_recipe tests
-	@uv run ruff check marshmallow_recipe tests --fix
+	@uv run ruff format python/marshmallow_recipe tests
+	@uv run ruff check python/marshmallow_recipe tests --fix
 	@uv run pyright
 
 test: deps
 	@uv run pytest -vv $(or $(T),.)
 
-build: uv
-	@uv build
+build: deps
+	@uv run maturin build --release
 
 build-wheel: deps
-	@cd packages/marshmallow-recipe-speedup && uv run maturin build --release --out dist
+	@uv run maturin build --release --out dist
 
 build-sdist: deps
-	@cd packages/marshmallow-recipe-speedup && uv run maturin sdist --out dist
-
-test-release: uv rust
-	@uv sync --extra dev --no-install-package marshmallow-recipe-speedup
-	@cd packages/marshmallow-recipe-speedup && uv run maturin build --release --out dist
-	@WHEEL=$$(ls packages/marshmallow-recipe-speedup/dist/*.whl) && uv run --with "$$WHEEL" pytest -vv .
+	@uv run maturin sdist --out dist

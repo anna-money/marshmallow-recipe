@@ -12,7 +12,7 @@ mod api;
 use pyo3::prelude::*;
 
 #[pymodule]
-fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _nuked(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(cache::register, m)?)?;
     m.add_function(wrap_pyfunction!(api::load, m)?)?;
     m.add_function(wrap_pyfunction!(api::dump, m)?)?;

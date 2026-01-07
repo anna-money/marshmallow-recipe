@@ -1,10 +1,10 @@
 [package]
-name = "marshmallow-recipe-speedup"
-version = "0.0.1"
+name = "marshmallow-recipe"
+version = "0.0.70"
 edition = "2021"
 
 [lib]
-name = "_core"
+name = "_nuked"
 crate-type = ["cdylib"]
 
 [dependencies]

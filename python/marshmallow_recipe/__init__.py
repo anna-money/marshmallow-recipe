@@ -132,9 +132,6 @@ __version__ = _get_version("marshmallow-recipe")
 
 version = f"{__version__}, Python {sys.version}"
 
-try:
-    from marshmallow_recipe import speedup
+from marshmallow_recipe import nuked  # noqa: E402
 
-    __all__ += ("speedup",)  # type: ignore
-except ImportError:
-    pass
+__all__ = (*__all__, "nuked")  # pyright: ignore[reportUnsupportedDunderAll]

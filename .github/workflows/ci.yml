@@ -44,8 +44,8 @@ jobs:
       - name: Tests
         run: make test
 
-  test-and-build-wheels:
-    name: Test and build wheels (${{ matrix.os }})
+  build-wheels:
+    name: Build wheels (${{ matrix.os }})
     needs: [test]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -65,14 +65,14 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       - name: Use Python 3.12
         run: echo "3.12" > .python-version
-      - name: Test and build wheel
-        run: make test-release
+      - name: Build wheel
+        run: make build-wheel
       - name: Upload wheel
         if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v4
         with:
-          name: speedup-wheel-${{ matrix.os }}
-          path: packages/marshmallow-recipe-speedup/dist/*.whl
+          name: wheel-${{ matrix.os }}
+          path: dist/*.whl
 
   build-sdist:
     name: Build sdist
@@ -91,56 +91,29 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v4
         with:
-          name: speedup-sdist
-          path: packages/marshmallow-recipe-speedup/dist/*.tar.gz
-
-  build-main-package:
-    name: Build main package
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-      - name: Build package
-        run: make build
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: main-package
-          path: dist/*
+          name: sdist
+          path: dist/*.tar.gz
 
   publish:
     name: Publish to PyPI
     runs-on: ubuntu-latest
-    needs: [test, test-and-build-wheels, build-sdist, build-main-package]
+    needs: [test, build-wheels, build-sdist]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
-      - name: Download speedup wheels
+      - name: Download wheels
         uses: actions/download-artifact@v4
         with:
-          pattern: speedup-wheel-*
-          path: dist-speedup
+          pattern: wheel-*
+          path: dist
           merge-multiple: true
-      - name: Download speedup sdist
+      - name: Download sdist
         uses: actions/download-artifact@v4
         with:
-          name: speedup-sdist
-          path: dist-speedup
-
-      - name: Download main package
-        uses: actions/download-artifact@v4
-        with:
-          name: main-package
-          path: dist-main
-
-      - name: Publish speedup to PyPI
+          name: sdist
+          path: dist
+      - name: Publish to PyPI
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: uv publish dist-speedup/*
-
-      - name: Publish main to PyPI
-        env:
-          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: uv publish dist-main/*
+        run: uv publish dist/*
