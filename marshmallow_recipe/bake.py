@@ -197,6 +197,10 @@ def _get_field_for(
         effective_underlying_union_types = [t for t in underlying_union_types if t is not types.NoneType]
         if not effective_underlying_union_types:
             raise ValueError("Union must contain at least one type other than NoneType")
+        if Any in effective_underlying_union_types:
+            raise ValueError(
+                "Any type cannot be used in Optional or Union (Any | None, Optional[Any], Union[Any, ...] are invalid)"
+            )
         if len(effective_underlying_union_types) == 1:
             t = effective_underlying_union_types[0]
         else:
