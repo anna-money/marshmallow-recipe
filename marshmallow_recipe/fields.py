@@ -1013,6 +1013,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         field: TField, type_guards: type | tuple[type, ...], type_guards_to_exclude: type | tuple[type, ...] = ()
     ) -> TField:
         fail_key = "invalid" if "invalid" in field.default_error_messages else "validator_failed"
+        invalid_msg = str(field.default_error_messages.get("invalid", ""))
+        obj_type = getattr(field, "OBJ_TYPE", None) if "{obj_type}" in invalid_msg else None
 
         old = field._serialize  # type: ignore
 
@@ -1020,6 +1022,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             if value is not None and not (
                 isinstance(value, type_guards) and not isinstance(value, type_guards_to_exclude)
             ):
+                if obj_type is not None:
+                    raise self.make_error(fail_key, obj_type=obj_type)  # type: ignore
                 raise self.make_error(fail_key)  # type: ignore
             return old(value, attr, obj, **kwargs)
 
