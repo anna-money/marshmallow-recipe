@@ -139,9 +139,79 @@ class MarshmallowSerializer(Serializer):
         return mr.load_many(schema_class, json.loads(data), naming_case=naming_case, decimal_places=decimal_places)
 
 
-@pytest.fixture
-def impl() -> Serializer:
-    return MarshmallowSerializer()
+class SpeedupBytesSerializer(Serializer):
+    __slots__ = ()
+
+    @property
+    def supports_pre_load(self) -> bool:
+        return False
+
+    @property
+    def supports_special_float_validation(self) -> bool:
+        return False
+
+    @property
+    def supports_cyclic(self) -> bool:
+        return False
+
+    def dump[T](
+        self,
+        schema_class: type[T],
+        obj: T,
+        naming_case: mr.NamingCase | None = None,
+        none_value_handling: mr.NoneValueHandling | None = None,
+        decimal_places: int | None = mr.MISSING,
+    ) -> bytes:
+        return mr.speedup.dump_to_bytes(
+            schema_class,
+            obj,
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
+        )
+
+    def load[T](self, schema_class: type[T], data: bytes, naming_case: mr.NamingCase | None = None) -> T:
+        return mr.speedup.load_from_bytes(schema_class, data, naming_case=naming_case)
+
+
+class SpeedupSerializer(Serializer):
+    __slots__ = ()
+
+    @property
+    def supports_pre_load(self) -> bool:
+        return True
+
+    @property
+    def supports_cyclic(self) -> bool:
+        return False
+
+    def dump[T](
+        self,
+        schema_class: type[T],
+        obj: T,
+        naming_case: mr.NamingCase | None = None,
+        none_value_handling: mr.NoneValueHandling | None = None,
+        decimal_places: int | None = mr.MISSING,
+    ) -> bytes:
+        result = mr.speedup.dump(
+            schema_class,
+            obj,
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
+        )
+        return json.dumps(result, separators=(",", ":")).encode()
+
+    def load[T](self, schema_class: type[T], data: bytes, naming_case: mr.NamingCase | None = None) -> T:
+        return mr.speedup.load(schema_class, json.loads(data), naming_case=naming_case)
+
+
+@pytest.fixture(
+    params=[MarshmallowSerializer(), SpeedupBytesSerializer(), SpeedupSerializer()],
+    ids=["marshmallow", "speedup_bytes", "speedup"],
+)
+def impl(request: pytest.FixtureRequest) -> Serializer:
+    return request.param
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

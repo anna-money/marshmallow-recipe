@@ -36,6 +36,10 @@ dev = [
     "ruff==0.8.4",
     "pyright==1.1.407",
     "setuptools",
+    "maturin>=1.0,<2.0",
+]
+speedup = [
+    "marshmallow-recipe-speedup",
 ]
 
 [tool.hatch.version]
@@ -53,6 +57,7 @@ exclude = [
     ".idea",
     "__pycache__",
     "venv",
+    "benchmarks",
 ]
 
 [tool.ruff.lint]
@@ -70,7 +75,7 @@ combine-as-imports = true
 split-on-trailing-comma = false
 
 [tool.pytest.ini_options]
-norecursedirs = [".git", ".venv"]
+norecursedirs = [".git", ".venv", "benchmarks"]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 
 [tool.pyright]
@@ -92,3 +97,9 @@ reportUnusedImport = false
 reportMissingTypeArgument = false
 reportImportCycles = false
 reportDeprecated = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+marshmallow-recipe-speedup = { workspace = true }

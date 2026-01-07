@@ -131,3 +131,10 @@ __all__: tuple[str, ...] = (
 __version__ = _get_version("marshmallow-recipe")
 
 version = f"{__version__}, Python {sys.version}"
+
+try:
+    from marshmallow_recipe import speedup
+
+    __all__ += ("speedup",)  # type: ignore
+except ImportError:
+    pass

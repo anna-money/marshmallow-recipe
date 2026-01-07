@@ -212,6 +212,14 @@ class TestCyclicDump:
         assert result == expected
 
 
+class TestCyclicNotSupportedInSpeedup:
+    def test_cyclic_raises_not_implemented(self) -> None:
+        import marshmallow_recipe as mr
+
+        with pytest.raises(NotImplementedError, match="Cyclic dataclass references are not supported"):
+            mr.speedup.dump(Cyclic, Cyclic(marker="test", child=None))
+
+
 class TestNestedDumpInvalidType:
     """Test that invalid types in nested fields raise ValidationError on dump."""
 
