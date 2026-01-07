@@ -38,6 +38,7 @@ dev = [
     "pyright==1.1.407",
     "setuptools",
     "maturin>=1.9,<2.0",
+    "pyperf>=2.7",
 ]
 
 [tool.maturin]
