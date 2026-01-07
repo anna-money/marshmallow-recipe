@@ -8,6 +8,7 @@
 * [Strict enum type checking and reject bool for int/float fields on dump](https://github.com/anna-money/marshmallow-recipe/pull/219)
 * [Add `frozenset_meta`/`frozenset_metadata` for consistency with other collection types](https://github.com/anna-money/marshmallow-recipe/pull/220)
 * [Fix obj_type parameter in type check error messages for DateTime/Time fields](https://github.com/anna-money/marshmallow-recipe/pull/221)
+* [Reject Any type in Optional/Union](https://github.com/anna-money/marshmallow-recipe/pull/222)
 
 
 ## v0.0.68 (2025-12-16)
