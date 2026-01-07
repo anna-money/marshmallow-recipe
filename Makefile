@@ -1,4 +1,4 @@
-.PHONY: all uv rust deps lint test build build-wheel build-sdist
+.PHONY: all uv rust deps lint test bench build build-wheel build-sdist
 
 all: deps lint test
 
@@ -25,6 +25,9 @@ lint: deps
 
 test: deps
 	@uv run pytest -vv $(or $(T),.)
+
+bench: deps
+	@uv run python benchmarks/bench_serialization.py
 
 build: deps
 	@uv run maturin build --release
