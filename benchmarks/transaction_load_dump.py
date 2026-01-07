@@ -6,6 +6,7 @@ import uuid
 from typing import Annotated
 
 import marshmallow_recipe as mr
+import marshmallow_recipe.speedup as mrs
 
 
 @dataclasses.dataclass(frozen=True)
@@ -26,6 +27,6 @@ transaction = Transaction(
 )
 
 # to warm up the lib caches
-assert mr.load_many(Transaction, mr.dump_many([transaction] * 1024))
+assert mrs.load(list[Transaction], mrs.dump(list[Transaction], [transaction] * 1024))
 
-cProfile.run("mr.load_many(Transaction, mr.dump_many([transaction] * 1024))", sort="tottime")
+cProfile.run("mrs.load(list[Transaction], mrs.dump(list[Transaction], [transaction] * 1024))", sort="tottime")

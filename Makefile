@@ -1,3 +1,5 @@
+.PHONY: all uv rust deps lint test test-release build build-wheel build-sdist
+
 all: deps lint test
 
 uv:
@@ -6,19 +8,34 @@ uv:
 		exit 1;\
 	}
 
-deps: uv
-	@uv sync --all-extras
+rust:
+	@which cargo >/dev/null 2>&1 || { \
+		echo "Rust is not installed"; \
+		exit 1;\
+	}
 
-ruff-format:
+deps: uv rust
+	@uv sync --extra dev
+	@cd packages/marshmallow-recipe-speedup && uv run maturin develop --release
+
+lint: deps
 	@uv run ruff format marshmallow_recipe tests
-
-ruff-lint:
 	@uv run ruff check marshmallow_recipe tests --fix
-
-pyright:
 	@uv run pyright
 
-lint: ruff-format ruff-lint pyright
+test: deps
+	@uv run pytest -vv $(or $(T),.)
 
-test:
-	@uv run pytest -vv --rootdir tests .
+build: uv
+	@uv build
+
+build-wheel: deps
+	@cd packages/marshmallow-recipe-speedup && uv run maturin build --release --out dist
+
+build-sdist: deps
+	@cd packages/marshmallow-recipe-speedup && uv run maturin sdist --out dist
+
+test-release: uv rust
+	@uv sync --extra dev --no-install-package marshmallow-recipe-speedup
+	@cd packages/marshmallow-recipe-speedup && uv run maturin build --release --out dist
+	@WHEEL=$$(ls packages/marshmallow-recipe-speedup/dist/*.whl) && uv run --with "$$WHEEL" pytest -vv .
