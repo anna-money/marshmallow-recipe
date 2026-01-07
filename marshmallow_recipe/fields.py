@@ -1010,14 +1010,16 @@ def build_uuid_error_messages(
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def with_type_checks_on_serialize_v3[TField: m.fields.Field](
-        field: TField, type_guards: type | tuple[type, ...]
+        field: TField, type_guards: type | tuple[type, ...], type_guards_to_exclude: type | tuple[type, ...] = ()
     ) -> TField:
         fail_key = "invalid" if "invalid" in field.default_error_messages else "validator_failed"
 
         old = field._serialize  # type: ignore
 
         def _serialize_with_validate(self: TField, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
-            if value is not None and not isinstance(value, type_guards):
+            if value is not None and not (
+                isinstance(value, type_guards) and not isinstance(value, type_guards_to_exclude)
+            ):
                 raise self.make_error(fail_key)  # type: ignore
             return old(value, attr, obj, **kwargs)
 
@@ -1216,9 +1218,9 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
             if value is None:
                 return None
-            if isinstance(value, self.enum_type):
-                return value.value
-            return super()._serialize(value, attr, obj)
+            if not isinstance(value, self.enum_type):
+                raise m.ValidationError(self.error.format(input=value, choices=self.choices))
+            return value.value
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             if value is None:
@@ -1229,7 +1231,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             try:
                 return self.enum_type(enum_value)
             except ValueError:
-                raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))
+                raise m.ValidationError(self.error.format(input=value, choices=self.choices))
 
         @staticmethod
         def _extract_enum_value_type(enum_type: Any) -> type[str | int]:
@@ -1332,14 +1334,16 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 else:
 
     def with_type_checks_on_serialize_v2[TField: m.fields.Field](
-        field: TField, type_guards: type | tuple[type, ...]
+        field: TField, type_guards: type | tuple[type, ...], type_guards_to_exclude: type | tuple[type, ...] = ()
     ) -> TField:
         fail_key = "invalid" if "invalid" in field.default_error_messages else "validator_failed"
 
         old = field._serialize  # type: ignore
 
         def _serialize_with_validate(self: TField, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
-            if value is not None and not isinstance(value, type_guards):
+            if value is not None and not (
+                isinstance(value, type_guards) and not isinstance(value, type_guards_to_exclude)
+            ):
                 self.fail(fail_key)  # type: ignore
             return old(value, attr, obj, **kwargs)
 
@@ -1555,9 +1559,9 @@ else:
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
             if value is None:
                 return None
-            if isinstance(value, self.enum_type):
-                return value.value
-            return super()._serialize(value, attr, obj)
+            if not isinstance(value, self.enum_type):
+                raise m.ValidationError(self.error.format(input=value, choices=self.choices))
+            return value.value
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             if value is None:
@@ -1568,7 +1572,7 @@ else:
             try:
                 return self.enum_type(enum_value)
             except ValueError:
-                raise m.ValidationError(self.default_error.format(input=value, choices=self.choices))
+                raise m.ValidationError(self.error.format(input=value, choices=self.choices))
 
         @staticmethod
         def _extract_enum_value_type(enum_type: Any) -> type[str | int]:

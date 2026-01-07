@@ -405,9 +405,12 @@ def _get_field_for(
         if t is decimal.Decimal and field_decimal_places is not MISSING:
             field_kwargs.setdefault("places", field_decimal_places)
 
-        return with_type_checks_on_serialize(
-            field_factory(**field_kwargs), type_guards=(float, int) if t is float else t
-        )
+        field = field_factory(**field_kwargs)
+        if t is float:
+            return with_type_checks_on_serialize(field, type_guards=(float, int), type_guards_to_exclude=bool)
+        if t is int:
+            return with_type_checks_on_serialize(field, type_guards=int, type_guards_to_exclude=bool)
+        return with_type_checks_on_serialize(field, type_guards=t)
 
     raise ValueError(f"Unsupported {t=}")
 
