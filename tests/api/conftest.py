@@ -9,9 +9,8 @@ from collections.abc import Mapping, Sequence
 from typing import Annotated, Any, NewType
 
 import marshmallow
-import pytest
-
 import marshmallow_recipe as mr
+import pytest
 
 
 class Serializer(abc.ABC):
@@ -162,7 +161,7 @@ class SpeedupBytesSerializer(Serializer):
         none_value_handling: mr.NoneValueHandling | None = None,
         decimal_places: int | None = mr.MISSING,
     ) -> bytes:
-        return mr.speedup.dump_to_bytes(
+        return mr.nuked.dump_to_bytes(
             schema_class,
             obj,
             naming_case=naming_case,
@@ -171,7 +170,7 @@ class SpeedupBytesSerializer(Serializer):
         )
 
     def load[T](self, schema_class: type[T], data: bytes, naming_case: mr.NamingCase | None = None) -> T:
-        return mr.speedup.load_from_bytes(schema_class, data, naming_case=naming_case)
+        return mr.nuked.load_from_bytes(schema_class, data, naming_case=naming_case)
 
 
 class SpeedupSerializer(Serializer):
@@ -193,7 +192,7 @@ class SpeedupSerializer(Serializer):
         none_value_handling: mr.NoneValueHandling | None = None,
         decimal_places: int | None = mr.MISSING,
     ) -> bytes:
-        result = mr.speedup.dump(
+        result = mr.nuked.dump(
             schema_class,
             obj,
             naming_case=naming_case,
@@ -203,7 +202,7 @@ class SpeedupSerializer(Serializer):
         return json.dumps(result, separators=(",", ":")).encode()
 
     def load[T](self, schema_class: type[T], data: bytes, naming_case: mr.NamingCase | None = None) -> T:
-        return mr.speedup.load(schema_class, json.loads(data), naming_case=naming_case)
+        return mr.nuked.load(schema_class, json.loads(data), naming_case=naming_case)
 
 
 @pytest.fixture(
