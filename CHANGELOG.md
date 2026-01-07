@@ -5,7 +5,7 @@
 * [Fix int values being converted to float when dumping float fields](https://github.com/anna-money/marshmallow-recipe/pull/214)
 * Switch to VCS-based versioning with hatch-vcs
 * [Fix collection field error messages](https://github.com/anna-money/marshmallow-recipe/pull/216)
-* [Fix EnumField validation and reject bool for int/float fields on dump](https://github.com/anna-money/marshmallow-recipe/pull/219)
+* [Strict enum type checking and reject bool for int/float fields on dump](https://github.com/anna-money/marshmallow-recipe/pull/219)
 
 
 ## v0.0.68 (2025-12-16)

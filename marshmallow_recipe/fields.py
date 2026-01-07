@@ -1218,11 +1218,9 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
             if value is None:
                 return None
-            if isinstance(value, self.enum_type):
-                return value.value
-            if value in self.choices:
-                return value
-            raise m.ValidationError(self.error.format(input=value, choices=self.choices))
+            if not isinstance(value, self.enum_type):
+                raise m.ValidationError(self.error.format(input=value, choices=self.choices))
+            return value.value
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             if value is None:
@@ -1561,11 +1559,9 @@ else:
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
             if value is None:
                 return None
-            if isinstance(value, self.enum_type):
-                return value.value
-            if value in self.choices:
-                return value
-            raise m.ValidationError(self.error.format(input=value, choices=self.choices))
+            if not isinstance(value, self.enum_type):
+                raise m.ValidationError(self.error.format(input=value, choices=self.choices))
+            return value.value
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             if value is None:
