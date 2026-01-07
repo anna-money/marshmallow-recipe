@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
@@ -39,7 +39,7 @@ dev = [
 ]
 
 [tool.hatch.version]
-path = "marshmallow_recipe/__init__.py"
+source = "vcs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["marshmallow_recipe"]
