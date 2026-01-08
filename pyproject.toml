@@ -42,6 +42,7 @@ dev = [
 ]
 
 [tool.maturin]
+version = "git"
 features = ["pyo3/extension-module"]
 python-source = "python"
 module-name = "marshmallow_recipe._nuked"
