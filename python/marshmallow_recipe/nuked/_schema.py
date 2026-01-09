@@ -104,6 +104,12 @@ def field_to_dict(field: Any, visited_schemas: set[type] | None = None) -> dict:
     if field.enum_values is not None:
         result["enum_values"] = field.enum_values
 
+    if field.enum_name is not None:
+        result["enum_name"] = field.enum_name
+
+    if field.enum_members_repr is not None:
+        result["enum_members_repr"] = field.enum_members_repr
+
     if field.union_variants is not None:
         result["union_variants"] = [field_to_dict(v, visited_schemas) for v in field.union_variants]
 
