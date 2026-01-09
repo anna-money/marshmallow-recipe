@@ -467,9 +467,12 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                 let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
                 if let Some(ref enum_cls) = self.field.enum_cls {
                     if !self.value.is_instance(enum_cls.bind(py)).map_err(serde::ser::Error::custom)? {
+                        let value_type_name: String = self.value.get_type().name().map_err(serde::ser::Error::custom)?.extract().map_err(serde::ser::Error::custom)?;
+                        let enum_name = self.field.enum_name.as_deref().unwrap_or("Enum");
+                        let members_repr = self.field.enum_members_repr.as_deref().unwrap_or("[]");
                         return Err(serde::ser::Error::custom(format!(
-                            "{{\"{}\": [\"Not a valid enum member.\"]}}",
-                            self.field.name
+                            "[\"Expected {} instance, got {}. Allowed values: {}\"]",
+                            enum_name, value_type_name, members_repr
                         )));
                     }
                 }
@@ -485,9 +488,12 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                 let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
                 if let Some(ref enum_cls) = self.field.enum_cls {
                     if !self.value.is_instance(enum_cls.bind(py)).map_err(serde::ser::Error::custom)? {
+                        let value_type_name: String = self.value.get_type().name().map_err(serde::ser::Error::custom)?.extract().map_err(serde::ser::Error::custom)?;
+                        let enum_name = self.field.enum_name.as_deref().unwrap_or("Enum");
+                        let members_repr = self.field.enum_members_repr.as_deref().unwrap_or("[]");
                         return Err(serde::ser::Error::custom(format!(
-                            "{{\"{}\": [\"Not a valid enum member.\"]}}",
-                            self.field.name
+                            "[\"Expected {} instance, got {}. Allowed values: {}\"]",
+                            enum_name, value_type_name, members_repr
                         )));
                     }
                 }

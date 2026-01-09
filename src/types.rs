@@ -79,6 +79,8 @@ pub struct FieldDescriptor {
     pub enum_cls: Option<Py<PyAny>>,
     pub str_enum_values: Option<Vec<(String, Py<PyAny>)>>,
     pub int_enum_values: Option<Vec<(i64, Py<PyAny>)>>,
+    pub enum_name: Option<String>,
+    pub enum_members_repr: Option<String>,
     pub union_variants: Option<Vec<Box<FieldDescriptor>>>,
     pub default_value: Option<Py<PyAny>>,
     pub default_factory: Option<Py<PyAny>>,
@@ -116,6 +118,8 @@ impl Clone for FieldDescriptor {
             int_enum_values: self.int_enum_values.as_ref().map(|v| {
                 v.iter().map(|(k, val)| (*k, val.clone_ref(py))).collect()
             }),
+            enum_name: self.enum_name.clone(),
+            enum_members_repr: self.enum_members_repr.clone(),
             union_variants: self.union_variants.clone(),
             default_value: self.default_value.as_ref().map(|v| v.clone_ref(py)),
             default_factory: self.default_factory.as_ref().map(|f| f.clone_ref(py)),
@@ -181,6 +185,8 @@ impl FromPyObject<'_, '_> for FieldDescriptor {
             enum_cls,
             str_enum_values: None,
             int_enum_values: None,
+            enum_name: None,
+            enum_members_repr: None,
             union_variants: union_variants.map(|v| v.into_iter().map(Box::new).collect()),
             default_value,
             default_factory,

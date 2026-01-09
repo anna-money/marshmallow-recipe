@@ -68,6 +68,8 @@ class FieldDescriptor:
     datetime_format: str | None = None
     enum_cls: type | None = None
     enum_values: list[tuple[Any, Any]] | None = None
+    enum_name: str | None = None
+    enum_members_repr: str | None = None
     union_variants: list[FieldDescriptor] | None = None
     default_value: Any = dataclasses.MISSING
     default_factory: Callable[[], Any] | None = None
@@ -453,16 +455,28 @@ def _analyze_type(
         if hint is datetime.time:
             return "time", {}
         if isinstance(hint, type) and issubclass(hint, enum.Enum):
+            enum_name = hint.__name__
+            enum_members_repr = "[" + ", ".join(f"{hint.__name__}.{m.name}" for m in hint) + "]"
             if issubclass(hint, str):
                 enum_values = [(m.value, m) for m in hint]
-                return "str_enum", {"enum_cls": hint, "enum_values": enum_values}
+                return "str_enum", {
+                    "enum_cls": hint,
+                    "enum_values": enum_values,
+                    "enum_name": enum_name,
+                    "enum_members_repr": enum_members_repr,
+                }
             if issubclass(hint, int):
                 enum_values = []
                 for m in hint:
                     if not (-(2**63) <= m.value < 2**63):
                         raise NotImplementedError(f"IntEnum value {m.value} for {m} is outside i64 range [-2^63, 2^63)")
                     enum_values.append((m.value, m))
-                return "int_enum", {"enum_cls": hint, "enum_values": enum_values}
+                return "int_enum", {
+                    "enum_cls": hint,
+                    "enum_values": enum_values,
+                    "enum_name": enum_name,
+                    "enum_members_repr": enum_members_repr,
+                }
             raise NotImplementedError(f"Unsupported enum type: {hint} (must inherit from str or int)")
         if dataclasses.is_dataclass(hint):
             nested_schema = build_schema_descriptor(hint, naming_case)  # type: ignore[arg-type]

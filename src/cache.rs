@@ -549,6 +549,9 @@ pub fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescripto
         }
     }
 
+    let enum_name: Option<String> = raw.get_item("enum_name")?.and_then(|v| v.extract().ok());
+    let enum_members_repr: Option<String> = raw.get_item("enum_members_repr")?.and_then(|v| v.extract().ok());
+
     let union_variants: Option<Vec<Box<FieldDescriptor>>> = if let Some(variants_raw) = raw.get_item("union_variants")? {
         if !variants_raw.is_none() {
             let variants_list: Vec<Bound<'_, PyDict>> = variants_raw.extract()?;
@@ -648,6 +651,8 @@ pub fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescripto
         enum_cls,
         str_enum_values,
         int_enum_values,
+        enum_name,
+        enum_members_repr,
         union_variants,
         default_value,
         default_factory,

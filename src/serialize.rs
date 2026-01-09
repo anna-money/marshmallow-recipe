@@ -352,9 +352,16 @@ fn serialize_field_value<'py>(
             let cached = get_cached_types(ctx.py)?;
             if let Some(ref enum_cls) = field.enum_cls {
                 if !value.is_instance(enum_cls.bind(ctx.py))? {
-                    let errors = PyList::new(ctx.py, &["Not a valid enum member."])?;
+                    let value_type_name: String = value.get_type().name()?.extract()?;
+                    let enum_name = field.enum_name.as_deref().unwrap_or("Enum");
+                    let members_repr = field.enum_members_repr.as_deref().unwrap_or("[]");
+                    let error_msg = format!(
+                        "Expected {} instance, got {}. Allowed values: {}",
+                        enum_name, value_type_name, members_repr
+                    );
+                    let errors = PyList::new(ctx.py, &[error_msg])?;
                     return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                        err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
+                        errors.into_any().unbind(),
                     ));
                 }
             }
