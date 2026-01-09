@@ -1,4 +1,4 @@
-## v0.0.69 (unreleased)
+## v0.0.69 (2026-01-09)
 
 * [Improve EnumField error messages to show enum members instead of values](https://github.com/anna-money/marshmallow-recipe/pull/227)
 * [Add JsonRawField with JSON validation for Any type fields](https://github.com/anna-money/marshmallow-recipe/pull/212)
