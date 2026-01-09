@@ -1202,6 +1202,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             if allow_none:
                 self.choices.append(None)
 
+            self.__enum_members_repr = "[" + ", ".join(f"{enum_type.__name__}.{m.name}" for m in enum_type) + "]"
+
             if "dump_default" in kwargs:
                 self._validate_default(self.enum_type, kwargs["dump_default"], allow_none)
             if "load_default" in kwargs:
@@ -1223,7 +1225,10 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             if value is None:
                 return None
             if not isinstance(value, self.enum_type):
-                raise m.ValidationError(self.error.format(input=value, choices=self.choices))
+                raise m.ValidationError(
+                    f"Expected {self.enum_type.__name__} instance, got {type(value).__name__}. "
+                    f"Allowed values: {self.__enum_members_repr}"
+                )
             return value.value
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
@@ -1543,6 +1548,8 @@ else:
             if allow_none:
                 self.choices.append(None)
 
+            self.__enum_members_repr = "[" + ", ".join(f"{enum_type.__name__}.{m.name}" for m in enum_type) + "]"
+
             if "default" in kwargs:
                 self._validate_default(self.enum_type, kwargs["default"], allow_none)
             if "missing" in kwargs:
@@ -1564,7 +1571,10 @@ else:
             if value is None:
                 return None
             if not isinstance(value, self.enum_type):
-                raise m.ValidationError(self.error.format(input=value, choices=self.choices))
+                raise m.ValidationError(
+                    f"Expected {self.enum_type.__name__} instance, got {type(value).__name__}. "
+                    f"Allowed values: {self.__enum_members_repr}"
+                )
             return value.value
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
