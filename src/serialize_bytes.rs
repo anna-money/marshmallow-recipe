@@ -169,17 +169,17 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
 
         match self.field.field_type {
             FieldType::Str => {
-                if !self.value.is_instance_of::<PyString>() {
-                    return Err(serde::ser::Error::custom(format!(
+                let py_str: &Bound<'_, PyString> = self.value.cast().map_err(|_| {
+                    serde::ser::Error::custom(format!(
                         "{{\"{}\": [\"Not a valid string.\"]}}",
                         self.field.name
-                    )));
-                }
-                let s: String = self.value.extract().map_err(serde::ser::Error::custom)?;
+                    ))
+                })?;
+                let s = py_str.to_str().map_err(serde::ser::Error::custom)?;
                 if self.field.strip_whitespaces {
                     serializer.serialize_str(s.trim())
                 } else {
-                    serializer.serialize_str(&s)
+                    serializer.serialize_str(s)
                 }
             }
             FieldType::Int => {
@@ -883,11 +883,11 @@ impl<'a, 'py> Serialize for PrimitiveSerializer<'a, 'py> {
 
         match self.field_type {
             FieldType::Str => {
-                if !self.value.is_instance_of::<PyString>() {
-                    return Err(serde::ser::Error::custom("Not a valid string."));
-                }
-                let s: String = self.value.extract().map_err(serde::ser::Error::custom)?;
-                serializer.serialize_str(&s)
+                let py_str: &Bound<'_, PyString> = self.value.cast().map_err(|_| {
+                    serde::ser::Error::custom("Not a valid string.")
+                })?;
+                let s = py_str.to_str().map_err(serde::ser::Error::custom)?;
+                serializer.serialize_str(s)
             }
             FieldType::Int => {
                 if !self.value.is_instance_of::<PyInt>() || self.value.is_instance_of::<PyBool>() {
