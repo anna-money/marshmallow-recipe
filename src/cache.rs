@@ -95,16 +95,6 @@ impl CachedPyTypes {
         force_setattr(py, &uuid_obj, self.str_is_safe.bind(py), &self.safe_uuid_unknown)?;
         Ok(uuid_obj.unbind())
     }
-
-    pub fn uuid_to_string(&self, py_uuid: &Bound<'_, PyAny>) -> PyResult<String> {
-        let py = py_uuid.py();
-        let uuid_int_val: u128 = py_uuid.getattr(self.str_int.bind(py))?.extract()?;
-        let uuid = uuid::Uuid::from_u128(uuid_int_val);
-        let mut buf = [0u8; uuid::fmt::Hyphenated::LENGTH];
-        let s = uuid.hyphenated().encode_lower(&mut buf);
-        Ok(s.to_string())
-    }
-
 }
 
 static CACHED_PY_TYPES: OnceCell<CachedPyTypes> = OnceCell::new();

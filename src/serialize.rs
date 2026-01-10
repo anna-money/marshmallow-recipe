@@ -224,8 +224,11 @@ fn serialize_field_value<'py>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
             }
-            let s = cached.uuid_to_string(value)?;
-            Ok(PyString::new(ctx.py, &s).into_any().unbind())
+            let uuid_int: u128 = value.getattr(cached.str_int.bind(ctx.py))?.extract()?;
+            let uuid = uuid::Uuid::from_u128(uuid_int);
+            let mut buf = [0u8; uuid::fmt::Hyphenated::LENGTH];
+            let s = uuid.hyphenated().encode_lower(&mut buf);
+            Ok(PyString::new(ctx.py, s).into_any().unbind())
         }
         FieldType::DateTime => {
             if !value.is_instance_of::<PyDateTime>() {
@@ -683,8 +686,11 @@ fn serialize_primitive<'py>(
                     "Not a valid UUID.",
                 ));
             }
-            let s = cached.uuid_to_string(value)?;
-            Ok(PyString::new(ctx.py, &s).into_any().unbind())
+            let uuid_int: u128 = value.getattr(cached.str_int.bind(ctx.py))?.extract()?;
+            let uuid = uuid::Uuid::from_u128(uuid_int);
+            let mut buf = [0u8; uuid::fmt::Hyphenated::LENGTH];
+            let s = uuid.hyphenated().encode_lower(&mut buf);
+            Ok(PyString::new(ctx.py, s).into_any().unbind())
         }
         FieldType::DateTime => {
             if !value.is_instance_of::<PyDateTime>() {
