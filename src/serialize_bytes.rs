@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyDate, PyDateTime, PyDelta, PyDict, PyFloat, PyInt, PyList, PyString, PyTime, PyDateAccess, PyDeltaAccess, PyTimeAccess, PyTzInfoAccess};
+use pyo3::types::{PyBool, PyDate, PyDateTime, PyDelta, PyDict, PyFloat, PyFrozenSet, PyInt, PyList, PySet, PyString, PyTime, PyTuple, PyDateAccess, PyDeltaAccess, PyTimeAccess, PyTzInfoAccess};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Serialize, Serializer};
 use serde_json::{json, Value};
@@ -554,8 +554,7 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
             }
             FieldType::Set => {
                 let py = self.value.py();
-                let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                if !self.value.is_instance(&cached.set_cls.bind(py)).map_err(serde::ser::Error::custom)? {
+                if !self.value.is_instance_of::<PySet>() {
                     return Err(serde::ser::Error::custom(format!(
                         "{{\"{}\": [\"Not a valid set.\"]}}",
                         self.field.name
@@ -594,8 +593,7 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
             }
             FieldType::FrozenSet => {
                 let py = self.value.py();
-                let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                if !self.value.is_instance(&cached.frozenset_cls.bind(py)).map_err(serde::ser::Error::custom)? {
+                if !self.value.is_instance_of::<PyFrozenSet>() {
                     return Err(serde::ser::Error::custom(format!(
                         "{{\"{}\": [\"Not a valid frozenset.\"]}}",
                         self.field.name
@@ -634,8 +632,7 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
             }
             FieldType::Tuple => {
                 let py = self.value.py();
-                let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                if !self.value.is_instance(&cached.tuple_cls.bind(py)).map_err(serde::ser::Error::custom)? {
+                if !self.value.is_instance_of::<PyTuple>() {
                     return Err(serde::ser::Error::custom(format!(
                         "{{\"{}\": [\"Not a valid tuple.\"]}}",
                         self.field.name
