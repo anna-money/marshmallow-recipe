@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString};
+use pyo3::types::{PyBool, PyDict, PyFloat, PyFrozenSet, PyInt, PyList, PySet, PyString, PyTuple};
 
 use crate::cache::get_cached_types;
 use crate::slots::get_slot_value_direct;
@@ -369,8 +369,7 @@ fn serialize_field_value<'py>(
             Ok(enum_value.unbind())
         }
         FieldType::Set => {
-            let cached = get_cached_types(ctx.py)?;
-            if !value.is_instance(&cached.set_cls.bind(ctx.py))? {
+            if !value.is_instance_of::<PySet>() {
                 let errors = PyList::new(ctx.py, &["Not a valid set."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
@@ -402,8 +401,7 @@ fn serialize_field_value<'py>(
             Ok(result.into_any().unbind())
         }
         FieldType::FrozenSet => {
-            let cached = get_cached_types(ctx.py)?;
-            if !value.is_instance(&cached.frozenset_cls.bind(ctx.py))? {
+            if !value.is_instance_of::<PyFrozenSet>() {
                 let errors = PyList::new(ctx.py, &["Not a valid frozenset."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
@@ -435,8 +433,7 @@ fn serialize_field_value<'py>(
             Ok(result.into_any().unbind())
         }
         FieldType::Tuple => {
-            let cached = get_cached_types(ctx.py)?;
-            if !value.is_instance(&cached.tuple_cls.bind(ctx.py))? {
+            if !value.is_instance_of::<PyTuple>() {
                 let errors = PyList::new(ctx.py, &["Not a valid tuple."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),

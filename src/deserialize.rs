@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString};
+use pyo3::types::{PyBool, PyDict, PyFloat, PyFrozenSet, PyInt, PyList, PySet, PyString, PyTuple};
 use uuid::Uuid;
 
 use crate::cache::get_cached_types;
@@ -382,8 +382,7 @@ pub(crate) fn deserialize_field_value<'py>(
                     wrap_err_dict(ctx.py, &field.name, format_item_errors_dict(ctx.py, errs)),
                 ));
             }
-            let cached = get_cached_types(ctx.py)?;
-            Ok(cached.set_cls.bind(ctx.py).call1((items,))?.unbind())
+            Ok(PySet::new(ctx.py, items.iter())?.into_any().unbind())
         }
         FieldType::FrozenSet => {
             let list = value.cast::<PyList>().map_err(|_| {
@@ -423,8 +422,7 @@ pub(crate) fn deserialize_field_value<'py>(
                     wrap_err_dict(ctx.py, &field.name, format_item_errors_dict(ctx.py, errs)),
                 ));
             }
-            let cached = get_cached_types(ctx.py)?;
-            Ok(cached.frozenset_cls.bind(ctx.py).call1((items,))?.unbind())
+            Ok(PyFrozenSet::new(ctx.py, items.iter())?.into_any().unbind())
         }
         FieldType::Tuple => {
             let list = value.cast::<PyList>().map_err(|_| {
@@ -464,8 +462,7 @@ pub(crate) fn deserialize_field_value<'py>(
                     wrap_err_dict(ctx.py, &field.name, format_item_errors_dict(ctx.py, errs)),
                 ));
             }
-            let cached = get_cached_types(ctx.py)?;
-            Ok(cached.tuple_cls.bind(ctx.py).call1((items,))?.unbind())
+            Ok(PyTuple::new(ctx.py, items.iter())?.into_any().unbind())
         }
         FieldType::Dict => {
             let dict = value.cast::<PyDict>().map_err(|_| {
@@ -850,8 +847,7 @@ pub(crate) fn deserialize_root_type<'py>(
                     }
                 }
             }
-            let cached = get_cached_types(ctx.py)?;
-            Ok(cached.set_cls.bind(ctx.py).call1((items,))?.unbind())
+            Ok(PySet::new(ctx.py, items.iter())?.into_any().unbind())
         }
         TypeKind::FrozenSet => {
             // Reject strings - they're iterable but not valid frozensets
@@ -878,8 +874,7 @@ pub(crate) fn deserialize_root_type<'py>(
                     }
                 }
             }
-            let cached = get_cached_types(ctx.py)?;
-            Ok(cached.frozenset_cls.bind(ctx.py).call1((items,))?.unbind())
+            Ok(PyFrozenSet::new(ctx.py, items.iter())?.into_any().unbind())
         }
         TypeKind::Tuple => {
             // Reject strings - they're iterable but not valid tuples
@@ -906,8 +901,7 @@ pub(crate) fn deserialize_root_type<'py>(
                     }
                 }
             }
-            let cached = get_cached_types(ctx.py)?;
-            Ok(cached.tuple_cls.bind(ctx.py).call1((items,))?.unbind())
+            Ok(PyTuple::new(ctx.py, items.iter())?.into_any().unbind())
         }
         TypeKind::Union => {
             let variants = descriptor.union_variants.as_ref().ok_or_else(|| {

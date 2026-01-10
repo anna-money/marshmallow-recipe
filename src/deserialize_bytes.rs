@@ -4,7 +4,7 @@ use std::fmt;
 use once_cell::sync::Lazy;
 use pyo3::conversion::IntoPyObjectExt;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
+use pyo3::types::{PyDict, PyList, PySet, PyFrozenSet, PyTuple};
 use regex::Regex;
 use serde::de::{self, DeserializeSeed, MapAccess, SeqAccess, Visitor};
 use serde_json::{json, Value};
@@ -749,8 +749,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                 if let Some(ref errs) = item_errors {
                     return Err(de::Error::custom(wrap_err_json(&self.field.name, &format_item_errors(py, errs))));
                 }
-                let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                Ok(cached.set_cls.bind(py).call1((PyList::new(py, items).map_err(de::Error::custom)?,)).map_err(de::Error::custom)?.unbind())
+                Ok(PySet::new(py, &items).map_err(de::Error::custom)?.unbind().into())
             }
             FieldType::FrozenSet => {
                 let item_schema = self.field.item_schema.as_ref().ok_or_else(|| {
@@ -780,8 +779,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                 if let Some(ref errs) = item_errors {
                     return Err(de::Error::custom(wrap_err_json(&self.field.name, &format_item_errors(py, errs))));
                 }
-                let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                Ok(cached.frozenset_cls.bind(py).call1((PyList::new(py, items).map_err(de::Error::custom)?,)).map_err(de::Error::custom)?.unbind())
+                Ok(PyFrozenSet::new(py, &items).map_err(de::Error::custom)?.unbind().into())
             }
             FieldType::Tuple => {
                 let item_schema = self.field.item_schema.as_ref().ok_or_else(|| {
@@ -811,8 +809,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                 if let Some(ref errs) = item_errors {
                     return Err(de::Error::custom(wrap_err_json(&self.field.name, &format_item_errors(py, errs))));
                 }
-                let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                Ok(cached.tuple_cls.bind(py).call1((PyList::new(py, items).map_err(de::Error::custom)?,)).map_err(de::Error::custom)?.unbind())
+                Ok(PyTuple::new(py, &items).map_err(de::Error::custom)?.unbind().into())
             }
             _ => {
                 let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error_message(&self.field.field_type));
@@ -1272,8 +1269,7 @@ impl<'a, 'py, 'de> Visitor<'de> for SetVisitor<'a, 'py> {
             items.push(item);
             idx += 1;
         }
-        let cached = get_cached_types(py).map_err(de::Error::custom)?;
-        Ok(cached.set_cls.bind(py).call1((PyList::new(py, items).map_err(de::Error::custom)?,)).map_err(de::Error::custom)?.unbind())
+        Ok(PySet::new(py, &items).map_err(de::Error::custom)?.unbind().into())
     }
 }
 
@@ -1308,8 +1304,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FrozenSetVisitor<'a, 'py> {
             items.push(item);
             idx += 1;
         }
-        let cached = get_cached_types(py).map_err(de::Error::custom)?;
-        Ok(cached.frozenset_cls.bind(py).call1((PyList::new(py, items).map_err(de::Error::custom)?,)).map_err(de::Error::custom)?.unbind())
+        Ok(PyFrozenSet::new(py, &items).map_err(de::Error::custom)?.unbind().into())
     }
 }
 
@@ -1344,8 +1339,7 @@ impl<'a, 'py, 'de> Visitor<'de> for TupleVisitor<'a, 'py> {
             items.push(item);
             idx += 1;
         }
-        let cached = get_cached_types(py).map_err(de::Error::custom)?;
-        Ok(cached.tuple_cls.bind(py).call1((PyList::new(py, items).map_err(de::Error::custom)?,)).map_err(de::Error::custom)?.unbind())
+        Ok(PyTuple::new(py, &items).map_err(de::Error::custom)?.unbind().into())
     }
 }
 
