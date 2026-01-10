@@ -824,7 +824,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
         if let FieldType::Int | FieldType::Float | FieldType::Decimal = self.field.field_type {
             // Try to peek at the first key - this is a bit hacky but necessary
             // We need to consume the map to check the key
-            if let Some(key) = map.next_key::<String>()? {
+            if let Some(key) = map.next_key::<&str>()? {
                 if key == SERDE_JSON_NUMBER_TOKEN {
                     let num_str: String = map.next_value()?;
                     let is_float = is_json_float_string(&num_str);
@@ -966,8 +966,8 @@ impl<'a, 'py, 'de> Visitor<'de> for DataclassVisitor<'a, 'py> {
         let kwargs = PyDict::new(py);
         let mut seen_fields = vec![false; self.fields.len()];
 
-        while let Some(key) = map.next_key::<String>()? {
-            if let Some(&idx) = self.field_lookup.get(&key) {
+        while let Some(key) = map.next_key::<&str>()? {
+            if let Some(&idx) = self.field_lookup.get(key) {
                 let field = &self.fields[idx];
                 seen_fields[idx] = true;
                 let mut value = map.next_value_seed(FieldDescriptorSeed {
@@ -1038,8 +1038,8 @@ impl<'a, 'py, 'de> Visitor<'de> for DataclassDirectSlotsVisitor<'a, 'py> {
 
         let mut field_values: Vec<Option<Py<PyAny>>> = (0..self.fields.len()).map(|_| None).collect();
 
-        while let Some(key) = map.next_key::<String>()? {
-            if let Some(&idx) = self.field_lookup.get(&key) {
+        while let Some(key) = map.next_key::<&str>()? {
+            if let Some(&idx) = self.field_lookup.get(key) {
                 let field = &self.fields[idx];
                 let mut value = map.next_value_seed(FieldDescriptorSeed {
                     ctx: self.ctx,
@@ -1149,17 +1149,17 @@ impl<'a, 'py, 'de> Visitor<'de> for DictVisitor<'a, 'py> {
     {
         let py = self.ctx.py;
         let dict = PyDict::new(py);
-        while let Some(key) = map.next_key::<String>()? {
+        while let Some(key) = map.next_key::<&str>()? {
             let value = map.next_value_seed(TypeDescriptorSeed {
                 ctx: self.ctx,
                 descriptor: self.value_descriptor,
             }).map_err(|e| {
                 let inner = e.to_string();
-                try_wrap_err_json(&key, &inner)
+                try_wrap_err_json(key, &inner)
                     .map(de::Error::custom)
                     .unwrap_or(e)
             })?;
-            dict.set_item(&key, value).map_err(de::Error::custom)?;
+            dict.set_item(key, value).map_err(de::Error::custom)?;
         }
         Ok(dict.unbind().into())
     }
@@ -1176,18 +1176,18 @@ where
 {
     let py = ctx.py;
     let dict = PyDict::new(py);
-    while let Some(key) = map.next_key::<String>()? {
+    while let Some(key) = map.next_key::<&str>()? {
         let value = map.next_value_seed(FieldDescriptorSeed {
             ctx,
             field: value_schema,
         }).map_err(|e| {
             let inner = e.to_string();
-            try_wrap_err_json(&key, &inner)
+            try_wrap_err_json(key, &inner)
                 .and_then(|wrapped| try_wrap_err_json(field_name, &wrapped))
                 .map(de::Error::custom)
                 .unwrap_or(e)
         })?;
-        dict.set_item(&key, value).map_err(de::Error::custom)?;
+        dict.set_item(key, value).map_err(de::Error::custom)?;
     }
     Ok(dict.unbind().into())
 }
@@ -1441,7 +1441,7 @@ where
             A: MapAccess<'de>,
         {
             // Handle serde_json arbitrary precision numbers
-            if let Some(key) = map.next_key::<String>()? {
+            if let Some(key) = map.next_key::<&str>()? {
                 if key == SERDE_JSON_NUMBER_TOKEN {
                     let num_str: String = map.next_value()?;
                     let is_float = is_json_float_string(&num_str);
