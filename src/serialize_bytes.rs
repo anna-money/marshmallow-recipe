@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyDate, PyDateTime, PyDict, PyFloat, PyInt, PyList, PyString, PyTime, PyTzInfoAccess};
+use pyo3::types::{PyBool, PyDate, PyDateTime, PyDict, PyFloat, PyInt, PyList, PyString, PyTime, PyDateAccess, PyTimeAccess, PyTzInfoAccess};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Serialize, Serializer};
 use serde_json::{json, Value};
@@ -314,7 +314,6 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
             }
             FieldType::DateTime => {
                 let py = self.value.py();
-                let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
                 let dt: &Bound<'_, PyDateTime> = self.value.cast().map_err(|_| {
                     serde::ser::Error::custom(format!(
                         "{{\"{}\": [\"Not a valid datetime.\"]}}",
@@ -322,6 +321,7 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                     ))
                 })?;
                 if let Some(ref fmt) = self.field.datetime_format {
+                    let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
                     let s: String = dt
                         .call_method1(cached.str_strftime.bind(py), (fmt.as_str(),))
                         .map_err(serde::ser::Error::custom)?
@@ -329,67 +329,95 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                         .map_err(serde::ser::Error::custom)?;
                     serializer.serialize_str(&s)
                 } else {
-                    let tzinfo = dt.get_tzinfo();
-                    if tzinfo.is_some_and(|tz| tz.is(&cached.utc_tz.bind(py))) {
-                        let mut buf = [0u8; 32];
-                        let len = cached.datetime_utc_to_isoformat_buf(dt, &mut buf);
-                        let s = unsafe { std::str::from_utf8_unchecked(&buf[..len]) };
-                        serializer.serialize_str(s)
+                    use std::fmt::Write;
+                    let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
+                    let mut buf = arrayvec::ArrayString::<32>::new();
+                    let micros = dt.get_microsecond();
+                    if micros == 0 {
+                        write!(buf, "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
+                            dt.get_year(), dt.get_month(), dt.get_day(),
+                            dt.get_hour(), dt.get_minute(), dt.get_second()).unwrap();
                     } else {
-                        let s: String = dt
-                            .call_method0(cached.str_isoformat.bind(py))
-                            .map_err(serde::ser::Error::custom)?
-                            .extract()
-                            .map_err(serde::ser::Error::custom)?;
-                        serializer.serialize_str(&s)
+                        write!(buf, "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:06}",
+                            dt.get_year(), dt.get_month(), dt.get_day(),
+                            dt.get_hour(), dt.get_minute(), dt.get_second(), micros).unwrap();
                     }
+                    if let Some(tz) = dt.get_tzinfo() {
+                        let offset = tz.call_method1(cached.str_utcoffset.bind(py), (dt,))
+                            .map_err(serde::ser::Error::custom)?;
+                        if !offset.is_none() {
+                            let total_seconds_f: f64 = offset.call_method0(cached.str_total_seconds.bind(py))
+                                .map_err(serde::ser::Error::custom)?
+                                .extract()
+                                .map_err(serde::ser::Error::custom)?;
+                            let total_seconds = total_seconds_f as i32;
+                            if total_seconds >= 0 {
+                                write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
+                            } else {
+                                let abs = total_seconds.abs();
+                                write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+                            }
+                        }
+                    }
+                    serializer.serialize_str(&buf)
                 }
             }
             FieldType::Date => {
-                let py = self.value.py();
-                let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                if let Ok(dt) = self.value.cast::<PyDateTime>() {
-                    let date_obj = dt.call_method0(cached.str_date.bind(py)).map_err(serde::ser::Error::custom)?;
-                    let d: &Bound<'_, PyDate> = date_obj.cast().map_err(serde::ser::Error::custom)?;
-                    let mut buf = [0u8; 10];
-                    let len = cached.date_to_isoformat_buf(d, &mut buf);
-                    let s = unsafe { std::str::from_utf8_unchecked(&buf[..len]) };
-                    serializer.serialize_str(s)
+                use std::fmt::Write;
+                let d: &Bound<'_, PyDate> = if let Ok(dt) = self.value.cast::<PyDateTime>() {
+                    // Serialize date from datetime directly
+                    let mut buf = arrayvec::ArrayString::<10>::new();
+                    write!(buf, "{:04}-{:02}-{:02}", dt.get_year(), dt.get_month(), dt.get_day()).unwrap();
+                    return serializer.serialize_str(&buf);
                 } else if let Ok(d) = self.value.cast::<PyDate>() {
-                    let mut buf = [0u8; 10];
-                    let len = cached.date_to_isoformat_buf(d, &mut buf);
-                    let s = unsafe { std::str::from_utf8_unchecked(&buf[..len]) };
-                    serializer.serialize_str(s)
+                    d
                 } else {
                     return Err(serde::ser::Error::custom(format!(
                         "{{\"{}\": [\"Not a valid date.\"]}}",
                         self.field.name
                     )));
-                }
+                };
+                let mut buf = arrayvec::ArrayString::<10>::new();
+                write!(buf, "{:04}-{:02}-{:02}", d.get_year(), d.get_month(), d.get_day()).unwrap();
+                serializer.serialize_str(&buf)
             }
             FieldType::Time => {
+                use std::fmt::Write;
                 let py = self.value.py();
-                let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
                 let t: &Bound<'_, PyTime> = self.value.cast().map_err(|_| {
                     serde::ser::Error::custom(format!(
                         "{{\"{}\": [\"Not a valid time.\"]}}",
                         self.field.name
                     ))
                 })?;
-                let tzinfo = t.get_tzinfo();
-                if tzinfo.is_some_and(|tz| tz.is(&cached.utc_tz.bind(py))) {
-                    let mut buf = [0u8; 21];
-                    let len = cached.time_utc_to_isoformat_buf(t, &mut buf);
-                    let s = unsafe { std::str::from_utf8_unchecked(&buf[..len]) };
-                    serializer.serialize_str(s)
+                let mut buf = arrayvec::ArrayString::<21>::new();
+                let micros = t.get_microsecond();
+                if micros == 0 {
+                    write!(buf, "{:02}:{:02}:{:02}",
+                        t.get_hour(), t.get_minute(), t.get_second()).unwrap();
                 } else {
-                    let s: String = t
-                        .call_method0(cached.str_isoformat.bind(py))
-                        .map_err(serde::ser::Error::custom)?
-                        .extract()
-                        .map_err(serde::ser::Error::custom)?;
-                    serializer.serialize_str(&s)
+                    write!(buf, "{:02}:{:02}:{:02}.{:06}",
+                        t.get_hour(), t.get_minute(), t.get_second(), micros).unwrap();
                 }
+                if let Some(tz) = t.get_tzinfo() {
+                    let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
+                    let offset = tz.call_method1(cached.str_utcoffset.bind(py), (py.None(),))
+                        .map_err(serde::ser::Error::custom)?;
+                    if !offset.is_none() {
+                        let total_seconds_f: f64 = offset.call_method0(cached.str_total_seconds.bind(py))
+                            .map_err(serde::ser::Error::custom)?
+                            .extract()
+                            .map_err(serde::ser::Error::custom)?;
+                        let total_seconds = total_seconds_f as i32;
+                        if total_seconds >= 0 {
+                            write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
+                        } else {
+                            let abs = total_seconds.abs();
+                            write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+                        }
+                    }
+                }
+                serializer.serialize_str(&buf)
             }
             FieldType::List => {
                 if !self.value.is_instance_of::<PyList>() {
@@ -951,53 +979,82 @@ impl<'a, 'py> Serialize for PrimitiveSerializer<'a, 'py> {
                 serializer.serialize_str(s)
             }
             FieldType::DateTime => {
+                use std::fmt::Write;
                 let py = self.value.py();
                 let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
                 let dt: &Bound<'_, PyDateTime> = self.value.cast()
                     .map_err(|_| serde::ser::Error::custom("Not a valid datetime."))?;
-                let tzinfo = dt.get_tzinfo();
-                if tzinfo.is_some_and(|tz| tz.is(&cached.utc_tz.bind(py))) {
-                    let mut buf = [0u8; 32];
-                    let len = cached.datetime_utc_to_isoformat_buf(dt, &mut buf);
-                    let s = unsafe { std::str::from_utf8_unchecked(&buf[..len]) };
-                    serializer.serialize_str(s)
+                let mut buf = arrayvec::ArrayString::<32>::new();
+                let micros = dt.get_microsecond();
+                if micros == 0 {
+                    write!(buf, "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
+                        dt.get_year(), dt.get_month(), dt.get_day(),
+                        dt.get_hour(), dt.get_minute(), dt.get_second()).unwrap();
                 } else {
-                    let s: String = dt
-                        .call_method0(cached.str_isoformat.bind(py))
-                        .map_err(serde::ser::Error::custom)?
-                        .extract()
-                        .map_err(serde::ser::Error::custom)?;
-                    serializer.serialize_str(&s)
+                    write!(buf, "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:06}",
+                        dt.get_year(), dt.get_month(), dt.get_day(),
+                        dt.get_hour(), dt.get_minute(), dt.get_second(), micros).unwrap();
                 }
+                if let Some(tz) = dt.get_tzinfo() {
+                    let offset = tz.call_method1(cached.str_utcoffset.bind(py), (dt,))
+                        .map_err(serde::ser::Error::custom)?;
+                    if !offset.is_none() {
+                        let total_seconds_f: f64 = offset.call_method0(cached.str_total_seconds.bind(py))
+                            .map_err(serde::ser::Error::custom)?
+                            .extract()
+                            .map_err(serde::ser::Error::custom)?;
+                        let total_seconds = total_seconds_f as i32;
+                        if total_seconds >= 0 {
+                            write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
+                        } else {
+                            let abs = total_seconds.abs();
+                            write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+                        }
+                    }
+                }
+                serializer.serialize_str(&buf)
             }
             FieldType::Date => {
-                let cached = get_cached_types(self.value.py()).map_err(serde::ser::Error::custom)?;
+                use std::fmt::Write;
                 let d: &Bound<'_, PyDate> = self.value.cast()
                     .map_err(|_| serde::ser::Error::custom("Not a valid date."))?;
-                let mut buf = [0u8; 10];
-                let len = cached.date_to_isoformat_buf(d, &mut buf);
-                let s = unsafe { std::str::from_utf8_unchecked(&buf[..len]) };
-                serializer.serialize_str(s)
+                let mut buf = arrayvec::ArrayString::<10>::new();
+                write!(buf, "{:04}-{:02}-{:02}", d.get_year(), d.get_month(), d.get_day()).unwrap();
+                serializer.serialize_str(&buf)
             }
             FieldType::Time => {
+                use std::fmt::Write;
                 let py = self.value.py();
-                let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
                 let t: &Bound<'_, PyTime> = self.value.cast()
                     .map_err(|_| serde::ser::Error::custom("Not a valid time."))?;
-                let tzinfo = t.get_tzinfo();
-                if tzinfo.is_some_and(|tz| tz.is(&cached.utc_tz.bind(py))) {
-                    let mut buf = [0u8; 21];
-                    let len = cached.time_utc_to_isoformat_buf(t, &mut buf);
-                    let s = unsafe { std::str::from_utf8_unchecked(&buf[..len]) };
-                    serializer.serialize_str(s)
+                let mut buf = arrayvec::ArrayString::<21>::new();
+                let micros = t.get_microsecond();
+                if micros == 0 {
+                    write!(buf, "{:02}:{:02}:{:02}",
+                        t.get_hour(), t.get_minute(), t.get_second()).unwrap();
                 } else {
-                    let s: String = t
-                        .call_method0(cached.str_isoformat.bind(py))
-                        .map_err(serde::ser::Error::custom)?
-                        .extract()
-                        .map_err(serde::ser::Error::custom)?;
-                    serializer.serialize_str(&s)
+                    write!(buf, "{:02}:{:02}:{:02}.{:06}",
+                        t.get_hour(), t.get_minute(), t.get_second(), micros).unwrap();
                 }
+                if let Some(tz) = t.get_tzinfo() {
+                    let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
+                    let offset = tz.call_method1(cached.str_utcoffset.bind(py), (py.None(),))
+                        .map_err(serde::ser::Error::custom)?;
+                    if !offset.is_none() {
+                        let total_seconds_f: f64 = offset.call_method0(cached.str_total_seconds.bind(py))
+                            .map_err(serde::ser::Error::custom)?
+                            .extract()
+                            .map_err(serde::ser::Error::custom)?;
+                        let total_seconds = total_seconds_f as i32;
+                        if total_seconds >= 0 {
+                            write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
+                        } else {
+                            let abs = total_seconds.abs();
+                            write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+                        }
+                    }
+                }
+                serializer.serialize_str(&buf)
             }
             FieldType::Any => AnyValueSerializer {
                 value: self.value,
