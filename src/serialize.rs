@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyDate, PyDateAccess, PyDateTime, PyDict, PyFloat, PyFrozenSet, PyInt, PyList, PySet, PyString, PyTime, PyTuple};
+use pyo3::types::{PyBool, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyDict, PyFloat, PyFrozenSet, PyInt, PyList, PySet, PyString, PyTime, PyTimeAccess, PyTuple, PyTzInfoAccess};
 
 use crate::cache::get_cached_types;
 use crate::slots::get_slot_value_direct;
@@ -231,19 +231,46 @@ fn serialize_field_value<'py>(
             Ok(PyString::new(ctx.py, s).into_any().unbind())
         }
         FieldType::DateTime => {
+            use std::fmt::Write;
             if !value.is_instance_of::<PyDateTime>() {
                 let errors = PyList::new(ctx.py, &["Not a valid datetime."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
             }
-            let cached = get_cached_types(ctx.py)?;
-            let s: String = if let Some(ref fmt) = field.datetime_format {
-                value.call_method1(cached.str_strftime.bind(ctx.py), (fmt.as_str(),))?.extract()?
+            let dt: &Bound<'_, PyDateTime> = value.cast()?;
+            if let Some(ref fmt) = field.datetime_format {
+                // Custom format requires Python strftime call
+                let cached = get_cached_types(ctx.py)?;
+                let s: String = dt.call_method1(cached.str_strftime.bind(ctx.py), (fmt.as_str(),))?.extract()?;
+                Ok(PyString::new(ctx.py, &s).into_any().unbind())
             } else {
-                value.call_method0(cached.str_isoformat.bind(ctx.py))?.extract()?
-            };
-            Ok(PyString::new(ctx.py, &s).into_any().unbind())
+                let cached = get_cached_types(ctx.py)?;
+                let mut buf = arrayvec::ArrayString::<32>::new();
+                let micros = dt.get_microsecond();
+                if micros == 0 {
+                    write!(buf, "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
+                        dt.get_year(), dt.get_month(), dt.get_day(),
+                        dt.get_hour(), dt.get_minute(), dt.get_second()).unwrap();
+                } else {
+                    write!(buf, "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:06}",
+                        dt.get_year(), dt.get_month(), dt.get_day(),
+                        dt.get_hour(), dt.get_minute(), dt.get_second(), micros).unwrap();
+                }
+                if let Some(tz) = dt.get_tzinfo() {
+                    let offset = tz.call_method1(cached.str_utcoffset.bind(ctx.py), (dt,))?;
+                    if let Ok(delta) = offset.cast::<PyDelta>() {
+                        let total_seconds: i32 = delta.get_days() * 86400 + delta.get_seconds();
+                        if total_seconds >= 0 {
+                            write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
+                        } else {
+                            let abs = total_seconds.abs();
+                            write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+                        }
+                    }
+                }
+                Ok(PyString::new(ctx.py, &buf).into_any().unbind())
+            }
         }
         FieldType::Date => {
             use std::fmt::Write;
@@ -261,15 +288,37 @@ fn serialize_field_value<'py>(
             Ok(PyString::new(ctx.py, &buf).into_any().unbind())
         }
         FieldType::Time => {
+            use std::fmt::Write;
             if !value.is_instance_of::<PyTime>() {
                 let errors = PyList::new(ctx.py, &["Not a valid time."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
             }
-            let cached = get_cached_types(ctx.py)?;
-            let s: String = value.call_method0(cached.str_isoformat.bind(ctx.py))?.extract()?;
-            Ok(PyString::new(ctx.py, &s).into_any().unbind())
+            let t: &Bound<'_, PyTime> = value.cast()?;
+            let mut buf = arrayvec::ArrayString::<21>::new();
+            let micros = t.get_microsecond();
+            if micros == 0 {
+                write!(buf, "{:02}:{:02}:{:02}",
+                    t.get_hour(), t.get_minute(), t.get_second()).unwrap();
+            } else {
+                write!(buf, "{:02}:{:02}:{:02}.{:06}",
+                    t.get_hour(), t.get_minute(), t.get_second(), micros).unwrap();
+            }
+            if let Some(tz) = t.get_tzinfo() {
+                let cached = get_cached_types(ctx.py)?;
+                let offset = tz.call_method1(cached.str_utcoffset.bind(ctx.py), (ctx.py.None(),))?;
+                if let Ok(delta) = offset.cast::<PyDelta>() {
+                    let total_seconds: i32 = delta.get_days() * 86400 + delta.get_seconds();
+                    if total_seconds >= 0 {
+                        write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
+                    } else {
+                        let abs = total_seconds.abs();
+                        write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+                    }
+                }
+            }
+            Ok(PyString::new(ctx.py, &buf).into_any().unbind())
         }
         FieldType::List => {
             if !value.is_instance_of::<PyList>() {

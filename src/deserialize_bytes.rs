@@ -121,8 +121,10 @@ fn create_pydatetime_with_offset(
     offset_seconds: i32,
 ) -> PyResult<Py<PyAny>> {
     if offset_seconds == 0 {
-        let tz = PyTzInfo::utc(py)?;
-        PyDateTime::new(py, year, month, day, hour, minute, second, microsecond, Some(&tz.as_borrowed()))
+        // Use cached UTC timezone
+        let cached = get_cached_types(py)?;
+        let tz: &Bound<'_, PyTzInfo> = cached.utc_tz.bind(py).cast()?;
+        PyDateTime::new(py, year, month, day, hour, minute, second, microsecond, Some(tz))
             .map(|dt| dt.into_any().unbind())
     } else {
         let delta = PyDelta::new(py, 0, offset_seconds, 0, true)?;
