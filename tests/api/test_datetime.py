@@ -26,6 +26,11 @@ class TestDatetimeDump:
         result = impl.dump(ValueOf[datetime.datetime], obj)
         assert result == b'{"value":"2025-12-26T10:30:45.123456+00:00"}'
 
+    def test_microseconds_trailing_zeros(self, impl: Serializer) -> None:
+        obj = ValueOf[datetime.datetime](value=datetime.datetime(2025, 12, 26, 10, 30, 45, 100000, datetime.UTC))
+        result = impl.dump(ValueOf[datetime.datetime], obj)
+        assert result == b'{"value":"2025-12-26T10:30:45.100000+00:00"}'
+
     def test_format_date_only(self, impl: Serializer) -> None:
         obj = WithDateTimeCustomFormat(scheduled_at=datetime.datetime(2024, 12, 25, 14, 30, 0, tzinfo=datetime.UTC))
         result = impl.dump(WithDateTimeCustomFormat, obj)
