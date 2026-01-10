@@ -68,7 +68,6 @@ pub struct CachedPyTypes {
     pub str_value: Py<PyString>,
     pub str_int: Py<PyString>,
     pub str_is_safe: Py<PyString>,
-    pub str_date: Py<PyString>,
     pub str_utcoffset: Py<PyString>,
     pub missing_sentinel: Py<PyAny>,
 }
@@ -151,7 +150,6 @@ pub fn get_cached_types(py: Python) -> PyResult<&'static CachedPyTypes> {
             str_value: PyString::intern(py, "value").unbind(),
             str_int: PyString::intern(py, "int").unbind(),
             str_is_safe: PyString::intern(py, "is_safe").unbind(),
-            str_date: PyString::intern(py, "date").unbind(),
             str_utcoffset: PyString::intern(py, "utcoffset").unbind(),
             missing_sentinel: mr_missing_mod.getattr("MISSING")?.unbind(),
         })

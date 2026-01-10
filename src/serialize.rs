@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyDate, PyDateTime, PyDict, PyFloat, PyFrozenSet, PyInt, PyList, PySet, PyString, PyTime, PyTuple};
+use pyo3::types::{PyBool, PyDate, PyDateAccess, PyDateTime, PyDict, PyFloat, PyFrozenSet, PyInt, PyList, PySet, PyString, PyTime, PyTuple};
 
 use crate::cache::get_cached_types;
 use crate::slots::get_slot_value_direct;
@@ -243,22 +243,19 @@ fn serialize_field_value<'py>(
             Ok(PyString::new(ctx.py, &s).into_any().unbind())
         }
         FieldType::Date => {
+            use std::fmt::Write;
             // datetime is subclass of date, so datetime passes is_instance_of::<PyDate>() check
+            // PyDateAccess works for both PyDate and PyDateTime
             if !value.is_instance_of::<PyDate>() {
                 let errors = PyList::new(ctx.py, &["Not a valid date."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
             }
-            let cached = get_cached_types(ctx.py)?;
-            // If the value is a datetime.datetime object, convert it to date first
-            let actual_value = if value.is_instance_of::<PyDateTime>() {
-                value.call_method0(cached.str_date.bind(ctx.py))?
-            } else {
-                value.clone()
-            };
-            let s: String = actual_value.call_method0(cached.str_isoformat.bind(ctx.py))?.extract()?;
-            Ok(PyString::new(ctx.py, &s).into_any().unbind())
+            let d: &Bound<'_, PyDate> = value.cast()?;
+            let mut buf = arrayvec::ArrayString::<10>::new();
+            write!(buf, "{:04}-{:02}-{:02}", d.get_year(), d.get_month(), d.get_day()).unwrap();
+            Ok(PyString::new(ctx.py, &buf).into_any().unbind())
         }
         FieldType::Time => {
             if !value.is_instance_of::<PyTime>() {
