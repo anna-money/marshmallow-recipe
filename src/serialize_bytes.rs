@@ -102,9 +102,9 @@ impl<'a, 'py> Serialize for AnyValueSerializer<'a, 'py> {
             let f: f64 = self.value.extract().map_err(serde::ser::Error::custom)?;
             return serializer.serialize_f64(f);
         }
-        if self.value.is_instance_of::<PyString>() {
-            let s: String = self.value.extract().map_err(serde::ser::Error::custom)?;
-            return serializer.serialize_str(&s);
+        if let Ok(py_str) = self.value.cast::<PyString>() {
+            let s = py_str.to_str().map_err(serde::ser::Error::custom)?;
+            return serializer.serialize_str(s);
         }
         if let Ok(list) = self.value.cast::<PyList>() {
             let mut seq = serializer.serialize_seq(Some(list.len()))?;
@@ -119,18 +119,17 @@ impl<'a, 'py> Serialize for AnyValueSerializer<'a, 'py> {
         if let Ok(dict) = self.value.cast::<PyDict>() {
             let mut map = serializer.serialize_map(Some(dict.len()))?;
             for (k, v) in dict.iter() {
-                if !k.is_instance_of::<PyString>() {
-                    return Err(serde::ser::Error::custom(match self.field_name {
+                let key = k.cast::<PyString>().map_err(|_| {
+                    serde::ser::Error::custom(match self.field_name {
                         Some(name) => format!(
                             "{{\"{}\": [\"Not a valid JSON-serializable value.\"]}}",
                             name
                         ),
                         None => "Any field dict keys must be strings".to_string(),
-                    }));
-                }
-                let key: String = k.extract().map_err(serde::ser::Error::custom)?;
+                    })
+                })?.to_str().map_err(serde::ser::Error::custom)?;
                 map.serialize_entry(
-                    &key,
+                    key,
                     &AnyValueSerializer {
                         value: &v,
                         field_name: self.field_name,
@@ -474,9 +473,10 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                 if let Some(ref value_validator) = self.field.value_validator {
                     let mut value_errors: Option<HashMap<String, Py<PyAny>>> = None;
                     for (k, v) in dict.iter() {
-                        let key: String = k.extract().map_err(serde::ser::Error::custom)?;
+                        let key = k.cast::<PyString>().map_err(serde::ser::Error::custom)?
+                            .to_str().map_err(serde::ser::Error::custom)?;
                         if let Some(errors) = call_validator(self.ctx.py, value_validator, &v).map_err(serde::ser::Error::custom)? {
-                            value_errors.get_or_insert_with(HashMap::new).insert(key, errors);
+                            value_errors.get_or_insert_with(HashMap::new).insert(key.to_string(), errors);
                         }
                     }
                     if let Some(ref errs) = value_errors {
@@ -486,9 +486,10 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
 
                 let mut map = serializer.serialize_map(Some(dict.len()))?;
                 for (k, v) in dict.iter() {
-                    let key: String = k.extract().map_err(serde::ser::Error::custom)?;
+                    let key = k.cast::<PyString>().map_err(serde::ser::Error::custom)?
+                        .to_str().map_err(serde::ser::Error::custom)?;
                     map.serialize_entry(
-                        &key,
+                        key,
                         &FieldValueSerializer {
                             value: &v,
                             field: value_schema,
@@ -534,8 +535,9 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                     .value
                     .getattr(cached.str_value.bind(py))
                     .map_err(serde::ser::Error::custom)?;
-                let s: String = enum_value.extract().map_err(serde::ser::Error::custom)?;
-                serializer.serialize_str(&s)
+                let s = enum_value.cast::<PyString>().map_err(serde::ser::Error::custom)?
+                    .to_str().map_err(serde::ser::Error::custom)?;
+                serializer.serialize_str(s)
             }
             FieldType::IntEnum => {
                 let py = self.value.py();
@@ -827,9 +829,10 @@ impl<'a, 'py> Serialize for RootTypeSerializer<'a, 'py> {
 
                 let mut map = serializer.serialize_map(Some(dict.len()))?;
                 for (k, v) in dict.iter() {
-                    let key: String = k.extract().map_err(serde::ser::Error::custom)?;
+                    let key = k.cast::<PyString>().map_err(serde::ser::Error::custom)?
+                        .to_str().map_err(serde::ser::Error::custom)?;
                     map.serialize_entry(
-                        &key,
+                        key,
                         &RootTypeSerializer {
                             value: &v,
                             descriptor: value_descriptor,
