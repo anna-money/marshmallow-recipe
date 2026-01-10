@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyDict, PyFloat, PyFrozenSet, PyInt, PyList, PySet, PyString, PyTuple};
+use pyo3::types::{PyBool, PyDate, PyDateTime, PyDict, PyFloat, PyFrozenSet, PyInt, PyList, PySet, PyString, PyTime, PyTuple};
 
 use crate::cache::get_cached_types;
 use crate::slots::get_slot_value_direct;
@@ -228,13 +228,13 @@ fn serialize_field_value<'py>(
             Ok(PyString::new(ctx.py, &s).into_any().unbind())
         }
         FieldType::DateTime => {
-            let cached = get_cached_types(ctx.py)?;
-            if !value.is_instance(&cached.datetime_cls.bind(ctx.py))? {
+            if !value.is_instance_of::<PyDateTime>() {
                 let errors = PyList::new(ctx.py, &["Not a valid datetime."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
             }
+            let cached = get_cached_types(ctx.py)?;
             let s: String = if let Some(ref fmt) = field.datetime_format {
                 value.call_method1(cached.str_strftime.bind(ctx.py), (fmt.as_str(),))?.extract()?
             } else {
@@ -243,17 +243,16 @@ fn serialize_field_value<'py>(
             Ok(PyString::new(ctx.py, &s).into_any().unbind())
         }
         FieldType::Date => {
-            let cached = get_cached_types(ctx.py)?;
-            // datetime is subclass of date, so datetime passes is_instance(date_cls) check
-            if !value.is_instance(&cached.date_cls.bind(ctx.py))? {
+            // datetime is subclass of date, so datetime passes is_instance_of::<PyDate>() check
+            if !value.is_instance_of::<PyDate>() {
                 let errors = PyList::new(ctx.py, &["Not a valid date."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
             }
+            let cached = get_cached_types(ctx.py)?;
             // If the value is a datetime.datetime object, convert it to date first
-            let datetime_cls = cached.datetime_cls.bind(ctx.py);
-            let actual_value = if value.is_instance(datetime_cls)? {
+            let actual_value = if value.is_instance_of::<PyDateTime>() {
                 value.call_method0(cached.str_date.bind(ctx.py))?
             } else {
                 value.clone()
@@ -262,13 +261,13 @@ fn serialize_field_value<'py>(
             Ok(PyString::new(ctx.py, &s).into_any().unbind())
         }
         FieldType::Time => {
-            let cached = get_cached_types(ctx.py)?;
-            if !value.is_instance(&cached.time_cls.bind(ctx.py))? {
+            if !value.is_instance_of::<PyTime>() {
                 let errors = PyList::new(ctx.py, &["Not a valid time."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
             }
+            let cached = get_cached_types(ctx.py)?;
             let s: String = value.call_method0(cached.str_isoformat.bind(ctx.py))?.extract()?;
             Ok(PyString::new(ctx.py, &s).into_any().unbind())
         }
@@ -691,32 +690,32 @@ fn serialize_primitive<'py>(
             Ok(PyString::new(ctx.py, &s).into_any().unbind())
         }
         FieldType::DateTime => {
-            let cached = get_cached_types(ctx.py)?;
-            if !value.is_instance(&cached.datetime_cls.bind(ctx.py))? {
+            if !value.is_instance_of::<PyDateTime>() {
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     "Not a valid datetime.",
                 ));
             }
+            let cached = get_cached_types(ctx.py)?;
             let s: String = value.call_method0(cached.str_isoformat.bind(ctx.py))?.extract()?;
             Ok(PyString::new(ctx.py, &s).into_any().unbind())
         }
         FieldType::Date => {
-            let cached = get_cached_types(ctx.py)?;
-            if !value.is_instance(&cached.date_cls.bind(ctx.py))? {
+            if !value.is_instance_of::<PyDate>() {
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     "Not a valid date.",
                 ));
             }
+            let cached = get_cached_types(ctx.py)?;
             let s: String = value.call_method0(cached.str_isoformat.bind(ctx.py))?.extract()?;
             Ok(PyString::new(ctx.py, &s).into_any().unbind())
         }
         FieldType::Time => {
-            let cached = get_cached_types(ctx.py)?;
-            if !value.is_instance(&cached.time_cls.bind(ctx.py))? {
+            if !value.is_instance_of::<PyTime>() {
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     "Not a valid time.",
                 ));
             }
+            let cached = get_cached_types(ctx.py)?;
             let s: String = value.call_method0(cached.str_isoformat.bind(ctx.py))?.extract()?;
             Ok(PyString::new(ctx.py, &s).into_any().unbind())
         }

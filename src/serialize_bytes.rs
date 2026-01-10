@@ -553,7 +553,6 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                 serializer.serialize_i64(i)
             }
             FieldType::Set => {
-                let py = self.value.py();
                 if !self.value.is_instance_of::<PySet>() {
                     return Err(serde::ser::Error::custom(format!(
                         "{{\"{}\": [\"Not a valid set.\"]}}",
@@ -592,7 +591,6 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                 seq.end()
             }
             FieldType::FrozenSet => {
-                let py = self.value.py();
                 if !self.value.is_instance_of::<PyFrozenSet>() {
                     return Err(serde::ser::Error::custom(format!(
                         "{{\"{}\": [\"Not a valid frozenset.\"]}}",
@@ -631,7 +629,6 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                 seq.end()
             }
             FieldType::Tuple => {
-                let py = self.value.py();
                 if !self.value.is_instance_of::<PyTuple>() {
                     return Err(serde::ser::Error::custom(format!(
                         "{{\"{}\": [\"Not a valid tuple.\"]}}",
