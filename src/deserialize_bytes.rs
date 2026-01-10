@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::fmt;
+use smallbitvec::SmallBitVec;
 
 use once_cell::sync::Lazy;
 use pyo3::conversion::IntoPyObjectExt;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList, PySet, PyFrozenSet, PyTuple};
+use pyo3::types::{PyDict, PyList, PyDate, PyTime, PyDateTime, PyTzInfo, PyDelta, PySet, PyFrozenSet, PyTuple};
 use regex::Regex;
 use serde::de::{self, DeserializeSeed, MapAccess, SeqAccess, Visitor};
 use serde_json::{json, Value};
@@ -14,6 +15,122 @@ use crate::cache::get_cached_types;
 
 static SERDE_LOCATION_SUFFIX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r" at line \d+ column \d+").unwrap());
+
+/// Parse ISO date string (YYYY-MM-DD) into (year, month, day)
+#[inline]
+fn parse_iso_date(s: &str) -> Option<(i32, u8, u8)> {
+    if s.len() != 10 || s.as_bytes()[4] != b'-' || s.as_bytes()[7] != b'-' {
+        return None;
+    }
+    let year: i32 = s[0..4].parse().ok()?;
+    let month: u8 = s[5..7].parse().ok()?;
+    let day: u8 = s[8..10].parse().ok()?;
+    if month < 1 || month > 12 || day < 1 || day > 31 {
+        return None;
+    }
+    Some((year, month, day))
+}
+
+/// Parse ISO time string (HH:MM:SS or HH:MM:SS.ffffff) into (hour, minute, second, microsecond)
+#[inline]
+fn parse_iso_time(s: &str) -> Option<(u8, u8, u8, u32)> {
+    let len = s.len();
+    if len < 8 || s.as_bytes()[2] != b':' || s.as_bytes()[5] != b':' {
+        return None;
+    }
+    let hour: u8 = s[0..2].parse().ok()?;
+    let minute: u8 = s[3..5].parse().ok()?;
+    let second: u8 = s[6..8].parse().ok()?;
+    if hour > 23 || minute > 59 || second > 59 {
+        return None;
+    }
+    let microsecond = if len > 8 && s.as_bytes()[8] == b'.' {
+        let frac = &s[9..];
+        let frac_len = frac.len().min(6);
+        let frac_val: u32 = frac[..frac_len].parse().ok()?;
+        // Pad to microseconds (6 digits)
+        frac_val * 10u32.pow((6 - frac_len) as u32)
+    } else {
+        0
+    };
+    Some((hour, minute, second, microsecond))
+}
+
+/// Parse RFC 3339 datetime into components
+/// Format: YYYY-MM-DDTHH:MM:SS[.ffffff][Z|+HH:MM|-HH:MM]
+#[inline]
+fn parse_rfc3339_datetime(s: &str) -> Option<(i32, u8, u8, u8, u8, u8, u32, i32)> {
+    let len = s.len();
+    if len < 19 {
+        return None;
+    }
+    // Parse date part
+    let (year, month, day) = parse_iso_date(&s[0..10])?;
+
+    // Check T separator
+    let sep = s.as_bytes()[10];
+    if sep != b'T' && sep != b't' && sep != b' ' {
+        return None;
+    }
+
+    // Find timezone part
+    let tz_start = s[11..].find(|c| c == 'Z' || c == 'z' || c == '+' || c == '-')
+        .map(|i| i + 11);
+
+    let time_end = tz_start.unwrap_or(len);
+    let time_str = &s[11..time_end];
+
+    // Parse time part
+    let (hour, minute, second, microsecond) = parse_iso_time(time_str)?;
+
+    // Parse timezone offset in seconds
+    let offset_seconds = match tz_start {
+        None => 0, // No timezone means UTC (per JSON convention)
+        Some(idx) => {
+            let tz_char = s.as_bytes()[idx];
+            if tz_char == b'Z' || tz_char == b'z' {
+                0
+            } else {
+                // +HH:MM or -HH:MM
+                let tz_str = &s[idx..];
+                if tz_str.len() < 6 || tz_str.as_bytes()[3] != b':' {
+                    return None;
+                }
+                let sign = if tz_char == b'+' { 1 } else { -1 };
+                let tz_hour: i32 = tz_str[1..3].parse().ok()?;
+                let tz_min: i32 = tz_str[4..6].parse().ok()?;
+                sign * (tz_hour * 3600 + tz_min * 60)
+            }
+        }
+    };
+
+    Some((year, month, day, hour, minute, second, microsecond, offset_seconds))
+}
+
+/// Create a PyDateTime from parsed components with timezone
+#[inline]
+fn create_pydatetime_with_offset(
+    py: Python,
+    year: i32,
+    month: u8,
+    day: u8,
+    hour: u8,
+    minute: u8,
+    second: u8,
+    microsecond: u32,
+    offset_seconds: i32,
+) -> PyResult<Py<PyAny>> {
+    if offset_seconds == 0 {
+        let tz = PyTzInfo::utc(py)?;
+        PyDateTime::new(py, year, month, day, hour, minute, second, microsecond, Some(&tz.as_borrowed()))
+            .map(|dt| dt.into_any().unbind())
+    } else {
+        let delta = PyDelta::new(py, 0, offset_seconds, 0, true)?;
+        let tz = PyTzInfo::fixed_offset(py, &delta)?;
+        PyDateTime::new(py, year, month, day, hour, minute, second, microsecond, Some(&tz))
+            .map(|dt| dt.into_any().unbind())
+    }
+}
 
 fn strip_serde_locations(s: &str) -> String {
     SERDE_LOCATION_SUFFIX.replace_all(s, "").into_owned()
@@ -596,11 +713,12 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                     }
                 } else {
                     // RFC 3339 only (e.g. "2024-12-26T10:30:45+00:00" or "...Z")
-                    match chrono::DateTime::parse_from_rfc3339(v) {
-                        Ok(dt) => dt.into_pyobject(py)
-                            .map(|b| b.into_any().unbind())
-                            .map_err(de::Error::custom),
-                        Err(_) => {
+                    match parse_rfc3339_datetime(v) {
+                        Some((year, month, day, hour, minute, second, microsecond, offset_seconds)) => {
+                            create_pydatetime_with_offset(py, year, month, day, hour, minute, second, microsecond, offset_seconds)
+                                .map_err(de::Error::custom)
+                        }
+                        None => {
                             let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid datetime.");
                             Err(de::Error::custom(err_json(&self.field.name, msg)))
                         }
@@ -608,20 +726,26 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                 }
             }
             FieldType::Date => {
-                let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                match cached.date_cls.bind(py).call_method1(cached.str_fromisoformat.bind(py), (v,)) {
-                    Ok(o) => Ok(o.unbind()),
-                    Err(_) => {
+                match parse_iso_date(v) {
+                    Some((year, month, day)) => {
+                        PyDate::new(py, year, month, day)
+                            .map(|d| d.into_any().unbind())
+                            .map_err(de::Error::custom)
+                    }
+                    None => {
                         let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid date.");
                         Err(de::Error::custom(err_json(&self.field.name, msg)))
                     }
                 }
             }
             FieldType::Time => {
-                let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                match cached.time_cls.bind(py).call_method1(cached.str_fromisoformat.bind(py), (v,)) {
-                    Ok(o) => Ok(o.unbind()),
-                    Err(_) => {
+                match parse_iso_time(v) {
+                    Some((hour, minute, second, microsecond)) => {
+                        PyTime::new(py, hour, minute, second, microsecond, None)
+                            .map(|t| t.into_any().unbind())
+                            .map_err(de::Error::custom)
+                    }
+                    None => {
                         let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid time.");
                         Err(de::Error::custom(err_json(&self.field.name, msg)))
                     }
@@ -969,12 +1093,12 @@ impl<'a, 'py, 'de> Visitor<'de> for DataclassVisitor<'a, 'py> {
     {
         let py = self.ctx.py;
         let kwargs = PyDict::new(py);
-        let mut seen_fields = vec![false; self.fields.len()];
+        let mut seen_fields = SmallBitVec::from_elem(self.fields.len(), false);
 
         while let Some(key) = map.next_key::<&str>()? {
             if let Some(&idx) = self.field_lookup.get(key) {
                 let field = &self.fields[idx];
-                seen_fields[idx] = true;
+                seen_fields.set(idx, true);
                 let mut value = map.next_value_seed(FieldDescriptorSeed {
                     ctx: self.ctx,
                     field,
@@ -1408,16 +1532,33 @@ where
                     cached.create_uuid_fast(py, uuid.as_u128()).map_err(de::Error::custom)
                 }
                 FieldType::DateTime => {
-                    let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                    Ok(cached.datetime_cls.bind(py).call_method1(cached.str_fromisoformat.bind(py), (v,)).map_err(de::Error::custom)?.unbind())
+                    match parse_rfc3339_datetime(v) {
+                        Some((year, month, day, hour, minute, second, microsecond, offset_seconds)) => {
+                            create_pydatetime_with_offset(py, year, month, day, hour, minute, second, microsecond, offset_seconds)
+                                .map_err(de::Error::custom)
+                        }
+                        None => Err(de::Error::custom("Not a valid datetime")),
+                    }
                 }
                 FieldType::Date => {
-                    let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                    Ok(cached.date_cls.bind(py).call_method1(cached.str_fromisoformat.bind(py), (v,)).map_err(de::Error::custom)?.unbind())
+                    match parse_iso_date(v) {
+                        Some((year, month, day)) => {
+                            PyDate::new(py, year, month, day)
+                                .map(|d| d.into_any().unbind())
+                                .map_err(de::Error::custom)
+                        }
+                        None => Err(de::Error::custom("Not a valid date")),
+                    }
                 }
                 FieldType::Time => {
-                    let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                    Ok(cached.time_cls.bind(py).call_method1(cached.str_fromisoformat.bind(py), (v,)).map_err(de::Error::custom)?.unbind())
+                    match parse_iso_time(v) {
+                        Some((hour, minute, second, microsecond)) => {
+                            PyTime::new(py, hour, minute, second, microsecond, None)
+                                .map(|t| t.into_any().unbind())
+                                .map_err(de::Error::custom)
+                        }
+                        None => Err(de::Error::custom("Not a valid time")),
+                    }
                 }
                 FieldType::Any => Ok(v.into_py_any(py).map_err(de::Error::custom)?),
                 _ => Err(de::Error::custom("Unexpected string for primitive type")),
