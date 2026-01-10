@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString};
+use pyo3::types::{PyBool, PyDate, PyDateTime, PyDict, PyFloat, PyInt, PyList, PyString, PyTime, PyTzInfoAccess};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Serialize, Serializer};
 use serde_json::{json, Value};
@@ -315,62 +315,81 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
             FieldType::DateTime => {
                 let py = self.value.py();
                 let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                if !self.value.is_instance(&cached.datetime_cls.bind(py)).map_err(serde::ser::Error::custom)? {
-                    return Err(serde::ser::Error::custom(format!(
+                let dt: &Bound<'_, PyDateTime> = self.value.cast().map_err(|_| {
+                    serde::ser::Error::custom(format!(
                         "{{\"{}\": [\"Not a valid datetime.\"]}}",
                         self.field.name
-                    )));
-                }
-                let s: String = if let Some(ref fmt) = self.field.datetime_format {
-                    self.value
+                    ))
+                })?;
+                if let Some(ref fmt) = self.field.datetime_format {
+                    let s: String = dt
                         .call_method1(cached.str_strftime.bind(py), (fmt.as_str(),))
                         .map_err(serde::ser::Error::custom)?
                         .extract()
-                        .map_err(serde::ser::Error::custom)?
+                        .map_err(serde::ser::Error::custom)?;
+                    serializer.serialize_str(&s)
                 } else {
-                    self.value
-                        .call_method0(cached.str_isoformat.bind(py))
-                        .map_err(serde::ser::Error::custom)?
-                        .extract()
-                        .map_err(serde::ser::Error::custom)?
-                };
-                serializer.serialize_str(&s)
+                    let tzinfo = dt.get_tzinfo();
+                    if tzinfo.is_some_and(|tz| tz.is(&cached.utc_tz.bind(py))) {
+                        let mut buf = [0u8; 32];
+                        let len = cached.datetime_utc_to_isoformat_buf(dt, &mut buf);
+                        let s = unsafe { std::str::from_utf8_unchecked(&buf[..len]) };
+                        serializer.serialize_str(s)
+                    } else {
+                        let s: String = dt
+                            .call_method0(cached.str_isoformat.bind(py))
+                            .map_err(serde::ser::Error::custom)?
+                            .extract()
+                            .map_err(serde::ser::Error::custom)?;
+                        serializer.serialize_str(&s)
+                    }
+                }
             }
             FieldType::Date => {
                 let py = self.value.py();
                 let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                // datetime is subclass of date, so datetime passes is_instance(date_cls) check
-                if !self.value.is_instance(&cached.date_cls.bind(py)).map_err(serde::ser::Error::custom)? {
+                if let Ok(dt) = self.value.cast::<PyDateTime>() {
+                    let date_obj = dt.call_method0(cached.str_date.bind(py)).map_err(serde::ser::Error::custom)?;
+                    let d: &Bound<'_, PyDate> = date_obj.cast().map_err(serde::ser::Error::custom)?;
+                    let mut buf = [0u8; 10];
+                    let len = cached.date_to_isoformat_buf(d, &mut buf);
+                    let s = unsafe { std::str::from_utf8_unchecked(&buf[..len]) };
+                    serializer.serialize_str(s)
+                } else if let Ok(d) = self.value.cast::<PyDate>() {
+                    let mut buf = [0u8; 10];
+                    let len = cached.date_to_isoformat_buf(d, &mut buf);
+                    let s = unsafe { std::str::from_utf8_unchecked(&buf[..len]) };
+                    serializer.serialize_str(s)
+                } else {
                     return Err(serde::ser::Error::custom(format!(
                         "{{\"{}\": [\"Not a valid date.\"]}}",
                         self.field.name
                     )));
                 }
-                // If the value is a datetime.datetime object, convert it to date first
-                let datetime_cls = cached.datetime_cls.bind(py);
-                let actual_value = if self.value.is_instance(datetime_cls).map_err(serde::ser::Error::custom)? {
-                    self.value.call_method0(cached.str_date.bind(py)).map_err(serde::ser::Error::custom)?
-                } else {
-                    self.value.clone()
-                };
-                let s: String = actual_value.call_method0(cached.str_isoformat.bind(py)).map_err(serde::ser::Error::custom)?.extract().map_err(serde::ser::Error::custom)?;
-                serializer.serialize_str(&s)
             }
             FieldType::Time => {
                 let py = self.value.py();
                 let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                if !self.value.is_instance(&cached.time_cls.bind(py)).map_err(serde::ser::Error::custom)? {
-                    return Err(serde::ser::Error::custom(format!(
+                let t: &Bound<'_, PyTime> = self.value.cast().map_err(|_| {
+                    serde::ser::Error::custom(format!(
                         "{{\"{}\": [\"Not a valid time.\"]}}",
                         self.field.name
-                    )));
+                    ))
+                })?;
+                let tzinfo = t.get_tzinfo();
+                if tzinfo.is_some_and(|tz| tz.is(&cached.utc_tz.bind(py))) {
+                    let mut buf = [0u8; 21];
+                    let len = cached.time_utc_to_isoformat_buf(t, &mut buf);
+                    let s = unsafe { std::str::from_utf8_unchecked(&buf[..len]) };
+                    serializer.serialize_str(s)
+                } else {
+                    let s: String = t
+                        .call_method0(cached.str_isoformat.bind(py))
+                        .map_err(serde::ser::Error::custom)?
+                        .extract()
+                        .map_err(serde::ser::Error::custom)?;
+                    serializer.serialize_str(&s)
                 }
-                let s: String = self.value
-                    .call_method0(cached.str_isoformat.bind(py))
-                    .map_err(serde::ser::Error::custom)?
-                    .extract()
-                    .map_err(serde::ser::Error::custom)?;
-                serializer.serialize_str(&s)
             }
             FieldType::List => {
                 if !self.value.is_instance_of::<PyList>() {
@@ -934,44 +953,51 @@ impl<'a, 'py> Serialize for PrimitiveSerializer<'a, 'py> {
             FieldType::DateTime => {
                 let py = self.value.py();
                 let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                if !self.value.is_instance(&cached.datetime_cls.bind(py)).map_err(serde::ser::Error::custom)? {
-                    return Err(serde::ser::Error::custom("Not a valid datetime."));
+                let dt: &Bound<'_, PyDateTime> = self.value.cast()
+                    .map_err(|_| serde::ser::Error::custom("Not a valid datetime."))?;
+                let tzinfo = dt.get_tzinfo();
+                if tzinfo.is_some_and(|tz| tz.is(&cached.utc_tz.bind(py))) {
+                    let mut buf = [0u8; 32];
+                    let len = cached.datetime_utc_to_isoformat_buf(dt, &mut buf);
+                    let s = unsafe { std::str::from_utf8_unchecked(&buf[..len]) };
+                    serializer.serialize_str(s)
+                } else {
+                    let s: String = dt
+                        .call_method0(cached.str_isoformat.bind(py))
+                        .map_err(serde::ser::Error::custom)?
+                        .extract()
+                        .map_err(serde::ser::Error::custom)?;
+                    serializer.serialize_str(&s)
                 }
-                let s: String = self
-                    .value
-                    .call_method0(cached.str_isoformat.bind(py))
-                    .map_err(serde::ser::Error::custom)?
-                    .extract()
-                    .map_err(serde::ser::Error::custom)?;
-                serializer.serialize_str(&s)
             }
             FieldType::Date => {
-                let py = self.value.py();
-                let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                if !self.value.is_instance(&cached.date_cls.bind(py)).map_err(serde::ser::Error::custom)? {
-                    return Err(serde::ser::Error::custom("Not a valid date."));
-                }
-                let s: String = self
-                    .value
-                    .call_method0(cached.str_isoformat.bind(py))
-                    .map_err(serde::ser::Error::custom)?
-                    .extract()
-                    .map_err(serde::ser::Error::custom)?;
-                serializer.serialize_str(&s)
+                let cached = get_cached_types(self.value.py()).map_err(serde::ser::Error::custom)?;
+                let d: &Bound<'_, PyDate> = self.value.cast()
+                    .map_err(|_| serde::ser::Error::custom("Not a valid date."))?;
+                let mut buf = [0u8; 10];
+                let len = cached.date_to_isoformat_buf(d, &mut buf);
+                let s = unsafe { std::str::from_utf8_unchecked(&buf[..len]) };
+                serializer.serialize_str(s)
             }
             FieldType::Time => {
                 let py = self.value.py();
                 let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                if !self.value.is_instance(&cached.time_cls.bind(py)).map_err(serde::ser::Error::custom)? {
-                    return Err(serde::ser::Error::custom("Not a valid time."));
+                let t: &Bound<'_, PyTime> = self.value.cast()
+                    .map_err(|_| serde::ser::Error::custom("Not a valid time."))?;
+                let tzinfo = t.get_tzinfo();
+                if tzinfo.is_some_and(|tz| tz.is(&cached.utc_tz.bind(py))) {
+                    let mut buf = [0u8; 21];
+                    let len = cached.time_utc_to_isoformat_buf(t, &mut buf);
+                    let s = unsafe { std::str::from_utf8_unchecked(&buf[..len]) };
+                    serializer.serialize_str(s)
+                } else {
+                    let s: String = t
+                        .call_method0(cached.str_isoformat.bind(py))
+                        .map_err(serde::ser::Error::custom)?
+                        .extract()
+                        .map_err(serde::ser::Error::custom)?;
+                    serializer.serialize_str(&s)
                 }
-                let s: String = self
-                    .value
-                    .call_method0(cached.str_isoformat.bind(py))
-                    .map_err(serde::ser::Error::custom)?
-                    .extract()
-                    .map_err(serde::ser::Error::custom)?;
-                serializer.serialize_str(&s)
             }
             FieldType::Any => AnyValueSerializer {
                 value: self.value,
