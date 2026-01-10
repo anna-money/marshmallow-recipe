@@ -574,27 +574,36 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                 }
             }
             FieldType::DateTime => {
-                let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                let datetime_cls = cached.datetime_cls.bind(py);
-                let result = if let Some(ref fmt) = self.field.datetime_format {
-                    datetime_cls.call_method1(cached.str_strptime.bind(py), (v, fmt.as_str()))
-                } else {
-                    datetime_cls.call_method1(cached.str_fromisoformat.bind(py), (v,))
-                };
-                match result {
-                    Ok(dt) => {
-                        let tzinfo = dt.getattr(cached.str_tzinfo.bind(py)).map_err(de::Error::custom)?;
-                        if tzinfo.is_none() {
-                            let kwargs = PyDict::new(py);
-                            kwargs.set_item(cached.str_tzinfo.bind(py), cached.utc_tz.bind(py)).map_err(de::Error::custom)?;
-                            Ok(dt.call_method(cached.str_replace.bind(py), (), Some(&kwargs)).map_err(de::Error::custom)?.unbind())
-                        } else {
-                            Ok(dt.unbind())
+                if let Some(ref fmt) = self.field.datetime_format {
+                    // Custom format - use Python's strptime
+                    let cached = get_cached_types(py).map_err(de::Error::custom)?;
+                    let datetime_cls = cached.datetime_cls.bind(py);
+                    match datetime_cls.call_method1(cached.str_strptime.bind(py), (v, fmt.as_str())) {
+                        Ok(dt) => {
+                            let tzinfo = dt.getattr(cached.str_tzinfo.bind(py)).map_err(de::Error::custom)?;
+                            if tzinfo.is_none() {
+                                let kwargs = PyDict::new(py);
+                                kwargs.set_item(cached.str_tzinfo.bind(py), cached.utc_tz.bind(py)).map_err(de::Error::custom)?;
+                                Ok(dt.call_method(cached.str_replace.bind(py), (), Some(&kwargs)).map_err(de::Error::custom)?.unbind())
+                            } else {
+                                Ok(dt.unbind())
+                            }
+                        }
+                        Err(_) => {
+                            let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid datetime.");
+                            Err(de::Error::custom(err_json(&self.field.name, msg)))
                         }
                     }
-                    Err(_) => {
-                        let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid datetime.");
-                        Err(de::Error::custom(err_json(&self.field.name, msg)))
+                } else {
+                    // RFC 3339 only (e.g. "2024-12-26T10:30:45+00:00" or "...Z")
+                    match chrono::DateTime::parse_from_rfc3339(v) {
+                        Ok(dt) => dt.into_pyobject(py)
+                            .map(|b| b.into_any().unbind())
+                            .map_err(de::Error::custom),
+                        Err(_) => {
+                            let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid datetime.");
+                            Err(de::Error::custom(err_json(&self.field.name, msg)))
+                        }
                     }
                 }
             }
