@@ -85,20 +85,34 @@ class TestDatetimeDump:
 
 
 class TestDatetimeLoad:
-    @pytest.mark.parametrize("iso_string,expected", [
-        ("2024-12-26T10:30:45Z", datetime.datetime(2024, 12, 26, 10, 30, 45, tzinfo=datetime.UTC)),
-        ("2024-12-26T10:30:45+00:00", datetime.datetime(2024, 12, 26, 10, 30, 45, tzinfo=datetime.UTC)),
-        ("2024-12-26T10:30:45+03:00", datetime.datetime(2024, 12, 26, 10, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=3)))),
-        ("2024-12-26T10:30:45-05:00", datetime.datetime(2024, 12, 26, 10, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=-5)))),
-        ("2024-12-26T10:30:45+05:30", datetime.datetime(2024, 12, 26, 10, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=5, minutes=30)))),
-        ("2024-12-26T10:30:45.1Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 100000, datetime.UTC)),
-        ("2024-12-26T10:30:45.12Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 120000, datetime.UTC)),
-        ("2024-12-26T10:30:45.123Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 123000, datetime.UTC)),
-        ("2024-12-26T10:30:45.1234Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 123400, datetime.UTC)),
-        ("2024-12-26T10:30:45.12345Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 123450, datetime.UTC)),
-        ("2024-12-26T10:30:45.123456Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 123456, datetime.UTC)),
-        ("2024-12-26T10:30:45.100000Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 100000, datetime.UTC)),
-    ])
+    @pytest.mark.parametrize(
+        "iso_string,expected",
+        [
+            ("2024-12-26T10:30:45Z", datetime.datetime(2024, 12, 26, 10, 30, 45, tzinfo=datetime.UTC)),
+            ("2024-12-26T10:30:45+00:00", datetime.datetime(2024, 12, 26, 10, 30, 45, tzinfo=datetime.UTC)),
+            (
+                "2024-12-26T10:30:45+03:00",
+                datetime.datetime(2024, 12, 26, 10, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=3))),
+            ),
+            (
+                "2024-12-26T10:30:45-05:00",
+                datetime.datetime(2024, 12, 26, 10, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=-5))),
+            ),
+            (
+                "2024-12-26T10:30:45+05:30",
+                datetime.datetime(
+                    2024, 12, 26, 10, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+                ),
+            ),
+            ("2024-12-26T10:30:45.1Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 100000, datetime.UTC)),
+            ("2024-12-26T10:30:45.12Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 120000, datetime.UTC)),
+            ("2024-12-26T10:30:45.123Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 123000, datetime.UTC)),
+            ("2024-12-26T10:30:45.1234Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 123400, datetime.UTC)),
+            ("2024-12-26T10:30:45.12345Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 123450, datetime.UTC)),
+            ("2024-12-26T10:30:45.123456Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 123456, datetime.UTC)),
+            ("2024-12-26T10:30:45.100000Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 100000, datetime.UTC)),
+        ],
+    )
     def test_value(self, impl: Serializer, iso_string: str, expected: datetime.datetime) -> None:
         data = f'{{"value":"{iso_string}"}}'.encode()
         result = impl.load(ValueOf[datetime.datetime], data)

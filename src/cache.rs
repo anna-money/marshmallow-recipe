@@ -1,28 +1,12 @@
 use once_cell::sync::{Lazy, OnceCell};
 use pyo3::ffi;
 use pyo3::prelude::*;
-use pyo3::types::{PyDate, PyDateAccess, PyDateTime, PyDict, PyList, PyString, PyTime, PyTimeAccess, PyTuple};
+use pyo3::types::{PyDict, PyList, PyString, PyTuple};
 use pyo3::BoundObject;
 use std::collections::HashMap;
 use std::sync::RwLock;
 
 use crate::types::{FieldDescriptor, FieldType, SchemaDescriptor, TypeDescriptor, TypeKind};
-
-#[inline(always)]
-fn write_char(buf: &mut [u8], pos: &mut usize, ch: u8) {
-    buf[*pos] = ch;
-    *pos += 1;
-}
-
-#[inline(always)]
-fn write_digits(buf: &mut [u8], pos: &mut usize, val: impl Into<u32>, mut divisor: u32) {
-    let val: u32 = val.into();
-    while divisor > 0 {
-        buf[*pos] = b'0' + ((val / divisor) % 10) as u8;
-        *pos += 1;
-        divisor /= 10;
-    }
-}
 
 fn force_setattr<'py, N, V>(py: Python<'py>, obj: &Bound<'py, PyAny>, attr_name: N, value: V) -> PyResult<()>
 where
@@ -88,6 +72,8 @@ pub struct CachedPyTypes {
     pub str_int: Py<PyString>,
     pub str_is_safe: Py<PyString>,
     pub str_date: Py<PyString>,
+    pub str_utcoffset: Py<PyString>,
+    pub str_total_seconds: Py<PyString>,
     pub missing_sentinel: Py<PyAny>,
 }
 
@@ -124,57 +110,6 @@ impl CachedPyTypes {
         Ok(s.to_string())
     }
 
-    pub fn datetime_utc_to_isoformat_buf(&self, dt: &Bound<'_, PyDateTime>, buf: &mut [u8; 32]) -> usize {
-        let mut pos = 0;
-        write_digits(buf, &mut pos, dt.get_year() as u32, 1000);
-        write_char(buf, &mut pos, b'-');
-        write_digits(buf, &mut pos, dt.get_month(), 10);
-        write_char(buf, &mut pos, b'-');
-        write_digits(buf, &mut pos, dt.get_day(), 10);
-        write_char(buf, &mut pos, b'T');
-        write_digits(buf, &mut pos, dt.get_hour(), 10);
-        write_char(buf, &mut pos, b':');
-        write_digits(buf, &mut pos, dt.get_minute(), 10);
-        write_char(buf, &mut pos, b':');
-        write_digits(buf, &mut pos, dt.get_second(), 10);
-
-        let microsecond = dt.get_microsecond();
-        if microsecond > 0 {
-            write_char(buf, &mut pos, b'.');
-            write_digits(buf, &mut pos, microsecond, 100000);
-        }
-
-        buf[pos..pos + 6].copy_from_slice(b"+00:00");
-        pos + 6
-    }
-
-    pub fn date_to_isoformat_buf(&self, d: &Bound<'_, PyDate>, buf: &mut [u8; 10]) -> usize {
-        let mut pos = 0;
-        write_digits(buf, &mut pos, d.get_year() as u32, 1000);
-        write_char(buf, &mut pos, b'-');
-        write_digits(buf, &mut pos, d.get_month(), 10);
-        write_char(buf, &mut pos, b'-');
-        write_digits(buf, &mut pos, d.get_day(), 10);
-        pos
-    }
-
-    pub fn time_utc_to_isoformat_buf(&self, t: &Bound<'_, PyTime>, buf: &mut [u8; 21]) -> usize {
-        let mut pos = 0;
-        write_digits(buf, &mut pos, t.get_hour(), 10);
-        write_char(buf, &mut pos, b':');
-        write_digits(buf, &mut pos, t.get_minute(), 10);
-        write_char(buf, &mut pos, b':');
-        write_digits(buf, &mut pos, t.get_second(), 10);
-
-        let microsecond = t.get_microsecond();
-        if microsecond > 0 {
-            write_char(buf, &mut pos, b'.');
-            write_digits(buf, &mut pos, microsecond, 100000);
-        }
-
-        buf[pos..pos + 6].copy_from_slice(b"+00:00");
-        pos + 6
-    }
 }
 
 static CACHED_PY_TYPES: OnceCell<CachedPyTypes> = OnceCell::new();
@@ -224,6 +159,8 @@ pub fn get_cached_types(py: Python) -> PyResult<&'static CachedPyTypes> {
             str_int: PyString::intern(py, "int").unbind(),
             str_is_safe: PyString::intern(py, "is_safe").unbind(),
             str_date: PyString::intern(py, "date").unbind(),
+            str_utcoffset: PyString::intern(py, "utcoffset").unbind(),
+            str_total_seconds: PyString::intern(py, "total_seconds").unbind(),
             missing_sentinel: mr_missing_mod.getattr("MISSING")?.unbind(),
         })
     })
