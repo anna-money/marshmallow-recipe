@@ -302,8 +302,15 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                         self.field.name
                     )));
                 }
-                let s = cached.uuid_to_string(self.value).map_err(serde::ser::Error::custom)?;
-                serializer.serialize_str(&s)
+                let uuid_int: u128 = self.value
+                    .getattr(cached.str_int.bind(py))
+                    .map_err(serde::ser::Error::custom)?
+                    .extract()
+                    .map_err(serde::ser::Error::custom)?;
+                let uuid = uuid::Uuid::from_u128(uuid_int);
+                let mut buf = [0u8; uuid::fmt::Hyphenated::LENGTH];
+                let s = uuid.hyphenated().encode_lower(&mut buf);
+                serializer.serialize_str(s)
             }
             FieldType::DateTime => {
                 let py = self.value.py();
@@ -914,8 +921,15 @@ impl<'a, 'py> Serialize for PrimitiveSerializer<'a, 'py> {
                 if !self.value.is_instance(&cached.uuid_cls.bind(py)).map_err(serde::ser::Error::custom)? {
                     return Err(serde::ser::Error::custom("Not a valid UUID."));
                 }
-                let s = cached.uuid_to_string(self.value).map_err(serde::ser::Error::custom)?;
-                serializer.serialize_str(&s)
+                let uuid_int: u128 = self.value
+                    .getattr(cached.str_int.bind(py))
+                    .map_err(serde::ser::Error::custom)?
+                    .extract()
+                    .map_err(serde::ser::Error::custom)?;
+                let uuid = uuid::Uuid::from_u128(uuid_int);
+                let mut buf = [0u8; uuid::fmt::Hyphenated::LENGTH];
+                let s = uuid.hyphenated().encode_lower(&mut buf);
+                serializer.serialize_str(s)
             }
             FieldType::DateTime => {
                 let py = self.value.py();

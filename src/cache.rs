@@ -103,7 +103,9 @@ impl CachedPyTypes {
         let py = py_uuid.py();
         let uuid_int_val: u128 = py_uuid.getattr(self.str_int.bind(py))?.extract()?;
         let uuid = uuid::Uuid::from_u128(uuid_int_val);
-        Ok(uuid.to_string())
+        let mut buf = [0u8; uuid::fmt::Hyphenated::LENGTH];
+        let s = uuid.hyphenated().encode_lower(&mut buf);
+        Ok(s.to_string())
     }
 }
 
