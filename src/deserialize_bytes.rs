@@ -543,18 +543,11 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
     where
         E: de::Error,
     {
-        self.visit_string(v.to_string())
-    }
-
-    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
         let py = self.ctx.py;
         match self.field.field_type {
             FieldType::Str => {
                 let s = if self.field.strip_whitespaces {
-                    v.trim().to_string()
+                    v.trim()
                 } else {
                     v
                 };
@@ -562,7 +555,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
             }
             FieldType::Decimal => {
                 let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                match cached.decimal_cls.bind(py).call1((&v,)) {
+                match cached.decimal_cls.bind(py).call1((v,)) {
                     Ok(result) => self.apply_decimal_quantize(result.unbind()).map_err(de::Error::custom),
                     Err(_) => {
                         let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid number.");
@@ -572,7 +565,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
             }
             FieldType::Uuid => {
                 let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                match Uuid::parse_str(&v) {
+                match Uuid::parse_str(v) {
                     Ok(uuid) => cached.create_uuid_fast(py, uuid.as_u128()).map_err(de::Error::custom),
                     Err(_) => {
                         let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid UUID.");
@@ -584,9 +577,9 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                 let cached = get_cached_types(py).map_err(de::Error::custom)?;
                 let datetime_cls = cached.datetime_cls.bind(py);
                 let result = if let Some(ref fmt) = self.field.datetime_format {
-                    datetime_cls.call_method1(cached.str_strptime.bind(py), (&v, fmt.as_str()))
+                    datetime_cls.call_method1(cached.str_strptime.bind(py), (v, fmt.as_str()))
                 } else {
-                    datetime_cls.call_method1(cached.str_fromisoformat.bind(py), (&v,))
+                    datetime_cls.call_method1(cached.str_fromisoformat.bind(py), (v,))
                 };
                 match result {
                     Ok(dt) => {
@@ -607,7 +600,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
             }
             FieldType::Date => {
                 let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                match cached.date_cls.bind(py).call_method1(cached.str_fromisoformat.bind(py), (&v,)) {
+                match cached.date_cls.bind(py).call_method1(cached.str_fromisoformat.bind(py), (v,)) {
                     Ok(o) => Ok(o.unbind()),
                     Err(_) => {
                         let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid date.");
@@ -617,7 +610,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
             }
             FieldType::Time => {
                 let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                match cached.time_cls.bind(py).call_method1(cached.str_fromisoformat.bind(py), (&v,)) {
+                match cached.time_cls.bind(py).call_method1(cached.str_fromisoformat.bind(py), (v,)) {
                     Ok(o) => Ok(o.unbind()),
                     Err(_) => {
                         let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid time.");
@@ -645,7 +638,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                     de::Error::custom("StrEnum field missing str_enum_values")
                 })?;
                 for (key, member) in values {
-                    if key == &v {
+                    if key == v {
                         return Ok(member.clone_ref(py));
                     }
                 }
@@ -658,7 +651,6 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             FieldType::IntEnum => {
-                // String received for IntEnum - show enum error with allowed values
                 let values = self.field.int_enum_values.as_ref().ok_or_else(|| {
                     de::Error::custom("IntEnum field missing int_enum_values")
                 })?;
@@ -675,6 +667,13 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                 Err(de::Error::custom(err_json(&self.field.name, msg)))
             }
         }
+    }
+
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        self.visit_str(&v)
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
