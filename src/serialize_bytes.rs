@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyDate, PyDateTime, PyDict, PyFloat, PyInt, PyList, PyString, PyTime, PyDateAccess, PyTimeAccess, PyTzInfoAccess};
+use pyo3::types::{PyBool, PyDate, PyDateTime, PyDelta, PyDict, PyFloat, PyInt, PyList, PyString, PyTime, PyDateAccess, PyDeltaAccess, PyTimeAccess, PyTzInfoAccess};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Serialize, Serializer};
 use serde_json::{json, Value};
@@ -344,12 +344,8 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                     if let Some(tz) = dt.get_tzinfo() {
                         let offset = tz.call_method1(cached.str_utcoffset.bind(py), (dt,))
                             .map_err(serde::ser::Error::custom)?;
-                        if !offset.is_none() {
-                            let total_seconds_f: f64 = offset.call_method0(cached.str_total_seconds.bind(py))
-                                .map_err(serde::ser::Error::custom)?
-                                .extract()
-                                .map_err(serde::ser::Error::custom)?;
-                            let total_seconds = total_seconds_f as i32;
+                        if let Ok(delta) = offset.cast::<PyDelta>() {
+                            let total_seconds = delta.get_days() * 86400 + delta.get_seconds();
                             if total_seconds >= 0 {
                                 write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
                             } else {
@@ -402,12 +398,8 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                     let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
                     let offset = tz.call_method1(cached.str_utcoffset.bind(py), (py.None(),))
                         .map_err(serde::ser::Error::custom)?;
-                    if !offset.is_none() {
-                        let total_seconds_f: f64 = offset.call_method0(cached.str_total_seconds.bind(py))
-                            .map_err(serde::ser::Error::custom)?
-                            .extract()
-                            .map_err(serde::ser::Error::custom)?;
-                        let total_seconds = total_seconds_f as i32;
+                    if let Ok(delta) = offset.cast::<PyDelta>() {
+                        let total_seconds = delta.get_days() * 86400 + delta.get_seconds();
                         if total_seconds >= 0 {
                             write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
                         } else {
@@ -1001,12 +993,8 @@ impl<'a, 'py> Serialize for PrimitiveSerializer<'a, 'py> {
                 if let Some(tz) = dt.get_tzinfo() {
                     let offset = tz.call_method1(cached.str_utcoffset.bind(py), (dt,))
                         .map_err(serde::ser::Error::custom)?;
-                    if !offset.is_none() {
-                        let total_seconds_f: f64 = offset.call_method0(cached.str_total_seconds.bind(py))
-                            .map_err(serde::ser::Error::custom)?
-                            .extract()
-                            .map_err(serde::ser::Error::custom)?;
-                        let total_seconds = total_seconds_f as i32;
+                    if let Ok(delta) = offset.cast::<PyDelta>() {
+                        let total_seconds = delta.get_days() * 86400 + delta.get_seconds();
                         if total_seconds >= 0 {
                             write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
                         } else {
@@ -1043,12 +1031,8 @@ impl<'a, 'py> Serialize for PrimitiveSerializer<'a, 'py> {
                     let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
                     let offset = tz.call_method1(cached.str_utcoffset.bind(py), (py.None(),))
                         .map_err(serde::ser::Error::custom)?;
-                    if !offset.is_none() {
-                        let total_seconds_f: f64 = offset.call_method0(cached.str_total_seconds.bind(py))
-                            .map_err(serde::ser::Error::custom)?
-                            .extract()
-                            .map_err(serde::ser::Error::custom)?;
-                        let total_seconds = total_seconds_f as i32;
+                    if let Ok(delta) = offset.cast::<PyDelta>() {
+                        let total_seconds = delta.get_days() * 86400 + delta.get_seconds();
                         if total_seconds >= 0 {
                             write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
                         } else {
