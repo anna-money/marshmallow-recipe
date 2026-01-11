@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Write;
 
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDate, PyDateTime, PyDelta, PyDict, PyFloat, PyFrozenSet, PyInt, PyList, PySet, PyString, PyTime, PyTuple, PyDateAccess, PyDeltaAccess, PyTimeAccess, PyTzInfoAccess};
@@ -328,7 +329,6 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                         .map_err(serde::ser::Error::custom)?;
                     serializer.serialize_str(&s)
                 } else {
-                    use std::fmt::Write;
                     let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
                     let mut buf = arrayvec::ArrayString::<32>::new();
                     let micros = dt.get_microsecond();
@@ -342,15 +342,20 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                             dt.get_hour(), dt.get_minute(), dt.get_second(), micros).unwrap();
                     }
                     if let Some(tz) = dt.get_tzinfo() {
-                        let offset = tz.call_method1(cached.str_utcoffset.bind(py), (dt,))
-                            .map_err(serde::ser::Error::custom)?;
-                        if let Ok(delta) = offset.cast::<PyDelta>() {
-                            let total_seconds = delta.get_days() * 86400 + delta.get_seconds();
-                            if total_seconds >= 0 {
-                                write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
-                            } else {
-                                let abs = total_seconds.abs();
-                                write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+                        if tz.is(&cached.utc_tz.bind(py)) {
+
+                            buf.push_str("+00:00");
+                        } else {
+                            let offset = tz.call_method1(cached.str_utcoffset.bind(py), (dt,))
+                                .map_err(serde::ser::Error::custom)?;
+                            if let Ok(delta) = offset.cast::<PyDelta>() {
+                                let total_seconds = delta.get_days() * 86400 + delta.get_seconds();
+                                if total_seconds >= 0 {
+                                    write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
+                                } else {
+                                    let abs = total_seconds.abs();
+                                    write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+                                }
                             }
                         }
                     }
@@ -358,7 +363,6 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                 }
             }
             FieldType::Date => {
-                use std::fmt::Write;
                 let d: &Bound<'_, PyDate> = if let Ok(dt) = self.value.cast::<PyDateTime>() {
                     // Serialize date from datetime directly
                     let mut buf = arrayvec::ArrayString::<10>::new();
@@ -377,7 +381,6 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                 serializer.serialize_str(&buf)
             }
             FieldType::Time => {
-                use std::fmt::Write;
                 let py = self.value.py();
                 let t: &Bound<'_, PyTime> = self.value.cast().map_err(|_| {
                     serde::ser::Error::custom(format!(
@@ -396,15 +399,19 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                 }
                 if let Some(tz) = t.get_tzinfo() {
                     let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                    let offset = tz.call_method1(cached.str_utcoffset.bind(py), (py.None(),))
-                        .map_err(serde::ser::Error::custom)?;
-                    if let Ok(delta) = offset.cast::<PyDelta>() {
-                        let total_seconds = delta.get_days() * 86400 + delta.get_seconds();
-                        if total_seconds >= 0 {
-                            write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
-                        } else {
-                            let abs = total_seconds.abs();
-                            write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+                    if tz.is(&cached.utc_tz.bind(py)) {
+                        buf.push_str("+00:00");
+                    } else {
+                        let offset = tz.call_method1(cached.str_utcoffset.bind(py), (py.None(),))
+                            .map_err(serde::ser::Error::custom)?;
+                        if let Ok(delta) = offset.cast::<PyDelta>() {
+                            let total_seconds = delta.get_days() * 86400 + delta.get_seconds();
+                            if total_seconds >= 0 {
+                                write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
+                            } else {
+                                let abs = total_seconds.abs();
+                                write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+                            }
                         }
                     }
                 }
@@ -968,7 +975,6 @@ impl<'a, 'py> Serialize for PrimitiveSerializer<'a, 'py> {
                 serializer.serialize_str(s)
             }
             FieldType::DateTime => {
-                use std::fmt::Write;
                 let py = self.value.py();
                 let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
                 let dt: &Bound<'_, PyDateTime> = self.value.cast()
@@ -985,22 +991,26 @@ impl<'a, 'py> Serialize for PrimitiveSerializer<'a, 'py> {
                         dt.get_hour(), dt.get_minute(), dt.get_second(), micros).unwrap();
                 }
                 if let Some(tz) = dt.get_tzinfo() {
-                    let offset = tz.call_method1(cached.str_utcoffset.bind(py), (dt,))
-                        .map_err(serde::ser::Error::custom)?;
-                    if let Ok(delta) = offset.cast::<PyDelta>() {
-                        let total_seconds = delta.get_days() * 86400 + delta.get_seconds();
-                        if total_seconds >= 0 {
-                            write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
-                        } else {
-                            let abs = total_seconds.abs();
-                            write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+                    if tz.is(&cached.utc_tz.bind(py)) {
+
+                        buf.push_str("+00:00");
+                    } else {
+                        let offset = tz.call_method1(cached.str_utcoffset.bind(py), (dt,))
+                            .map_err(serde::ser::Error::custom)?;
+                        if let Ok(delta) = offset.cast::<PyDelta>() {
+                            let total_seconds = delta.get_days() * 86400 + delta.get_seconds();
+                            if total_seconds >= 0 {
+                                write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
+                            } else {
+                                let abs = total_seconds.abs();
+                                write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+                            }
                         }
                     }
                 }
                 serializer.serialize_str(&buf)
             }
             FieldType::Date => {
-                use std::fmt::Write;
                 let d: &Bound<'_, PyDate> = self.value.cast()
                     .map_err(|_| serde::ser::Error::custom("Not a valid date."))?;
                 let mut buf = arrayvec::ArrayString::<10>::new();
@@ -1008,7 +1018,6 @@ impl<'a, 'py> Serialize for PrimitiveSerializer<'a, 'py> {
                 serializer.serialize_str(&buf)
             }
             FieldType::Time => {
-                use std::fmt::Write;
                 let py = self.value.py();
                 let t: &Bound<'_, PyTime> = self.value.cast()
                     .map_err(|_| serde::ser::Error::custom("Not a valid time."))?;
@@ -1023,15 +1032,20 @@ impl<'a, 'py> Serialize for PrimitiveSerializer<'a, 'py> {
                 }
                 if let Some(tz) = t.get_tzinfo() {
                     let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                    let offset = tz.call_method1(cached.str_utcoffset.bind(py), (py.None(),))
-                        .map_err(serde::ser::Error::custom)?;
-                    if let Ok(delta) = offset.cast::<PyDelta>() {
-                        let total_seconds = delta.get_days() * 86400 + delta.get_seconds();
-                        if total_seconds >= 0 {
-                            write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
-                        } else {
-                            let abs = total_seconds.abs();
-                            write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+                    if tz.is(&cached.utc_tz.bind(py)) {
+
+                        buf.push_str("+00:00");
+                    } else {
+                        let offset = tz.call_method1(cached.str_utcoffset.bind(py), (py.None(),))
+                            .map_err(serde::ser::Error::custom)?;
+                        if let Ok(delta) = offset.cast::<PyDelta>() {
+                            let total_seconds = delta.get_days() * 86400 + delta.get_seconds();
+                            if total_seconds >= 0 {
+                                write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
+                            } else {
+                                let abs = total_seconds.abs();
+                                write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+                            }
                         }
                     }
                 }
