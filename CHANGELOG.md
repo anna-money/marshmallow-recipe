@@ -1,3 +1,8 @@
+## Unreleased
+
+* [Remove decimal `as_string` option - decimals are always serialized as strings](https://github.com/anna-money/marshmallow-recipe/pull/228)
+
+
 ## v0.0.69 (2026-01-09)
 
 * [Improve EnumField error messages to show enum members instead of values](https://github.com/anna-money/marshmallow-recipe/pull/227)

@@ -201,29 +201,25 @@ EMPTY_SCHEMA = m.Schema()
         ),
         (
             decimal.Decimal,
-            mr.decimal_meta(name="i", places=4, as_string=False),
-            m.fields.Decimal(required=True, **data_key_fields("i"), places=4, as_string=False),
+            mr.decimal_meta(name="i", places=4),
+            m.fields.Decimal(required=True, **data_key_fields("i"), places=4, as_string=True),
         ),
         (
             decimal.Decimal,
-            mr.decimal_meta(name="i", places=4, as_string=False, rounding=decimal.ROUND_DOWN),
+            mr.decimal_meta(name="i", places=4, rounding=decimal.ROUND_DOWN),
             m.fields.Decimal(
-                required=True, **data_key_fields("i"), places=4, as_string=False, rounding=decimal.ROUND_DOWN
+                required=True, **data_key_fields("i"), places=4, as_string=True, rounding=decimal.ROUND_DOWN
             ),
         ),
         (
             Optional[decimal.Decimal],
-            mr.decimal_meta(name="i", places=4, as_string=False),
-            m.fields.Decimal(
-                allow_none=True, **default_fields(None), places=4, as_string=False, **data_key_fields("i")
-            ),
+            mr.decimal_meta(name="i", places=4),
+            m.fields.Decimal(allow_none=True, **default_fields(None), places=4, as_string=True, **data_key_fields("i")),
         ),
         (
             decimal.Decimal | None,
-            mr.decimal_meta(name="i", places=4, as_string=False),
-            m.fields.Decimal(
-                allow_none=True, **default_fields(None), places=4, as_string=False, **data_key_fields("i")
-            ),
+            mr.decimal_meta(name="i", places=4),
+            m.fields.Decimal(allow_none=True, **default_fields(None), places=4, as_string=True, **data_key_fields("i")),
         ),
         # simple types: datetime
         (datetime.datetime, {}, mr.DateTimeField(required=True)),

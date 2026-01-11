@@ -157,6 +157,41 @@ class TestOptionsDecimalPlacesDump:
         assert result == b'{"level2":{"level3":{"value":"123.46"}}}'
 
 
+class TestOptionsDecimalPlacesLoad:
+    def test_decimal_places_in_options(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        @mr.options(decimal_places=4)
+        class Container:
+            value: decimal.Decimal
+
+        data = b'{"value":"123.456789"}'
+        result = impl.load(Container, data)
+        assert result == Container(value=decimal.Decimal("123.4568"))
+
+    def test_decimal_places_metadata_overrides_options(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        @mr.options(decimal_places=4)
+        class Container:
+            value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=1))
+
+        data = b'{"value":"123.456789"}'
+        result = impl.load(Container, data)
+        assert result == Container(value=decimal.Decimal("123.5"))
+
+    def test_decimal_places_global_parameter(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class Inner:
+            value: decimal.Decimal
+
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class Outer:
+            inner: Inner
+
+        data = b'{"inner":{"value":"123.456789"}}'
+        result = impl.load(Outer, data, decimal_places=3)
+        assert result == Outer(inner=Inner(value=decimal.Decimal("123.457")))
+
+
 class TestOptionsNoneValueHandlingDump:
     def test_none_value_handling_include(self, impl: Serializer) -> None:
         @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

@@ -84,7 +84,6 @@ class ConfiguredFields:
     decimal_any_places: decimal.Decimal = dataclasses.field(metadata=mr.decimal_metadata(places=None))
     decimal_three_places: decimal.Decimal = dataclasses.field(metadata=mr.decimal_metadata(places=3))
     decimal_with_rounding: decimal.Decimal = dataclasses.field(metadata=mr.decimal_metadata(places=2, rounding=decimal.ROUND_UP))
-    decimal_as_number: decimal.Decimal = dataclasses.field(metadata=mr.decimal_metadata(as_string=False))
     nullable_with_custom_format: datetime.date | None = dataclasses.field(metadata=mr.datetime_meta(format="%Y%m%d"), default=None)
     with_default_factory: str = dataclasses.field(default_factory=lambda: "42")
 

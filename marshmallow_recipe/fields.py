@@ -135,7 +135,6 @@ def decimal_field(
     name: str | None = None,
     places: int | None = 2,
     rounding: str | None = None,
-    as_string: bool = True,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     required_error: str | None = None,
     none_error: str | None = None,
@@ -146,7 +145,7 @@ def decimal_field(
     if default is m.missing:
         return m.fields.Decimal(
             allow_none=allow_none,
-            as_string=as_string,
+            as_string=True,
             places=places,
             rounding=rounding,
             validate=validate,
@@ -164,7 +163,7 @@ def decimal_field(
         return m.fields.Decimal(
             required=True,
             allow_none=allow_none,
-            as_string=as_string,
+            as_string=True,
             places=places,
             rounding=rounding,
             validate=validate,
@@ -177,7 +176,7 @@ def decimal_field(
 
     return m.fields.Decimal(
         allow_none=allow_none,
-        as_string=as_string,
+        as_string=True,
         places=places,
         rounding=rounding,
         validate=validate,
