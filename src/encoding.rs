@@ -2,7 +2,7 @@ use encoding_rs::Encoding;
 use pyo3::prelude::*;
 use std::borrow::Cow;
 
-fn normalize_encoding_label(encoding: &str) -> &str {
+const fn normalize_encoding_label(encoding: &str) -> &str {
     if encoding.eq_ignore_ascii_case("latin-1")
         || encoding.eq_ignore_ascii_case("latin1")
         || encoding.eq_ignore_ascii_case("iso-8859-1")
@@ -28,7 +28,7 @@ pub fn decode_to_utf8_bytes<'a>(bytes: &'a [u8], encoding: &str) -> PyResult<Cow
     let label = normalize_encoding_label(encoding);
     let enc = Encoding::for_label(label.as_bytes())
         .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            format!("Unknown encoding: {}", encoding)
+            format!("Unknown encoding: {encoding}")
         ))?;
     let mut decoder = enc.new_decoder();
     let max_len = decoder.max_utf8_buffer_length(bytes.len())
@@ -60,7 +60,7 @@ pub fn encode_from_utf8_bytes<'a>(utf8_bytes: &'a [u8], encoding: &str) -> PyRes
     let label = normalize_encoding_label(encoding);
     let enc = Encoding::for_label(label.as_bytes())
         .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            format!("Unknown encoding: {}", encoding)
+            format!("Unknown encoding: {encoding}")
         ))?;
     let utf8_str = std::str::from_utf8(utf8_bytes)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;

@@ -13,9 +13,9 @@ pub fn load_from_bytes(
     post_loads: Option<&Bound<'_, PyDict>>,
     encoding: &str,
 ) -> PyResult<Py<PyAny>> {
-    let cache = SCHEMA_CACHE.read().unwrap_or_else(|e| e.into_inner());
+    let cache = SCHEMA_CACHE.read().unwrap_or_else(std::sync::PoisonError::into_inner);
     let descriptor = cache.get(&schema_id).ok_or_else(|| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Schema {} not registered", schema_id))
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Schema {schema_id} not registered"))
     })?;
 
     let utf8_bytes = decode_to_utf8_bytes(json_bytes, encoding)?;
@@ -32,9 +32,9 @@ pub fn dump_to_bytes(
     decimal_places: Option<i32>,
     encoding: &str,
 ) -> PyResult<Py<PyBytes>> {
-    let cache = SCHEMA_CACHE.read().unwrap_or_else(|e| e.into_inner());
+    let cache = SCHEMA_CACHE.read().unwrap_or_else(std::sync::PoisonError::into_inner);
     let descriptor = cache.get(&schema_id).ok_or_else(|| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Schema {} not registered", schema_id))
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Schema {schema_id} not registered"))
     })?;
 
     let json_bytes = crate::serialize_bytes::dump_to_bytes(py, obj, descriptor, none_value_handling, decimal_places)?;
@@ -50,9 +50,9 @@ pub fn load(
     data: &Bound<'_, PyAny>,
     post_loads: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<Py<PyAny>> {
-    let cache = SCHEMA_CACHE.read().unwrap_or_else(|e| e.into_inner());
+    let cache = SCHEMA_CACHE.read().unwrap_or_else(std::sync::PoisonError::into_inner);
     let descriptor = cache.get(&schema_id).ok_or_else(|| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Schema {} not registered", schema_id))
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Schema {schema_id} not registered"))
     })?;
 
     crate::deserialize::load(py, data, descriptor, post_loads)
@@ -67,9 +67,9 @@ pub fn dump(
     none_value_handling: Option<&str>,
     decimal_places: Option<i32>,
 ) -> PyResult<Py<PyAny>> {
-    let cache = SCHEMA_CACHE.read().unwrap_or_else(|e| e.into_inner());
+    let cache = SCHEMA_CACHE.read().unwrap_or_else(std::sync::PoisonError::into_inner);
     let descriptor = cache.get(&schema_id).ok_or_else(|| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Schema {} not registered", schema_id))
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Schema {schema_id} not registered"))
     })?;
 
     crate::serialize::dump(py, obj, descriptor, none_value_handling, decimal_places)

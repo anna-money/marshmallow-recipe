@@ -22,3 +22,8 @@ once_cell = "1.19"
 encoding_rs = "0.8"
 uuid = "1.11"
 regex = "1.10"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "warn", priority = -1 }

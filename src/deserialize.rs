@@ -45,21 +45,19 @@ fn err_dict_from_list(py: Python, field_name: &str, errors: Py<PyAny>) -> Py<PyA
 
 fn format_item_errors_dict(py: Python, errors: &HashMap<usize, Py<PyAny>>) -> Py<PyAny> {
     let dict = PyDict::new(py);
-    for (idx, err_list) in errors.iter() {
+    for (idx, err_list) in errors {
         dict.set_item(*idx, err_list).unwrap();
     }
     dict.into()
 }
 
-/// Extracts the error value from a PyErr.
+/// Extracts the error value from a `PyErr`.
 /// When we create `ValueError(dict_or_list)`, the dict/list is stored in args[0].
 /// `e.value()` returns the exception object itself, so we need to extract args[0].
 fn extract_error_value(py: Python, e: &PyErr) -> Py<PyAny> {
     e.value(py)
         .getattr("args")
-        .and_then(|args| args.get_item(0))
-        .map(|v| v.clone().unbind())
-        .unwrap_or_else(|_| e.value(py).clone().into_any().unbind())
+        .and_then(|args| args.get_item(0)).map_or_else(|_| e.value(py).clone().into_any().unbind(), |v| v.clone().unbind())
 }
 
 fn call_validator(py: Python, validator: &Py<PyAny>, value: &Bound<'_, PyAny>) -> PyResult<Option<Py<PyAny>>> {
@@ -70,12 +68,13 @@ fn call_validator(py: Python, validator: &Py<PyAny>, value: &Bound<'_, PyAny>) -
     Ok(Some(result.unbind()))
 }
 
-pub(crate) struct LoadContext<'a, 'py> {
+pub struct LoadContext<'a, 'py> {
     pub py: Python<'py>,
     pub post_loads: Option<&'a Bound<'py, PyDict>>,
 }
 
-pub(crate) fn deserialize_field_value<'py>(
+#[allow(clippy::too_many_lines)]
+pub fn deserialize_field_value<'py>(
     value: &Bound<'py, PyAny>,
     field: &FieldDescriptor,
     ctx: &LoadContext<'_, 'py>,
@@ -122,7 +121,12 @@ pub(crate) fn deserialize_field_value<'py>(
             }
         }
         FieldType::Float => {
-            let f: f64 = if value.is_instance_of::<PyFloat>() || (value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>()) {
+            // If already an int, keep it as int (no precision loss for large numbers)
+            if value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>() {
+                return Ok(value.clone().unbind());
+            }
+            // For float or string, convert to f64
+            let f: f64 = if value.is_instance_of::<PyFloat>() {
                 value.extract()?
             } else if let Ok(s) = value.extract::<&str>() {
                 s.parse::<f64>().map_err(|_| {
@@ -159,14 +163,11 @@ pub(crate) fn deserialize_field_value<'py>(
             let decimal_value = if value.is_instance(decimal_cls)? {
                 value.clone()
             } else if let Ok(s) = value.cast::<PyString>() {
-                match decimal_cls.call1((s,)) {
-                    Ok(d) => d,
-                    Err(_) => {
-                        let msg = field.invalid_error.as_deref().unwrap_or("Not a valid number.");
-                        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                            err_dict(ctx.py, &field.name, msg),
-                        ));
-                    }
+                if let Ok(d) = decimal_cls.call1((s,)) { d } else {
+                    let msg = field.invalid_error.as_deref().unwrap_or("Not a valid number.");
+                    return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                        err_dict(ctx.py, &field.name, msg),
+                    ));
                 }
             } else if (value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>()) || value.is_instance_of::<PyFloat>() {
                 decimal_cls.call1((value.str()?.to_str()?,))?
@@ -178,21 +179,18 @@ pub(crate) fn deserialize_field_value<'py>(
             };
 
             if let Some(places) = field.decimal_places.filter(|&p| p >= 0) {
-                let quantizer = match cached.get_quantizer(places) {
-                    Some(q) => q.clone_ref(ctx.py),
-                    None => {
-                        let quantize_str = format!("1e-{}", places);
-                        decimal_cls.call1((quantize_str,))?.unbind()
-                    }
+                let quantizer = if let Some(q) = cached.get_quantizer(places) { q.clone_ref(ctx.py) } else {
+                    let quantize_str = format!("1e-{places}");
+                    decimal_cls.call1((quantize_str,))?.unbind()
                 };
-                let quantized = if let Some(ref rounding) = field.decimal_rounding {
+                let final_decimal_value = if let Some(ref rounding) = field.decimal_rounding {
                     let kwargs = PyDict::new(ctx.py);
                     kwargs.set_item(cached.str_rounding.bind(ctx.py), rounding.bind(ctx.py))?;
                     decimal_value.call_method(cached.str_quantize.bind(ctx.py), (quantizer.bind(ctx.py),), Some(&kwargs))?
                 } else {
                     decimal_value.call_method1(cached.str_quantize.bind(ctx.py), (quantizer.bind(ctx.py),))?
                 };
-                Ok(quantized.unbind())
+                Ok(final_decimal_value.unbind())
             } else {
                 Ok(decimal_value.unbind())
             }
@@ -205,14 +203,11 @@ pub(crate) fn deserialize_field_value<'py>(
                 Ok(value.clone().unbind())
             } else if let Ok(s) = value.cast::<PyString>() {
                 let s_str = s.to_str()?;
-                match Uuid::parse_str(s_str) {
-                    Ok(uuid) => cached.create_uuid_fast(ctx.py, uuid.as_u128()),
-                    Err(_) => {
-                        let msg = field.invalid_error.as_deref().unwrap_or("Not a valid UUID.");
-                        Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                            err_dict(ctx.py, &field.name, msg),
-                        ))
-                    }
+                if let Ok(uuid) = Uuid::parse_str(s_str) { cached.create_uuid_fast(ctx.py, uuid.as_u128()) } else {
+                    let msg = field.invalid_error.as_deref().unwrap_or("Not a valid UUID.");
+                    Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                        err_dict(ctx.py, &field.name, msg),
+                    ))
                 }
             } else {
                 let msg = field.invalid_error.as_deref().unwrap_or("Not a valid UUID.");
@@ -233,23 +228,20 @@ pub(crate) fn deserialize_field_value<'py>(
                 } else {
                     datetime_cls.call_method1(cached.str_fromisoformat.bind(ctx.py), (s,))
                 };
-                match result {
-                    Ok(dt) => {
-                        let tzinfo = dt.getattr(cached.str_tzinfo.bind(ctx.py))?;
-                        if tzinfo.is_none() {
-                            let kwargs = PyDict::new(ctx.py);
-                            kwargs.set_item(cached.str_tzinfo.bind(ctx.py), cached.utc_tz.bind(ctx.py))?;
-                            Ok(dt.call_method(cached.str_replace.bind(ctx.py), (), Some(&kwargs))?.unbind())
-                        } else {
-                            Ok(dt.unbind())
-                        }
+                if let Ok(dt) = result {
+                    let tzinfo = dt.getattr(cached.str_tzinfo.bind(ctx.py))?;
+                    if tzinfo.is_none() {
+                        let kwargs = PyDict::new(ctx.py);
+                        kwargs.set_item(cached.str_tzinfo.bind(ctx.py), cached.utc_tz.bind(ctx.py))?;
+                        Ok(dt.call_method(cached.str_replace.bind(ctx.py), (), Some(&kwargs))?.unbind())
+                    } else {
+                        Ok(dt.unbind())
                     }
-                    Err(_) => {
-                        let msg = field.invalid_error.as_deref().unwrap_or("Not a valid datetime.");
-                        Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                            err_dict(ctx.py, &field.name, msg),
-                        ))
-                    }
+                } else {
+                    let msg = field.invalid_error.as_deref().unwrap_or("Not a valid datetime.");
+                    Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                        err_dict(ctx.py, &field.name, msg),
+                    ))
                 }
             } else {
                 let msg = field.invalid_error.as_deref().unwrap_or("Not a valid datetime.");
@@ -265,14 +257,11 @@ pub(crate) fn deserialize_field_value<'py>(
             if value.is_instance(date_cls)? {
                 Ok(value.clone().unbind())
             } else if let Ok(s) = value.cast::<PyString>() {
-                match date_cls.call_method1(cached.str_fromisoformat.bind(ctx.py), (s,)) {
-                    Ok(d) => Ok(d.unbind()),
-                    Err(_) => {
-                        let msg = field.invalid_error.as_deref().unwrap_or("Not a valid date.");
-                        Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                            err_dict(ctx.py, &field.name, msg),
-                        ))
-                    }
+                if let Ok(d) = date_cls.call_method1(cached.str_fromisoformat.bind(ctx.py), (s,)) { Ok(d.unbind()) } else {
+                    let msg = field.invalid_error.as_deref().unwrap_or("Not a valid date.");
+                    Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                        err_dict(ctx.py, &field.name, msg),
+                    ))
                 }
             } else {
                 let msg = field.invalid_error.as_deref().unwrap_or("Not a valid date.");
@@ -288,14 +277,11 @@ pub(crate) fn deserialize_field_value<'py>(
             if value.is_instance(time_cls)? {
                 Ok(value.clone().unbind())
             } else if let Ok(s) = value.cast::<PyString>() {
-                match time_cls.call_method1(cached.str_fromisoformat.bind(ctx.py), (s,)) {
-                    Ok(t) => Ok(t.unbind()),
-                    Err(_) => {
-                        let msg = field.invalid_error.as_deref().unwrap_or("Not a valid time.");
-                        Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                            err_dict(ctx.py, &field.name, msg),
-                        ))
-                    }
+                if let Ok(t) = time_cls.call_method1(cached.str_fromisoformat.bind(ctx.py), (s,)) { Ok(t.unbind()) } else {
+                    let msg = field.invalid_error.as_deref().unwrap_or("Not a valid time.");
+                    Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                        err_dict(ctx.py, &field.name, msg),
+                    ))
                 }
             } else {
                 let msg = field.invalid_error.as_deref().unwrap_or("Not a valid time.");
@@ -319,7 +305,7 @@ pub(crate) fn deserialize_field_value<'py>(
                 match deserialize_field_value(&item, item_schema, ctx) {
                     Ok(v) => {
                         if let Some(ref item_validator) = field.item_validator {
-                            if let Some(errors) = call_validator(ctx.py, item_validator, &v.bind(ctx.py))? {
+                            if let Some(errors) = call_validator(ctx.py, item_validator, v.bind(ctx.py))? {
                                 item_errors.get_or_insert_with(HashMap::new).insert(idx, errors);
                             }
                         }
@@ -359,7 +345,7 @@ pub(crate) fn deserialize_field_value<'py>(
                 match deserialize_field_value(&item, item_schema, ctx) {
                     Ok(v) => {
                         if let Some(ref item_validator) = field.item_validator {
-                            if let Some(errors) = call_validator(ctx.py, item_validator, &v.bind(ctx.py))? {
+                            if let Some(errors) = call_validator(ctx.py, item_validator, v.bind(ctx.py))? {
                                 item_errors.get_or_insert_with(HashMap::new).insert(idx, errors);
                             }
                         }
@@ -399,7 +385,7 @@ pub(crate) fn deserialize_field_value<'py>(
                 match deserialize_field_value(&item, item_schema, ctx) {
                     Ok(v) => {
                         if let Some(ref item_validator) = field.item_validator {
-                            if let Some(errors) = call_validator(ctx.py, item_validator, &v.bind(ctx.py))? {
+                            if let Some(errors) = call_validator(ctx.py, item_validator, v.bind(ctx.py))? {
                                 item_errors.get_or_insert_with(HashMap::new).insert(idx, errors);
                             }
                         }
@@ -439,7 +425,7 @@ pub(crate) fn deserialize_field_value<'py>(
                 match deserialize_field_value(&item, item_schema, ctx) {
                     Ok(v) => {
                         if let Some(ref item_validator) = field.item_validator {
-                            if let Some(errors) = call_validator(ctx.py, item_validator, &v.bind(ctx.py))? {
+                            if let Some(errors) = call_validator(ctx.py, item_validator, v.bind(ctx.py))? {
                                 item_errors.get_or_insert_with(HashMap::new).insert(idx, errors);
                             }
                         }
@@ -525,14 +511,13 @@ pub(crate) fn deserialize_field_value<'py>(
                 }
             }
 
-            let msg = field
-                .invalid_error
-                .as_deref()
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| {
-                    let allowed: Vec<_> = values.iter().map(|(k, _)| format!("'{}'", k)).collect();
-                    format!("Not a valid choice: '{}'. Allowed values: [{}]", value, allowed.join(", "))
-                });
+            let msg = field.invalid_error.as_deref().map_or_else(
+                || {
+                    let allowed: Vec<_> = values.iter().map(|(k, _)| format!("'{k}'")).collect();
+                    format!("Not a valid choice: '{value}'. Allowed values: [{}]", allowed.join(", "))
+                },
+                ToString::to_string,
+            );
             Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                 err_dict(ctx.py, &field.name, &msg),
             ))
@@ -550,14 +535,13 @@ pub(crate) fn deserialize_field_value<'py>(
                 }
             }
 
-            let msg = field
-                .invalid_error
-                .as_deref()
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| {
+            let msg = field.invalid_error.as_deref().map_or_else(
+                || {
                     let allowed: Vec<_> = values.iter().map(|(k, _)| k.to_string()).collect();
-                    format!("Not a valid choice: '{}'. Allowed values: [{}]", value, allowed.join(", "))
-                });
+                    format!("Not a valid choice: '{value}'. Allowed values: [{}]", allowed.join(", "))
+                },
+                ToString::to_string,
+            );
             Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                 err_dict(ctx.py, &field.name, &msg),
             ))
@@ -567,7 +551,7 @@ pub(crate) fn deserialize_field_value<'py>(
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Union field missing union_variants")
             })?;
 
-            for variant in variants.iter() {
+            for variant in variants {
                 if let Ok(result) = deserialize_field_value(value, variant, ctx) {
                     return Ok(result);
                 }
@@ -626,7 +610,7 @@ fn deserialize_dataclass_kwargs<'py>(
             }
 
             if let Some(ref validator) = field.validator {
-                if let Some(errors) = call_validator(ctx.py, validator, &deserialized.bind(ctx.py))? {
+                if let Some(errors) = call_validator(ctx.py, validator, deserialized.bind(ctx.py))? {
                     return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                         err_dict_from_list(ctx.py, &field.name, errors),
                     ));
@@ -664,7 +648,7 @@ fn deserialize_dataclass_kwargs<'py>(
     }
 
     cls.call((), Some(&kwargs))
-        .map(|o| o.unbind())
+        .map(pyo3::Bound::unbind)
 }
 
 fn deserialize_dataclass_direct_slots<'py>(
@@ -695,7 +679,7 @@ fn deserialize_dataclass_direct_slots<'py>(
             }
 
             if let Some(ref validator) = field.validator {
-                if let Some(errors) = call_validator(ctx.py, validator, &deserialized.bind(ctx.py))? {
+                if let Some(errors) = call_validator(ctx.py, validator, deserialized.bind(ctx.py))? {
                     return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                         err_dict_from_list(ctx.py, &field.name, errors),
                     ));
@@ -739,7 +723,8 @@ fn deserialize_dataclass_direct_slots<'py>(
     Ok(instance.unbind())
 }
 
-pub(crate) fn deserialize_root_type<'py>(
+#[allow(clippy::too_many_lines)]
+pub fn deserialize_root_type<'py>(
     value: &Bound<'py, PyAny>,
     descriptor: &TypeDescriptor,
     ctx: &LoadContext<'_, 'py>,
@@ -908,7 +893,7 @@ pub(crate) fn deserialize_root_type<'py>(
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing union_variants for union")
             })?;
 
-            for variant in variants.iter() {
+            for variant in variants {
                 if let Ok(result) = deserialize_root_type(value, variant, ctx) {
                     return Ok(result);
                 }
@@ -930,10 +915,8 @@ fn deserialize_primitive<'py>(
     }
 
     match field_type {
-        FieldType::Str | FieldType::Int | FieldType::Bool => Ok(value.clone().unbind()),
-        FieldType::Float => {
-            let f: f64 = value.extract()?;
-            Ok(f.into_pyobject(ctx.py)?.into_any().unbind())
+        FieldType::Str | FieldType::Int | FieldType::Bool | FieldType::Float | FieldType::Any => {
+            Ok(value.clone().unbind())
         }
         FieldType::Decimal => {
             let cached = get_cached_types(ctx.py)?;
@@ -1004,7 +987,6 @@ fn deserialize_primitive<'py>(
                 ))
             }
         }
-        FieldType::Any => Ok(value.clone().unbind()),
         _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
             "Unsupported primitive type",
         )),

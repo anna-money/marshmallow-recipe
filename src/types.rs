@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyString;
 use pyo3::Borrowed;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FieldType {
     Str,
     Int,
@@ -33,33 +33,34 @@ impl FromPyObject<'_, '_> for FieldType {
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let s: String = ob.extract()?;
         match s.as_str() {
-            "str" => Ok(FieldType::Str),
-            "int" => Ok(FieldType::Int),
-            "float" => Ok(FieldType::Float),
-            "bool" => Ok(FieldType::Bool),
-            "decimal" => Ok(FieldType::Decimal),
-            "uuid" => Ok(FieldType::Uuid),
-            "datetime" => Ok(FieldType::DateTime),
-            "date" => Ok(FieldType::Date),
-            "time" => Ok(FieldType::Time),
-            "list" => Ok(FieldType::List),
-            "dict" => Ok(FieldType::Dict),
-            "nested" => Ok(FieldType::Nested),
-            "str_enum" => Ok(FieldType::StrEnum),
-            "int_enum" => Ok(FieldType::IntEnum),
-            "set" => Ok(FieldType::Set),
-            "frozenset" => Ok(FieldType::FrozenSet),
-            "tuple" => Ok(FieldType::Tuple),
-            "union" => Ok(FieldType::Union),
-            "any" => Ok(FieldType::Any),
+            "str" => Ok(Self::Str),
+            "int" => Ok(Self::Int),
+            "float" => Ok(Self::Float),
+            "bool" => Ok(Self::Bool),
+            "decimal" => Ok(Self::Decimal),
+            "uuid" => Ok(Self::Uuid),
+            "datetime" => Ok(Self::DateTime),
+            "date" => Ok(Self::Date),
+            "time" => Ok(Self::Time),
+            "list" => Ok(Self::List),
+            "dict" => Ok(Self::Dict),
+            "nested" => Ok(Self::Nested),
+            "str_enum" => Ok(Self::StrEnum),
+            "int_enum" => Ok(Self::IntEnum),
+            "set" => Ok(Self::Set),
+            "frozenset" => Ok(Self::FrozenSet),
+            "tuple" => Ok(Self::Tuple),
+            "union" => Ok(Self::Union),
+            "any" => Ok(Self::Any),
             _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                format!("Unknown field type: {}", s),
+                format!("Unknown field type: {s}"),
             )),
         }
     }
 }
 
 #[derive(Debug)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct FieldDescriptor {
     pub name: String,
     pub name_interned: Py<PyString>,
@@ -68,9 +69,9 @@ pub struct FieldDescriptor {
     pub optional: bool,
     pub slot_offset: Option<isize>,
     pub nested_schema: Option<Box<SchemaDescriptor>>,
-    pub item_schema: Option<Box<FieldDescriptor>>,
+    pub item_schema: Option<Box<Self>>,
     pub key_type: Option<FieldType>,
-    pub value_schema: Option<Box<FieldDescriptor>>,
+    pub value_schema: Option<Box<Self>>,
     pub strip_whitespaces: bool,
     pub decimal_places: Option<i32>,
     pub decimal_as_string: bool,
@@ -81,7 +82,7 @@ pub struct FieldDescriptor {
     pub int_enum_values: Option<Vec<(i64, Py<PyAny>)>>,
     pub enum_name: Option<String>,
     pub enum_members_repr: Option<String>,
-    pub union_variants: Option<Vec<Box<FieldDescriptor>>>,
+    pub union_variants: Option<Vec<Self>>,
     pub default_value: Option<Py<PyAny>>,
     pub default_factory: Option<Py<PyAny>>,
     pub required_error: Option<String>,
@@ -95,7 +96,7 @@ pub struct FieldDescriptor {
 
 impl Clone for FieldDescriptor {
     fn clone(&self) -> Self {
-        Python::attach(|py| FieldDescriptor {
+        Python::attach(|py| Self {
             name: self.name.clone(),
             name_interned: self.name_interned.clone_ref(py),
             serialized_name: self.serialized_name.clone(),
@@ -144,12 +145,18 @@ impl FromPyObject<'_, '_> for FieldDescriptor {
         let serialized_name: Option<String> = ob.getattr("serialized_name")?.extract()?;
         let field_type: FieldType = ob.getattr("field_type")?.extract()?;
         let optional: bool = ob.getattr("optional")?.extract()?;
-        let slot_offset: Option<isize> = ob.getattr("slot_offset")?.extract().ok().flatten();
+        // slot_offset is used for direct memory access to Python object slots.
+        // We only use it if the offset is properly aligned for pointer access.
+        // Unaligned offsets can occur if a dataclass inherits from a C extension
+        // with a misaligned tp_basicsize (see CPython issue #129675).
+        // If unaligned, we fall back to regular getattr access.
+        let slot_offset: Option<isize> = ob.getattr("slot_offset")?.extract().ok().flatten()
+            .filter(|&offset: &isize| offset.cast_unsigned().is_multiple_of(std::mem::align_of::<*mut pyo3::ffi::PyObject>()));
 
         let nested_schema: Option<SchemaDescriptor> = ob.getattr("nested_schema")?.extract()?;
-        let item_schema: Option<FieldDescriptor> = ob.getattr("item_schema")?.extract()?;
+        let item_schema: Option<Self> = ob.getattr("item_schema")?.extract()?;
         let key_type: Option<FieldType> = ob.getattr("key_type")?.extract()?;
-        let value_schema: Option<FieldDescriptor> = ob.getattr("value_schema")?.extract()?;
+        let value_schema: Option<Self> = ob.getattr("value_schema")?.extract()?;
 
         let strip_whitespaces: bool = ob.getattr("strip_whitespaces")?.extract().unwrap_or(false);
         let decimal_places: Option<i32> = ob.getattr("decimal_places")?.extract().ok().flatten();
@@ -160,13 +167,13 @@ impl FromPyObject<'_, '_> for FieldDescriptor {
         let none_error: Option<String> = ob.getattr("none_error")?.extract().ok().flatten();
         let invalid_error: Option<String> = ob.getattr("invalid_error")?.extract().ok().flatten();
         let enum_cls: Option<Py<PyAny>> = ob.getattr("enum_cls")?.extract().ok();
-        let union_variants: Option<Vec<FieldDescriptor>> = ob.getattr("union_variants")?.extract().ok();
+        let union_variants: Option<Vec<Self>> = ob.getattr("union_variants")?.extract().ok();
 
         let default_value: Option<Py<PyAny>> = ob.getattr("default_value")?.extract().ok();
         let default_factory: Option<Py<PyAny>> = ob.getattr("default_factory")?.extract().ok();
         let field_init: bool = ob.getattr("field_init")?.extract().unwrap_or(true);
 
-        Ok(FieldDescriptor {
+        Ok(Self {
             name,
             name_interned,
             serialized_name,
@@ -187,7 +194,7 @@ impl FromPyObject<'_, '_> for FieldDescriptor {
             int_enum_values: None,
             enum_name: None,
             enum_members_repr: None,
-            union_variants: union_variants.map(|v| v.into_iter().map(Box::new).collect()),
+            union_variants,
             default_value,
             default_factory,
             required_error,
@@ -212,7 +219,7 @@ pub struct SchemaDescriptor {
 
 impl Clone for SchemaDescriptor {
     fn clone(&self) -> Self {
-        Python::attach(|py| SchemaDescriptor {
+        Python::attach(|py| Self {
             cls: self.cls.clone_ref(py),
             fields: self.fields.clone(),
             field_lookup: self.field_lookup.clone(),
@@ -231,11 +238,11 @@ impl FromPyObject<'_, '_> for SchemaDescriptor {
         let can_use_direct_slots: bool = ob.getattr("can_use_direct_slots")?.extract().unwrap_or(false);
         let has_post_init: bool = ob.getattr("has_post_init")?.extract().unwrap_or(false);
         let field_lookup = build_field_lookup(&fields);
-        Ok(SchemaDescriptor { cls, fields, field_lookup, can_use_direct_slots, has_post_init })
+        Ok(Self { cls, fields, field_lookup, can_use_direct_slots, has_post_init })
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TypeKind {
     Dataclass,
     Primitive,
@@ -254,17 +261,17 @@ impl FromPyObject<'_, '_> for TypeKind {
     fn extract(ob: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         let s: String = ob.extract()?;
         match s.as_str() {
-            "dataclass" => Ok(TypeKind::Dataclass),
-            "primitive" => Ok(TypeKind::Primitive),
-            "list" => Ok(TypeKind::List),
-            "dict" => Ok(TypeKind::Dict),
-            "optional" => Ok(TypeKind::Optional),
-            "set" => Ok(TypeKind::Set),
-            "frozenset" => Ok(TypeKind::FrozenSet),
-            "tuple" => Ok(TypeKind::Tuple),
-            "union" => Ok(TypeKind::Union),
+            "dataclass" => Ok(Self::Dataclass),
+            "primitive" => Ok(Self::Primitive),
+            "list" => Ok(Self::List),
+            "dict" => Ok(Self::Dict),
+            "optional" => Ok(Self::Optional),
+            "set" => Ok(Self::Set),
+            "frozenset" => Ok(Self::FrozenSet),
+            "tuple" => Ok(Self::Tuple),
+            "union" => Ok(Self::Union),
             _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                format!("Unknown type kind: {}", s),
+                format!("Unknown type kind: {s}"),
             )),
         }
     }
@@ -275,21 +282,21 @@ pub struct TypeDescriptor {
     pub type_kind: TypeKind,
     pub primitive_type: Option<FieldType>,
     pub optional: bool,
-    pub inner_type: Option<Box<TypeDescriptor>>,
-    pub item_type: Option<Box<TypeDescriptor>>,
+    pub inner_type: Option<Box<Self>>,
+    pub item_type: Option<Box<Self>>,
     pub key_type: Option<FieldType>,
-    pub value_type: Option<Box<TypeDescriptor>>,
+    pub value_type: Option<Box<Self>>,
     pub cls: Option<Py<PyAny>>,
     pub fields: Vec<FieldDescriptor>,
     pub field_lookup: HashMap<String, usize>,
-    pub union_variants: Option<Vec<Box<TypeDescriptor>>>,
+    pub union_variants: Option<Vec<Self>>,
     pub can_use_direct_slots: bool,
     pub has_post_init: bool,
 }
 
 impl Clone for TypeDescriptor {
     fn clone(&self) -> Self {
-        Python::attach(|py| TypeDescriptor {
+        Python::attach(|py| Self {
             type_kind: self.type_kind.clone(),
             primitive_type: self.primitive_type.clone(),
             optional: self.optional,
@@ -314,18 +321,18 @@ impl FromPyObject<'_, '_> for TypeDescriptor {
         let type_kind: TypeKind = ob.getattr("type_kind")?.extract()?;
         let primitive_type: Option<FieldType> = ob.getattr("primitive_type")?.extract().ok();
         let optional: bool = ob.getattr("optional")?.extract()?;
-        let inner_type: Option<TypeDescriptor> = ob.getattr("inner_type")?.extract().ok();
-        let item_type: Option<TypeDescriptor> = ob.getattr("item_type")?.extract().ok();
+        let inner_type: Option<Self> = ob.getattr("inner_type")?.extract().ok();
+        let item_type: Option<Self> = ob.getattr("item_type")?.extract().ok();
         let key_type: Option<FieldType> = ob.getattr("key_type")?.extract().ok();
-        let value_type: Option<TypeDescriptor> = ob.getattr("value_type")?.extract().ok();
+        let value_type: Option<Self> = ob.getattr("value_type")?.extract().ok();
         let cls: Option<Py<PyAny>> = ob.getattr("cls")?.extract().ok();
         let fields: Vec<FieldDescriptor> = ob.getattr("fields")?.extract().unwrap_or_default();
-        let union_variants: Option<Vec<TypeDescriptor>> = ob.getattr("union_variants")?.extract().ok();
+        let union_variants: Option<Vec<Self>> = ob.getattr("union_variants")?.extract().ok();
         let can_use_direct_slots: bool = ob.getattr("can_use_direct_slots")?.extract().unwrap_or(false);
         let has_post_init: bool = ob.getattr("has_post_init")?.extract().unwrap_or(false);
         let field_lookup = build_field_lookup(&fields);
 
-        Ok(TypeDescriptor {
+        Ok(Self {
             type_kind,
             primitive_type,
             optional,
@@ -336,7 +343,7 @@ impl FromPyObject<'_, '_> for TypeDescriptor {
             cls,
             fields,
             field_lookup,
-            union_variants: union_variants.map(|v| v.into_iter().map(Box::new).collect()),
+            union_variants,
             can_use_direct_slots,
             has_post_init,
         })

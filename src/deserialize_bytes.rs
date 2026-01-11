@@ -16,6 +16,10 @@ use crate::cache::get_cached_types;
 static SERDE_LOCATION_SUFFIX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r" at line \d+ column \d+").unwrap());
 
+/// Multipliers to convert fractional seconds to microseconds.
+/// Index is the number of fractional digits (0-6), value is 10^(6-index).
+const MICROSECOND_MULTIPLIERS: [u32; 7] = [1_000_000, 100_000, 10_000, 1_000, 100, 10, 1];
+
 /// Parse ISO date string (YYYY-MM-DD) into (year, month, day)
 #[inline]
 fn parse_iso_date(s: &str) -> Option<(i32, u8, u8)> {
@@ -25,7 +29,7 @@ fn parse_iso_date(s: &str) -> Option<(i32, u8, u8)> {
     let year: i32 = s[0..4].parse().ok()?;
     let month: u8 = s[5..7].parse().ok()?;
     let day: u8 = s[8..10].parse().ok()?;
-    if month < 1 || month > 12 || day < 1 || day > 31 {
+    if !(1..=12).contains(&month) || !(1..=31).contains(&day) {
         return None;
     }
     Some((year, month, day))
@@ -48,8 +52,7 @@ fn parse_iso_time(s: &str) -> Option<(u8, u8, u8, u32)> {
         let frac = &s[9..];
         let frac_len = frac.len().min(6);
         let frac_val: u32 = frac[..frac_len].parse().ok()?;
-        // Pad to microseconds (6 digits)
-        frac_val * 10u32.pow((6 - frac_len) as u32)
+        frac_val * MICROSECOND_MULTIPLIERS[frac_len]
     } else {
         0
     };
@@ -59,6 +62,7 @@ fn parse_iso_time(s: &str) -> Option<(u8, u8, u8, u32)> {
 /// Parse RFC 3339 datetime into components
 /// Format: YYYY-MM-DDTHH:MM:SS[.ffffff][Z|+HH:MM|-HH:MM]
 #[inline]
+#[allow(clippy::type_complexity)]
 fn parse_rfc3339_datetime(s: &str) -> Option<(i32, u8, u8, u8, u8, u8, u32, i32)> {
     let len = s.len();
     if len < 19 {
@@ -74,7 +78,7 @@ fn parse_rfc3339_datetime(s: &str) -> Option<(i32, u8, u8, u8, u8, u8, u32, i32)
     }
 
     // Find timezone part
-    let tz_start = s[11..].find(|c| c == 'Z' || c == 'z' || c == '+' || c == '-')
+    let tz_start = s[11..].find(['Z', 'z', '+', '-'])
         .map(|i| i + 11);
 
     let time_end = tz_start.unwrap_or(len);
@@ -107,8 +111,9 @@ fn parse_rfc3339_datetime(s: &str) -> Option<(i32, u8, u8, u8, u8, u8, u32, i32)
     Some((year, month, day, hour, minute, second, microsecond, offset_seconds))
 }
 
-/// Create a PyDateTime from parsed components with timezone
+/// Create a `PyDateTime` from parsed components with timezone
 #[inline]
+#[allow(clippy::too_many_arguments)]
 fn create_pydatetime_with_offset(
     py: Python,
     year: i32,
@@ -163,12 +168,12 @@ fn err_json(field_name: &str, message: &str) -> String {
 
 use crate::utils::pyany_to_json_value;
 
-fn pylist_to_json_value(py: Python, list: &Py<PyAny>) -> PyResult<Value> {
+fn pylist_to_json_value(py: Python, list: &Py<PyAny>) -> Value {
     pyany_to_json_value(list.bind(py))
 }
 
 fn err_json_from_list(py: Python, field_name: &str, errors: &Py<PyAny>) -> String {
-    let errors_json = pylist_to_json_value(py, errors).unwrap_or_else(|_| json!(["Validation error"]));
+    let errors_json = pylist_to_json_value(py, errors);
 
     if field_name.is_empty() {
         errors_json.to_string()
@@ -181,13 +186,12 @@ fn err_json_from_list(py: Python, field_name: &str, errors: &Py<PyAny>) -> Strin
 
 /// Returns the error message for a field type when wrong JSON type is received.
 /// This ensures error messages describe the expected type, not the received JSON type.
-fn get_type_error_message(field_type: &FieldType) -> &'static str {
+const fn get_type_error_message(field_type: &FieldType) -> &'static str {
     match field_type {
         FieldType::Str => "Not a valid string.",
         FieldType::Int => "Not a valid integer.",
-        FieldType::Float => "Not a valid number.",
+        FieldType::Float | FieldType::Decimal => "Not a valid number.",
         FieldType::Bool => "Not a valid boolean.",
-        FieldType::Decimal => "Not a valid number.",
         FieldType::DateTime => "Not a valid datetime.",
         FieldType::Date => "Not a valid date.",
         FieldType::Time => "Not a valid time.",
@@ -205,8 +209,8 @@ fn get_type_error_message(field_type: &FieldType) -> &'static str {
 
 fn format_item_errors(py: Python, errors: &HashMap<usize, Py<PyAny>>) -> String {
     let mut map = serde_json::Map::new();
-    for (idx, err_list) in errors.iter() {
-        let json_val = pylist_to_json_value(py, err_list).unwrap_or_else(|_| json!(["Validation error"]));
+    for (idx, err_list) in errors {
+        let json_val = pylist_to_json_value(py, err_list);
         map.insert(idx.to_string(), json_val);
     }
     Value::Object(map).to_string()
@@ -260,7 +264,7 @@ fn json_value_to_py(py: Python, value: &serde_json::Value) -> PyResult<Py<PyAny>
                 Ok(f.into_pyobject(py)?.into_any().unbind())
             } else {
                 let cached = get_cached_types(py)?;
-                cached.int_cls.bind(py).call1((&s,)).map(|i| i.unbind())
+                cached.int_cls.bind(py).call1((&s,)).map(pyo3::Bound::unbind)
             }
         }
         serde_json::Value::String(s) => Ok(s.clone().into_pyobject(py)?.into_any().unbind()),
@@ -291,8 +295,7 @@ fn json_error_to_py(py: Python, value: &serde_json::Value) -> PyResult<Py<PyAny>
                         Ok(n) => n.into_pyobject(py)?.into_any().unbind(),
                         Err(_) => {
                             return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                                "Index {} is too large",
-                                k
+                                "Index {k} is too large"
                             )));
                         }
                     }
@@ -325,7 +328,7 @@ pub struct TypeDescriptorSeed<'a, 'py> {
     pub descriptor: &'a TypeDescriptor,
 }
 
-impl<'a, 'py, 'de> DeserializeSeed<'de> for TypeDescriptorSeed<'a, 'py> {
+impl<'de> DeserializeSeed<'de> for TypeDescriptorSeed<'_, '_> {
     type Value = Py<PyAny>;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
@@ -420,8 +423,8 @@ impl<'a, 'py, 'de> DeserializeSeed<'de> for TypeDescriptorSeed<'a, 'py> {
                     py: self.ctx.py,
                     post_loads: self.ctx.post_loads,
                 };
-                for variant in variants.iter() {
-                    if let Ok(result) = deserialize_root_type(&py_value.bind(self.ctx.py), variant, &dict_ctx) {
+                for variant in variants {
+                    if let Ok(result) = deserialize_root_type(py_value.bind(self.ctx.py), variant, &dict_ctx) {
                         return Ok(result);
                     }
                 }
@@ -436,7 +439,7 @@ pub struct FieldDescriptorSeed<'a, 'py> {
     pub field: &'a FieldDescriptor,
 }
 
-impl<'a, 'py, 'de> DeserializeSeed<'de> for FieldDescriptorSeed<'a, 'py> {
+impl<'de> DeserializeSeed<'de> for FieldDescriptorSeed<'_, '_> {
     type Value = Py<PyAny>;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
@@ -457,8 +460,8 @@ impl<'a, 'py, 'de> DeserializeSeed<'de> for FieldDescriptorSeed<'a, 'py> {
                 py: self.ctx.py,
                 post_loads: self.ctx.post_loads,
             };
-            for variant in variants.iter() {
-                if let Ok(result) = deserialize_field_value(&py_value.bind(self.ctx.py), variant, &dict_ctx) {
+            for variant in variants {
+                if let Ok(result) = deserialize_field_value(py_value.bind(self.ctx.py), variant, &dict_ctx) {
                     return Ok(result);
                 }
             }
@@ -479,7 +482,7 @@ struct FieldValueVisitor<'a, 'py> {
     field: &'a FieldDescriptor,
 }
 
-impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
+impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
     type Value = Py<PyAny>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -516,12 +519,9 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
         E: de::Error,
     {
         let py = self.ctx.py;
-        match self.field.field_type {
-            FieldType::Bool => Ok(v.into_py_any(py).map_err(de::Error::custom)?),
-            _ => {
-                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error_message(&self.field.field_type));
-                Err(de::Error::custom(err_json(&self.field.name, msg)))
-            }
+        if self.field.field_type == FieldType::Bool { Ok(v.into_py_any(py).map_err(de::Error::custom)?) } else {
+            let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error_message(&self.field.field_type));
+            Err(de::Error::custom(err_json(&self.field.name, msg)))
         }
     }
 
@@ -531,8 +531,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
     {
         let py = self.ctx.py;
         match self.field.field_type {
-            FieldType::Int => Ok(v.into_py_any(py).map_err(de::Error::custom)?),
-            FieldType::Float => Ok((v as f64).into_py_any(py).map_err(de::Error::custom)?),
+            FieldType::Int | FieldType::Float => Ok(v.into_py_any(py).map_err(de::Error::custom)?),
             FieldType::Decimal => {
                 let cached = get_cached_types(py).map_err(de::Error::custom)?;
                 let result = cached.decimal_cls.bind(py).call1((v,)).map_err(de::Error::custom)?;
@@ -547,12 +546,13 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                         return Ok(member.clone_ref(py));
                     }
                 }
-                let msg = self.field.invalid_error.as_deref()
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| {
+                let msg = self.field.invalid_error.as_deref().map_or_else(
+                    || {
                         let allowed: Vec<_> = values.iter().map(|(k, _)| k.to_string()).collect();
-                        format!("Not a valid choice: '{}'. Allowed values: [{}]", v, allowed.join(", "))
-                    });
+                        format!("Not a valid choice: '{v}'. Allowed values: [{}]", allowed.join(", "))
+                    },
+                    ToString::to_string,
+                );
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             FieldType::StrEnum => {
@@ -560,12 +560,13 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                 let values = self.field.str_enum_values.as_ref().ok_or_else(|| {
                     de::Error::custom("StrEnum field missing str_enum_values")
                 })?;
-                let msg = self.field.invalid_error.as_deref()
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| {
-                        let allowed: Vec<_> = values.iter().map(|(k, _)| format!("'{}'", k)).collect();
-                        format!("Not a valid choice: '{}'. Allowed values: [{}]", v, allowed.join(", "))
-                    });
+                let msg = self.field.invalid_error.as_deref().map_or_else(
+                    || {
+                        let allowed: Vec<_> = values.iter().map(|(k, _)| format!("'{k}'")).collect();
+                        format!("Not a valid choice: '{v}'. Allowed values: [{}]", allowed.join(", "))
+                    },
+                    ToString::to_string,
+                );
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             _ => {
@@ -581,8 +582,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
     {
         let py = self.ctx.py;
         match self.field.field_type {
-            FieldType::Int => Ok(v.into_py_any(py).map_err(de::Error::custom)?),
-            FieldType::Float => Ok((v as f64).into_py_any(py).map_err(de::Error::custom)?),
+            FieldType::Int | FieldType::Float => Ok(v.into_py_any(py).map_err(de::Error::custom)?),
             FieldType::Decimal => {
                 let cached = get_cached_types(py).map_err(de::Error::custom)?;
                 let result = cached.decimal_cls.bind(py).call1((v,)).map_err(de::Error::custom)?;
@@ -593,26 +593,28 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                     de::Error::custom("IntEnum field missing int_enum_values")
                 })?;
                 if v > i64::MAX as u64 {
-                    let msg = self.field.invalid_error.as_deref()
-                        .map(|s| s.to_string())
-                        .unwrap_or_else(|| {
+                    let msg = self.field.invalid_error.as_deref().map_or_else(
+                        || {
                             let allowed: Vec<_> = values.iter().map(|(k, _)| k.to_string()).collect();
-                            format!("Not a valid choice: '{}'. Allowed values: [{}]", v, allowed.join(", "))
-                        });
+                            format!("Not a valid choice: '{v}'. Allowed values: [{}]", allowed.join(", "))
+                        },
+                        ToString::to_string,
+                    );
                     return Err(de::Error::custom(err_json(&self.field.name, &msg)));
                 }
-                let v_i64 = v as i64;
+                let v_i64 = v.cast_signed();
                 for (key, member) in values {
                     if *key == v_i64 {
                         return Ok(member.clone_ref(py));
                     }
                 }
-                let msg = self.field.invalid_error.as_deref()
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| {
+                let msg = self.field.invalid_error.as_deref().map_or_else(
+                    || {
                         let allowed: Vec<_> = values.iter().map(|(k, _)| k.to_string()).collect();
-                        format!("Not a valid choice: '{}'. Allowed values: [{}]", v, allowed.join(", "))
-                    });
+                        format!("Not a valid choice: '{v}'. Allowed values: [{}]", allowed.join(", "))
+                    },
+                    ToString::to_string,
+                );
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             FieldType::StrEnum => {
@@ -620,12 +622,13 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                 let values = self.field.str_enum_values.as_ref().ok_or_else(|| {
                     de::Error::custom("StrEnum field missing str_enum_values")
                 })?;
-                let msg = self.field.invalid_error.as_deref()
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| {
-                        let allowed: Vec<_> = values.iter().map(|(k, _)| format!("'{}'", k)).collect();
-                        format!("Not a valid choice: '{}'. Allowed values: [{}]", v, allowed.join(", "))
-                    });
+                let msg = self.field.invalid_error.as_deref().map_or_else(
+                    || {
+                        let allowed: Vec<_> = values.iter().map(|(k, _)| format!("'{k}'")).collect();
+                        format!("Not a valid choice: '{v}'. Allowed values: [{}]", allowed.join(", "))
+                    },
+                    ToString::to_string,
+                );
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             _ => {
@@ -658,6 +661,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
     where
         E: de::Error,
@@ -674,22 +678,16 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
             }
             FieldType::Decimal => {
                 let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                match cached.decimal_cls.bind(py).call1((v,)) {
-                    Ok(result) => self.apply_decimal_quantize(result.unbind()).map_err(de::Error::custom),
-                    Err(_) => {
-                        let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid number.");
-                        Err(de::Error::custom(err_json(&self.field.name, msg)))
-                    }
+                if let Ok(result) = cached.decimal_cls.bind(py).call1((v,)) { self.apply_decimal_quantize(result.unbind()).map_err(de::Error::custom) } else {
+                    let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid number.");
+                    Err(de::Error::custom(err_json(&self.field.name, msg)))
                 }
             }
             FieldType::Uuid => {
                 let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                match Uuid::parse_str(v) {
-                    Ok(uuid) => cached.create_uuid_fast(py, uuid.as_u128()).map_err(de::Error::custom),
-                    Err(_) => {
-                        let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid UUID.");
-                        Err(de::Error::custom(err_json(&self.field.name, msg)))
-                    }
+                if let Ok(uuid) = Uuid::parse_str(v) { cached.create_uuid_fast(py, uuid.as_u128()).map_err(de::Error::custom) } else {
+                    let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid UUID.");
+                    Err(de::Error::custom(err_json(&self.field.name, msg)))
                 }
             }
             FieldType::DateTime => {
@@ -697,75 +695,60 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                     // Custom format - use Python's strptime
                     let cached = get_cached_types(py).map_err(de::Error::custom)?;
                     let datetime_cls = cached.datetime_cls.bind(py);
-                    match datetime_cls.call_method1(cached.str_strptime.bind(py), (v, fmt.as_str())) {
-                        Ok(dt) => {
-                            let tzinfo = dt.getattr(cached.str_tzinfo.bind(py)).map_err(de::Error::custom)?;
-                            if tzinfo.is_none() {
-                                let kwargs = PyDict::new(py);
-                                kwargs.set_item(cached.str_tzinfo.bind(py), cached.utc_tz.bind(py)).map_err(de::Error::custom)?;
-                                Ok(dt.call_method(cached.str_replace.bind(py), (), Some(&kwargs)).map_err(de::Error::custom)?.unbind())
-                            } else {
-                                Ok(dt.unbind())
-                            }
+                    if let Ok(dt) = datetime_cls.call_method1(cached.str_strptime.bind(py), (v, fmt.as_str())) {
+                        let tzinfo = dt.getattr(cached.str_tzinfo.bind(py)).map_err(de::Error::custom)?;
+                        if tzinfo.is_none() {
+                            let kwargs = PyDict::new(py);
+                            kwargs.set_item(cached.str_tzinfo.bind(py), cached.utc_tz.bind(py)).map_err(de::Error::custom)?;
+                            Ok(dt.call_method(cached.str_replace.bind(py), (), Some(&kwargs)).map_err(de::Error::custom)?.unbind())
+                        } else {
+                            Ok(dt.unbind())
                         }
-                        Err(_) => {
-                            let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid datetime.");
-                            Err(de::Error::custom(err_json(&self.field.name, msg)))
-                        }
+                    } else {
+                        let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid datetime.");
+                        Err(de::Error::custom(err_json(&self.field.name, msg)))
                     }
                 } else {
                     // RFC 3339 only (e.g. "2024-12-26T10:30:45+00:00" or "...Z")
-                    match parse_rfc3339_datetime(v) {
-                        Some((year, month, day, hour, minute, second, microsecond, offset_seconds)) => {
-                            create_pydatetime_with_offset(py, year, month, day, hour, minute, second, microsecond, offset_seconds)
-                                .map_err(de::Error::custom)
-                        }
-                        None => {
-                            let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid datetime.");
-                            Err(de::Error::custom(err_json(&self.field.name, msg)))
-                        }
+                    if let Some((year, month, day, hour, minute, second, microsecond, offset_seconds)) = parse_rfc3339_datetime(v) {
+                        create_pydatetime_with_offset(py, year, month, day, hour, minute, second, microsecond, offset_seconds)
+                            .map_err(de::Error::custom)
+                    } else {
+                        let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid datetime.");
+                        Err(de::Error::custom(err_json(&self.field.name, msg)))
                     }
                 }
             }
             FieldType::Date => {
-                match parse_iso_date(v) {
-                    Some((year, month, day)) => {
-                        PyDate::new(py, year, month, day)
-                            .map(|d| d.into_any().unbind())
-                            .map_err(de::Error::custom)
-                    }
-                    None => {
-                        let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid date.");
-                        Err(de::Error::custom(err_json(&self.field.name, msg)))
-                    }
+                if let Some((year, month, day)) = parse_iso_date(v) {
+                    PyDate::new(py, year, month, day)
+                        .map(|d| d.into_any().unbind())
+                        .map_err(de::Error::custom)
+                } else {
+                    let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid date.");
+                    Err(de::Error::custom(err_json(&self.field.name, msg)))
                 }
             }
             FieldType::Time => {
-                match parse_iso_time(v) {
-                    Some((hour, minute, second, microsecond)) => {
-                        PyTime::new(py, hour, minute, second, microsecond, None)
-                            .map(|t| t.into_any().unbind())
-                            .map_err(de::Error::custom)
-                    }
-                    None => {
-                        let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid time.");
-                        Err(de::Error::custom(err_json(&self.field.name, msg)))
-                    }
+                if let Some((hour, minute, second, microsecond)) = parse_iso_time(v) {
+                    PyTime::new(py, hour, minute, second, microsecond, None)
+                        .map(|t| t.into_any().unbind())
+                        .map_err(de::Error::custom)
+                } else {
+                    let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid time.");
+                    Err(de::Error::custom(err_json(&self.field.name, msg)))
                 }
             }
             FieldType::Float => {
-                match v.parse::<f64>() {
-                    Ok(f) => {
-                        if f.is_nan() || f.is_infinite() {
-                            Err(de::Error::custom(err_json(&self.field.name, "Special numeric values (nan or infinity) are not permitted.")))
-                        } else {
-                            Ok(f.into_py_any(py).map_err(de::Error::custom)?)
-                        }
+                if let Ok(f) = v.parse::<f64>() {
+                    if f.is_nan() || f.is_infinite() {
+                        Err(de::Error::custom(err_json(&self.field.name, "Special numeric values (nan or infinity) are not permitted.")))
+                    } else {
+                        Ok(f.into_py_any(py).map_err(de::Error::custom)?)
                     }
-                    Err(_) => {
-                        let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid number.");
-                        Err(de::Error::custom(err_json(&self.field.name, msg)))
-                    }
+                } else {
+                    let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid number.");
+                    Err(de::Error::custom(err_json(&self.field.name, msg)))
                 }
             }
             FieldType::StrEnum => {
@@ -777,24 +760,26 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                         return Ok(member.clone_ref(py));
                     }
                 }
-                let msg = self.field.invalid_error.as_deref()
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| {
-                        let allowed: Vec<_> = values.iter().map(|(k, _)| format!("'{}'", k)).collect();
-                        format!("Not a valid choice: '{}'. Allowed values: [{}]", v, allowed.join(", "))
-                    });
+                let msg = self.field.invalid_error.as_deref().map_or_else(
+                    || {
+                        let allowed: Vec<_> = values.iter().map(|(k, _)| format!("'{k}'")).collect();
+                        format!("Not a valid choice: '{v}'. Allowed values: [{}]", allowed.join(", "))
+                    },
+                    ToString::to_string,
+                );
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             FieldType::IntEnum => {
                 let values = self.field.int_enum_values.as_ref().ok_or_else(|| {
                     de::Error::custom("IntEnum field missing int_enum_values")
                 })?;
-                let msg = self.field.invalid_error.as_deref()
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| {
+                let msg = self.field.invalid_error.as_deref().map_or_else(
+                    || {
                         let allowed: Vec<_> = values.iter().map(|(k, _)| k.to_string()).collect();
-                        format!("Not a valid choice: '{}'. Allowed values: [{}]", v, allowed.join(", "))
-                    });
+                        format!("Not a valid choice: '{v}'. Allowed values: [{}]", allowed.join(", "))
+                    },
+                    ToString::to_string,
+                );
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             _ => {
@@ -811,6 +796,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
         self.visit_str(&v)
     }
 
+    #[allow(clippy::too_many_lines)]
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: SeqAccess<'de>,
@@ -835,7 +821,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                         .unwrap_or(e)
                 })? {
                     if let Some(ref item_validator) = self.field.item_validator {
-                        if let Some(errors) = call_validator(py, item_validator, &item.bind(py)).map_err(de::Error::custom)? {
+                        if let Some(errors) = call_validator(py, item_validator, item.bind(py)).map_err(de::Error::custom)? {
                             item_errors.get_or_insert_with(HashMap::new).insert(idx, errors);
                         }
                     }
@@ -865,7 +851,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                         .unwrap_or(e)
                 })? {
                     if let Some(ref item_validator) = self.field.item_validator {
-                        if let Some(errors) = call_validator(py, item_validator, &item.bind(py)).map_err(de::Error::custom)? {
+                        if let Some(errors) = call_validator(py, item_validator, item.bind(py)).map_err(de::Error::custom)? {
                             item_errors.get_or_insert_with(HashMap::new).insert(idx, errors);
                         }
                     }
@@ -895,7 +881,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                         .unwrap_or(e)
                 })? {
                     if let Some(ref item_validator) = self.field.item_validator {
-                        if let Some(errors) = call_validator(py, item_validator, &item.bind(py)).map_err(de::Error::custom)? {
+                        if let Some(errors) = call_validator(py, item_validator, item.bind(py)).map_err(de::Error::custom)? {
                             item_errors.get_or_insert_with(HashMap::new).insert(idx, errors);
                         }
                     }
@@ -925,7 +911,7 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                         .unwrap_or(e)
                 })? {
                     if let Some(ref item_validator) = self.field.item_validator {
-                        if let Some(errors) = call_validator(py, item_validator, &item.bind(py)).map_err(de::Error::custom)? {
+                        if let Some(errors) = call_validator(py, item_validator, item.bind(py)).map_err(de::Error::custom)? {
                             item_errors.get_or_insert_with(HashMap::new).insert(idx, errors);
                         }
                     }
@@ -967,32 +953,23 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
                                 Err(de::Error::custom(err_json(&self.field.name, msg)))
                             } else {
                                 let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                                match cached.int_cls.bind(py).call1((&num_str,)) {
-                                    Ok(i) => Ok(i.unbind()),
-                                    Err(_) => {
-                                        let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid integer.");
-                                        Err(de::Error::custom(err_json(&self.field.name, msg)))
-                                    }
+                                if let Ok(i) = cached.int_cls.bind(py).call1((&num_str,)) { Ok(i.unbind()) } else {
+                                    let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid integer.");
+                                    Err(de::Error::custom(err_json(&self.field.name, msg)))
                                 }
                             }
                         }
                         FieldType::Float => {
-                            match num_str.parse::<f64>() {
-                                Ok(f) => Ok(f.into_py_any(py).map_err(de::Error::custom)?),
-                                Err(_) => {
-                                    let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid number.");
-                                    Err(de::Error::custom(err_json(&self.field.name, msg)))
-                                }
+                            if let Ok(f) = num_str.parse::<f64>() { Ok(f.into_py_any(py).map_err(de::Error::custom)?) } else {
+                                let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid number.");
+                                Err(de::Error::custom(err_json(&self.field.name, msg)))
                             }
                         }
                         FieldType::Decimal => {
                             let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                            match cached.decimal_cls.bind(py).call1((&num_str,)) {
-                                Ok(result) => self.apply_decimal_quantize(result.unbind()).map_err(de::Error::custom),
-                                Err(_) => {
-                                    let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid number.");
-                                    Err(de::Error::custom(err_json(&self.field.name, msg)))
-                                }
+                            if let Ok(result) = cached.decimal_cls.bind(py).call1((&num_str,)) { self.apply_decimal_quantize(result.unbind()).map_err(de::Error::custom) } else {
+                                let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid number.");
+                                Err(de::Error::custom(err_json(&self.field.name, msg)))
                             }
                         }
                         _ => unreachable!(),
@@ -1050,17 +1027,14 @@ impl<'a, 'py, 'de> Visitor<'de> for FieldValueVisitor<'a, 'py> {
     }
 }
 
-impl<'a, 'py> FieldValueVisitor<'a, 'py> {
+impl FieldValueVisitor<'_, '_> {
     fn apply_decimal_quantize(&self, value: Py<PyAny>) -> PyResult<Py<PyAny>> {
         let py = self.ctx.py;
         if let Some(places) = self.field.decimal_places.filter(|&p| p >= 0) {
             let cached = get_cached_types(py)?;
-            let quantize_val = match cached.get_quantizer(places) {
-                Some(q) => q.clone_ref(py),
-                None => {
-                    let quantize_str = format!("1e-{}", places);
-                    cached.decimal_cls.bind(py).call1((quantize_str,))?.unbind()
-                }
+            let quantize_val = if let Some(q) = cached.get_quantizer(places) { q.clone_ref(py) } else {
+                let quantize_str = format!("1e-{places}");
+                cached.decimal_cls.bind(py).call1((quantize_str,))?.unbind()
             };
             let quantized = if let Some(ref rounding) = self.field.decimal_rounding {
                 let kwargs = PyDict::new(py);
@@ -1082,7 +1056,7 @@ struct DataclassVisitor<'a, 'py> {
     field_lookup: &'a HashMap<String, usize>,
 }
 
-impl<'a, 'py, 'de> Visitor<'de> for DataclassVisitor<'a, 'py> {
+impl<'de> Visitor<'de> for DataclassVisitor<'_, '_> {
     type Value = Py<PyAny>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1117,7 +1091,7 @@ impl<'a, 'py, 'de> Visitor<'de> for DataclassVisitor<'a, 'py> {
                 }
 
                 if let Some(ref validator) = field.validator {
-                    if let Some(errors) = call_validator(py, validator, &value.bind(py)).map_err(de::Error::custom)? {
+                    if let Some(errors) = call_validator(py, validator, value.bind(py)).map_err(de::Error::custom)? {
                         return Err(de::Error::custom(err_json_from_list(py, &field.name, &errors)));
                     }
                 }
@@ -1150,7 +1124,7 @@ struct DataclassDirectSlotsVisitor<'a, 'py> {
     field_lookup: &'a HashMap<String, usize>,
 }
 
-impl<'a, 'py, 'de> Visitor<'de> for DataclassDirectSlotsVisitor<'a, 'py> {
+impl<'de> Visitor<'de> for DataclassDirectSlotsVisitor<'_, '_> {
     type Value = Py<PyAny>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1188,7 +1162,7 @@ impl<'a, 'py, 'de> Visitor<'de> for DataclassDirectSlotsVisitor<'a, 'py> {
                 }
 
                 if let Some(ref validator) = field.validator {
-                    if let Some(errors) = call_validator(py, validator, &value.bind(py)).map_err(de::Error::custom)? {
+                    if let Some(errors) = call_validator(py, validator, value.bind(py)).map_err(de::Error::custom)? {
                         return Err(de::Error::custom(err_json_from_list(py, &field.name, &errors)));
                     }
                 }
@@ -1232,7 +1206,7 @@ struct ListVisitor<'a, 'py> {
     item_descriptor: &'a TypeDescriptor,
 }
 
-impl<'a, 'py, 'de> Visitor<'de> for ListVisitor<'a, 'py> {
+impl<'de> Visitor<'de> for ListVisitor<'_, '_> {
     type Value = Py<PyAny>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1267,7 +1241,7 @@ struct DictVisitor<'a, 'py> {
     value_descriptor: &'a TypeDescriptor,
 }
 
-impl<'a, 'py, 'de> Visitor<'de> for DictVisitor<'a, 'py> {
+impl<'de> Visitor<'de> for DictVisitor<'_, '_> {
     type Value = Py<PyAny>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1328,7 +1302,7 @@ struct OptionalVisitor<'a, 'py> {
     inner_descriptor: Option<&'a TypeDescriptor>,
 }
 
-impl<'a, 'py, 'de> Visitor<'de> for OptionalVisitor<'a, 'py> {
+impl<'de> Visitor<'de> for OptionalVisitor<'_, '_> {
     type Value = Py<PyAny>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1369,7 +1343,7 @@ struct SetVisitor<'a, 'py> {
     item_descriptor: &'a TypeDescriptor,
 }
 
-impl<'a, 'py, 'de> Visitor<'de> for SetVisitor<'a, 'py> {
+impl<'de> Visitor<'de> for SetVisitor<'_, '_> {
     type Value = Py<PyAny>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1404,7 +1378,7 @@ struct FrozenSetVisitor<'a, 'py> {
     item_descriptor: &'a TypeDescriptor,
 }
 
-impl<'a, 'py, 'de> Visitor<'de> for FrozenSetVisitor<'a, 'py> {
+impl<'de> Visitor<'de> for FrozenSetVisitor<'_, '_> {
     type Value = Py<PyAny>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1439,7 +1413,7 @@ struct TupleVisitor<'a, 'py> {
     item_descriptor: &'a TypeDescriptor,
 }
 
-impl<'a, 'py, 'de> Visitor<'de> for TupleVisitor<'a, 'py> {
+impl<'de> Visitor<'de> for TupleVisitor<'_, '_> {
     type Value = Py<PyAny>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1469,6 +1443,7 @@ impl<'a, 'py, 'de> Visitor<'de> for TupleVisitor<'a, 'py> {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn deserialize_primitive_streaming<'de, D>(
     py: Python,
     deserializer: D,
@@ -1482,7 +1457,7 @@ where
         field_type: FieldType,
     }
 
-    impl<'py, 'de> Visitor<'de> for PrimitiveVisitor<'py> {
+    impl<'de> Visitor<'de> for PrimitiveVisitor<'_> {
         type Value = Py<PyAny>;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1493,28 +1468,28 @@ where
         where
             E: de::Error,
         {
-            Ok(v.into_py_any(self.py).map_err(de::Error::custom)?)
+            v.into_py_any(self.py).map_err(de::Error::custom)
         }
 
         fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
-            Ok(v.into_py_any(self.py).map_err(de::Error::custom)?)
+            v.into_py_any(self.py).map_err(de::Error::custom)
         }
 
         fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
-            Ok(v.into_py_any(self.py).map_err(de::Error::custom)?)
+            v.into_py_any(self.py).map_err(de::Error::custom)
         }
 
         fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
-            Ok(v.into_py_any(self.py).map_err(de::Error::custom)?)
+            v.into_py_any(self.py).map_err(de::Error::custom)
         }
 
         fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
@@ -1523,7 +1498,7 @@ where
         {
             let py = self.py;
             match self.field_type {
-                FieldType::Str => Ok(v.into_py_any(py).map_err(de::Error::custom)?),
+                FieldType::Str | FieldType::Any => Ok(v.into_py_any(py).map_err(de::Error::custom)?),
                 FieldType::Decimal => {
                     let cached = get_cached_types(py).map_err(de::Error::custom)?;
                     Ok(cached.decimal_cls.bind(py).call1((v,)).map_err(de::Error::custom)?.unbind())
@@ -1562,7 +1537,6 @@ where
                         None => Err(de::Error::custom("Not a valid time")),
                     }
                 }
-                FieldType::Any => Ok(v.into_py_any(py).map_err(de::Error::custom)?),
                 _ => Err(de::Error::custom("Unexpected string for primitive type")),
             }
         }
@@ -1598,7 +1572,7 @@ where
                             } else {
                                 let cached = get_cached_types(self.py).map_err(de::Error::custom)?;
                                 cached.int_cls.bind(self.py).call1((&num_str,))
-                                    .map(|i| i.unbind())
+                                    .map(pyo3::Bound::unbind)
                                     .map_err(de::Error::custom)
                             }
                         }
@@ -1611,7 +1585,7 @@ where
                         FieldType::Decimal => {
                             let cached = get_cached_types(self.py).map_err(de::Error::custom)?;
                             cached.decimal_cls.bind(self.py).call1((&num_str,))
-                                .map(|d| d.unbind())
+                                .map(pyo3::Bound::unbind)
                                 .map_err(de::Error::custom)
                         }
                         _ => Err(de::Error::custom(format!(

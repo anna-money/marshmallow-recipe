@@ -28,7 +28,7 @@ fn wrap_err_dict(py: Python, field_name: &str, inner: Py<PyAny>) -> Py<PyAny> {
 
 fn format_item_errors_dict(py: Python, errors: &HashMap<usize, Py<PyAny>>) -> Py<PyAny> {
     let dict = PyDict::new(py);
-    for (idx, err_list) in errors.iter() {
+    for (idx, err_list) in errors {
         dict.set_item(*idx, err_list).unwrap();
     }
     dict.into()
@@ -71,8 +71,7 @@ fn serialize_any_value<'py>(
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     match field_name {
                         Some(name) => format!(
-                            "{{\"{}\": [\"Not a valid JSON-serializable value.\"]}}",
-                            name
+                            "{{\"{name}\": [\"Not a valid JSON-serializable value.\"]}}"
                         ),
                         None => "Any field dict keys must be strings".to_string(),
                     },
@@ -85,8 +84,7 @@ fn serialize_any_value<'py>(
     Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
         match field_name {
             Some(name) => format!(
-                "{{\"{}\": [\"Not a valid JSON-serializable value.\"]}}",
-                name
+                "{{\"{name}\": [\"Not a valid JSON-serializable value.\"]}}"
             ),
             None => format!(
                 "Any field value must be JSON-serializable (str/int/float/bool/None/list/dict), got: {}",
@@ -96,6 +94,7 @@ fn serialize_any_value<'py>(
     ))
 }
 
+#[allow(clippy::too_many_lines)]
 fn serialize_field_value<'py>(
     value: &Bound<'py, PyAny>,
     field: &FieldDescriptor,
@@ -108,7 +107,7 @@ fn serialize_field_value<'py>(
     match field.field_type {
         FieldType::Str => {
             if !value.is_instance_of::<PyString>() {
-                let errors = PyList::new(ctx.py, &["Not a valid string."])?;
+                let errors = PyList::new(ctx.py, ["Not a valid string."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
@@ -122,7 +121,7 @@ fn serialize_field_value<'py>(
         }
         FieldType::Int => {
             if !value.is_instance_of::<PyInt>() || value.is_instance_of::<PyBool>() {
-                let errors = PyList::new(ctx.py, &["Not a valid integer."])?;
+                let errors = PyList::new(ctx.py, ["Not a valid integer."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
@@ -131,7 +130,7 @@ fn serialize_field_value<'py>(
         }
         FieldType::Bool => {
             if !value.is_instance_of::<PyBool>() {
-                let errors = PyList::new(ctx.py, &["Not a valid boolean."])?;
+                let errors = PyList::new(ctx.py, ["Not a valid boolean."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
@@ -140,7 +139,7 @@ fn serialize_field_value<'py>(
         }
         FieldType::Float => {
             if value.is_instance_of::<PyBool>() {
-                let errors = PyList::new(ctx.py, &["Not a valid number."])?;
+                let errors = PyList::new(ctx.py, ["Not a valid number."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
@@ -151,14 +150,14 @@ fn serialize_field_value<'py>(
             } else if value.is_instance_of::<PyFloat>() {
                 let f: f64 = value.extract()?;
                 if f.is_nan() || f.is_infinite() {
-                    let errors = PyList::new(ctx.py, &["Special numeric values (nan or infinity) are not permitted."])?;
+                    let errors = PyList::new(ctx.py, ["Special numeric values (nan or infinity) are not permitted."])?;
                     return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                         err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                     ));
                 }
                 Ok(value.clone().unbind())
             } else {
-                let errors = PyList::new(ctx.py, &["Not a valid number."])?;
+                let errors = PyList::new(ctx.py, ["Not a valid number."])?;
                 Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ))
@@ -166,8 +165,8 @@ fn serialize_field_value<'py>(
         }
         FieldType::Decimal => {
             let cached = get_cached_types(ctx.py)?;
-            if !value.is_instance(&cached.decimal_cls.bind(ctx.py))? {
-                let errors = PyList::new(ctx.py, &["Not a valid decimal."])?;
+            if !value.is_instance(cached.decimal_cls.bind(ctx.py))? {
+                let errors = PyList::new(ctx.py, ["Not a valid decimal."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
@@ -179,12 +178,9 @@ fn serialize_field_value<'py>(
                 .filter(|&p| p >= 0);
 
             let decimal_value = if let Some(places) = decimal_places {
-                let quantizer = match cached.get_quantizer(places) {
-                    Some(q) => q.clone_ref(ctx.py),
-                    None => {
-                        let quantize_str = format!("1e-{}", places);
-                        cached.decimal_cls.bind(ctx.py).call1((quantize_str,))?.unbind()
-                    }
+                let quantizer = if let Some(q) = cached.get_quantizer(places) { q.clone_ref(ctx.py) } else {
+                    let quantize_str = format!("1e-{places}");
+                    cached.decimal_cls.bind(ctx.py).call1((quantize_str,))?.unbind()
                 };
                 if let Some(ref rounding) = field.decimal_rounding {
                     let kwargs = PyDict::new(ctx.py);
@@ -204,14 +200,12 @@ fn serialize_field_value<'py>(
                 let s: String = decimal_value.str()?.extract()?;
                 let f: f64 = s.parse().map_err(|_| {
                     PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                        "Cannot parse decimal '{}' as float",
-                        s
+                        "Cannot parse decimal '{s}' as float"
                     ))
                 })?;
                 if f.is_nan() || f.is_infinite() {
                     return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                        "Decimal '{}' resulted in NaN/Infinite",
-                        s
+                        "Decimal '{s}' resulted in NaN/Infinite"
                     )));
                 }
                 Ok(f.into_pyobject(ctx.py)?.into_any().unbind())
@@ -219,8 +213,8 @@ fn serialize_field_value<'py>(
         }
         FieldType::Uuid => {
             let cached = get_cached_types(ctx.py)?;
-            if !value.is_instance(&cached.uuid_cls.bind(ctx.py))? {
-                let errors = PyList::new(ctx.py, &["Not a valid UUID."])?;
+            if !value.is_instance(cached.uuid_cls.bind(ctx.py))? {
+                let errors = PyList::new(ctx.py, ["Not a valid UUID."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
@@ -233,7 +227,7 @@ fn serialize_field_value<'py>(
         }
         FieldType::DateTime => {
             if !value.is_instance_of::<PyDateTime>() {
-                let errors = PyList::new(ctx.py, &["Not a valid datetime."])?;
+                let errors = PyList::new(ctx.py, ["Not a valid datetime."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
@@ -258,7 +252,7 @@ fn serialize_field_value<'py>(
                         dt.get_hour(), dt.get_minute(), dt.get_second(), micros).unwrap();
                 }
                 if let Some(tz) = dt.get_tzinfo() {
-                    if tz.is(&cached.utc_tz.bind(ctx.py)) {
+                    if tz.is(cached.utc_tz.bind(ctx.py)) {
 
                         buf.push_str("+00:00");
                     } else {
@@ -281,7 +275,7 @@ fn serialize_field_value<'py>(
             // datetime is subclass of date, so datetime passes is_instance_of::<PyDate>() check
             // PyDateAccess works for both PyDate and PyDateTime
             if !value.is_instance_of::<PyDate>() {
-                let errors = PyList::new(ctx.py, &["Not a valid date."])?;
+                let errors = PyList::new(ctx.py, ["Not a valid date."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
@@ -293,7 +287,7 @@ fn serialize_field_value<'py>(
         }
         FieldType::Time => {
             if !value.is_instance_of::<PyTime>() {
-                let errors = PyList::new(ctx.py, &["Not a valid time."])?;
+                let errors = PyList::new(ctx.py, ["Not a valid time."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
@@ -325,7 +319,7 @@ fn serialize_field_value<'py>(
         }
         FieldType::List => {
             if !value.is_instance_of::<PyList>() {
-                let errors = PyList::new(ctx.py, &["Not a valid list."])?;
+                let errors = PyList::new(ctx.py, ["Not a valid list."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
@@ -356,7 +350,7 @@ fn serialize_field_value<'py>(
         }
         FieldType::Dict => {
             if !value.is_instance_of::<PyDict>() {
-                let errors = PyList::new(ctx.py, &["Not a valid mapping."])?;
+                let errors = PyList::new(ctx.py, ["Not a valid mapping."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
@@ -392,7 +386,7 @@ fn serialize_field_value<'py>(
                 .as_ref()
                 .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("Nested field missing nested_schema"))?;
             if !value.is_instance(nested_schema.cls.bind(ctx.py))? {
-                let errors = PyList::new(ctx.py, &["Not a valid nested object."])?;
+                let errors = PyList::new(ctx.py, ["Not a valid nested object."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
@@ -407,8 +401,7 @@ fn serialize_field_value<'py>(
                     let enum_name = field.enum_name.as_deref().unwrap_or("Enum");
                     let members_repr = field.enum_members_repr.as_deref().unwrap_or("[]");
                     let error_msg = format!(
-                        "Expected {} instance, got {}. Allowed values: {}",
-                        enum_name, value_type_name, members_repr
+                        "Expected {enum_name} instance, got {value_type_name}. Allowed values: {members_repr}"
                     );
                     let errors = PyList::new(ctx.py, &[error_msg])?;
                     return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
@@ -421,7 +414,7 @@ fn serialize_field_value<'py>(
         }
         FieldType::Set => {
             if !value.is_instance_of::<PySet>() {
-                let errors = PyList::new(ctx.py, &["Not a valid set."])?;
+                let errors = PyList::new(ctx.py, ["Not a valid set."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
@@ -453,7 +446,7 @@ fn serialize_field_value<'py>(
         }
         FieldType::FrozenSet => {
             if !value.is_instance_of::<PyFrozenSet>() {
-                let errors = PyList::new(ctx.py, &["Not a valid frozenset."])?;
+                let errors = PyList::new(ctx.py, ["Not a valid frozenset."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
@@ -485,7 +478,7 @@ fn serialize_field_value<'py>(
         }
         FieldType::Tuple => {
             if !value.is_instance_of::<PyTuple>() {
-                let errors = PyList::new(ctx.py, &["Not a valid tuple."])?;
+                let errors = PyList::new(ctx.py, ["Not a valid tuple."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
                 ));
@@ -521,7 +514,7 @@ fn serialize_field_value<'py>(
                 .as_ref()
                 .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("Union field missing union_variants"))?;
 
-            for variant in variants.iter() {
+            for variant in variants {
                 if let Ok(result) = serialize_field_value(value, variant, ctx) {
                     return Ok(result);
                 }
@@ -542,14 +535,13 @@ fn serialize_dataclass<'py>(
 ) -> PyResult<Py<PyAny>> {
     let ignore_none = ctx
         .none_value_handling
-        .map(|s| s == "ignore")
-        .unwrap_or(true);
+        .is_none_or(|s| s == "ignore");
 
     let cached = get_cached_types(ctx.py)?;
     let missing_sentinel = cached.missing_sentinel.bind(ctx.py);
     let result = PyDict::new(ctx.py);
 
-    for field in fields.iter() {
+    for field in fields {
         let py_value = match field.slot_offset {
             Some(offset) => match unsafe { get_slot_value_direct(ctx.py, obj, offset) } {
                 Some(value) => value,
@@ -558,7 +550,7 @@ fn serialize_dataclass<'py>(
             None => obj.getattr(field.name.as_str())?,
         };
 
-        if py_value.is(&missing_sentinel) || (py_value.is_none() && ignore_none) {
+        if py_value.is(missing_sentinel) || (py_value.is_none() && ignore_none) {
             continue;
         }
 
@@ -652,7 +644,7 @@ fn serialize_root_type<'py>(
                 .as_ref()
                 .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing union_variants for union"))?;
 
-            for variant in variants.iter() {
+            for variant in variants {
                 if let Ok(result) = serialize_root_type(value, variant, ctx) {
                     return Ok(result);
                 }
@@ -664,6 +656,7 @@ fn serialize_root_type<'py>(
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn serialize_primitive<'py>(
     value: &Bound<'py, PyAny>,
     field_type: &FieldType,
@@ -723,7 +716,7 @@ fn serialize_primitive<'py>(
         }
         FieldType::Decimal => {
             let cached = get_cached_types(ctx.py)?;
-            if !value.is_instance(&cached.decimal_cls.bind(ctx.py))? {
+            if !value.is_instance(cached.decimal_cls.bind(ctx.py))? {
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     "Not a valid decimal.",
                 ));
@@ -733,7 +726,7 @@ fn serialize_primitive<'py>(
         }
         FieldType::Uuid => {
             let cached = get_cached_types(ctx.py)?;
-            if !value.is_instance(&cached.uuid_cls.bind(ctx.py))? {
+            if !value.is_instance(cached.uuid_cls.bind(ctx.py))? {
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     "Not a valid UUID.",
                 ));

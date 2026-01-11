@@ -73,7 +73,7 @@ pub struct CachedPyTypes {
 }
 
 impl CachedPyTypes {
-    pub fn get_quantizer(&self, places: i32) -> Option<&Py<PyAny>> {
+    pub const fn get_quantizer(&self, places: i32) -> Option<&Py<PyAny>> {
         match places {
             0 => Some(&self.quantize_0),
             1 => Some(&self.quantize_1),
@@ -150,11 +150,12 @@ pub fn get_cached_types(py: Python) -> PyResult<&'static CachedPyTypes> {
 #[pyo3(signature = (schema_id, raw_schema))]
 pub fn register(_py: Python, schema_id: u64, raw_schema: &Bound<'_, PyDict>) -> PyResult<()> {
     let descriptor = build_type_descriptor_from_dict(raw_schema)?;
-    let mut cache = SCHEMA_CACHE.write().unwrap_or_else(|e| e.into_inner());
+    let mut cache = SCHEMA_CACHE.write().unwrap_or_else(std::sync::PoisonError::into_inner);
     cache.insert(schema_id, descriptor);
     Ok(())
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<TypeDescriptor> {
     let type_kind: String = raw.get_item("type_kind")?.ok_or_else(|| {
         PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing type_kind")
@@ -176,12 +177,10 @@ pub fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<Type
                 .collect::<PyResult<_>>()?;
 
             let can_use_direct_slots: bool = raw.get_item("can_use_direct_slots")?
-                .map(|v| v.extract().unwrap_or(false))
-                .unwrap_or(false);
+                .is_some_and(|v| v.extract().unwrap_or(false));
 
             let has_post_init: bool = raw.get_item("has_post_init")?
-                .map(|v| v.extract().unwrap_or(false))
-                .unwrap_or(false);
+                .is_some_and(|v| v.extract().unwrap_or(false));
 
             let field_lookup = build_field_lookup(&fields);
             Ok(TypeDescriptor {
@@ -360,9 +359,9 @@ pub fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<Type
             let variants_raw: Vec<Bound<'_, PyDict>> = raw.get_item("union_variants")?.ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing union_variants for union")
             })?.extract()?;
-            let variants: Vec<Box<TypeDescriptor>> = variants_raw
+            let variants: Vec<TypeDescriptor> = variants_raw
                 .iter()
-                .map(|v| build_type_descriptor_from_dict(v).map(Box::new))
+                .map(|v| build_type_descriptor_from_dict(v))
                 .collect::<PyResult<_>>()?;
 
             Ok(TypeDescriptor {
@@ -382,7 +381,7 @@ pub fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<Type
             })
         }
         _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            format!("Unknown type_kind: {}", type_kind)
+            format!("Unknown type_kind: {type_kind}")
         )),
     }
 }
@@ -409,11 +408,12 @@ pub fn parse_field_type(s: &str) -> PyResult<FieldType> {
         "union" => Ok(FieldType::Union),
         "any" => Ok(FieldType::Any),
         _ => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            format!("Unknown field type: {}", s)
+            format!("Unknown field type: {s}")
         )),
     }
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescriptor> {
     let py = raw.py();
     let name: String = raw.get_item("name")?.ok_or_else(|| {
@@ -429,75 +429,78 @@ pub fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescripto
     })?.extract()?;
 
     let optional: bool = raw.get_item("optional")?
-        .map(|v| v.extract().unwrap_or(false))
-        .unwrap_or(false);
+        .is_some_and(|v| v.extract().unwrap_or(false));
 
+    // slot_offset is used for direct memory access to Python object slots.
+    // We only use it if the offset is properly aligned for pointer access.
+    // Unaligned offsets can occur if a dataclass inherits from a C extension
+    // with a misaligned tp_basicsize (see CPython issue #129675).
+    // If unaligned, we fall back to regular getattr access.
     let slot_offset: Option<isize> = raw.get_item("slot_offset")?
-        .and_then(|v| v.extract().ok());
+        .and_then(|v| v.extract().ok())
+        .filter(|&offset: &isize| offset.cast_unsigned().is_multiple_of(std::mem::align_of::<*mut pyo3::ffi::PyObject>()));
 
     let strip_whitespaces: bool = raw.get_item("strip_whitespaces")?
-        .map(|v| v.extract().unwrap_or(false))
-        .unwrap_or(false);
+        .is_some_and(|v| v.extract().unwrap_or(false));
 
     let decimal_places: Option<i32> = raw.get_item("decimal_places")?
         .and_then(|v| v.extract().ok());
 
     let decimal_as_string: bool = raw.get_item("decimal_as_string")?
-        .map(|v| v.extract().unwrap_or(true))
-        .unwrap_or(true);
+        .is_none_or(|v| v.extract().unwrap_or(true));
 
     let datetime_format: Option<String> = raw.get_item("datetime_format")?
         .and_then(|v| v.extract().ok());
 
     let nested_schema: Option<Box<SchemaDescriptor>> = if let Some(nested_raw) = raw.get_item("nested_schema")? {
-        if !nested_raw.is_none() {
+        if nested_raw.is_none() {
+            None
+        } else {
             let nested_dict: Bound<'_, PyDict> = nested_raw.extract()?;
             Some(Box::new(build_schema_from_dict(&nested_dict)?))
-        } else {
-            None
         }
     } else {
         None
     };
 
     let item_schema: Option<Box<FieldDescriptor>> = if let Some(item_raw) = raw.get_item("item_schema")? {
-        if !item_raw.is_none() {
+        if item_raw.is_none() {
+            None
+        } else {
             let item_dict: Bound<'_, PyDict> = item_raw.extract()?;
             Some(Box::new(build_field_from_dict(&item_dict)?))
-        } else {
-            None
         }
     } else {
         None
     };
 
     let key_type: Option<FieldType> = if let Some(kt) = raw.get_item("key_type")? {
-        if !kt.is_none() {
+        if kt.is_none() {
+            None
+        } else {
             let kt_str: String = kt.extract()?;
             Some(parse_field_type(&kt_str)?)
-        } else {
-            None
         }
     } else {
         None
     };
 
     let value_schema: Option<Box<FieldDescriptor>> = if let Some(value_raw) = raw.get_item("value_schema")? {
-        if !value_raw.is_none() {
+        if value_raw.is_none() {
+            None
+        } else {
             let value_dict: Bound<'_, PyDict> = value_raw.extract()?;
             Some(Box::new(build_field_from_dict(&value_dict)?))
-        } else {
-            None
         }
     } else {
         None
     };
 
     let enum_cls: Option<Py<PyAny>> = if let Some(cls_raw) = raw.get_item("enum_cls")? {
-        if !cls_raw.is_none() {
-            Some(cls_raw.extract()?)
-        } else {
+        if cls_raw.is_none() {
             None
+        } else {
+            Some(cls_raw.extract()?)
         }
     } else {
         None
@@ -538,46 +541,46 @@ pub fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescripto
     let enum_name: Option<String> = raw.get_item("enum_name")?.and_then(|v| v.extract().ok());
     let enum_members_repr: Option<String> = raw.get_item("enum_members_repr")?.and_then(|v| v.extract().ok());
 
-    let union_variants: Option<Vec<Box<FieldDescriptor>>> = if let Some(variants_raw) = raw.get_item("union_variants")? {
-        if !variants_raw.is_none() {
+    let union_variants: Option<Vec<FieldDescriptor>> = if let Some(variants_raw) = raw.get_item("union_variants")? {
+        if variants_raw.is_none() {
+            None
+        } else {
             let variants_list: Vec<Bound<'_, PyDict>> = variants_raw.extract()?;
-            let variants: Vec<Box<FieldDescriptor>> = variants_list
+            let variants: Vec<FieldDescriptor> = variants_list
                 .iter()
-                .map(|v| build_field_from_dict(v).map(Box::new))
+                .map(|v| build_field_from_dict(v))
                 .collect::<PyResult<_>>()?;
             Some(variants)
-        } else {
-            None
         }
     } else {
         None
     };
 
     let default_value: Option<Py<PyAny>> = if let Some(dv) = raw.get_item("default_value")? {
-        if !dv.is_none() {
-            Some(dv.extract()?)
-        } else {
+        if dv.is_none() {
             None
+        } else {
+            Some(dv.extract()?)
         }
     } else {
         None
     };
 
     let default_factory: Option<Py<PyAny>> = if let Some(df) = raw.get_item("default_factory")? {
-        if !df.is_none() {
-            Some(df.extract()?)
-        } else {
+        if df.is_none() {
             None
+        } else {
+            Some(df.extract()?)
         }
     } else {
         None
     };
 
     let decimal_rounding: Option<Py<PyAny>> = if let Some(dr) = raw.get_item("decimal_rounding")? {
-        if !dr.is_none() {
-            Some(dr.extract()?)
-        } else {
+        if dr.is_none() {
             None
+        } else {
+            Some(dr.extract()?)
         }
     } else {
         None
@@ -589,30 +592,30 @@ pub fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescripto
     let field_init: bool = raw.get_item("field_init")?.and_then(|v| v.extract().ok()).unwrap_or(true);
 
     let validator: Option<Py<PyAny>> = if let Some(v) = raw.get_item("validator")? {
-        if !v.is_none() {
-            Some(v.extract()?)
-        } else {
+        if v.is_none() {
             None
+        } else {
+            Some(v.extract()?)
         }
     } else {
         None
     };
 
     let item_validator: Option<Py<PyAny>> = if let Some(v) = raw.get_item("item_validator")? {
-        if !v.is_none() {
-            Some(v.extract()?)
-        } else {
+        if v.is_none() {
             None
+        } else {
+            Some(v.extract()?)
         }
     } else {
         None
     };
 
     let value_validator: Option<Py<PyAny>> = if let Some(v) = raw.get_item("value_validator")? {
-        if !v.is_none() {
-            Some(v.extract()?)
-        } else {
+        if v.is_none() {
             None
+        } else {
+            Some(v.extract()?)
         }
     } else {
         None
@@ -667,12 +670,10 @@ pub fn build_schema_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<SchemaDescrip
         .collect::<PyResult<_>>()?;
 
     let can_use_direct_slots: bool = raw.get_item("can_use_direct_slots")?
-        .map(|v| v.extract().unwrap_or(false))
-        .unwrap_or(false);
+        .is_some_and(|v| v.extract().unwrap_or(false));
 
     let has_post_init: bool = raw.get_item("has_post_init")?
-        .map(|v| v.extract().unwrap_or(false))
-        .unwrap_or(false);
+        .is_some_and(|v| v.extract().unwrap_or(false));
 
     let field_lookup = build_field_lookup(&fields);
     Ok(SchemaDescriptor { cls, fields, field_lookup, can_use_direct_slots, has_post_init })
