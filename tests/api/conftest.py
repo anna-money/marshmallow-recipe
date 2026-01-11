@@ -9,9 +9,8 @@ from collections.abc import Mapping, Sequence
 from typing import Annotated, Any, NewType
 
 import marshmallow
-import pytest
-
 import marshmallow_recipe as mr
+import pytest
 
 
 class Serializer(abc.ABC):
@@ -139,7 +138,7 @@ class MarshmallowSerializer(Serializer):
         return mr.load_many(schema_class, json.loads(data), naming_case=naming_case, decimal_places=decimal_places)
 
 
-class SpeedupBytesSerializer(Serializer):
+class NukedBytesSerializer(Serializer):
     __slots__ = ()
 
     @property
@@ -174,7 +173,7 @@ class SpeedupBytesSerializer(Serializer):
         return mr.nuked.load_from_bytes(schema_class, data, naming_case=naming_case)
 
 
-class SpeedupSerializer(Serializer):
+class NukedSerializer(Serializer):
     __slots__ = ()
 
     @property
@@ -207,8 +206,8 @@ class SpeedupSerializer(Serializer):
 
 
 @pytest.fixture(
-    params=[MarshmallowSerializer(), SpeedupBytesSerializer(), SpeedupSerializer()],
-    ids=["marshmallow", "speedup_bytes", "speedup"],
+    params=[MarshmallowSerializer(), NukedBytesSerializer(), NukedSerializer()],
+    ids=["marshmallow", "nuked_bytes", "nuked"],
 )
 def impl(request: pytest.FixtureRequest) -> Serializer:
     return request.param

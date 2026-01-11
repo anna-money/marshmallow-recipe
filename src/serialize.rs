@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Write;
 
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAccess, PyDict, PyFloat, PyFrozenSet, PyInt, PyList, PySet, PyString, PyTime, PyTimeAccess, PyTuple, PyTzInfoAccess};
@@ -231,7 +232,6 @@ fn serialize_field_value<'py>(
             Ok(PyString::new(ctx.py, s).into_any().unbind())
         }
         FieldType::DateTime => {
-            use std::fmt::Write;
             if !value.is_instance_of::<PyDateTime>() {
                 let errors = PyList::new(ctx.py, &["Not a valid datetime."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
@@ -273,7 +273,6 @@ fn serialize_field_value<'py>(
             }
         }
         FieldType::Date => {
-            use std::fmt::Write;
             // datetime is subclass of date, so datetime passes is_instance_of::<PyDate>() check
             // PyDateAccess works for both PyDate and PyDateTime
             if !value.is_instance_of::<PyDate>() {
@@ -288,7 +287,6 @@ fn serialize_field_value<'py>(
             Ok(PyString::new(ctx.py, &buf).into_any().unbind())
         }
         FieldType::Time => {
-            use std::fmt::Write;
             if !value.is_instance_of::<PyTime>() {
                 let errors = PyList::new(ctx.py, &["Not a valid time."])?;
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(

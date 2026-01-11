@@ -1,4 +1,5 @@
 import marshmallow
+import marshmallow_recipe as mr
 import pytest
 
 from .conftest import (
@@ -214,8 +215,6 @@ class TestCyclicDump:
 
 class TestCyclicNotSupportedInNuked:
     def test_cyclic_raises_not_implemented(self) -> None:
-        import marshmallow_recipe as mr
-
         with pytest.raises(NotImplementedError, match="Cyclic dataclass references are not supported"):
             mr.nuked.dump(Cyclic, Cyclic(marker="test", child=None))
 
