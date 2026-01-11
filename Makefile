@@ -1,3 +1,5 @@
+.PHONY: all uv rust deps lint test bench build build-wheel build-sdist
+
 all: deps lint test
 
 uv:
@@ -6,19 +8,33 @@ uv:
 		exit 1;\
 	}
 
-deps: uv
-	@uv sync --all-extras
+rust:
+	@which cargo >/dev/null 2>&1 || { \
+		echo "Rust is not installed"; \
+		exit 1;\
+	}
 
-ruff-format:
-	@uv run ruff format marshmallow_recipe tests
+deps: uv rust
+	@uv sync --extra dev
+	@uv run maturin develop --release
 
-ruff-lint:
-	@uv run ruff check marshmallow_recipe tests --fix
-
-pyright:
+lint: deps
+	@uv run ruff format python/marshmallow_recipe tests
+	@uv run ruff check python/marshmallow_recipe tests --fix
 	@uv run pyright
+	@cargo clippy
 
-lint: ruff-format ruff-lint pyright
+test: deps
+	@uv run pytest -vv $(or $(T),.)
 
-test:
-	@uv run pytest -vv --rootdir tests .
+bench: deps
+	@uv run python benchmarks/bench_serialization.py
+
+build: deps
+	@uv run maturin build --release
+
+build-wheel: deps
+	@uv run maturin build --release --out dist
+
+build-sdist: deps
+	@uv run maturin sdist --out dist

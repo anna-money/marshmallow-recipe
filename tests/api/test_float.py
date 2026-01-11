@@ -161,6 +161,7 @@ class TestFloatLoad:
         data = b'{"value":1}'
         result = impl.load(ValueOf[float], data)
         assert result == ValueOf[float](value=1)
+        assert type(result.value) is int  # JSON int stays int, no precision loss
 
     def test_very_small(self, impl: Serializer) -> None:
         data = b'{"value":1e-100}'
