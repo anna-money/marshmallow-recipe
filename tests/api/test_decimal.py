@@ -298,7 +298,6 @@ class TestDecimalNoPlaces:
     """Tests for places=None (no automatic rounding)."""
 
     def test_dump_preserves_full_precision(self, impl: Serializer) -> None:
-        """With places=None, full precision should be preserved."""
         obj = WithDecimalNoPlaces(value=decimal.Decimal("123.456789012345678901234567890"))
         result = impl.dump(WithDecimalNoPlaces, obj)
         assert result == b'{"value":"123.456789012345678901234567890"}'
