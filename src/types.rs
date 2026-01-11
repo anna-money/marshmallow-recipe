@@ -74,7 +74,6 @@ pub struct FieldDescriptor {
     pub value_schema: Option<Box<Self>>,
     pub strip_whitespaces: bool,
     pub decimal_places: Option<i32>,
-    pub decimal_as_string: bool,
     pub decimal_rounding: Option<Py<PyAny>>,
     pub datetime_format: Option<String>,
     pub enum_cls: Option<Py<PyAny>>,
@@ -109,7 +108,6 @@ impl Clone for FieldDescriptor {
             value_schema: self.value_schema.clone(),
             strip_whitespaces: self.strip_whitespaces,
             decimal_places: self.decimal_places,
-            decimal_as_string: self.decimal_as_string,
             decimal_rounding: self.decimal_rounding.as_ref().map(|r| r.clone_ref(py)),
             datetime_format: self.datetime_format.clone(),
             enum_cls: self.enum_cls.as_ref().map(|c| c.clone_ref(py)),
@@ -160,7 +158,6 @@ impl FromPyObject<'_, '_> for FieldDescriptor {
 
         let strip_whitespaces: bool = ob.getattr("strip_whitespaces")?.extract().unwrap_or(false);
         let decimal_places: Option<i32> = ob.getattr("decimal_places")?.extract().ok().flatten();
-        let decimal_as_string: bool = ob.getattr("decimal_as_string")?.extract().unwrap_or(true);
         let decimal_rounding: Option<Py<PyAny>> = ob.getattr("decimal_rounding")?.extract().ok();
         let datetime_format: Option<String> = ob.getattr("datetime_format")?.extract().ok().flatten();
         let required_error: Option<String> = ob.getattr("required_error")?.extract().ok().flatten();
@@ -186,7 +183,6 @@ impl FromPyObject<'_, '_> for FieldDescriptor {
             value_schema: value_schema.map(Box::new),
             strip_whitespaces,
             decimal_places,
-            decimal_as_string,
             decimal_rounding,
             datetime_format,
             enum_cls,

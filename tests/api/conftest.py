@@ -567,6 +567,12 @@ class WithAnnotatedDecimalRounding:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalNoPlaces:
+    # places=None disables automatic rounding, preserving full precision
+    value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=None))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithDateTimeCustomFormat:
     scheduled_at: datetime.datetime = dataclasses.field(metadata=mr.datetime_meta(format="%Y/%m/%d"))
 

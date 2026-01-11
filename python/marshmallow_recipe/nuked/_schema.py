@@ -63,9 +63,6 @@ def field_to_dict(field: Any, visited_schemas: set[type] | None = None) -> dict:
     if field.decimal_places is not None:
         result["decimal_places"] = field.decimal_places
 
-    if not field.decimal_as_string:
-        result["decimal_as_string"] = False
-
     if field.decimal_rounding is not None:
         result["decimal_rounding"] = field.decimal_rounding
 

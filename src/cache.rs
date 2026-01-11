@@ -446,9 +446,6 @@ pub fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescripto
     let decimal_places: Option<i32> = raw.get_item("decimal_places")?
         .and_then(|v| v.extract().ok());
 
-    let decimal_as_string: bool = raw.get_item("decimal_as_string")?
-        .is_none_or(|v| v.extract().unwrap_or(true));
-
     let datetime_format: Option<String> = raw.get_item("datetime_format")?
         .and_then(|v| v.extract().ok());
 
@@ -634,7 +631,6 @@ pub fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescripto
         value_schema,
         strip_whitespaces,
         decimal_places,
-        decimal_as_string,
         decimal_rounding,
         datetime_format,
         enum_cls,
