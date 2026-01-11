@@ -258,14 +258,19 @@ fn serialize_field_value<'py>(
                         dt.get_hour(), dt.get_minute(), dt.get_second(), micros).unwrap();
                 }
                 if let Some(tz) = dt.get_tzinfo() {
-                    let offset = tz.call_method1(cached.str_utcoffset.bind(ctx.py), (dt,))?;
-                    if let Ok(delta) = offset.cast::<PyDelta>() {
-                        let total_seconds: i32 = delta.get_days() * 86400 + delta.get_seconds();
-                        if total_seconds >= 0 {
-                            write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
-                        } else {
-                            let abs = total_seconds.abs();
-                            write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+                    if tz.is(&cached.utc_tz.bind(ctx.py)) {
+
+                        buf.push_str("+00:00");
+                    } else {
+                        let offset = tz.call_method1(cached.str_utcoffset.bind(ctx.py), (dt,))?;
+                        if let Ok(delta) = offset.cast::<PyDelta>() {
+                            let total_seconds: i32 = delta.get_days() * 86400 + delta.get_seconds();
+                            if total_seconds >= 0 {
+                                write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
+                            } else {
+                                let abs = total_seconds.abs();
+                                write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+                            }
                         }
                     }
                 }

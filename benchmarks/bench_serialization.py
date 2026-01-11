@@ -22,6 +22,44 @@ class TransactionStatus(enum.StrEnum):
     DECLINED = "declined"
 
 
+# Datetime-specific benchmarks to measure UTC optimization impact
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class DatetimeOnlyUTC:
+    dt1: datetime.datetime
+    dt2: datetime.datetime
+    dt3: datetime.datetime
+    dt4: datetime.datetime
+    dt5: datetime.datetime
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class DatetimeOnlyNonUTC:
+    dt1: datetime.datetime
+    dt2: datetime.datetime
+    dt3: datetime.datetime
+    dt4: datetime.datetime
+    dt5: datetime.datetime
+
+
+FIXED_OFFSET = datetime.timezone(datetime.timedelta(hours=3))
+
+DATETIME_UTC = DatetimeOnlyUTC(
+    dt1=datetime.datetime(2024, 1, 15, 10, 30, 45, tzinfo=datetime.UTC),
+    dt2=datetime.datetime(2024, 2, 20, 14, 15, 30, tzinfo=datetime.UTC),
+    dt3=datetime.datetime(2024, 3, 25, 8, 45, 0, tzinfo=datetime.UTC),
+    dt4=datetime.datetime(2024, 4, 10, 16, 0, 15, tzinfo=datetime.UTC),
+    dt5=datetime.datetime(2024, 5, 5, 12, 30, 0, tzinfo=datetime.UTC),
+)
+
+DATETIME_NON_UTC = DatetimeOnlyNonUTC(
+    dt1=datetime.datetime(2024, 1, 15, 10, 30, 45, tzinfo=FIXED_OFFSET),
+    dt2=datetime.datetime(2024, 2, 20, 14, 15, 30, tzinfo=FIXED_OFFSET),
+    dt3=datetime.datetime(2024, 3, 25, 8, 45, 0, tzinfo=FIXED_OFFSET),
+    dt4=datetime.datetime(2024, 4, 10, 16, 0, 15, tzinfo=FIXED_OFFSET),
+    dt5=datetime.datetime(2024, 5, 5, 12, 30, 0, tzinfo=FIXED_OFFSET),
+)
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class TransactionTransferDetails:
     account_name: str | None = None
@@ -177,6 +215,27 @@ def nuked_load_from_bytes() -> TransactionData:
     return mr.nuked.load_from_bytes(TransactionData, DATA)
 
 
+# Datetime-specific benchmark functions
+def nuked_dump_datetime_utc() -> bytes:
+    return mr.nuked.dump_to_bytes(DatetimeOnlyUTC, DATETIME_UTC)
+
+
+def nuked_dump_datetime_non_utc() -> bytes:
+    return mr.nuked.dump_to_bytes(DatetimeOnlyNonUTC, DATETIME_NON_UTC)
+
+
+DATETIME_UTC_DATA = nuked_dump_datetime_utc()
+DATETIME_NON_UTC_DATA = nuked_dump_datetime_non_utc()
+
+
+def nuked_load_datetime_utc() -> DatetimeOnlyUTC:
+    return mr.nuked.load_from_bytes(DatetimeOnlyUTC, DATETIME_UTC_DATA)
+
+
+def nuked_load_datetime_non_utc() -> DatetimeOnlyNonUTC:
+    return mr.nuked.load_from_bytes(DatetimeOnlyNonUTC, DATETIME_NON_UTC_DATA)
+
+
 if __name__ == "__main__":
     runner = pyperf.Runner()
     # Single item
@@ -193,3 +252,8 @@ if __name__ == "__main__":
     runner.bench_func("marshmallow_load_many", marshmallow_load_many)
     runner.bench_func("nuked_load_many", nuked_load_many)
     runner.bench_func("nuked_load_from_bytes_many", nuked_load_from_bytes_many)
+    # Datetime-specific (UTC vs non-UTC)
+    runner.bench_func("nuked_dump_datetime_utc", nuked_dump_datetime_utc)
+    runner.bench_func("nuked_dump_datetime_non_utc", nuked_dump_datetime_non_utc)
+    runner.bench_func("nuked_load_datetime_utc", nuked_load_datetime_utc)
+    runner.bench_func("nuked_load_datetime_non_utc", nuked_load_datetime_non_utc)
