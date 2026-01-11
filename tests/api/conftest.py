@@ -440,6 +440,12 @@ class WithPostLoadAndStrip:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalNoPlaces:
+    # places=None disables automatic rounding, preserving full precision
+    value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=None))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithDecimalRoundUp:
     value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=2, rounding=decimal.ROUND_UP))
 

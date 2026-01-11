@@ -14,6 +14,7 @@ from .conftest import (
     WithDecimalInvalidError,
     WithDecimalMissing,
     WithDecimalNoneError,
+    WithDecimalNoPlaces,
     WithDecimalRequiredError,
     WithDecimalRoundDown,
     WithDecimalRoundUp,
@@ -291,3 +292,28 @@ class TestDecimalDumpInvalidType:
         obj = WithDecimal(**{"value": 123.45})  # type: ignore[arg-type]
         with pytest.raises(marshmallow.ValidationError):
             impl.dump(WithDecimal, obj)
+
+
+class TestDecimalNoPlaces:
+    """Tests for places=None (no automatic rounding)."""
+
+    def test_dump_preserves_full_precision(self, impl: Serializer) -> None:
+        """With places=None, full precision should be preserved."""
+        obj = WithDecimalNoPlaces(value=decimal.Decimal("123.456789012345678901234567890"))
+        result = impl.dump(WithDecimalNoPlaces, obj)
+        assert result == b'{"value":"123.456789012345678901234567890"}'
+
+    def test_dump_simple(self, impl: Serializer) -> None:
+        obj = WithDecimalNoPlaces(value=decimal.Decimal("99.99"))
+        result = impl.dump(WithDecimalNoPlaces, obj)
+        assert result == b'{"value":"99.99"}'
+
+    def test_dump_integer(self, impl: Serializer) -> None:
+        obj = WithDecimalNoPlaces(value=decimal.Decimal("100"))
+        result = impl.dump(WithDecimalNoPlaces, obj)
+        assert result == b'{"value":"100"}'
+
+    def test_load_preserves_full_precision(self, impl: Serializer) -> None:
+        data = b'{"value":"123.456789012345678901234567890"}'
+        result = impl.load(WithDecimalNoPlaces, data)
+        assert result == WithDecimalNoPlaces(value=decimal.Decimal("123.456789012345678901234567890"))
