@@ -4,6 +4,13 @@ use pyo3::prelude::*;
 use pyo3::types::PyString;
 use pyo3::Borrowed;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DecimalPlaces {
+    NotSpecified,
+    NoRounding,
+    Places(i32),
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FieldType {
     Str,
@@ -73,7 +80,7 @@ pub struct FieldDescriptor {
     pub key_type: Option<FieldType>,
     pub value_schema: Option<Box<Self>>,
     pub strip_whitespaces: bool,
-    pub decimal_places: Option<i32>,
+    pub decimal_places: DecimalPlaces,
     pub decimal_rounding: Option<Py<PyAny>>,
     pub datetime_format: Option<String>,
     pub enum_cls: Option<Py<PyAny>>,
@@ -157,7 +164,16 @@ impl FromPyObject<'_, '_> for FieldDescriptor {
         let value_schema: Option<Self> = ob.getattr("value_schema")?.extract()?;
 
         let strip_whitespaces: bool = ob.getattr("strip_whitespaces")?.extract().unwrap_or(false);
-        let decimal_places: Option<i32> = ob.getattr("decimal_places")?.extract().ok().flatten();
+        let decimal_places = {
+            let attr = ob.getattr("decimal_places")?;
+            if attr.is_none() {
+                DecimalPlaces::NoRounding
+            } else if let Ok(v) = attr.extract::<i32>() {
+                DecimalPlaces::Places(v)
+            } else {
+                DecimalPlaces::NotSpecified
+            }
+        };
         let decimal_rounding: Option<Py<PyAny>> = ob.getattr("decimal_rounding")?.extract().ok();
         let datetime_format: Option<String> = ob.getattr("datetime_format")?.extract().ok().flatten();
         let required_error: Option<String> = ob.getattr("required_error")?.extract().ok().flatten();

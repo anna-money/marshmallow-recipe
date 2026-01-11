@@ -6,7 +6,7 @@ use pyo3::BoundObject;
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-use crate::types::{FieldDescriptor, FieldType, SchemaDescriptor, TypeDescriptor, TypeKind};
+use crate::types::{DecimalPlaces, FieldDescriptor, FieldType, SchemaDescriptor, TypeDescriptor, TypeKind};
 
 fn force_setattr<'py, N, V>(py: Python<'py>, obj: &Bound<'py, PyAny>, attr_name: N, value: V) -> PyResult<()>
 where
@@ -443,8 +443,11 @@ pub fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescripto
     let strip_whitespaces: bool = raw.get_item("strip_whitespaces")?
         .is_some_and(|v| v.extract().unwrap_or(false));
 
-    let decimal_places: Option<i32> = raw.get_item("decimal_places")?
-        .and_then(|v| v.extract().ok());
+    let decimal_places = match raw.get_item("decimal_places")? {
+        None => DecimalPlaces::NotSpecified,
+        Some(v) if v.is_none() => DecimalPlaces::NoRounding,
+        Some(v) => DecimalPlaces::Places(v.extract().unwrap_or(2)),
+    };
 
     let datetime_format: Option<String> = raw.get_item("datetime_format")?
         .and_then(|v| v.extract().ok());

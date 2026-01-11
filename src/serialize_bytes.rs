@@ -9,7 +9,7 @@ use serde_json::{Value};
 
 use crate::cache::get_cached_types;
 use crate::slots::get_slot_value_direct;
-use crate::types::{FieldDescriptor, FieldType, TypeDescriptor, TypeKind};
+use crate::types::{DecimalPlaces, FieldDescriptor, FieldType, TypeDescriptor, TypeKind};
 
 fn serialize_python_int<S>(value: &Bound<'_, PyAny>, serializer: S) -> Result<S::Ok, S::Error>
 where
@@ -235,11 +235,11 @@ impl<'py> Serialize for FieldValueSerializer<'_, 'py> {
                     )));
                 }
 
-                let decimal_places = self
-                    .ctx
-                    .global_decimal_places
-                    .or(self.field.decimal_places)
-                    .filter(|&p| p >= 0);
+                let decimal_places = match self.field.decimal_places {
+                    DecimalPlaces::NoRounding => None,
+                    DecimalPlaces::Places(n) => Some(n),
+                    DecimalPlaces::NotSpecified => self.ctx.global_decimal_places.or(Some(2)),
+                };
 
                 let decimal_value = if let Some(places) = decimal_places {
                     let cached =

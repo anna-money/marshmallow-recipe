@@ -147,7 +147,7 @@ fn strip_serde_locations(s: &str) -> String {
 const SERDE_JSON_NUMBER_TOKEN: &str = "$serde_json::private::Number";
 use crate::deserialize::{LoadContext, deserialize_field_value, deserialize_root_type};
 use crate::slots::set_slot_value_direct;
-use crate::types::{FieldDescriptor, FieldType, TypeDescriptor, TypeKind};
+use crate::types::{DecimalPlaces, FieldDescriptor, FieldType, TypeDescriptor, TypeKind};
 
 /// Check if a JSON number string represents a float (has decimal point or exponent).
 /// JSON floats: 3.14, 1e10, 1.5E-3
@@ -321,6 +321,7 @@ fn json_error_to_py(py: Python, value: &serde_json::Value) -> PyResult<Py<PyAny>
 pub struct StreamingContext<'a, 'py> {
     pub py: Python<'py>,
     pub post_loads: Option<&'a Bound<'py, PyDict>>,
+    pub decimal_places: Option<i32>,
 }
 
 pub struct TypeDescriptorSeed<'a, 'py> {
@@ -422,6 +423,7 @@ impl<'de> DeserializeSeed<'de> for TypeDescriptorSeed<'_, '_> {
                 let dict_ctx = LoadContext {
                     py: self.ctx.py,
                     post_loads: self.ctx.post_loads,
+                    decimal_places: self.ctx.decimal_places,
                 };
                 for variant in variants {
                     if let Ok(result) = deserialize_root_type(py_value.bind(self.ctx.py), variant, &dict_ctx) {
@@ -459,6 +461,7 @@ impl<'de> DeserializeSeed<'de> for FieldDescriptorSeed<'_, '_> {
             let dict_ctx = LoadContext {
                 py: self.ctx.py,
                 post_loads: self.ctx.post_loads,
+                decimal_places: self.ctx.decimal_places,
             };
             for variant in variants {
                 if let Ok(result) = deserialize_field_value(py_value.bind(self.ctx.py), variant, &dict_ctx) {
@@ -1030,7 +1033,12 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
 impl FieldValueVisitor<'_, '_> {
     fn apply_decimal_quantize(&self, value: Py<PyAny>) -> PyResult<Py<PyAny>> {
         let py = self.ctx.py;
-        if let Some(places) = self.field.decimal_places.filter(|&p| p >= 0) {
+        let places = match self.field.decimal_places {
+            DecimalPlaces::NoRounding => None,
+            DecimalPlaces::Places(n) => Some(n),
+            DecimalPlaces::NotSpecified => self.ctx.decimal_places.or(Some(2)),
+        };
+        if let Some(places) = places.filter(|&p| p >= 0) {
             let cached = get_cached_types(py)?;
             let quantize_val = if let Some(q) = cached.get_quantizer(places) { q.clone_ref(py) } else {
                 let quantize_str = format!("1e-{places}");
@@ -1613,10 +1621,12 @@ pub fn load_from_bytes<'py>(
     json_bytes: &[u8],
     descriptor: &TypeDescriptor,
     post_loads: Option<&Bound<'py, PyDict>>,
+    decimal_places: Option<i32>,
 ) -> PyResult<Py<PyAny>> {
     let ctx = StreamingContext {
         py,
         post_loads,
+        decimal_places,
     };
 
     let mut deserializer = serde_json::Deserializer::from_slice(json_bytes);

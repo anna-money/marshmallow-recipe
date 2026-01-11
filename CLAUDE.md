@@ -18,6 +18,7 @@
 - Do not use deprecated API
 - No local imports
 - marshmallow_recipe should work the same as marshmallow_recipe.nuked
+- No comments
 
 ### Tests Guidelines
 - Always assert objects in full, do not do that field by field

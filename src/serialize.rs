@@ -6,7 +6,7 @@ use pyo3::types::{PyBool, PyDate, PyDateAccess, PyDateTime, PyDelta, PyDeltaAcce
 
 use crate::cache::get_cached_types;
 use crate::slots::get_slot_value_direct;
-use crate::types::{FieldDescriptor, FieldType, TypeDescriptor, TypeKind};
+use crate::types::{DecimalPlaces, FieldDescriptor, FieldType, TypeDescriptor, TypeKind};
 
 pub struct DictContext<'a, 'py> {
     pub py: Python<'py>,
@@ -172,10 +172,11 @@ fn serialize_field_value<'py>(
                 ));
             }
 
-            let decimal_places = ctx
-                .global_decimal_places
-                .or(field.decimal_places)
-                .filter(|&p| p >= 0);
+            let decimal_places = match field.decimal_places {
+                DecimalPlaces::NoRounding => None,
+                DecimalPlaces::Places(n) => Some(n),
+                DecimalPlaces::NotSpecified => ctx.global_decimal_places.or(Some(2)),
+            };
 
             let decimal_value = if let Some(places) = decimal_places {
                 let quantizer = if let Some(q) = cached.get_quantizer(places) { q.clone_ref(ctx.py) } else {
