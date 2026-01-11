@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDate, PyDateTime, PyDelta, PyDict, PyFloat, PyFrozenSet, PyInt, PyList, PySet, PyString, PyTime, PyTuple, PyDateAccess, PyDeltaAccess, PyTimeAccess, PyTzInfoAccess};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Serialize, Serializer};
-use serde_json::{json, Value};
+use serde_json::{Value};
 
 use crate::cache::get_cached_types;
 use crate::slots::get_slot_value_direct;
