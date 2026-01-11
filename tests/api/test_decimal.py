@@ -352,3 +352,21 @@ class TestDecimalNoPlaces:
         data = b'{"value":"123.456789"}'
         result = impl.load(WithDecimalNoPlaces, data, decimal_places=2)
         assert result == WithDecimalNoPlaces(value=decimal.Decimal("123.456789"))
+
+
+class TestDecimalPlacesValidation:
+    def test_dump_negative_raises(self, impl: Serializer) -> None:
+        with pytest.raises(ValueError, match="decimal_places must be None or a non-negative integer"):
+            impl.dump(WithDecimal, WithDecimal(value=decimal.Decimal("1.23")), decimal_places=-1)
+
+    def test_dump_many_negative_raises(self, impl: Serializer) -> None:
+        with pytest.raises(ValueError, match="decimal_places must be None or a non-negative integer"):
+            impl.dump_many(WithDecimal, [WithDecimal(value=decimal.Decimal("1.23"))], decimal_places=-1)
+
+    def test_load_negative_raises(self, impl: Serializer) -> None:
+        with pytest.raises(ValueError, match="decimal_places must be None or a non-negative integer"):
+            impl.load(WithDecimal, b'{"value": "1.23"}', decimal_places=-1)
+
+    def test_load_many_negative_raises(self, impl: Serializer) -> None:
+        with pytest.raises(ValueError, match="decimal_places must be None or a non-negative integer"):
+            impl.load_many(WithDecimal, b'[{"value": "1.23"}]', decimal_places=-1)

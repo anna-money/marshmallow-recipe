@@ -4,6 +4,7 @@ import enum
 
 from .missing import MISSING
 from .naming_case import NamingCase
+from .utils import validate_decimal_places
 
 _OPTIONS_KEY = "__marshmallow_recipe_options__"
 
@@ -26,6 +27,8 @@ def options[T](
     naming_case: NamingCase | None = None,
     decimal_places: int | None = MISSING,
 ) -> collections.abc.Callable[[type[T]], type[T]]:
+    validate_decimal_places(decimal_places)
+
     def wrap(cls: type[T]) -> type[T]:
         setattr(
             cls,

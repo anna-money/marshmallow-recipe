@@ -9,6 +9,7 @@ from .generics import extract_type
 from .missing import MISSING
 from .naming_case import NamingCase
 from .options import NoneValueHandling
+from .utils import validate_decimal_places
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
@@ -39,6 +40,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> m.Schema:
+        validate_decimal_places(decimal_places)
         key = _SchemaKey(
             cls=cls,
             many=many,
@@ -66,6 +68,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> T:
+        validate_decimal_places(decimal_places)
         schema = schema_v3(
             cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
@@ -82,6 +85,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> list[T]:
+        validate_decimal_places(decimal_places)
         schema = schema_v3(
             cls,
             many=True,
@@ -102,6 +106,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> dict[str, Any]:
+        validate_decimal_places(decimal_places)
         data_schema = schema_v3(
             extract_type(data, cls),
             naming_case=naming_case,
@@ -124,6 +129,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> list[dict[str, Any]]:
+        validate_decimal_places(decimal_places)
         if not data:
             return []
         data_schema = schema_v3(
@@ -151,6 +157,7 @@ else:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> m.Schema:
+        validate_decimal_places(decimal_places)
         key = _SchemaKey(
             cls=cls,
             many=many,
@@ -179,6 +186,7 @@ else:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> T:
+        validate_decimal_places(decimal_places)
         schema = schema_v2(
             cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
@@ -196,6 +204,7 @@ else:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> list[T]:
+        validate_decimal_places(decimal_places)
         schema = schema_v2(
             cls,
             many=True,
@@ -217,6 +226,7 @@ else:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> dict[str, Any]:
+        validate_decimal_places(decimal_places)
         data_schema = schema_v2(
             extract_type(data, cls),
             naming_case=naming_case,
@@ -241,6 +251,7 @@ else:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> list[dict[str, Any]]:
+        validate_decimal_places(decimal_places)
         if not data:
             return []
         data_schema = schema_v2(

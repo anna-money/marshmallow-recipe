@@ -1,5 +1,6 @@
 ## Unreleased
 
+* [Add validation for `decimal_places` parameter - must be None or non-negative integer](https://github.com/anna-money/marshmallow-recipe/pull/229)
 * [Remove decimal `as_string` option - decimals are always serialized as strings](https://github.com/anna-money/marshmallow-recipe/pull/228)
 
 
