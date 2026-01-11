@@ -28,64 +28,46 @@ from .conftest import (
 
 
 class TestDictDump:
-    def test_str_value(self, impl: Serializer) -> None:
-        obj = DictOf[str, str](data={"a": "x", "b": "y"})
-        result = impl.dump(DictOf[str, str], obj)
-        assert result == b'{"data":{"a":"x","b":"y"}}'
-
-    def test_int_value(self, impl: Serializer) -> None:
-        obj = DictOf[str, int](data={"a": 1, "b": 2})
-        result = impl.dump(DictOf[str, int], obj)
-        assert result == b'{"data":{"a":1,"b":2}}'
-
-    def test_float_value(self, impl: Serializer) -> None:
-        obj = DictOf[str, float](data={"a": 1.5, "b": 2.5})
-        result = impl.dump(DictOf[str, float], obj)
-        assert result == b'{"data":{"a":1.5,"b":2.5}}'
-
-    def test_bool_value(self, impl: Serializer) -> None:
-        obj = DictOf[str, bool](data={"a": True, "b": False})
-        result = impl.dump(DictOf[str, bool], obj)
-        assert result == b'{"data":{"a":true,"b":false}}'
-
-    def test_decimal_value(self, impl: Serializer) -> None:
-        obj = DictOf[str, decimal.Decimal](data={"a": decimal.Decimal("1.23"), "b": decimal.Decimal("4.56")})
-        result = impl.dump(DictOf[str, decimal.Decimal], obj)
-        assert result == b'{"data":{"a":"1.23","b":"4.56"}}'
-
-    def test_uuid_value(self, impl: Serializer) -> None:
-        u = uuid.UUID("12345678-1234-5678-1234-567812345678")
-        obj = DictOf[str, uuid.UUID](data={"a": u})
-        result = impl.dump(DictOf[str, uuid.UUID], obj)
-        assert result == b'{"data":{"a":"12345678-1234-5678-1234-567812345678"}}'
-
-    def test_datetime_value(self, impl: Serializer) -> None:
-        dt = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)
-        obj = DictOf[str, datetime.datetime](data={"a": dt})
-        result = impl.dump(DictOf[str, datetime.datetime], obj)
-        assert result == b'{"data":{"a":"2024-01-15T10:30:00+00:00"}}'
-
-    def test_date_value(self, impl: Serializer) -> None:
-        d = datetime.date(2024, 1, 15)
-        obj = DictOf[str, datetime.date](data={"a": d})
-        result = impl.dump(DictOf[str, datetime.date], obj)
-        assert result == b'{"data":{"a":"2024-01-15"}}'
-
-    def test_time_value(self, impl: Serializer) -> None:
-        t = datetime.time(10, 30, 0)
-        obj = DictOf[str, datetime.time](data={"a": t})
-        result = impl.dump(DictOf[str, datetime.time], obj)
-        assert result == b'{"data":{"a":"10:30:00"}}'
-
-    def test_str_enum_value(self, impl: Serializer) -> None:
-        obj = DictOf[str, Status](data={"a": Status.ACTIVE, "b": Status.PENDING})
-        result = impl.dump(DictOf[str, Status], obj)
-        assert result == b'{"data":{"a":"active","b":"pending"}}'
-
-    def test_int_enum_value(self, impl: Serializer) -> None:
-        obj = DictOf[str, Priority](data={"a": Priority.LOW, "b": Priority.HIGH})
-        result = impl.dump(DictOf[str, Priority], obj)
-        assert result == b'{"data":{"a":1,"b":3}}'
+    @pytest.mark.parametrize(
+        ("value_type", "value", "expected"),
+        [
+            pytest.param(str, {"a": "x", "b": "y"}, b'{"data":{"a":"x","b":"y"}}', id="str"),
+            pytest.param(int, {"a": 1, "b": 2}, b'{"data":{"a":1,"b":2}}', id="int"),
+            pytest.param(float, {"a": 1.5, "b": 2.5}, b'{"data":{"a":1.5,"b":2.5}}', id="float"),
+            pytest.param(bool, {"a": True, "b": False}, b'{"data":{"a":true,"b":false}}', id="bool"),
+            pytest.param(
+                decimal.Decimal,
+                {"a": decimal.Decimal("1.23"), "b": decimal.Decimal("4.56")},
+                b'{"data":{"a":"1.23","b":"4.56"}}',
+                id="decimal",
+            ),
+            pytest.param(
+                uuid.UUID,
+                {"a": uuid.UUID("12345678-1234-5678-1234-567812345678")},
+                b'{"data":{"a":"12345678-1234-5678-1234-567812345678"}}',
+                id="uuid",
+            ),
+            pytest.param(
+                datetime.datetime,
+                {"a": datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)},
+                b'{"data":{"a":"2024-01-15T10:30:00+00:00"}}',
+                id="datetime",
+            ),
+            pytest.param(datetime.date, {"a": datetime.date(2024, 1, 15)}, b'{"data":{"a":"2024-01-15"}}', id="date"),
+            pytest.param(datetime.time, {"a": datetime.time(10, 30, 0)}, b'{"data":{"a":"10:30:00"}}', id="time"),
+            pytest.param(
+                Status,
+                {"a": Status.ACTIVE, "b": Status.PENDING},
+                b'{"data":{"a":"active","b":"pending"}}',
+                id="str_enum",
+            ),
+            pytest.param(Priority, {"a": Priority.LOW, "b": Priority.HIGH}, b'{"data":{"a":1,"b":3}}', id="int_enum"),
+        ],
+    )
+    def test_value(self, impl: Serializer, value_type: type, value: dict, expected: bytes) -> None:
+        obj = DictOf[str, value_type](data=value)
+        result = impl.dump(DictOf[str, value_type], obj)
+        assert result == expected
 
     def test_dataclass_value(self, impl: Serializer) -> None:
         addr = Address(street="Main St", city="NYC", zip_code="10001")
@@ -128,6 +110,23 @@ class TestDictDump:
         result = impl.dump(DictOf[str, int], obj)
         assert result == b'{"data":{}}'
 
+    def test_single_key(self, impl: Serializer) -> None:
+        obj = DictOf[str, int](data={"only_key": 42})
+        result = impl.dump(DictOf[str, int], obj)
+        assert result == b'{"data":{"only_key":42}}'
+
+    def test_large_dict(self, impl: Serializer) -> None:
+        data = {f"key_{i}": i for i in range(500)}
+        obj = DictOf[str, int](data=data)
+        result = impl.dump(DictOf[str, int], obj)
+        parsed = json.loads(result)
+        assert parsed["data"] == data
+
+    def test_special_key_chars(self, impl: Serializer) -> None:
+        obj = DictOf[str, int](data={"key with spaces": 1, "key-with-dashes": 2, "key.with.dots": 3})
+        result = impl.dump(DictOf[str, int], obj)
+        assert json.loads(result) == {"data": {"key with spaces": 1, "key-with-dashes": 2, "key.with.dots": 3}}
+
     def test_optional_none(self, impl: Serializer) -> None:
         obj = OptionalDictOf[str, int](data=None)
         result = impl.dump(OptionalDictOf[str, int], obj)
@@ -137,11 +136,6 @@ class TestDictDump:
         obj = OptionalDictOf[str, int](data={"a": 1})
         result = impl.dump(OptionalDictOf[str, int], obj)
         assert result == b'{"data":{"a":1}}'
-
-    def test_none_handling_ignore_default(self, impl: Serializer) -> None:
-        obj = OptionalDictOf[str, int](data=None)
-        result = impl.dump(OptionalDictOf[str, int], obj)
-        assert result == b"{}"
 
     def test_none_handling_ignore_explicit(self, impl: Serializer) -> None:
         obj = OptionalDictOf[str, int](data=None)
@@ -175,64 +169,45 @@ class TestDictDump:
 
 
 class TestDictLoad:
-    def test_str_value(self, impl: Serializer) -> None:
-        data = b'{"data":{"a":"x","b":"y"}}'
-        result = impl.load(DictOf[str, str], data)
-        assert result == DictOf[str, str](data={"a": "x", "b": "y"})
-
-    def test_int_value(self, impl: Serializer) -> None:
-        data = b'{"data":{"a":1,"b":2}}'
-        result = impl.load(DictOf[str, int], data)
-        assert result == DictOf[str, int](data={"a": 1, "b": 2})
-
-    def test_float_value(self, impl: Serializer) -> None:
-        data = b'{"data":{"a":1.5,"b":2.5}}'
-        result = impl.load(DictOf[str, float], data)
-        assert result == DictOf[str, float](data={"a": 1.5, "b": 2.5})
-
-    def test_bool_value(self, impl: Serializer) -> None:
-        data = b'{"data":{"a":true,"b":false}}'
-        result = impl.load(DictOf[str, bool], data)
-        assert result == DictOf[str, bool](data={"a": True, "b": False})
-
-    def test_decimal_value(self, impl: Serializer) -> None:
-        data = b'{"data":{"a":"1.23","b":"4.56"}}'
-        result = impl.load(DictOf[str, decimal.Decimal], data)
-        assert result == DictOf[str, decimal.Decimal](data={"a": decimal.Decimal("1.23"), "b": decimal.Decimal("4.56")})
-
-    def test_uuid_value(self, impl: Serializer) -> None:
-        u = uuid.UUID("12345678-1234-5678-1234-567812345678")
-        data = b'{"data":{"a":"12345678-1234-5678-1234-567812345678"}}'
-        result = impl.load(DictOf[str, uuid.UUID], data)
-        assert result == DictOf[str, uuid.UUID](data={"a": u})
-
-    def test_datetime_value(self, impl: Serializer) -> None:
-        dt = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)
-        data = b'{"data":{"a":"2024-01-15T10:30:00+00:00"}}'
-        result = impl.load(DictOf[str, datetime.datetime], data)
-        assert result == DictOf[str, datetime.datetime](data={"a": dt})
-
-    def test_date_value(self, impl: Serializer) -> None:
-        d = datetime.date(2024, 1, 15)
-        data = b'{"data":{"a":"2024-01-15"}}'
-        result = impl.load(DictOf[str, datetime.date], data)
-        assert result == DictOf[str, datetime.date](data={"a": d})
-
-    def test_time_value(self, impl: Serializer) -> None:
-        t = datetime.time(10, 30, 0)
-        data = b'{"data":{"a":"10:30:00"}}'
-        result = impl.load(DictOf[str, datetime.time], data)
-        assert result == DictOf[str, datetime.time](data={"a": t})
-
-    def test_str_enum_value(self, impl: Serializer) -> None:
-        data = b'{"data":{"a":"active","b":"pending"}}'
-        result = impl.load(DictOf[str, Status], data)
-        assert result == DictOf[str, Status](data={"a": Status.ACTIVE, "b": Status.PENDING})
-
-    def test_int_enum_value(self, impl: Serializer) -> None:
-        data = b'{"data":{"a":1,"b":3}}'
-        result = impl.load(DictOf[str, Priority], data)
-        assert result == DictOf[str, Priority](data={"a": Priority.LOW, "b": Priority.HIGH})
+    @pytest.mark.parametrize(
+        ("value_type", "data", "expected_data"),
+        [
+            pytest.param(str, b'{"data":{"a":"x","b":"y"}}', {"a": "x", "b": "y"}, id="str"),
+            pytest.param(int, b'{"data":{"a":1,"b":2}}', {"a": 1, "b": 2}, id="int"),
+            pytest.param(float, b'{"data":{"a":1.5,"b":2.5}}', {"a": 1.5, "b": 2.5}, id="float"),
+            pytest.param(bool, b'{"data":{"a":true,"b":false}}', {"a": True, "b": False}, id="bool"),
+            pytest.param(
+                decimal.Decimal,
+                b'{"data":{"a":"1.23","b":"4.56"}}',
+                {"a": decimal.Decimal("1.23"), "b": decimal.Decimal("4.56")},
+                id="decimal",
+            ),
+            pytest.param(
+                uuid.UUID,
+                b'{"data":{"a":"12345678-1234-5678-1234-567812345678"}}',
+                {"a": uuid.UUID("12345678-1234-5678-1234-567812345678")},
+                id="uuid",
+            ),
+            pytest.param(
+                datetime.datetime,
+                b'{"data":{"a":"2024-01-15T10:30:00+00:00"}}',
+                {"a": datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)},
+                id="datetime",
+            ),
+            pytest.param(datetime.date, b'{"data":{"a":"2024-01-15"}}', {"a": datetime.date(2024, 1, 15)}, id="date"),
+            pytest.param(datetime.time, b'{"data":{"a":"10:30:00"}}', {"a": datetime.time(10, 30, 0)}, id="time"),
+            pytest.param(
+                Status,
+                b'{"data":{"a":"active","b":"pending"}}',
+                {"a": Status.ACTIVE, "b": Status.PENDING},
+                id="str_enum",
+            ),
+            pytest.param(Priority, b'{"data":{"a":1,"b":3}}', {"a": Priority.LOW, "b": Priority.HIGH}, id="int_enum"),
+        ],
+    )
+    def test_value(self, impl: Serializer, value_type: type, data: bytes, expected_data: dict) -> None:
+        result = impl.load(DictOf[str, value_type], data)
+        assert result == DictOf[str, value_type](data=expected_data)
 
     def test_dataclass_value(self, impl: Serializer) -> None:
         addr = Address(street="Main St", city="NYC", zip_code="10001")
@@ -275,6 +250,22 @@ class TestDictLoad:
         result = impl.load(DictOf[str, int], data)
         assert result == DictOf[str, int](data={})
 
+    def test_single_key(self, impl: Serializer) -> None:
+        data = b'{"data":{"only_key":42}}'
+        result = impl.load(DictOf[str, int], data)
+        assert result == DictOf[str, int](data={"only_key": 42})
+
+    def test_large_dict(self, impl: Serializer) -> None:
+        expected_data = {f"key_{i}": i for i in range(500)}
+        data = json.dumps({"data": expected_data}).encode()
+        result = impl.load(DictOf[str, int], data)
+        assert result == DictOf[str, int](data=expected_data)
+
+    def test_special_key_chars(self, impl: Serializer) -> None:
+        data = b'{"data":{"key with spaces":1,"key-with-dashes":2,"key.with.dots":3}}'
+        result = impl.load(DictOf[str, int], data)
+        assert result == DictOf[str, int](data={"key with spaces": 1, "key-with-dashes": 2, "key.with.dots": 3})
+
     def test_optional_none(self, impl: Serializer) -> None:
         data = b"{}"
         result = impl.load(OptionalDictOf[str, int], data)
@@ -301,15 +292,14 @@ class TestDictLoad:
         result = impl.load(WithDictTwoValidators, data)
         assert result == WithDictTwoValidators(data={"a": 1, "b": 2, "c": 3})
 
-    def test_two_validators_first_fails(self, impl: Serializer) -> None:
-        data = b'{"data":{}}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithDictTwoValidators, data)
-        assert exc.value.messages == {"data": ["Invalid value."]}
-
-    def test_two_validators_second_fails(self, impl: Serializer) -> None:
-        items = ", ".join([f'"{chr(97+i)}": {i}' for i in range(11)])
-        data = b'{"data":{' + items.encode() + b"}}"
+    @pytest.mark.parametrize(
+        "data",
+        [
+            b'{"data":{}}',
+            b'{"data":{"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7, "i": 8, "j": 9, "k": 10}}',
+        ],
+    )
+    def test_two_validators_fail(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithDictTwoValidators, data)
         assert exc.value.messages == {"data": ["Invalid value."]}
@@ -320,14 +310,8 @@ class TestDictLoad:
             impl.load(DictOf[str, int], data)
         assert exc.value.messages == {"data": {"a": {"value": ["Not a valid integer."]}}}
 
-    def test_wrong_type_string(self, impl: Serializer) -> None:
-        data = b'{"data":"not_a_dict"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(DictOf[str, int], data)
-        assert exc.value.messages == {"data": ["Not a valid dict."]}
-
-    def test_wrong_type_list(self, impl: Serializer) -> None:
-        data = b'{"data":[1,2,3]}'
+    @pytest.mark.parametrize("data", [b'{"data":"not_a_dict"}', b'{"data":[1,2,3]}'])
+    def test_wrong_type(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(DictOf[str, int], data)
         assert exc.value.messages == {"data": ["Not a valid dict."]}
@@ -367,20 +351,51 @@ class TestDictLoad:
         assert result == WithDictMissing(data={"a": 1, "b": 2})
 
 
+class TestDictEdgeCases:
+    """Test dict edge cases like empty keys and multiple nulls."""
+
+    def test_empty_key(self, impl: Serializer) -> None:
+        obj = DictOf[str, int](data={"": 42})
+        result = impl.dump(DictOf[str, int], obj)
+        assert result == b'{"data":{"":42}}'
+
+    def test_empty_key_load(self, impl: Serializer) -> None:
+        data = b'{"data":{"":42}}'
+        result = impl.load(DictOf[str, int], data)
+        assert result == DictOf[str, int](data={"": 42})
+
+    def test_multiple_nulls_in_values(self, impl: Serializer) -> None:
+        obj = DictOf[str, int | None](data={"a": None, "b": None, "c": 1})
+        result = impl.dump(DictOf[str, int | None], obj)
+        assert result == b'{"data":{"a":null,"b":null,"c":1}}'
+
+    def test_multiple_nulls_load(self, impl: Serializer) -> None:
+        data = b'{"data":{"a":null,"b":null,"c":1}}'
+        result = impl.load(DictOf[str, int | None], data)
+        assert result == DictOf[str, int | None](data={"a": None, "b": None, "c": 1})
+
+    def test_unicode_keys(self, impl: Serializer) -> None:
+        obj = DictOf[str, int](data={"ключ": 1, "键": 2, "🔑": 3})
+        result = impl.dump(DictOf[str, int], obj)
+        loaded = impl.load(DictOf[str, int], result)
+        assert loaded == obj
+
+    def test_deeply_nested_dict(self, impl: Serializer) -> None:
+        obj = DictOf[str, dict[str, dict[str, dict[str, int]]]](data={"a": {"b": {"c": {"d": 42}}}})
+        result = impl.dump(DictOf[str, dict[str, dict[str, dict[str, int]]]], obj)
+        assert result == b'{"data":{"a":{"b":{"c":{"d":42}}}}}'
+
+    def test_deeply_nested_dict_load(self, impl: Serializer) -> None:
+        data = b'{"data":{"a":{"b":{"c":{"d":42}}}}}'
+        result = impl.load(DictOf[str, dict[str, dict[str, dict[str, int]]]], data)
+        assert result == DictOf[str, dict[str, dict[str, dict[str, int]]]](data={"a": {"b": {"c": {"d": 42}}}})
+
+
 class TestDictDumpInvalidType:
     """Test that invalid types in dict fields raise ValidationError on dump."""
 
-    def test_string(self, impl: Serializer) -> None:
-        obj = DictOf[str, int](**{"data": "not a dict"})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(DictOf[str, int], obj)
-
-    def test_list(self, impl: Serializer) -> None:
-        obj = DictOf[str, int](**{"data": [1, 2, 3]})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(DictOf[str, int], obj)
-
-    def test_int(self, impl: Serializer) -> None:
-        obj = DictOf[str, int](**{"data": 123})  # type: ignore[arg-type]
+    @pytest.mark.parametrize("value", ["not a dict", [1, 2, 3], 123])
+    def test_invalid_type(self, impl: Serializer, value: object) -> None:
+        obj = DictOf[str, int](**{"data": value})  # type: ignore[arg-type]
         with pytest.raises(marshmallow.ValidationError):
             impl.dump(DictOf[str, int], obj)

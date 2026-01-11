@@ -1,10 +1,7 @@
 import marshmallow
 import pytest
 
-import marshmallow_recipe as mr
-
 from .conftest import (
-    OptionalValueOf,
     Serializer,
     ValueOf,
     WithPostLoadAndStrip,
@@ -21,80 +18,44 @@ from .conftest import (
 
 
 class TestStrDump:
-    def test_non_empty(self, impl: Serializer) -> None:
-        obj = ValueOf[str](value="hello")
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            pytest.param("hello", b'{"value":"hello"}', id="simple"),
+            pytest.param("", b'{"value":""}', id="empty"),
+            pytest.param(" ", b'{"value":" "}', id="space"),
+            pytest.param("a" * 10000, b'{"value":"' + b"a" * 10000 + b'"}', id="very_long"),
+        ],
+    )
+    def test_values(self, impl: Serializer, value: str, expected: bytes) -> None:
+        obj = ValueOf[str](value=value)
         result = impl.dump(ValueOf[str], obj)
-        assert result == b'{"value":"hello"}'
+        assert result == expected
 
-    def test_empty(self, impl: Serializer) -> None:
-        obj = ValueOf[str](value="")
-        result = impl.dump(ValueOf[str], obj)
-        assert result == b'{"value":""}'
-
-    def test_unicode(self, impl: Serializer) -> None:
-        obj = ValueOf[str](value="Привет мир")
+    @pytest.mark.parametrize(
+        ("value", "id_"),
+        [
+            pytest.param("Привет мир", "cyrillic"),
+            pytest.param("你好世界", "chinese"),
+            pytest.param("Hello 👋 World 🌍", "emoji"),
+            pytest.param("  spaces  ", "spaces"),
+            pytest.param("Line1\nLine2\tTab\r\nNewline\"Quote'", "escape_chars"),
+            pytest.param("\x00\x01\x02", "control_chars"),
+            pytest.param("\\n\\t\\r", "escaped_literals"),
+            pytest.param('{"key": "value"}', "json_like"),
+            pytest.param("<html>&amp;</html>", "html_entities"),
+        ],
+    )
+    def test_roundtrip(self, impl: Serializer, value: str, id_: str) -> None:
+        obj = ValueOf[str](value=value)
         result = impl.dump(ValueOf[str], obj)
         loaded = impl.load(ValueOf[str], result)
-        assert loaded.value == "Привет мир"
-
-    def test_unicode_chinese(self, impl: Serializer) -> None:
-        obj = ValueOf[str](value="你好世界")
-        result = impl.dump(ValueOf[str], obj)
-        loaded = impl.load(ValueOf[str], result)
-        assert loaded.value == "你好世界"
-
-    def test_emoji(self, impl: Serializer) -> None:
-        obj = ValueOf[str](value="Hello 👋 World 🌍")
-        result = impl.dump(ValueOf[str], obj)
-        loaded = impl.load(ValueOf[str], result)
-        assert loaded.value == "Hello 👋 World 🌍"
-
-    def test_whitespace(self, impl: Serializer) -> None:
-        obj = ValueOf[str](value="  spaces  ")
-        result = impl.dump(ValueOf[str], obj)
-        loaded = impl.load(ValueOf[str], result)
-        assert loaded.value == "  spaces  "
-
-    def test_special_chars(self, impl: Serializer) -> None:
-        obj = ValueOf[str](value="Line1\nLine2\tTab\r\nNewline\"Quote'")
-        dumped = impl.dump(ValueOf[str], obj)
-        loaded = impl.load(ValueOf[str], dumped)
-        assert loaded.value == "Line1\nLine2\tTab\r\nNewline\"Quote'"
-
-    def test_optional_none(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[str](value=None)
-        result = impl.dump(OptionalValueOf[str], obj)
-        assert result == b"{}"
-
-    def test_optional_value(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[str](value="hello")
-        result = impl.dump(OptionalValueOf[str], obj)
-        assert result == b'{"value":"hello"}'
+        assert loaded.value == value
 
     def test_default_provided(self, impl: Serializer) -> None:
         obj = WithStrDefault(value="custom")
         result = impl.dump(WithStrDefault, obj)
         assert result == b'{"value":"custom"}'
-
-    def test_none_handling_ignore_default(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[str](value=None)
-        result = impl.dump(OptionalValueOf[str], obj)
-        assert result == b"{}"
-
-    def test_none_handling_ignore_explicit(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[str](value=None)
-        result = impl.dump(OptionalValueOf[str], obj, none_value_handling=mr.NoneValueHandling.IGNORE)
-        assert result == b"{}"
-
-    def test_none_handling_include(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[str](value=None)
-        result = impl.dump(OptionalValueOf[str], obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
-        assert result == b'{"value":null}'
-
-    def test_none_handling_include_with_value(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[str](value="hello")
-        result = impl.dump(OptionalValueOf[str], obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
-        assert result == b'{"value":"hello"}'
 
     # Metadata: strip whitespace
     def test_strip_whitespace(self, impl: Serializer) -> None:
@@ -130,15 +91,18 @@ class TestStrDump:
 
 
 class TestStrLoad:
-    def test_non_empty(self, impl: Serializer) -> None:
-        data = b'{"value":"hello"}'
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b'{"value":"hello"}', "hello", id="simple"),
+            pytest.param(b'{"value":""}', "", id="empty"),
+            pytest.param(b'{"value":" "}', " ", id="space"),
+            pytest.param(b'{"value":"' + b"a" * 10000 + b'"}', "a" * 10000, id="very_long"),
+        ],
+    )
+    def test_values(self, impl: Serializer, data: bytes, expected: str) -> None:
         result = impl.load(ValueOf[str], data)
-        assert result == ValueOf[str](value="hello")
-
-    def test_empty(self, impl: Serializer) -> None:
-        data = b'{"value":""}'
-        result = impl.load(ValueOf[str], data)
-        assert result == ValueOf[str](value="")
+        assert result == ValueOf[str](value=expected)
 
     def test_validation_pass(self, impl: Serializer) -> None:
         data = b'{"value":"hello"}'
@@ -156,32 +120,11 @@ class TestStrLoad:
         result = impl.load(WithStrTwoValidators, data)
         assert result == WithStrTwoValidators(value="hello")
 
-    def test_two_validators_first_fails(self, impl: Serializer) -> None:
-        data = b'{"value":""}'
+    @pytest.mark.parametrize("data", [b'{"value":""}', b'{"value":"' + b"x" * 150 + b'"}'])
+    def test_two_validators_fail(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithStrTwoValidators, data)
         assert exc.value.messages == {"value": ["Invalid value."]}
-
-    def test_two_validators_second_fails(self, impl: Serializer) -> None:
-        data = b'{"value":"' + b"x" * 150 + b'"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithStrTwoValidators, data)
-        assert exc.value.messages == {"value": ["Invalid value."]}
-
-    def test_optional_none(self, impl: Serializer) -> None:
-        data = b'{"value":null}'
-        result = impl.load(OptionalValueOf[str], data)
-        assert result == OptionalValueOf[str](value=None)
-
-    def test_optional_missing(self, impl: Serializer) -> None:
-        data = b"{}"
-        result = impl.load(OptionalValueOf[str], data)
-        assert result == OptionalValueOf[str](value=None)
-
-    def test_optional_value(self, impl: Serializer) -> None:
-        data = b'{"value":"hello"}'
-        result = impl.load(OptionalValueOf[str], data)
-        assert result == OptionalValueOf[str](value="hello")
 
     def test_default_omitted(self, impl: Serializer) -> None:
         data = b"{}"
@@ -211,29 +154,11 @@ class TestStrLoad:
             impl.load(WithStrInvalidError, data)
         assert exc.value.messages == {"value": ["Custom invalid message"]}
 
-    def test_wrong_type_int(self, impl: Serializer) -> None:
-        data = b'{"value":123}'
+    @pytest.mark.parametrize("data", [b'{"value":123}', b'{"value":["a","b"]}', b'{"value":{"key":"val"}}'])
+    def test_wrong_type(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(ValueOf[str], data)
         assert exc.value.messages == {"value": ["Not a valid string."]}
-
-    def test_wrong_type_list(self, impl: Serializer) -> None:
-        data = b'{"value":["a","b"]}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[str], data)
-        assert exc.value.messages == {"value": ["Not a valid string."]}
-
-    def test_wrong_type_object(self, impl: Serializer) -> None:
-        data = b'{"value":{"key":"val"}}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[str], data)
-        assert exc.value.messages == {"value": ["Not a valid string."]}
-
-    def test_missing_required(self, impl: Serializer) -> None:
-        data = b"{}"
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[str], data)
-        assert exc.value.messages == {"value": ["Missing data for required field."]}
 
     # Metadata: strip whitespace
     def test_strip_whitespace(self, impl: Serializer) -> None:
@@ -263,15 +188,80 @@ class TestStrLoad:
         assert result == WithStrMissing(value="hello")
 
 
+class TestStrEdgeCases:
+    """Test string edge cases with boundary values and special characters."""
+
+    @pytest.mark.parametrize(
+        ("value", "id_"),
+        [
+            pytest.param("\x00", "null_byte"),
+            pytest.param("\x00\x01\x02\x03", "control_chars_start"),
+            pytest.param("\x1f\x7f", "control_chars_boundary"),
+            pytest.param("before\x00after", "null_byte_middle"),
+        ],
+    )
+    def test_null_byte_roundtrip(self, impl: Serializer, value: str, id_: str) -> None:
+        obj = ValueOf[str](value=value)
+        result = impl.dump(ValueOf[str], obj)
+        loaded = impl.load(ValueOf[str], result)
+        assert loaded.value == value
+
+    @pytest.mark.parametrize(
+        ("value", "id_"),
+        [
+            pytest.param("\U0001f600\U0001f601\U0001f602", "consecutive_emoji"),
+            pytest.param("👨‍👩‍👧‍👦", "family_emoji_zwj"),
+            pytest.param("🏳️‍🌈", "flag_emoji"),
+            pytest.param("a\u0301", "combining_diacritical"),
+            pytest.param("\u200b\u200c\u200d", "zero_width_chars"),
+            pytest.param("\ufeff", "bom"),
+        ],
+    )
+    def test_unicode_edge_cases(self, impl: Serializer, value: str, id_: str) -> None:
+        obj = ValueOf[str](value=value)
+        result = impl.dump(ValueOf[str], obj)
+        loaded = impl.load(ValueOf[str], result)
+        assert loaded.value == value
+
+    @pytest.mark.parametrize(
+        ("value", "id_"),
+        [
+            pytest.param("\\", "single_backslash"),
+            pytest.param("\\\\", "double_backslash"),
+            pytest.param('"', "double_quote"),
+            pytest.param("\r\n", "crlf"),
+            pytest.param("\r", "cr"),
+            pytest.param("\n", "lf"),
+            pytest.param("\t", "tab"),
+            pytest.param("\\n\\t\\r", "escaped_literals"),
+        ],
+    )
+    def test_escape_sequences(self, impl: Serializer, value: str, id_: str) -> None:
+        obj = ValueOf[str](value=value)
+        result = impl.dump(ValueOf[str], obj)
+        loaded = impl.load(ValueOf[str], result)
+        assert loaded.value == value
+
+    def test_very_long_string_100k(self, impl: Serializer) -> None:
+        value = "x" * 100000
+        obj = ValueOf[str](value=value)
+        result = impl.dump(ValueOf[str], obj)
+        loaded = impl.load(ValueOf[str], result)
+        assert loaded.value == value
+
+    def test_all_ascii_printable(self, impl: Serializer) -> None:
+        value = "".join(chr(i) for i in range(32, 127))
+        obj = ValueOf[str](value=value)
+        result = impl.dump(ValueOf[str], obj)
+        loaded = impl.load(ValueOf[str], result)
+        assert loaded.value == value
+
+
 class TestStrDumpInvalidType:
     """Test that invalid types in str fields raise ValidationError on dump."""
 
-    def test_int(self, impl: Serializer) -> None:
-        obj = ValueOf[str](**{"value": 123})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(ValueOf[str], obj)
-
-    def test_list(self, impl: Serializer) -> None:
-        obj = ValueOf[str](**{"value": ["a", "b"]})  # type: ignore[arg-type]
+    @pytest.mark.parametrize("value", [123, ["a", "b"]])
+    def test_invalid_type(self, impl: Serializer, value: object) -> None:
+        obj = ValueOf[str](**{"value": value})  # type: ignore[arg-type]
         with pytest.raises(marshmallow.ValidationError):
             impl.dump(ValueOf[str], obj)

@@ -1,5 +1,6 @@
 import datetime
 import decimal
+import json
 import uuid
 
 import marshmallow
@@ -24,69 +25,55 @@ from .conftest import (
 
 
 class TestFrozenSetDump:
-    def test_str(self, impl: Serializer) -> None:
-        obj = FrozenSetOf[str](items=frozenset({"a"}))
-        result = impl.dump(FrozenSetOf[str], obj)
-        assert result == b'{"items":["a"]}'
-
-    def test_int(self, impl: Serializer) -> None:
-        obj = FrozenSetOf[int](items=frozenset({42}))
-        result = impl.dump(FrozenSetOf[int], obj)
-        assert result == b'{"items":[42]}'
-
-    def test_float(self, impl: Serializer) -> None:
-        obj = FrozenSetOf[float](items=frozenset({3.14}))
-        result = impl.dump(FrozenSetOf[float], obj)
-        assert result == b'{"items":[3.14]}'
-
-    def test_bool(self, impl: Serializer) -> None:
-        obj = FrozenSetOf[bool](items=frozenset({True}))
-        result = impl.dump(FrozenSetOf[bool], obj)
-        assert result == b'{"items":[true]}'
-
-    def test_decimal(self, impl: Serializer) -> None:
-        obj = FrozenSetOf[decimal.Decimal](items=frozenset({decimal.Decimal("1.23")}))
-        result = impl.dump(FrozenSetOf[decimal.Decimal], obj)
-        assert result == b'{"items":["1.23"]}'
-
-    def test_uuid(self, impl: Serializer) -> None:
-        u = uuid.UUID("12345678-1234-5678-1234-567812345678")
-        obj = FrozenSetOf[uuid.UUID](items=frozenset({u}))
-        result = impl.dump(FrozenSetOf[uuid.UUID], obj)
-        assert result == b'{"items":["12345678-1234-5678-1234-567812345678"]}'
-
-    def test_datetime(self, impl: Serializer) -> None:
-        dt = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)
-        obj = FrozenSetOf[datetime.datetime](items=frozenset({dt}))
-        result = impl.dump(FrozenSetOf[datetime.datetime], obj)
-        assert result == b'{"items":["2024-01-15T10:30:00+00:00"]}'
-
-    def test_date(self, impl: Serializer) -> None:
-        d = datetime.date(2024, 1, 15)
-        obj = FrozenSetOf[datetime.date](items=frozenset({d}))
-        result = impl.dump(FrozenSetOf[datetime.date], obj)
-        assert result == b'{"items":["2024-01-15"]}'
-
-    def test_time(self, impl: Serializer) -> None:
-        t = datetime.time(10, 30, 0)
-        obj = FrozenSetOf[datetime.time](items=frozenset({t}))
-        result = impl.dump(FrozenSetOf[datetime.time], obj)
-        assert result == b'{"items":["10:30:00"]}'
-
-    def test_str_enum(self, impl: Serializer) -> None:
-        obj = FrozenSetOf[Status](items=frozenset({Status.ACTIVE}))
-        result = impl.dump(FrozenSetOf[Status], obj)
-        assert result == b'{"items":["active"]}'
-
-    def test_int_enum(self, impl: Serializer) -> None:
-        obj = FrozenSetOf[Priority](items=frozenset({Priority.HIGH}))
-        result = impl.dump(FrozenSetOf[Priority], obj)
-        assert result == b'{"items":[3]}'
+    @pytest.mark.parametrize(
+        ("item_type", "value", "expected"),
+        [
+            pytest.param(str, frozenset({"a"}), b'{"items":["a"]}', id="str"),
+            pytest.param(int, frozenset({42}), b'{"items":[42]}', id="int"),
+            pytest.param(float, frozenset({3.14}), b'{"items":[3.14]}', id="float"),
+            pytest.param(bool, frozenset({True}), b'{"items":[true]}', id="bool"),
+            pytest.param(decimal.Decimal, frozenset({decimal.Decimal("1.23")}), b'{"items":["1.23"]}', id="decimal"),
+            pytest.param(
+                uuid.UUID,
+                frozenset({uuid.UUID("12345678-1234-5678-1234-567812345678")}),
+                b'{"items":["12345678-1234-5678-1234-567812345678"]}',
+                id="uuid",
+            ),
+            pytest.param(
+                datetime.datetime,
+                frozenset({datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)}),
+                b'{"items":["2024-01-15T10:30:00+00:00"]}',
+                id="datetime",
+            ),
+            pytest.param(
+                datetime.date, frozenset({datetime.date(2024, 1, 15)}), b'{"items":["2024-01-15"]}', id="date"
+            ),
+            pytest.param(datetime.time, frozenset({datetime.time(10, 30, 0)}), b'{"items":["10:30:00"]}', id="time"),
+            pytest.param(Status, frozenset({Status.ACTIVE}), b'{"items":["active"]}', id="str_enum"),
+            pytest.param(Priority, frozenset({Priority.HIGH}), b'{"items":[3]}', id="int_enum"),
+        ],
+    )
+    def test_value(self, impl: Serializer, item_type: type, value: frozenset, expected: bytes) -> None:
+        obj = FrozenSetOf[item_type](items=value)
+        result = impl.dump(FrozenSetOf[item_type], obj)
+        assert result == expected
 
     def test_empty(self, impl: Serializer) -> None:
         obj = FrozenSetOf[int](items=frozenset())
         result = impl.dump(FrozenSetOf[int], obj)
         assert result == b'{"items":[]}'
+
+    def test_single_element(self, impl: Serializer) -> None:
+        obj = FrozenSetOf[int](items=frozenset({42}))
+        result = impl.dump(FrozenSetOf[int], obj)
+        assert result == b'{"items":[42]}'
+
+    def test_many_elements(self, impl: Serializer) -> None:
+        items = frozenset(range(100))
+        obj = FrozenSetOf[int](items=items)
+        result = impl.dump(FrozenSetOf[int], obj)
+        parsed = json.loads(result)
+        assert frozenset(parsed["items"]) == items
 
     def test_optional_none(self, impl: Serializer) -> None:
         obj = OptionalFrozenSetOf[int](items=None)
@@ -97,11 +84,6 @@ class TestFrozenSetDump:
         obj = OptionalFrozenSetOf[int](items=frozenset({42}))
         result = impl.dump(OptionalFrozenSetOf[int], obj)
         assert result == b'{"items":[42]}'
-
-    def test_none_handling_ignore_default(self, impl: Serializer) -> None:
-        obj = OptionalFrozenSetOf[int](items=None)
-        result = impl.dump(OptionalFrozenSetOf[int], obj)
-        assert result == b"{}"
 
     def test_none_handling_ignore_explicit(self, impl: Serializer) -> None:
         obj = OptionalFrozenSetOf[int](items=None)
@@ -135,64 +117,37 @@ class TestFrozenSetDump:
 
 
 class TestFrozenSetLoad:
-    def test_str(self, impl: Serializer) -> None:
-        data = b'{"items":["a"]}'
-        result = impl.load(FrozenSetOf[str], data)
-        assert result == FrozenSetOf[str](items=frozenset({"a"}))
-
-    def test_int(self, impl: Serializer) -> None:
-        data = b'{"items":[42]}'
-        result = impl.load(FrozenSetOf[int], data)
-        assert result == FrozenSetOf[int](items=frozenset({42}))
-
-    def test_float(self, impl: Serializer) -> None:
-        data = b'{"items":[3.14]}'
-        result = impl.load(FrozenSetOf[float], data)
-        assert result == FrozenSetOf[float](items=frozenset({3.14}))
-
-    def test_bool(self, impl: Serializer) -> None:
-        data = b'{"items":[true]}'
-        result = impl.load(FrozenSetOf[bool], data)
-        assert result == FrozenSetOf[bool](items=frozenset({True}))
-
-    def test_decimal(self, impl: Serializer) -> None:
-        data = b'{"items":["1.23"]}'
-        result = impl.load(FrozenSetOf[decimal.Decimal], data)
-        assert result == FrozenSetOf[decimal.Decimal](items=frozenset({decimal.Decimal("1.23")}))
-
-    def test_uuid(self, impl: Serializer) -> None:
-        u = uuid.UUID("12345678-1234-5678-1234-567812345678")
-        data = b'{"items":["12345678-1234-5678-1234-567812345678"]}'
-        result = impl.load(FrozenSetOf[uuid.UUID], data)
-        assert result == FrozenSetOf[uuid.UUID](items=frozenset({u}))
-
-    def test_datetime(self, impl: Serializer) -> None:
-        dt = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)
-        data = b'{"items":["2024-01-15T10:30:00+00:00"]}'
-        result = impl.load(FrozenSetOf[datetime.datetime], data)
-        assert result == FrozenSetOf[datetime.datetime](items=frozenset({dt}))
-
-    def test_date(self, impl: Serializer) -> None:
-        d = datetime.date(2024, 1, 15)
-        data = b'{"items":["2024-01-15"]}'
-        result = impl.load(FrozenSetOf[datetime.date], data)
-        assert result == FrozenSetOf[datetime.date](items=frozenset({d}))
-
-    def test_time(self, impl: Serializer) -> None:
-        t = datetime.time(10, 30, 0)
-        data = b'{"items":["10:30:00"]}'
-        result = impl.load(FrozenSetOf[datetime.time], data)
-        assert result == FrozenSetOf[datetime.time](items=frozenset({t}))
-
-    def test_str_enum(self, impl: Serializer) -> None:
-        data = b'{"items":["active"]}'
-        result = impl.load(FrozenSetOf[Status], data)
-        assert result == FrozenSetOf[Status](items=frozenset({Status.ACTIVE}))
-
-    def test_int_enum(self, impl: Serializer) -> None:
-        data = b'{"items":[3]}'
-        result = impl.load(FrozenSetOf[Priority], data)
-        assert result == FrozenSetOf[Priority](items=frozenset({Priority.HIGH}))
+    @pytest.mark.parametrize(
+        ("item_type", "data", "expected_items"),
+        [
+            pytest.param(str, b'{"items":["a"]}', frozenset({"a"}), id="str"),
+            pytest.param(int, b'{"items":[42]}', frozenset({42}), id="int"),
+            pytest.param(float, b'{"items":[3.14]}', frozenset({3.14}), id="float"),
+            pytest.param(bool, b'{"items":[true]}', frozenset({True}), id="bool"),
+            pytest.param(decimal.Decimal, b'{"items":["1.23"]}', frozenset({decimal.Decimal("1.23")}), id="decimal"),
+            pytest.param(
+                uuid.UUID,
+                b'{"items":["12345678-1234-5678-1234-567812345678"]}',
+                frozenset({uuid.UUID("12345678-1234-5678-1234-567812345678")}),
+                id="uuid",
+            ),
+            pytest.param(
+                datetime.datetime,
+                b'{"items":["2024-01-15T10:30:00+00:00"]}',
+                frozenset({datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)}),
+                id="datetime",
+            ),
+            pytest.param(
+                datetime.date, b'{"items":["2024-01-15"]}', frozenset({datetime.date(2024, 1, 15)}), id="date"
+            ),
+            pytest.param(datetime.time, b'{"items":["10:30:00"]}', frozenset({datetime.time(10, 30, 0)}), id="time"),
+            pytest.param(Status, b'{"items":["active"]}', frozenset({Status.ACTIVE}), id="str_enum"),
+            pytest.param(Priority, b'{"items":[3]}', frozenset({Priority.HIGH}), id="int_enum"),
+        ],
+    )
+    def test_value(self, impl: Serializer, item_type: type, data: bytes, expected_items: frozenset) -> None:
+        result = impl.load(FrozenSetOf[item_type], data)
+        assert result == FrozenSetOf[item_type](items=expected_items)
 
     def test_empty(self, impl: Serializer) -> None:
         data = b'{"items":[]}'
@@ -201,6 +156,17 @@ class TestFrozenSetLoad:
 
     def test_multiple_elements(self, impl: Serializer) -> None:
         data = b'{"items":[1,2,3]}'
+        result = impl.load(FrozenSetOf[int], data)
+        assert result == FrozenSetOf[int](items=frozenset({1, 2, 3}))
+
+    def test_many_elements(self, impl: Serializer) -> None:
+        items = list(range(100))
+        data = json.dumps({"items": items}).encode()
+        result = impl.load(FrozenSetOf[int], data)
+        assert result == FrozenSetOf[int](items=frozenset(items))
+
+    def test_deduplication(self, impl: Serializer) -> None:
+        data = b'{"items":[1,2,2,3,3,3]}'
         result = impl.load(FrozenSetOf[int], data)
         assert result == FrozenSetOf[int](items=frozenset({1, 2, 3}))
 
@@ -230,14 +196,8 @@ class TestFrozenSetLoad:
         result = impl.load(WithFrozenSetItemTwoValidators, data)
         assert result == WithFrozenSetItemTwoValidators(codes=frozenset(["AB", "CDE", "FGHI"]))
 
-    def test_item_two_validators_first_fails(self, impl: Serializer) -> None:
-        data = b'{"codes":["AB","X","CDE"]}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithFrozenSetItemTwoValidators, data)
-        assert exc.value.messages == {"codes": {1: ["Invalid value."]}}
-
-    def test_item_two_validators_second_fails(self, impl: Serializer) -> None:
-        data = b'{"codes":["AB","TOOLONG","CDE"]}'
+    @pytest.mark.parametrize("data", [b'{"codes":["AB","X","CDE"]}', b'{"codes":["AB","TOOLONG","CDE"]}'])
+    def test_item_two_validators_fail(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithFrozenSetItemTwoValidators, data)
         assert exc.value.messages == {"codes": {1: ["Invalid value."]}}
@@ -248,15 +208,8 @@ class TestFrozenSetLoad:
             impl.load(FrozenSetOf[int], data)
         assert exc.value.messages == {"items": {1: ["Not a valid integer."]}}
 
-    def test_wrong_type_string(self, impl: Serializer) -> None:
-        data = b'{"items":"not_a_frozenset"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(FrozenSetOf[int], data)
-
-        assert exc.value.messages == {"items": ["Not a valid frozenset."]}
-
-    def test_wrong_type_object(self, impl: Serializer) -> None:
-        data = b'{"items":{"key":1}}'
+    @pytest.mark.parametrize("data", [b'{"items":"not_a_frozenset"}', b'{"items":{"key":1}}'])
+    def test_wrong_type(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(FrozenSetOf[int], data)
         assert exc.value.messages == {"items": ["Not a valid frozenset."]}
@@ -296,25 +249,53 @@ class TestFrozenSetLoad:
         assert result == WithFrozenSetMissing(items=frozenset({1, 2, 3}))
 
 
+class TestFrozenSetEdgeCases:
+    """Test frozenset edge cases with boundary values and special scenarios."""
+
+    def test_big_int_values(self, impl: Serializer) -> None:
+        big_vals = frozenset({9223372036854775808, 18446744073709551616, 2**100})
+        obj = FrozenSetOf[int](items=big_vals)
+        result = impl.dump(FrozenSetOf[int], obj)
+        loaded = impl.load(FrozenSetOf[int], result)
+        assert loaded.items == big_vals
+
+    def test_boundary_int_values(self, impl: Serializer) -> None:
+        boundary_vals = frozenset({-9223372036854775808, 9223372036854775807, 0, -1, 1})
+        obj = FrozenSetOf[int](items=boundary_vals)
+        result = impl.dump(FrozenSetOf[int], obj)
+        loaded = impl.load(FrozenSetOf[int], result)
+        assert loaded.items == boundary_vals
+
+    def test_unicode_string_values(self, impl: Serializer) -> None:
+        unicode_vals = frozenset({"Привет", "你好", "🎉", "مرحبا"})
+        obj = FrozenSetOf[str](items=unicode_vals)
+        result = impl.dump(FrozenSetOf[str], obj)
+        loaded = impl.load(FrozenSetOf[str], result)
+        assert loaded.items == unicode_vals
+
+    def test_empty_string_in_frozenset(self, impl: Serializer) -> None:
+        obj = FrozenSetOf[str](items=frozenset({""}))
+        result = impl.dump(FrozenSetOf[str], obj)
+        assert result == b'{"items":[""]}'
+
+    def test_whitespace_strings_in_frozenset(self, impl: Serializer) -> None:
+        whitespace_vals = frozenset({" ", "\t", "\n", "  "})
+        obj = FrozenSetOf[str](items=whitespace_vals)
+        result = impl.dump(FrozenSetOf[str], obj)
+        loaded = impl.load(FrozenSetOf[str], result)
+        assert loaded.items == whitespace_vals
+
+    def test_heavy_deduplication(self, impl: Serializer) -> None:
+        data = b'{"items":[1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,3]}'
+        result = impl.load(FrozenSetOf[int], data)
+        assert result == FrozenSetOf[int](items=frozenset({1, 2, 3}))
+
+
 class TestFrozenSetDumpInvalidType:
     """Test that invalid types in frozenset fields raise ValidationError on dump."""
 
-    def test_string(self, impl: Serializer) -> None:
-        obj = FrozenSetOf[int](**{"items": "not a frozenset"})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(FrozenSetOf[int], obj)
-
-    def test_list(self, impl: Serializer) -> None:
-        obj = FrozenSetOf[int](**{"items": [1, 2, 3]})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(FrozenSetOf[int], obj)
-
-    def test_set(self, impl: Serializer) -> None:
-        obj = FrozenSetOf[int](**{"items": {1, 2, 3}})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(FrozenSetOf[int], obj)
-
-    def test_int(self, impl: Serializer) -> None:
-        obj = FrozenSetOf[int](**{"items": 123})  # type: ignore[arg-type]
+    @pytest.mark.parametrize("value", ["not a frozenset", [1, 2, 3], {1, 2, 3}, 123])
+    def test_invalid_type(self, impl: Serializer, value: object) -> None:
+        obj = FrozenSetOf[int](**{"items": value})  # type: ignore[arg-type]
         with pytest.raises(marshmallow.ValidationError):
             impl.dump(FrozenSetOf[int], obj)

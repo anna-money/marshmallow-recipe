@@ -1,5 +1,6 @@
 import datetime
 import decimal
+import json
 import uuid
 
 import marshmallow
@@ -24,69 +25,53 @@ from .conftest import (
 
 
 class TestSetDump:
-    def test_str(self, impl: Serializer) -> None:
-        obj = SetOf[str](items={"a"})
-        result = impl.dump(SetOf[str], obj)
-        assert result == b'{"items":["a"]}'
-
-    def test_int(self, impl: Serializer) -> None:
-        obj = SetOf[int](items={42})
-        result = impl.dump(SetOf[int], obj)
-        assert result == b'{"items":[42]}'
-
-    def test_float(self, impl: Serializer) -> None:
-        obj = SetOf[float](items={3.14})
-        result = impl.dump(SetOf[float], obj)
-        assert result == b'{"items":[3.14]}'
-
-    def test_bool(self, impl: Serializer) -> None:
-        obj = SetOf[bool](items={True})
-        result = impl.dump(SetOf[bool], obj)
-        assert result == b'{"items":[true]}'
-
-    def test_decimal(self, impl: Serializer) -> None:
-        obj = SetOf[decimal.Decimal](items={decimal.Decimal("1.23")})
-        result = impl.dump(SetOf[decimal.Decimal], obj)
-        assert result == b'{"items":["1.23"]}'
-
-    def test_uuid(self, impl: Serializer) -> None:
-        u = uuid.UUID("12345678-1234-5678-1234-567812345678")
-        obj = SetOf[uuid.UUID](items={u})
-        result = impl.dump(SetOf[uuid.UUID], obj)
-        assert result == b'{"items":["12345678-1234-5678-1234-567812345678"]}'
-
-    def test_datetime(self, impl: Serializer) -> None:
-        dt = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)
-        obj = SetOf[datetime.datetime](items={dt})
-        result = impl.dump(SetOf[datetime.datetime], obj)
-        assert result == b'{"items":["2024-01-15T10:30:00+00:00"]}'
-
-    def test_date(self, impl: Serializer) -> None:
-        d = datetime.date(2024, 1, 15)
-        obj = SetOf[datetime.date](items={d})
-        result = impl.dump(SetOf[datetime.date], obj)
-        assert result == b'{"items":["2024-01-15"]}'
-
-    def test_time(self, impl: Serializer) -> None:
-        t = datetime.time(10, 30, 0)
-        obj = SetOf[datetime.time](items={t})
-        result = impl.dump(SetOf[datetime.time], obj)
-        assert result == b'{"items":["10:30:00"]}'
-
-    def test_str_enum(self, impl: Serializer) -> None:
-        obj = SetOf[Status](items={Status.ACTIVE})
-        result = impl.dump(SetOf[Status], obj)
-        assert result == b'{"items":["active"]}'
-
-    def test_int_enum(self, impl: Serializer) -> None:
-        obj = SetOf[Priority](items={Priority.HIGH})
-        result = impl.dump(SetOf[Priority], obj)
-        assert result == b'{"items":[3]}'
+    @pytest.mark.parametrize(
+        ("item_type", "value", "expected"),
+        [
+            pytest.param(str, {"a"}, b'{"items":["a"]}', id="str"),
+            pytest.param(int, {42}, b'{"items":[42]}', id="int"),
+            pytest.param(float, {3.14}, b'{"items":[3.14]}', id="float"),
+            pytest.param(bool, {True}, b'{"items":[true]}', id="bool"),
+            pytest.param(decimal.Decimal, {decimal.Decimal("1.23")}, b'{"items":["1.23"]}', id="decimal"),
+            pytest.param(
+                uuid.UUID,
+                {uuid.UUID("12345678-1234-5678-1234-567812345678")},
+                b'{"items":["12345678-1234-5678-1234-567812345678"]}',
+                id="uuid",
+            ),
+            pytest.param(
+                datetime.datetime,
+                {datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)},
+                b'{"items":["2024-01-15T10:30:00+00:00"]}',
+                id="datetime",
+            ),
+            pytest.param(datetime.date, {datetime.date(2024, 1, 15)}, b'{"items":["2024-01-15"]}', id="date"),
+            pytest.param(datetime.time, {datetime.time(10, 30, 0)}, b'{"items":["10:30:00"]}', id="time"),
+            pytest.param(Status, {Status.ACTIVE}, b'{"items":["active"]}', id="str_enum"),
+            pytest.param(Priority, {Priority.HIGH}, b'{"items":[3]}', id="int_enum"),
+        ],
+    )
+    def test_value(self, impl: Serializer, item_type: type, value: set, expected: bytes) -> None:
+        obj = SetOf[item_type](items=value)
+        result = impl.dump(SetOf[item_type], obj)
+        assert result == expected
 
     def test_empty(self, impl: Serializer) -> None:
         obj = SetOf[int](items=set())
         result = impl.dump(SetOf[int], obj)
         assert result == b'{"items":[]}'
+
+    def test_single_element(self, impl: Serializer) -> None:
+        obj = SetOf[int](items={42})
+        result = impl.dump(SetOf[int], obj)
+        assert result == b'{"items":[42]}'
+
+    def test_many_elements(self, impl: Serializer) -> None:
+        items = set(range(100))
+        obj = SetOf[int](items=items)
+        result = impl.dump(SetOf[int], obj)
+        parsed = json.loads(result)
+        assert set(parsed["items"]) == items
 
     def test_optional_none(self, impl: Serializer) -> None:
         obj = OptionalSetOf[int](items=None)
@@ -97,11 +82,6 @@ class TestSetDump:
         obj = OptionalSetOf[int](items={42})
         result = impl.dump(OptionalSetOf[int], obj)
         assert result == b'{"items":[42]}'
-
-    def test_none_handling_ignore_default(self, impl: Serializer) -> None:
-        obj = OptionalSetOf[int](items=None)
-        result = impl.dump(OptionalSetOf[int], obj)
-        assert result == b"{}"
 
     def test_none_handling_ignore_explicit(self, impl: Serializer) -> None:
         obj = OptionalSetOf[int](items=None)
@@ -135,64 +115,35 @@ class TestSetDump:
 
 
 class TestSetLoad:
-    def test_str(self, impl: Serializer) -> None:
-        data = b'{"items":["a"]}'
-        result = impl.load(SetOf[str], data)
-        assert result == SetOf[str](items={"a"})
-
-    def test_int(self, impl: Serializer) -> None:
-        data = b'{"items":[42]}'
-        result = impl.load(SetOf[int], data)
-        assert result == SetOf[int](items={42})
-
-    def test_float(self, impl: Serializer) -> None:
-        data = b'{"items":[3.14]}'
-        result = impl.load(SetOf[float], data)
-        assert result == SetOf[float](items={3.14})
-
-    def test_bool(self, impl: Serializer) -> None:
-        data = b'{"items":[true]}'
-        result = impl.load(SetOf[bool], data)
-        assert result == SetOf[bool](items={True})
-
-    def test_decimal(self, impl: Serializer) -> None:
-        data = b'{"items":["1.23"]}'
-        result = impl.load(SetOf[decimal.Decimal], data)
-        assert result == SetOf[decimal.Decimal](items={decimal.Decimal("1.23")})
-
-    def test_uuid(self, impl: Serializer) -> None:
-        u = uuid.UUID("12345678-1234-5678-1234-567812345678")
-        data = b'{"items":["12345678-1234-5678-1234-567812345678"]}'
-        result = impl.load(SetOf[uuid.UUID], data)
-        assert result == SetOf[uuid.UUID](items={u})
-
-    def test_datetime(self, impl: Serializer) -> None:
-        dt = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)
-        data = b'{"items":["2024-01-15T10:30:00+00:00"]}'
-        result = impl.load(SetOf[datetime.datetime], data)
-        assert result == SetOf[datetime.datetime](items={dt})
-
-    def test_date(self, impl: Serializer) -> None:
-        d = datetime.date(2024, 1, 15)
-        data = b'{"items":["2024-01-15"]}'
-        result = impl.load(SetOf[datetime.date], data)
-        assert result == SetOf[datetime.date](items={d})
-
-    def test_time(self, impl: Serializer) -> None:
-        t = datetime.time(10, 30, 0)
-        data = b'{"items":["10:30:00"]}'
-        result = impl.load(SetOf[datetime.time], data)
-        assert result == SetOf[datetime.time](items={t})
-
-    def test_str_enum(self, impl: Serializer) -> None:
-        data = b'{"items":["active"]}'
-        result = impl.load(SetOf[Status], data)
-        assert result == SetOf[Status](items={Status.ACTIVE})
-
-    def test_int_enum(self, impl: Serializer) -> None:
-        data = b'{"items":[3]}'
-        result = impl.load(SetOf[Priority], data)
-        assert result == SetOf[Priority](items={Priority.HIGH})
+    @pytest.mark.parametrize(
+        ("item_type", "data", "expected_items"),
+        [
+            pytest.param(str, b'{"items":["a"]}', {"a"}, id="str"),
+            pytest.param(int, b'{"items":[42]}', {42}, id="int"),
+            pytest.param(float, b'{"items":[3.14]}', {3.14}, id="float"),
+            pytest.param(bool, b'{"items":[true]}', {True}, id="bool"),
+            pytest.param(decimal.Decimal, b'{"items":["1.23"]}', {decimal.Decimal("1.23")}, id="decimal"),
+            pytest.param(
+                uuid.UUID,
+                b'{"items":["12345678-1234-5678-1234-567812345678"]}',
+                {uuid.UUID("12345678-1234-5678-1234-567812345678")},
+                id="uuid",
+            ),
+            pytest.param(
+                datetime.datetime,
+                b'{"items":["2024-01-15T10:30:00+00:00"]}',
+                {datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)},
+                id="datetime",
+            ),
+            pytest.param(datetime.date, b'{"items":["2024-01-15"]}', {datetime.date(2024, 1, 15)}, id="date"),
+            pytest.param(datetime.time, b'{"items":["10:30:00"]}', {datetime.time(10, 30, 0)}, id="time"),
+            pytest.param(Status, b'{"items":["active"]}', {Status.ACTIVE}, id="str_enum"),
+            pytest.param(Priority, b'{"items":[3]}', {Priority.HIGH}, id="int_enum"),
+        ],
+    )
+    def test_value(self, impl: Serializer, item_type: type, data: bytes, expected_items: set) -> None:
+        result = impl.load(SetOf[item_type], data)
+        assert result == SetOf[item_type](items=expected_items)
 
     def test_empty(self, impl: Serializer) -> None:
         data = b'{"items":[]}'
@@ -201,6 +152,17 @@ class TestSetLoad:
 
     def test_multiple_elements(self, impl: Serializer) -> None:
         data = b'{"items":[1,2,3]}'
+        result = impl.load(SetOf[int], data)
+        assert result == SetOf[int](items={1, 2, 3})
+
+    def test_many_elements(self, impl: Serializer) -> None:
+        items = list(range(100))
+        data = json.dumps({"items": items}).encode()
+        result = impl.load(SetOf[int], data)
+        assert result == SetOf[int](items=set(items))
+
+    def test_deduplication(self, impl: Serializer) -> None:
+        data = b'{"items":[1,2,2,3,3,3]}'
         result = impl.load(SetOf[int], data)
         assert result == SetOf[int](items={1, 2, 3})
 
@@ -230,15 +192,8 @@ class TestSetLoad:
         result = impl.load(WithSetItemTwoValidators, data)
         assert result == WithSetItemTwoValidators(tags={"a", "bb", "ccc"})
 
-    def test_item_two_validators_first_fails(self, impl: Serializer) -> None:
-        data = b'{"tags":["a","","ccc"]}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithSetItemTwoValidators, data)
-        assert exc.value.messages == {"tags": {1: ["Invalid value."]}}
-
-    def test_item_two_validators_second_fails(self, impl: Serializer) -> None:
-        long_string = "a" * 51
-        data = b'{"tags":["a","' + long_string.encode() + b'"]}'
+    @pytest.mark.parametrize("data", [b'{"tags":["a","","ccc"]}', b'{"tags":["a","' + b"a" * 51 + b'"]}'])
+    def test_item_two_validators_fail(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithSetItemTwoValidators, data)
         assert exc.value.messages == {"tags": {1: ["Invalid value."]}}
@@ -249,14 +204,8 @@ class TestSetLoad:
             impl.load(SetOf[int], data)
         assert exc.value.messages == {"items": {1: ["Not a valid integer."]}}
 
-    def test_wrong_type_string(self, impl: Serializer) -> None:
-        data = b'{"items":"not_a_set"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(SetOf[int], data)
-        assert exc.value.messages == {"items": ["Not a valid set."]}
-
-    def test_wrong_type_object(self, impl: Serializer) -> None:
-        data = b'{"items":{"key":1}}'
+    @pytest.mark.parametrize("data", [b'{"items":"not_a_set"}', b'{"items":{"key":1}}'])
+    def test_wrong_type(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(SetOf[int], data)
         assert exc.value.messages == {"items": ["Not a valid set."]}
@@ -296,25 +245,53 @@ class TestSetLoad:
         assert result == WithSetMissing(items={1, 2, 3})
 
 
+class TestSetEdgeCases:
+    """Test set edge cases with boundary values and special scenarios."""
+
+    def test_big_int_values(self, impl: Serializer) -> None:
+        big_vals = {9223372036854775808, 18446744073709551616, 2**100}
+        obj = SetOf[int](items=big_vals)
+        result = impl.dump(SetOf[int], obj)
+        loaded = impl.load(SetOf[int], result)
+        assert loaded.items == big_vals
+
+    def test_boundary_int_values(self, impl: Serializer) -> None:
+        boundary_vals = {-9223372036854775808, 9223372036854775807, 0, -1, 1}
+        obj = SetOf[int](items=boundary_vals)
+        result = impl.dump(SetOf[int], obj)
+        loaded = impl.load(SetOf[int], result)
+        assert loaded.items == boundary_vals
+
+    def test_unicode_string_values(self, impl: Serializer) -> None:
+        unicode_vals = {"Привет", "你好", "🎉", "مرحبا"}
+        obj = SetOf[str](items=unicode_vals)
+        result = impl.dump(SetOf[str], obj)
+        loaded = impl.load(SetOf[str], result)
+        assert loaded.items == unicode_vals
+
+    def test_empty_string_in_set(self, impl: Serializer) -> None:
+        obj = SetOf[str](items={""})
+        result = impl.dump(SetOf[str], obj)
+        assert result == b'{"items":[""]}'
+
+    def test_whitespace_strings_in_set(self, impl: Serializer) -> None:
+        whitespace_vals = {" ", "\t", "\n", "  "}
+        obj = SetOf[str](items=whitespace_vals)
+        result = impl.dump(SetOf[str], obj)
+        loaded = impl.load(SetOf[str], result)
+        assert loaded.items == whitespace_vals
+
+    def test_heavy_deduplication(self, impl: Serializer) -> None:
+        data = b'{"items":[1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,3]}'
+        result = impl.load(SetOf[int], data)
+        assert result == SetOf[int](items={1, 2, 3})
+
+
 class TestSetDumpInvalidType:
     """Test that invalid types in set fields raise ValidationError on dump."""
 
-    def test_string(self, impl: Serializer) -> None:
-        obj = SetOf[int](**{"items": "not a set"})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(SetOf[int], obj)
-
-    def test_list(self, impl: Serializer) -> None:
-        obj = SetOf[int](**{"items": [1, 2, 3]})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(SetOf[int], obj)
-
-    def test_int(self, impl: Serializer) -> None:
-        obj = SetOf[int](**{"items": 123})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(SetOf[int], obj)
-
-    def test_dict(self, impl: Serializer) -> None:
-        obj = SetOf[int](**{"items": {"a": 1}})  # type: ignore[arg-type]
+    @pytest.mark.parametrize("value", ["not a set", [1, 2, 3], 123, {"a": 1}])
+    def test_invalid_type(self, impl: Serializer, value: object) -> None:
+        obj = SetOf[int](**{"items": value})  # type: ignore[arg-type]
         with pytest.raises(marshmallow.ValidationError):
             impl.dump(SetOf[int], obj)

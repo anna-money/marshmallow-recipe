@@ -28,65 +28,41 @@ from .conftest import (
 
 
 class TestTupleDump:
-    def test_str(self, impl: Serializer) -> None:
-        obj = TupleOf[str](items=("a", "b", "c"))
-        result = impl.dump(TupleOf[str], obj)
-        assert result == b'{"items":["a","b","c"]}'
-
-    def test_int(self, impl: Serializer) -> None:
-        obj = TupleOf[int](items=(1, 2, 3))
-        result = impl.dump(TupleOf[int], obj)
-        assert result == b'{"items":[1,2,3]}'
-
-    def test_float(self, impl: Serializer) -> None:
-        obj = TupleOf[float](items=(1.5, 2.5, 3.5))
-        result = impl.dump(TupleOf[float], obj)
-        assert result == b'{"items":[1.5,2.5,3.5]}'
-
-    def test_bool(self, impl: Serializer) -> None:
-        obj = TupleOf[bool](items=(True, False, True))
-        result = impl.dump(TupleOf[bool], obj)
-        assert result == b'{"items":[true,false,true]}'
-
-    def test_decimal(self, impl: Serializer) -> None:
-        obj = TupleOf[decimal.Decimal](items=(decimal.Decimal("1.23"), decimal.Decimal("4.56")))
-        result = impl.dump(TupleOf[decimal.Decimal], obj)
-        assert result == b'{"items":["1.23","4.56"]}'
-
-    def test_uuid(self, impl: Serializer) -> None:
-        u1 = uuid.UUID("12345678-1234-5678-1234-567812345678")
-        u2 = uuid.UUID("87654321-4321-8765-4321-876543218765")
-        obj = TupleOf[uuid.UUID](items=(u1, u2))
-        result = impl.dump(TupleOf[uuid.UUID], obj)
-        assert result == b'{"items":["12345678-1234-5678-1234-567812345678","87654321-4321-8765-4321-876543218765"]}'
-
-    def test_datetime(self, impl: Serializer) -> None:
-        dt = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)
-        obj = TupleOf[datetime.datetime](items=(dt,))
-        result = impl.dump(TupleOf[datetime.datetime], obj)
-        assert result == b'{"items":["2024-01-15T10:30:00+00:00"]}'
-
-    def test_date(self, impl: Serializer) -> None:
-        d = datetime.date(2024, 1, 15)
-        obj = TupleOf[datetime.date](items=(d,))
-        result = impl.dump(TupleOf[datetime.date], obj)
-        assert result == b'{"items":["2024-01-15"]}'
-
-    def test_time(self, impl: Serializer) -> None:
-        t = datetime.time(10, 30, 0)
-        obj = TupleOf[datetime.time](items=(t,))
-        result = impl.dump(TupleOf[datetime.time], obj)
-        assert result == b'{"items":["10:30:00"]}'
-
-    def test_str_enum(self, impl: Serializer) -> None:
-        obj = TupleOf[Status](items=(Status.ACTIVE, Status.PENDING))
-        result = impl.dump(TupleOf[Status], obj)
-        assert result == b'{"items":["active","pending"]}'
-
-    def test_int_enum(self, impl: Serializer) -> None:
-        obj = TupleOf[Priority](items=(Priority.LOW, Priority.HIGH))
-        result = impl.dump(TupleOf[Priority], obj)
-        assert result == b'{"items":[1,3]}'
+    @pytest.mark.parametrize(
+        ("item_type", "value", "expected"),
+        [
+            pytest.param(str, ("a", "b", "c"), b'{"items":["a","b","c"]}', id="str"),
+            pytest.param(int, (1, 2, 3), b'{"items":[1,2,3]}', id="int"),
+            pytest.param(float, (1.5, 2.5, 3.5), b'{"items":[1.5,2.5,3.5]}', id="float"),
+            pytest.param(bool, (True, False, True), b'{"items":[true,false,true]}', id="bool"),
+            pytest.param(
+                decimal.Decimal,
+                (decimal.Decimal("1.23"), decimal.Decimal("4.56")),
+                b'{"items":["1.23","4.56"]}',
+                id="decimal",
+            ),
+            pytest.param(
+                uuid.UUID,
+                (uuid.UUID("12345678-1234-5678-1234-567812345678"), uuid.UUID("87654321-4321-8765-4321-876543218765")),
+                b'{"items":["12345678-1234-5678-1234-567812345678","87654321-4321-8765-4321-876543218765"]}',
+                id="uuid",
+            ),
+            pytest.param(
+                datetime.datetime,
+                (datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC),),
+                b'{"items":["2024-01-15T10:30:00+00:00"]}',
+                id="datetime",
+            ),
+            pytest.param(datetime.date, (datetime.date(2024, 1, 15),), b'{"items":["2024-01-15"]}', id="date"),
+            pytest.param(datetime.time, (datetime.time(10, 30, 0),), b'{"items":["10:30:00"]}', id="time"),
+            pytest.param(Status, (Status.ACTIVE, Status.PENDING), b'{"items":["active","pending"]}', id="str_enum"),
+            pytest.param(Priority, (Priority.LOW, Priority.HIGH), b'{"items":[1,3]}', id="int_enum"),
+        ],
+    )
+    def test_value(self, impl: Serializer, item_type: type, value: tuple, expected: bytes) -> None:
+        obj = TupleOf[item_type](items=value)
+        result = impl.dump(TupleOf[item_type], obj)
+        assert result == expected
 
     def test_dataclass(self, impl: Serializer) -> None:
         addr = Address(street="Main St", city="NYC", zip_code="10001")
@@ -129,6 +105,18 @@ class TestTupleDump:
         result = impl.dump(TupleOf[int], obj)
         assert result == b'{"items":[]}'
 
+    def test_single_element(self, impl: Serializer) -> None:
+        obj = TupleOf[int](items=(42,))
+        result = impl.dump(TupleOf[int], obj)
+        assert result == b'{"items":[42]}'
+
+    def test_many_elements(self, impl: Serializer) -> None:
+        items = tuple(range(100))
+        obj = TupleOf[int](items=items)
+        result = impl.dump(TupleOf[int], obj)
+        parsed = json.loads(result)
+        assert tuple(parsed["items"]) == items
+
     def test_optional_none(self, impl: Serializer) -> None:
         obj = OptionalTupleOf[int](items=None)
         result = impl.dump(OptionalTupleOf[int], obj)
@@ -138,11 +126,6 @@ class TestTupleDump:
         obj = OptionalTupleOf[int](items=(1, 2, 3))
         result = impl.dump(OptionalTupleOf[int], obj)
         assert result == b'{"items":[1,2,3]}'
-
-    def test_none_handling_ignore_default(self, impl: Serializer) -> None:
-        obj = OptionalTupleOf[int](items=None)
-        result = impl.dump(OptionalTupleOf[int], obj)
-        assert result == b"{}"
 
     def test_none_handling_ignore_explicit(self, impl: Serializer) -> None:
         obj = OptionalTupleOf[int](items=None)
@@ -176,65 +159,40 @@ class TestTupleDump:
 
 
 class TestTupleLoad:
-    def test_str(self, impl: Serializer) -> None:
-        data = b'{"items":["a","b","c"]}'
-        result = impl.load(TupleOf[str], data)
-        assert result == TupleOf[str](items=("a", "b", "c"))
-
-    def test_int(self, impl: Serializer) -> None:
-        data = b'{"items":[1,2,3]}'
-        result = impl.load(TupleOf[int], data)
-        assert result == TupleOf[int](items=(1, 2, 3))
-
-    def test_float(self, impl: Serializer) -> None:
-        data = b'{"items":[1.5,2.5,3.5]}'
-        result = impl.load(TupleOf[float], data)
-        assert result == TupleOf[float](items=(1.5, 2.5, 3.5))
-
-    def test_bool(self, impl: Serializer) -> None:
-        data = b'{"items":[true,false,true]}'
-        result = impl.load(TupleOf[bool], data)
-        assert result == TupleOf[bool](items=(True, False, True))
-
-    def test_decimal(self, impl: Serializer) -> None:
-        data = b'{"items":["1.23","4.56"]}'
-        result = impl.load(TupleOf[decimal.Decimal], data)
-        assert result == TupleOf[decimal.Decimal](items=(decimal.Decimal("1.23"), decimal.Decimal("4.56")))
-
-    def test_uuid(self, impl: Serializer) -> None:
-        u1 = uuid.UUID("12345678-1234-5678-1234-567812345678")
-        u2 = uuid.UUID("87654321-4321-8765-4321-876543218765")
-        data = b'{"items":["12345678-1234-5678-1234-567812345678","87654321-4321-8765-4321-876543218765"]}'
-        result = impl.load(TupleOf[uuid.UUID], data)
-        assert result == TupleOf[uuid.UUID](items=(u1, u2))
-
-    def test_datetime(self, impl: Serializer) -> None:
-        dt = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)
-        data = b'{"items":["2024-01-15T10:30:00+00:00"]}'
-        result = impl.load(TupleOf[datetime.datetime], data)
-        assert result == TupleOf[datetime.datetime](items=(dt,))
-
-    def test_date(self, impl: Serializer) -> None:
-        d = datetime.date(2024, 1, 15)
-        data = b'{"items":["2024-01-15"]}'
-        result = impl.load(TupleOf[datetime.date], data)
-        assert result == TupleOf[datetime.date](items=(d,))
-
-    def test_time(self, impl: Serializer) -> None:
-        t = datetime.time(10, 30, 0)
-        data = b'{"items":["10:30:00"]}'
-        result = impl.load(TupleOf[datetime.time], data)
-        assert result == TupleOf[datetime.time](items=(t,))
-
-    def test_str_enum(self, impl: Serializer) -> None:
-        data = b'{"items":["active","pending"]}'
-        result = impl.load(TupleOf[Status], data)
-        assert result == TupleOf[Status](items=(Status.ACTIVE, Status.PENDING))
-
-    def test_int_enum(self, impl: Serializer) -> None:
-        data = b'{"items":[1,3]}'
-        result = impl.load(TupleOf[Priority], data)
-        assert result == TupleOf[Priority](items=(Priority.LOW, Priority.HIGH))
+    @pytest.mark.parametrize(
+        ("item_type", "data", "expected_items"),
+        [
+            pytest.param(str, b'{"items":["a","b","c"]}', ("a", "b", "c"), id="str"),
+            pytest.param(int, b'{"items":[1,2,3]}', (1, 2, 3), id="int"),
+            pytest.param(float, b'{"items":[1.5,2.5,3.5]}', (1.5, 2.5, 3.5), id="float"),
+            pytest.param(bool, b'{"items":[true,false,true]}', (True, False, True), id="bool"),
+            pytest.param(
+                decimal.Decimal,
+                b'{"items":["1.23","4.56"]}',
+                (decimal.Decimal("1.23"), decimal.Decimal("4.56")),
+                id="decimal",
+            ),
+            pytest.param(
+                uuid.UUID,
+                b'{"items":["12345678-1234-5678-1234-567812345678","87654321-4321-8765-4321-876543218765"]}',
+                (uuid.UUID("12345678-1234-5678-1234-567812345678"), uuid.UUID("87654321-4321-8765-4321-876543218765")),
+                id="uuid",
+            ),
+            pytest.param(
+                datetime.datetime,
+                b'{"items":["2024-01-15T10:30:00+00:00"]}',
+                (datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC),),
+                id="datetime",
+            ),
+            pytest.param(datetime.date, b'{"items":["2024-01-15"]}', (datetime.date(2024, 1, 15),), id="date"),
+            pytest.param(datetime.time, b'{"items":["10:30:00"]}', (datetime.time(10, 30, 0),), id="time"),
+            pytest.param(Status, b'{"items":["active","pending"]}', (Status.ACTIVE, Status.PENDING), id="str_enum"),
+            pytest.param(Priority, b'{"items":[1,3]}', (Priority.LOW, Priority.HIGH), id="int_enum"),
+        ],
+    )
+    def test_value(self, impl: Serializer, item_type: type, data: bytes, expected_items: tuple) -> None:
+        result = impl.load(TupleOf[item_type], data)
+        assert result == TupleOf[item_type](items=expected_items)
 
     def test_dataclass(self, impl: Serializer) -> None:
         addr = Address(street="Main St", city="NYC", zip_code="10001")
@@ -277,6 +235,17 @@ class TestTupleLoad:
         result = impl.load(TupleOf[int], data)
         assert result == TupleOf[int](items=())
 
+    def test_single_element(self, impl: Serializer) -> None:
+        data = b'{"items":[42]}'
+        result = impl.load(TupleOf[int], data)
+        assert result == TupleOf[int](items=(42,))
+
+    def test_many_elements(self, impl: Serializer) -> None:
+        items = list(range(100))
+        data = json.dumps({"items": items}).encode()
+        result = impl.load(TupleOf[int], data)
+        assert result == TupleOf[int](items=tuple(items))
+
     def test_optional_none(self, impl: Serializer) -> None:
         data = b"{}"
         result = impl.load(OptionalTupleOf[int], data)
@@ -303,14 +272,8 @@ class TestTupleLoad:
         result = impl.load(WithTupleItemTwoValidators, data)
         assert result == WithTupleItemTwoValidators(values=(1, 50, 99))
 
-    def test_item_two_validators_first_fails(self, impl: Serializer) -> None:
-        data = b'{"values":[1,0,50]}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithTupleItemTwoValidators, data)
-        assert exc.value.messages == {"values": {1: ["Invalid value."]}}
-
-    def test_item_two_validators_second_fails(self, impl: Serializer) -> None:
-        data = b'{"values":[1,150,50]}'
+    @pytest.mark.parametrize("data", [b'{"values":[1,0,50]}', b'{"values":[1,150,50]}'])
+    def test_item_two_validators_fail(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithTupleItemTwoValidators, data)
         assert exc.value.messages == {"values": {1: ["Invalid value."]}}
@@ -321,14 +284,8 @@ class TestTupleLoad:
             impl.load(TupleOf[int], data)
         assert exc.value.messages == {"items": {1: ["Not a valid integer."]}}
 
-    def test_wrong_type_string(self, impl: Serializer) -> None:
-        data = b'{"items":"not_a_tuple"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(TupleOf[int], data)
-        assert exc.value.messages == {"items": ["Not a valid tuple."]}
-
-    def test_wrong_type_object(self, impl: Serializer) -> None:
-        data = b'{"items":{"key":1}}'
+    @pytest.mark.parametrize("data", [b'{"items":"not_a_tuple"}', b'{"items":{"key":1}}'])
+    def test_wrong_type(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(TupleOf[int], data)
         assert exc.value.messages == {"items": ["Not a valid tuple."]}
@@ -368,25 +325,64 @@ class TestTupleLoad:
         assert result == WithTupleMissing(items=(1, 2, 3))
 
 
+class TestTupleEdgeCases:
+    """Test tuple edge cases with multiple nulls, deep nesting, and boundaries."""
+
+    def test_multiple_nulls(self, impl: Serializer) -> None:
+        obj = TupleOf[int | None](items=(None, None, 1, None, 2))
+        result = impl.dump(TupleOf[int | None], obj)
+        assert result == b'{"items":[null,null,1,null,2]}'
+
+    def test_multiple_nulls_load(self, impl: Serializer) -> None:
+        data = b'{"items":[null,null,1,null,2]}'
+        result = impl.load(TupleOf[int | None], data)
+        assert result == TupleOf[int | None](items=(None, None, 1, None, 2))
+
+    def test_all_nulls(self, impl: Serializer) -> None:
+        obj = TupleOf[int | None](items=(None, None, None))
+        result = impl.dump(TupleOf[int | None], obj)
+        assert result == b'{"items":[null,null,null]}'
+
+    def test_deeply_nested_tuple(self, impl: Serializer) -> None:
+        obj = TupleOf[list[list[int]]](items=([[1, 2], [3, 4]], [[5, 6], [7, 8]]))
+        result = impl.dump(TupleOf[list[list[int]]], obj)
+        loaded = impl.load(TupleOf[list[list[int]]], result)
+        assert loaded == obj
+
+    def test_big_int_values(self, impl: Serializer) -> None:
+        big_vals = (9223372036854775808, -9223372036854775809, 2**100)
+        obj = TupleOf[int](items=big_vals)
+        result = impl.dump(TupleOf[int], obj)
+        loaded = impl.load(TupleOf[int], result)
+        assert loaded.items == big_vals
+
+    def test_unicode_string_values(self, impl: Serializer) -> None:
+        unicode_vals = ("Привет", "你好", "🎉")
+        obj = TupleOf[str](items=unicode_vals)
+        result = impl.dump(TupleOf[str], obj)
+        loaded = impl.load(TupleOf[str], result)
+        assert loaded.items == unicode_vals
+
+    def test_preserves_order(self, impl: Serializer) -> None:
+        items = tuple(range(50, 0, -1))
+        obj = TupleOf[int](items=items)
+        result = impl.dump(TupleOf[int], obj)
+        loaded = impl.load(TupleOf[int], result)
+        assert loaded.items == items
+
+    def test_duplicate_values_preserved(self, impl: Serializer) -> None:
+        items = (1, 1, 2, 2, 3, 3, 1)
+        obj = TupleOf[int](items=items)
+        result = impl.dump(TupleOf[int], obj)
+        loaded = impl.load(TupleOf[int], result)
+        assert loaded.items == items
+
+
 class TestTupleDumpInvalidType:
     """Test that invalid types in tuple fields raise ValidationError on dump."""
 
-    def test_string(self, impl: Serializer) -> None:
-        obj = TupleOf[int](**{"items": "not a tuple"})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(TupleOf[int], obj)
-
-    def test_list(self, impl: Serializer) -> None:
-        obj = TupleOf[int](**{"items": [1, 2, 3]})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(TupleOf[int], obj)
-
-    def test_int(self, impl: Serializer) -> None:
-        obj = TupleOf[int](**{"items": 123})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(TupleOf[int], obj)
-
-    def test_dict(self, impl: Serializer) -> None:
-        obj = TupleOf[int](**{"items": {"a": 1}})  # type: ignore[arg-type]
+    @pytest.mark.parametrize("value", ["not a tuple", [1, 2, 3], 123, {"a": 1}])
+    def test_invalid_type(self, impl: Serializer, value: object) -> None:
+        obj = TupleOf[int](**{"items": value})  # type: ignore[arg-type]
         with pytest.raises(marshmallow.ValidationError):
             impl.dump(TupleOf[int], obj)

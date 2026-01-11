@@ -46,6 +46,29 @@ class TestNestedDump:
         expected = b'{"name":"ACME Corp","department":{"name":"Engineering","head":{"name":"Alice Smith","age":40,"address":{"street":"456 Tech Ave","city":"San Francisco","zip_code":"94102"}}}}'
         assert result == expected
 
+    def test_empty_strings(self, impl: Serializer) -> None:
+        obj = Person(name="", age=0, address=Address(street="", city="", zip_code=""))
+        result = impl.dump(Person, obj)
+        assert result == b'{"name":"","age":0,"address":{"street":"","city":"","zip_code":""}}'
+
+    def test_unicode_values(self, impl: Serializer) -> None:
+        obj = Person(
+            name="Джон Доу", age=30, address=Address(street="Улица Мира 123", city="Москва", zip_code="123456")
+        )
+        result = impl.dump(Person, obj)
+        loaded = impl.load(Person, result)
+        assert loaded == obj
+
+    def test_special_chars(self, impl: Serializer) -> None:
+        obj = Person(
+            name='John "The Dev" Doe',
+            age=30,
+            address=Address(street="123 Main St\nApt 4", city="New\tYork", zip_code="12345"),
+        )
+        result = impl.dump(Person, obj)
+        loaded = impl.load(Person, result)
+        assert loaded == obj
+
     def test_validation_error(self, impl: Serializer) -> None:
         obj = PersonWithAddressValidation(name="John", address=Address(street="Main", city="", zip_code="12345"))
         with pytest.raises(marshmallow.ValidationError) as exc:
@@ -215,17 +238,90 @@ class TestCyclicDump:
 class TestNestedDumpInvalidType:
     """Test that invalid types in nested fields raise ValidationError on dump."""
 
-    def test_string(self, impl: Serializer) -> None:
-        obj = Person(**{"name": "John", "age": 30, "address": "not an address"})  # type: ignore[arg-type]
+    @pytest.mark.parametrize("value", ["not an address", {"street": "Main", "city": "NYC", "zip_code": "10001"}, 123])
+    def test_invalid_type(self, impl: Serializer, value: object) -> None:
+        obj = Person(**{"name": "John", "age": 30, "address": value})  # type: ignore[arg-type]
         with pytest.raises(marshmallow.ValidationError):
             impl.dump(Person, obj)
 
-    def test_dict(self, impl: Serializer) -> None:
-        obj = Person(**{"name": "John", "age": 30, "address": {"street": "Main", "city": "NYC", "zip_code": "10001"}})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(Person, obj)
 
-    def test_int(self, impl: Serializer) -> None:
-        obj = Person(**{"name": "John", "age": 30, "address": 123})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(Person, obj)
+class TestNestedEdgeCases:
+    """Test nested dataclass edge cases with boundary values and special scenarios."""
+
+    def test_5_level_nesting(self, impl: Serializer) -> None:
+        # Company -> Department -> Person -> Address (4 levels)
+        # Let's test with the existing structures
+        obj = Company(
+            name="ACME",
+            department=Department(
+                name="Eng",
+                head=Person(name="Alice", age=30, address=Address(street="123 Main", city="Boston", zip_code="02101")),
+            ),
+        )
+        result = impl.dump(Company, obj)
+        loaded = impl.load(Company, result)
+        assert loaded == obj
+
+    def test_unicode_in_all_nested_fields(self, impl: Serializer) -> None:
+        obj = Person(
+            name="Иван Иванов", age=25, address=Address(street="Улица Мира 123", city="Москва", zip_code="123456")
+        )
+        result = impl.dump(Person, obj)
+        loaded = impl.load(Person, result)
+        assert loaded == obj
+
+    def test_special_chars_in_all_nested_fields(self, impl: Serializer) -> None:
+        obj = Person(
+            name='"John" O\'Connor',
+            age=30,
+            address=Address(street="123 Main St\nApt 4", city="New\tYork", zip_code="10001"),
+        )
+        result = impl.dump(Person, obj)
+        loaded = impl.load(Person, result)
+        assert loaded == obj
+
+    def test_big_int_age(self, impl: Serializer) -> None:
+        obj = Person(
+            name="Ancient",
+            age=9223372036854775807,
+            address=Address(street="Forever St", city="Eternity", zip_code="00000"),
+        )
+        result = impl.dump(Person, obj)
+        loaded = impl.load(Person, result)
+        assert loaded == obj
+
+    def test_zero_age(self, impl: Serializer) -> None:
+        obj = Person(name="Newborn", age=0, address=Address(street="Hospital", city="City", zip_code="12345"))
+        result = impl.dump(Person, obj)
+        loaded = impl.load(Person, result)
+        assert loaded == obj
+
+    def test_negative_age(self, impl: Serializer) -> None:
+        obj = Person(
+            name="Time Traveler", age=-100, address=Address(street="Future St", city="Tomorrow", zip_code="99999")
+        )
+        result = impl.dump(Person, obj)
+        loaded = impl.load(Person, result)
+        assert loaded == obj
+
+    def test_very_long_strings_in_nested(self, impl: Serializer) -> None:
+        obj = Person(
+            name="x" * 10000, age=30, address=Address(street="y" * 10000, city="z" * 10000, zip_code="a" * 10000)
+        )
+        result = impl.dump(Person, obj)
+        loaded = impl.load(Person, result)
+        assert loaded == obj
+
+    def test_whitespace_strings_in_nested(self, impl: Serializer) -> None:
+        obj = Person(name="   ", age=30, address=Address(street="\t\t\t", city="\n\n\n", zip_code="   "))
+        result = impl.dump(Person, obj)
+        loaded = impl.load(Person, result)
+        assert loaded == obj
+
+    def test_emoji_in_all_fields(self, impl: Serializer) -> None:
+        obj = Person(
+            name="🧑‍💻 Developer", age=30, address=Address(street="🏠 Home 🏡", city="🌆 City 🌃", zip_code="12345")
+        )
+        result = impl.dump(Person, obj)
+        loaded = impl.load(Person, result)
+        assert loaded == obj

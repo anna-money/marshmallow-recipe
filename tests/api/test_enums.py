@@ -17,35 +17,31 @@ from .conftest import (
 
 
 class TestEnumDump:
-    def test_str_enum(self, impl: Serializer) -> None:
-        obj = ValueOf[Status](value=Status.ACTIVE)
-        result = impl.dump(ValueOf[Status], obj)
-        assert result == b'{"value":"active"}'
+    @pytest.mark.parametrize(
+        ("enum_type", "value", "expected"),
+        [
+            pytest.param(Status, Status.ACTIVE, b'{"value":"active"}', id="str_enum"),
+            pytest.param(Priority, Priority.LOW, b'{"value":1}', id="int_enum"),
+        ],
+    )
+    def test_value(self, impl: Serializer, enum_type: type, value: object, expected: bytes) -> None:
+        obj = ValueOf[enum_type](value=value)
+        result = impl.dump(ValueOf[enum_type], obj)
+        assert result == expected
 
-    def test_int_enum(self, impl: Serializer) -> None:
-        obj = ValueOf[Priority](value=Priority.LOW)
-        result = impl.dump(ValueOf[Priority], obj)
-        assert result == b'{"value":1}'
-
-    def test_optional_str_enum_none(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[Status](value=None)
-        result = impl.dump(OptionalValueOf[Status], obj)
-        assert result == b"{}"
-
-    def test_optional_str_enum_value(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[Status](value=Status.PENDING)
-        result = impl.dump(OptionalValueOf[Status], obj)
-        assert result == b'{"value":"pending"}'
-
-    def test_optional_int_enum_none(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[Priority](value=None)
-        result = impl.dump(OptionalValueOf[Priority], obj)
-        assert result == b"{}"
-
-    def test_optional_int_enum_value(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[Priority](value=Priority.HIGH)
-        result = impl.dump(OptionalValueOf[Priority], obj)
-        assert result == b'{"value":3}'
+    @pytest.mark.parametrize(
+        ("enum_type", "value", "expected"),
+        [
+            pytest.param(Status, None, b"{}", id="str_enum_none"),
+            pytest.param(Status, Status.PENDING, b'{"value":"pending"}', id="str_enum_value"),
+            pytest.param(Priority, None, b"{}", id="int_enum_none"),
+            pytest.param(Priority, Priority.HIGH, b'{"value":3}', id="int_enum_value"),
+        ],
+    )
+    def test_optional(self, impl: Serializer, enum_type: type, value: object, expected: bytes) -> None:
+        obj = OptionalValueOf[enum_type](value=value)
+        result = impl.dump(OptionalValueOf[enum_type], obj)
+        assert result == expected
 
     def test_str_enum_missing(self, impl: Serializer) -> None:
         obj = WithStrEnumMissing()
@@ -69,54 +65,80 @@ class TestEnumDump:
 
 
 class TestEnumLoad:
-    def test_str_enum(self, impl: Serializer) -> None:
-        data = b'{"value":"inactive"}'
+    @pytest.mark.parametrize(
+        ("enum_type", "data", "expected_value"),
+        [
+            pytest.param(Status, b'{"value":"inactive"}', Status.INACTIVE, id="str_enum"),
+            pytest.param(Priority, b'{"value":3}', Priority.HIGH, id="int_enum"),
+        ],
+    )
+    def test_value(self, impl: Serializer, enum_type: type, data: bytes, expected_value: object) -> None:
+        result = impl.load(ValueOf[enum_type], data)
+        assert result == ValueOf[enum_type](value=expected_value)
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b'{"value":"active"}', Status.ACTIVE, id="active"),
+            pytest.param(b'{"value":"inactive"}', Status.INACTIVE, id="inactive"),
+            pytest.param(b'{"value":"pending"}', Status.PENDING, id="pending"),
+        ],
+    )
+    def test_all_str_enum_values(self, impl: Serializer, data: bytes, expected: Status) -> None:
         result = impl.load(ValueOf[Status], data)
-        assert result == ValueOf[Status](value=Status.INACTIVE)
+        assert result == ValueOf[Status](value=expected)
 
-    def test_int_enum(self, impl: Serializer) -> None:
-        data = b'{"value":3}'
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b'{"value":1}', Priority.LOW, id="low"),
+            pytest.param(b'{"value":2}', Priority.MEDIUM, id="medium"),
+            pytest.param(b'{"value":3}', Priority.HIGH, id="high"),
+        ],
+    )
+    def test_all_int_enum_values(self, impl: Serializer, data: bytes, expected: Priority) -> None:
         result = impl.load(ValueOf[Priority], data)
-        assert result == ValueOf[Priority](value=Priority.HIGH)
+        assert result == ValueOf[Priority](value=expected)
 
-    def test_str_enum_invalid_value(self, impl: Serializer) -> None:
-        data = b'{"value":"invalid_status"}'
+    @pytest.mark.parametrize(
+        ("enum_type", "data", "expected_message"),
+        [
+            pytest.param(
+                Status,
+                b'{"value":"invalid_status"}',
+                {"value": ["Not a valid choice: 'invalid_status'. Allowed values: ['active', 'inactive', 'pending']"]},
+                id="str_invalid_value",
+            ),
+            pytest.param(
+                Priority,
+                b'{"value":999}',
+                {"value": ["Not a valid choice: '999'. Allowed values: [1, 2, 3]"]},
+                id="int_invalid_value",
+            ),
+            pytest.param(
+                Status,
+                b'{"value":123}',
+                {"value": ["Not a valid choice: '123'. Allowed values: ['active', 'inactive', 'pending']"]},
+                id="str_wrong_type",
+            ),
+            pytest.param(
+                Priority,
+                b'{"value":"not_a_number"}',
+                {"value": ["Not a valid choice: 'not_a_number'. Allowed values: [1, 2, 3]"]},
+                id="int_wrong_type",
+            ),
+        ],
+    )
+    def test_invalid_value(self, impl: Serializer, enum_type: type, data: bytes, expected_message: dict) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[Status], data)
-        assert exc.value.messages == {
-            "value": ["Not a valid choice: 'invalid_status'. Allowed values: ['active', 'inactive', 'pending']"]
-        }
+            impl.load(ValueOf[enum_type], data)
+        assert exc.value.messages == expected_message
 
-    def test_int_enum_invalid_value(self, impl: Serializer) -> None:
-        data = b'{"value":999}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[Priority], data)
-        assert exc.value.messages == {"value": ["Not a valid choice: '999'. Allowed values: [1, 2, 3]"]}
-
-    def test_str_enum_wrong_type(self, impl: Serializer) -> None:
-        data = b'{"value":123}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[Status], data)
-        assert exc.value.messages == {
-            "value": ["Not a valid choice: '123'. Allowed values: ['active', 'inactive', 'pending']"]
-        }
-
-    def test_int_enum_wrong_type(self, impl: Serializer) -> None:
-        data = b'{"value":"not_a_number"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[Priority], data)
-        assert exc.value.messages == {"value": ["Not a valid choice: 'not_a_number'. Allowed values: [1, 2, 3]"]}
-
-    def test_str_enum_missing_required(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize("enum_type", [Status, Priority])
+    def test_missing_required(self, impl: Serializer, enum_type: type) -> None:
         data = b"{}"
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[Status], data)
-        assert exc.value.messages == {"value": ["Missing data for required field."]}
-
-    def test_int_enum_missing_required(self, impl: Serializer) -> None:
-        data = b"{}"
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[Priority], data)
+            impl.load(ValueOf[enum_type], data)
         assert exc.value.messages == {"value": ["Missing data for required field."]}
 
     def test_str_enum_validation_pass(self, impl: Serializer) -> None:
@@ -163,14 +185,8 @@ class TestEnumLoad:
         result = impl.load(WithIntEnumTwoValidators, data)
         assert result == WithIntEnumTwoValidators(priority=Priority.MEDIUM)
 
-    def test_int_enum_two_validators_first_fails(self, impl: Serializer) -> None:
-        data = b'{"priority":1}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithIntEnumTwoValidators, data)
-        assert exc.value.messages == {"priority": ["Invalid value."]}
-
-    def test_int_enum_two_validators_second_fails(self, impl: Serializer) -> None:
-        data = b'{"priority":3}'
+    @pytest.mark.parametrize("data", [b'{"priority":1}', b'{"priority":3}'])
+    def test_int_enum_two_validators_fail(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithIntEnumTwoValidators, data)
         assert exc.value.messages == {"priority": ["Invalid value."]}
@@ -230,3 +246,107 @@ class TestEnumDumpInvalidType:
         assert exc.value.messages == [
             "Expected Priority instance, got str. Allowed values: [Priority.LOW, Priority.MEDIUM, Priority.HIGH]"
         ]
+
+
+class TestEnumEdgeCases:
+    """Test enum edge cases with boundary values and special scenarios."""
+
+    def test_all_str_enum_values_roundtrip(self, impl: Serializer) -> None:
+        for status in Status:
+            obj = ValueOf[Status](value=status)
+            result = impl.dump(ValueOf[Status], obj)
+            loaded = impl.load(ValueOf[Status], result)
+            assert loaded == obj
+
+    def test_all_int_enum_values_roundtrip(self, impl: Serializer) -> None:
+        for priority in Priority:
+            obj = ValueOf[Priority](value=priority)
+            result = impl.dump(ValueOf[Priority], obj)
+            loaded = impl.load(ValueOf[Priority], result)
+            assert loaded == obj
+
+    def test_str_enum_case_sensitive(self, impl: Serializer) -> None:
+        # "Active" should fail (case sensitive)
+        data = b'{"value":"Active"}'
+        with pytest.raises(marshmallow.ValidationError):
+            impl.load(ValueOf[Status], data)
+
+    def test_str_enum_uppercase_fails(self, impl: Serializer) -> None:
+        data = b'{"value":"ACTIVE"}'
+        with pytest.raises(marshmallow.ValidationError):
+            impl.load(ValueOf[Status], data)
+
+    def test_str_enum_with_leading_space_fails(self, impl: Serializer) -> None:
+        data = b'{"value":" active"}'
+        with pytest.raises(marshmallow.ValidationError):
+            impl.load(ValueOf[Status], data)
+
+    def test_str_enum_with_trailing_space_fails(self, impl: Serializer) -> None:
+        data = b'{"value":"active "}'
+        with pytest.raises(marshmallow.ValidationError):
+            impl.load(ValueOf[Status], data)
+
+    def test_int_enum_with_float_is_coerced(self, impl: Serializer) -> None:
+        # 1.0 gets coerced to 1 by JSON parsing
+        data = b'{"value":1.0}'
+        result = impl.load(ValueOf[Priority], data)
+        assert result.value == Priority.LOW
+
+    def test_int_enum_with_string_number_fails(self, impl: Serializer) -> None:
+        data = b'{"value":"1"}'
+        with pytest.raises(marshmallow.ValidationError):
+            impl.load(ValueOf[Priority], data)
+
+    def test_int_enum_zero_not_valid(self, impl: Serializer) -> None:
+        data = b'{"value":0}'
+        with pytest.raises(marshmallow.ValidationError):
+            impl.load(ValueOf[Priority], data)
+
+    def test_int_enum_negative_not_valid(self, impl: Serializer) -> None:
+        data = b'{"value":-1}'
+        with pytest.raises(marshmallow.ValidationError):
+            impl.load(ValueOf[Priority], data)
+
+    def test_int_enum_big_int_not_valid(self, impl: Serializer) -> None:
+        data = b'{"value":9223372036854775807}'
+        with pytest.raises(marshmallow.ValidationError):
+            impl.load(ValueOf[Priority], data)
+
+    def test_str_enum_empty_string_not_valid(self, impl: Serializer) -> None:
+        data = b'{"value":""}'
+        with pytest.raises(marshmallow.ValidationError):
+            impl.load(ValueOf[Status], data)
+
+    def test_str_enum_null_not_valid(self, impl: Serializer) -> None:
+        data = b'{"value":null}'
+        with pytest.raises(marshmallow.ValidationError):
+            impl.load(ValueOf[Status], data)
+
+    def test_int_enum_null_not_valid(self, impl: Serializer) -> None:
+        data = b'{"value":null}'
+        with pytest.raises(marshmallow.ValidationError):
+            impl.load(ValueOf[Priority], data)
+
+    def test_optional_str_enum_none(self, impl: Serializer) -> None:
+        obj = OptionalValueOf[Status](value=None)
+        result = impl.dump(OptionalValueOf[Status], obj)
+        assert result == b"{}"
+
+    def test_optional_int_enum_none(self, impl: Serializer) -> None:
+        obj = OptionalValueOf[Priority](value=None)
+        result = impl.dump(OptionalValueOf[Priority], obj)
+        assert result == b"{}"
+
+    def test_optional_str_enum_with_value(self, impl: Serializer) -> None:
+        for status in Status:
+            obj = OptionalValueOf[Status](value=status)
+            result = impl.dump(OptionalValueOf[Status], obj)
+            loaded = impl.load(OptionalValueOf[Status], result)
+            assert loaded == obj
+
+    def test_optional_int_enum_with_value(self, impl: Serializer) -> None:
+        for priority in Priority:
+            obj = OptionalValueOf[Priority](value=priority)
+            result = impl.dump(OptionalValueOf[Priority], obj)
+            loaded = impl.load(OptionalValueOf[Priority], result)
+            assert loaded == obj

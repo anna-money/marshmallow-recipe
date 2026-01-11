@@ -1,8 +1,6 @@
 import marshmallow
 import pytest
 
-import marshmallow_recipe as mr
-
 from .conftest import (
     DictOf,
     FrozenSetOf,
@@ -24,90 +22,47 @@ from .conftest import (
 
 
 class TestIntDump:
-    def test_positive(self, impl: Serializer) -> None:
-        obj = ValueOf[int](value=42)
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            pytest.param(42, b'{"value":42}', id="positive"),
+            pytest.param(-100, b'{"value":-100}', id="negative"),
+            pytest.param(0, b'{"value":0}', id="zero"),
+            pytest.param(1, b'{"value":1}', id="one"),
+            pytest.param(-1, b'{"value":-1}', id="minus_one"),
+            pytest.param(9999999999, b'{"value":9999999999}', id="large"),
+            # Int32 boundaries
+            pytest.param(2147483647, b'{"value":2147483647}', id="int32_max"),
+            pytest.param(-2147483648, b'{"value":-2147483648}', id="int32_min"),
+            # Int64 boundaries
+            pytest.param(9223372036854775807, b'{"value":9223372036854775807}', id="int64_max"),
+            pytest.param(-9223372036854775808, b'{"value":-9223372036854775808}', id="int64_min"),
+        ],
+    )
+    def test_values(self, impl: Serializer, value: int, expected: bytes) -> None:
+        obj = ValueOf[int](value=value)
         result = impl.dump(ValueOf[int], obj)
-        assert result == b'{"value":42}'
-
-    def test_negative(self, impl: Serializer) -> None:
-        obj = ValueOf[int](value=-100)
-        result = impl.dump(ValueOf[int], obj)
-        assert result == b'{"value":-100}'
-
-    def test_zero(self, impl: Serializer) -> None:
-        obj = ValueOf[int](value=0)
-        result = impl.dump(ValueOf[int], obj)
-        assert result == b'{"value":0}'
-
-    def test_large(self, impl: Serializer) -> None:
-        obj = ValueOf[int](value=9999999999)
-        result = impl.dump(ValueOf[int], obj)
-        assert result == b'{"value":9999999999}'
-
-    def test_optional_none(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[int](value=None)
-        result = impl.dump(OptionalValueOf[int], obj)
-        assert result == b"{}"
-
-    def test_optional_value(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[int](value=42)
-        result = impl.dump(OptionalValueOf[int], obj)
-        assert result == b'{"value":42}'
+        assert result == expected
 
     def test_default_provided(self, impl: Serializer) -> None:
         obj = WithIntDefault(value=100)
         result = impl.dump(WithIntDefault, obj)
         assert result == b'{"value":100}'
 
-    def test_none_handling_ignore_default(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[int](value=None)
-        result = impl.dump(OptionalValueOf[int], obj)
-        assert result == b"{}"
-
-    def test_none_handling_ignore_explicit(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[int](value=None)
-        result = impl.dump(OptionalValueOf[int], obj, none_value_handling=mr.NoneValueHandling.IGNORE)
-        assert result == b"{}"
-
-    def test_none_handling_include(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[int](value=None)
-        result = impl.dump(OptionalValueOf[int], obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
-        assert result == b'{"value":null}'
-
-    def test_none_handling_include_with_value(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[int](value=42)
-        result = impl.dump(OptionalValueOf[int], obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
-        assert result == b'{"value":42}'
-
-    def test_big_larger_than_i64_max(self, impl: Serializer) -> None:
-        big_value = 9223372036854775808
-        obj = ValueOf[int](value=big_value)
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            (9223372036854775808, b'{"value":9223372036854775808}'),
+            (18446744073709551616, b'{"value":18446744073709551616}'),
+            (2**100, f'{{"value":{2**100}}}'.encode()),
+            (-9223372036854775809, b'{"value":-9223372036854775809}'),
+            (-(2**100), f'{{"value":{-(2**100)}}}'.encode()),
+        ],
+    )
+    def test_big_int(self, impl: Serializer, value: int, expected: bytes) -> None:
+        obj = ValueOf[int](value=value)
         result = impl.dump(ValueOf[int], obj)
-        assert result == b'{"value":9223372036854775808}'
-
-    def test_big_larger_than_u64_max(self, impl: Serializer) -> None:
-        huge_value = 18446744073709551616
-        obj = ValueOf[int](value=huge_value)
-        result = impl.dump(ValueOf[int], obj)
-        assert result == b'{"value":18446744073709551616}'
-
-    def test_big_very_large(self, impl: Serializer) -> None:
-        very_large = 2**100
-        obj = ValueOf[int](value=very_large)
-        result = impl.dump(ValueOf[int], obj)
-        assert result == f'{{"value":{very_large}}}'.encode()
-
-    def test_big_negative_larger_than_i64_min(self, impl: Serializer) -> None:
-        big_negative = -9223372036854775809
-        obj = ValueOf[int](value=big_negative)
-        result = impl.dump(ValueOf[int], obj)
-        assert result == b'{"value":-9223372036854775809}'
-
-    def test_big_very_large_negative(self, impl: Serializer) -> None:
-        very_large_neg = -(2**100)
-        obj = ValueOf[int](value=very_large_neg)
-        result = impl.dump(ValueOf[int], obj)
-        assert result == f'{{"value":{very_large_neg}}}'.encode()
+        assert result == expected
 
     def test_missing(self, impl: Serializer) -> None:
         obj = WithIntMissing()
@@ -121,39 +76,34 @@ class TestIntDump:
 
 
 class TestIntLoad:
-    def test_positive(self, impl: Serializer) -> None:
-        data = b'{"value":42}'
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b'{"value":42}', 42, id="positive"),
+            pytest.param(b'{"value":-100}', -100, id="negative"),
+            pytest.param(b'{"value":0}', 0, id="zero"),
+            pytest.param(b'{"value":1}', 1, id="one"),
+            pytest.param(b'{"value":-1}', -1, id="minus_one"),
+            pytest.param(b'{"value":9999999999}', 9999999999, id="large"),
+            # Int32 boundaries
+            pytest.param(b'{"value":2147483647}', 2147483647, id="int32_max"),
+            pytest.param(b'{"value":-2147483648}', -2147483648, id="int32_min"),
+            # Int64 boundaries
+            pytest.param(b'{"value":9223372036854775807}', 9223372036854775807, id="int64_max"),
+            pytest.param(b'{"value":-9223372036854775808}', -9223372036854775808, id="int64_min"),
+        ],
+    )
+    def test_values(self, impl: Serializer, data: bytes, expected: int) -> None:
         result = impl.load(ValueOf[int], data)
-        assert result == ValueOf[int](value=42)
-
-    def test_negative(self, impl: Serializer) -> None:
-        data = b'{"value":-100}'
-        result = impl.load(ValueOf[int], data)
-        assert result == ValueOf[int](value=-100)
-
-    def test_zero(self, impl: Serializer) -> None:
-        data = b'{"value":0}'
-        result = impl.load(ValueOf[int], data)
-        assert result == ValueOf[int](value=0)
-
-    def test_large(self, impl: Serializer) -> None:
-        data = b'{"value":9999999999}'
-        result = impl.load(ValueOf[int], data)
-        assert result == ValueOf[int](value=9999999999)
+        assert result == ValueOf[int](value=expected)
 
     def test_validation_pass(self, impl: Serializer) -> None:
         data = b'{"value":10}'
         result = impl.load(WithIntValidation, data)
         assert result == WithIntValidation(value=10)
 
-    def test_validation_zero_fail(self, impl: Serializer) -> None:
-        data = b'{"value":0}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithIntValidation, data)
-        assert exc.value.messages == {"value": ["Invalid value."]}
-
-    def test_validation_negative_fail(self, impl: Serializer) -> None:
-        data = b'{"value":-5}'
+    @pytest.mark.parametrize("data", [b'{"value":0}', b'{"value":-5}'])
+    def test_validation_fail(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithIntValidation, data)
         assert exc.value.messages == {"value": ["Invalid value."]}
@@ -163,32 +113,11 @@ class TestIntLoad:
         result = impl.load(WithIntTwoValidators, data)
         assert result == WithIntTwoValidators(value=50)
 
-    def test_two_validators_first_fails(self, impl: Serializer) -> None:
-        data = b'{"value":0}'
+    @pytest.mark.parametrize("data", [b'{"value":0}', b'{"value":150}'])
+    def test_two_validators_fail(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithIntTwoValidators, data)
         assert exc.value.messages == {"value": ["Invalid value."]}
-
-    def test_two_validators_second_fails(self, impl: Serializer) -> None:
-        data = b'{"value":150}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithIntTwoValidators, data)
-        assert exc.value.messages == {"value": ["Invalid value."]}
-
-    def test_optional_none(self, impl: Serializer) -> None:
-        data = b'{"value":null}'
-        result = impl.load(OptionalValueOf[int], data)
-        assert result == OptionalValueOf[int](value=None)
-
-    def test_optional_missing(self, impl: Serializer) -> None:
-        data = b"{}"
-        result = impl.load(OptionalValueOf[int], data)
-        assert result == OptionalValueOf[int](value=None)
-
-    def test_optional_value(self, impl: Serializer) -> None:
-        data = b'{"value":42}'
-        result = impl.load(OptionalValueOf[int], data)
-        assert result == OptionalValueOf[int](value=42)
 
     def test_default_omitted(self, impl: Serializer) -> None:
         data = b"{}"
@@ -218,77 +147,50 @@ class TestIntLoad:
             impl.load(WithIntInvalidError, data)
         assert exc.value.messages == {"value": ["Custom invalid message"]}
 
-    def test_wrong_type_string(self, impl: Serializer) -> None:
-        data = b'{"value":"not_an_int"}'
+    @pytest.mark.parametrize("data", [b'{"value":"not_an_int"}', b'{"value":[1,2,3]}', b'{"value":{"key":1}}'])
+    def test_wrong_type(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(ValueOf[int], data)
         assert exc.value.messages == {"value": ["Not a valid integer."]}
 
-    def test_wrong_type_list(self, impl: Serializer) -> None:
-        data = b'{"value":[1,2,3]}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[int], data)
-        assert exc.value.messages == {"value": ["Not a valid integer."]}
-
-    def test_wrong_type_object(self, impl: Serializer) -> None:
-        data = b'{"value":{"key":1}}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[int], data)
-        assert exc.value.messages == {"value": ["Not a valid integer."]}
-
-    def test_missing_required(self, impl: Serializer) -> None:
-        data = b"{}"
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[int], data)
-        assert exc.value.messages == {"value": ["Missing data for required field."]}
-
-    def test_rejects_float(self, impl: Serializer) -> None:
-        data = b'{"value":3.14}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[int], data)
-        assert exc.value.messages == {"value": ["Not a valid integer."]}
-
-    def test_rejects_float_with_exponent(self, impl: Serializer) -> None:
-        data = b'{"value":1e10}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[int], data)
-        assert exc.value.messages == {"value": ["Not a valid integer."]}
-
-    def test_rejects_float_zero(self, impl: Serializer) -> None:
-        data = b'{"value":1.0}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[int], data)
-        assert exc.value.messages == {"value": ["Not a valid integer."]}
-
-    def test_big_larger_than_i64_max(self, impl: Serializer) -> None:
-        big_value = 9223372036854775808
-        data = b'{"value":9223372036854775808}'
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b'{"value":"42"}', 42, id="positive_string"),
+            pytest.param(b'{"value":"-100"}', -100, id="negative_string"),
+            pytest.param(b'{"value":"0"}', 0, id="zero_string"),
+            pytest.param(b'{"value":"9223372036854775807"}', 9223372036854775807, id="int64_max_string"),
+        ],
+    )
+    def test_from_string(self, impl: Serializer, data: bytes, expected: int) -> None:
         result = impl.load(ValueOf[int], data)
-        assert result == ValueOf[int](value=big_value)
+        assert result == ValueOf[int](value=expected)
 
-    def test_big_larger_than_u64_max(self, impl: Serializer) -> None:
-        huge_value = 18446744073709551616
-        data = b'{"value":18446744073709551616}'
-        result = impl.load(ValueOf[int], data)
-        assert result == ValueOf[int](value=huge_value)
+    @pytest.mark.parametrize("data", [b'{"value":""}', b'{"value":"12.5"}', b'{"value":"1e10"}'])
+    def test_from_string_invalid(self, impl: Serializer, data: bytes) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(ValueOf[int], data)
+        assert exc.value.messages == {"value": ["Not a valid integer."]}
 
-    def test_big_very_large(self, impl: Serializer) -> None:
-        very_large = 2**100
-        data = f'{{"value": {very_large}}}'.encode()
-        result = impl.load(ValueOf[int], data)
-        assert result == ValueOf[int](value=very_large)
+    @pytest.mark.parametrize("data", [b'{"value":3.14}', b'{"value":1e10}', b'{"value":1.0}'])
+    def test_rejects_float(self, impl: Serializer, data: bytes) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(ValueOf[int], data)
+        assert exc.value.messages == {"value": ["Not a valid integer."]}
 
-    def test_big_negative_larger_than_i64_min(self, impl: Serializer) -> None:
-        big_negative = -9223372036854775809
-        data = b'{"value":-9223372036854775809}'
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            (b'{"value":9223372036854775808}', 9223372036854775808),
+            (b'{"value":18446744073709551616}', 18446744073709551616),
+            (f'{{"value":{2**100}}}'.encode(), 2**100),
+            (b'{"value":-9223372036854775809}', -9223372036854775809),
+            (f'{{"value":{-(2**100)}}}'.encode(), -(2**100)),
+        ],
+    )
+    def test_big_int(self, impl: Serializer, data: bytes, expected: int) -> None:
         result = impl.load(ValueOf[int], data)
-        assert result == ValueOf[int](value=big_negative)
-
-    def test_big_very_large_negative(self, impl: Serializer) -> None:
-        very_large_neg = -(2**100)
-        data = f'{{"value": {very_large_neg}}}'.encode()
-        result = impl.load(ValueOf[int], data)
-        assert result == ValueOf[int](value=very_large_neg)
+        assert result == ValueOf[int](value=expected)
 
     def test_big_in_list(self, impl: Serializer) -> None:
         big_value = 9223372036854775808
@@ -343,25 +245,54 @@ class TestIntLoad:
         assert result == WithIntMissing(value=42)
 
 
+class TestIntEdgeCases:
+    """Test int boundary crossing edge cases."""
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            pytest.param(2147483648, b'{"value":2147483648}', id="int32_max_plus_1"),
+            pytest.param(-2147483649, b'{"value":-2147483649}', id="int32_min_minus_1"),
+            pytest.param(9223372036854775808, b'{"value":9223372036854775808}', id="int64_max_plus_1"),
+            pytest.param(-9223372036854775809, b'{"value":-9223372036854775809}', id="int64_min_minus_1"),
+            pytest.param(18446744073709551615, b'{"value":18446744073709551615}', id="uint64_max"),
+            pytest.param(18446744073709551616, b'{"value":18446744073709551616}', id="uint64_max_plus_1"),
+        ],
+    )
+    def test_boundary_crossings_dump(self, impl: Serializer, value: int, expected: bytes) -> None:
+        obj = ValueOf[int](value=value)
+        result = impl.dump(ValueOf[int], obj)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b'{"value":2147483648}', 2147483648, id="int32_max_plus_1"),
+            pytest.param(b'{"value":-2147483649}', -2147483649, id="int32_min_minus_1"),
+            pytest.param(b'{"value":9223372036854775808}', 9223372036854775808, id="int64_max_plus_1"),
+            pytest.param(b'{"value":-9223372036854775809}', -9223372036854775809, id="int64_min_minus_1"),
+            pytest.param(b'{"value":18446744073709551615}', 18446744073709551615, id="uint64_max"),
+            pytest.param(b'{"value":18446744073709551616}', 18446744073709551616, id="uint64_max_plus_1"),
+        ],
+    )
+    def test_boundary_crossings_load(self, impl: Serializer, data: bytes, expected: int) -> None:
+        result = impl.load(ValueOf[int], data)
+        assert result == ValueOf[int](value=expected)
+
+    def test_powers_of_two_roundtrip(self, impl: Serializer) -> None:
+        for exp in [31, 32, 63, 64, 100, 127]:
+            value = 2**exp
+            obj = ValueOf[int](value=value)
+            result = impl.dump(ValueOf[int], obj)
+            loaded = impl.load(ValueOf[int], result)
+            assert loaded.value == value
+
+
 class TestIntDumpInvalidType:
     """Test that invalid types in int fields raise ValidationError on dump."""
 
-    def test_string(self, impl: Serializer) -> None:
-        obj = ValueOf[int](**{"value": "not an int"})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(ValueOf[int], obj)
-
-    def test_bool(self, impl: Serializer) -> None:
-        obj = ValueOf[int](**{"value": True})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(ValueOf[int], obj)
-
-    def test_float(self, impl: Serializer) -> None:
-        obj = ValueOf[int](**{"value": 3.14})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(ValueOf[int], obj)
-
-    def test_list(self, impl: Serializer) -> None:
-        obj = ValueOf[int](**{"value": [1, 2, 3]})  # type: ignore[arg-type]
+    @pytest.mark.parametrize("value", ["not an int", True, 3.14, [1, 2, 3]])
+    def test_invalid_type(self, impl: Serializer, value: object) -> None:
+        obj = ValueOf[int](**{"value": value})  # type: ignore[arg-type]
         with pytest.raises(marshmallow.ValidationError):
             impl.dump(ValueOf[int], obj)

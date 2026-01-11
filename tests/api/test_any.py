@@ -13,149 +13,121 @@ from .conftest import Serializer, ValueOf, WithAnyField, WithAnyNamingCase, With
 
 
 class TestAnyDump:
-    def test_string(self, impl: Serializer) -> None:
-        obj = WithAnyField(data="hello", name="test")
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param("hello", b'{"data":"hello","name":"test"}', id="string"),
+            pytest.param(42, b'{"data":42,"name":"test"}', id="int"),
+            pytest.param(3.14, b'{"data":3.14,"name":"test"}', id="float"),
+            pytest.param(True, b'{"data":true,"name":"test"}', id="bool"),
+            pytest.param(None, b'{"name":"test"}', id="none"),
+            pytest.param([1, 2, 3], b'{"data":[1,2,3],"name":"test"}', id="list"),
+            pytest.param({"key": "value"}, b'{"data":{"key":"value"},"name":"test"}', id="dict"),
+            pytest.param(
+                {"items": [1, 2, {"nested": True}], "count": 3},
+                b'{"data":{"items":[1,2,{"nested":true}],"count":3},"name":"test"}',
+                id="nested_structure",
+            ),
+        ],
+    )
+    def test_value(self, impl: Serializer, data: object, expected: bytes) -> None:
+        obj = WithAnyField(data=data, name="test")
         result = impl.dump(WithAnyField, obj)
-        assert result == b'{"data":"hello","name":"test"}'
+        assert result == expected
 
-    def test_int(self, impl: Serializer) -> None:
-        obj = WithAnyField(data=42, name="test")
-        result = impl.dump(WithAnyField, obj)
-        assert result == b'{"data":42,"name":"test"}'
-
-    def test_float(self, impl: Serializer) -> None:
-        obj = WithAnyField(data=3.14, name="test")
-        result = impl.dump(WithAnyField, obj)
-        assert result == b'{"data":3.14,"name":"test"}'
-
-    def test_bool(self, impl: Serializer) -> None:
-        obj = WithAnyField(data=True, name="test")
-        result = impl.dump(WithAnyField, obj)
-        assert result == b'{"data":true,"name":"test"}'
-
-    def test_none(self, impl: Serializer) -> None:
-        obj = WithAnyField(data=None, name="test")
-        result = impl.dump(WithAnyField, obj)
-        assert result == b'{"name":"test"}'
-
-    def test_list(self, impl: Serializer) -> None:
-        obj = WithAnyField(data=[1, 2, 3], name="test")
-        result = impl.dump(WithAnyField, obj)
-        assert result == b'{"data":[1,2,3],"name":"test"}'
-
-    def test_dict(self, impl: Serializer) -> None:
-        obj = WithAnyField(data={"key": "value"}, name="test")
-        result = impl.dump(WithAnyField, obj)
-        assert result == b'{"data":{"key":"value"},"name":"test"}'
-
-    def test_nested_structure(self, impl: Serializer) -> None:
-        obj = WithAnyField(data={"items": [1, 2, {"nested": True}], "count": 3}, name="test")
-        result = impl.dump(WithAnyField, obj)
-        assert result == b'{"data":{"items":[1,2,{"nested":true}],"count":3},"name":"test"}'
-
-    def test_required_string(self, impl: Serializer) -> None:
-        obj = WithRequiredAny(data="hello", name="test")
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param("hello", b'{"data":"hello","name":"test"}', id="string"),
+            pytest.param({"key": "value"}, b'{"data":{"key":"value"},"name":"test"}', id="dict"),
+            pytest.param([1, "two", 3.0], b'{"data":[1,"two",3.0],"name":"test"}', id="list"),
+        ],
+    )
+    def test_required(self, impl: Serializer, data: object, expected: bytes) -> None:
+        obj = WithRequiredAny(data=data, name="test")
         result = impl.dump(WithRequiredAny, obj)
-        assert result == b'{"data":"hello","name":"test"}'
+        assert result == expected
 
-    def test_required_dict(self, impl: Serializer) -> None:
-        obj = WithRequiredAny(data={"key": "value"}, name="test")
-        result = impl.dump(WithRequiredAny, obj)
-        assert result == b'{"data":{"key":"value"},"name":"test"}'
-
-    def test_required_list(self, impl: Serializer) -> None:
-        obj = WithRequiredAny(data=[1, "two", 3.0], name="test")
-        result = impl.dump(WithRequiredAny, obj)
-        assert result == b'{"data":[1,"two",3.0],"name":"test"}'
-
-    def test_list_any_mixed_types(self, impl: Serializer) -> None:
-        obj = WithListAny(items=[1, "two", 3.0, True], name="test")
+    @pytest.mark.parametrize(
+        ("items", "expected"),
+        [
+            pytest.param([1, "two", 3.0, True], b'{"items":[1,"two",3.0,true],"name":"test"}', id="mixed_types"),
+            pytest.param([{"a": 1}, {"b": 2}], b'{"items":[{"a":1},{"b":2}],"name":"test"}', id="nested_dicts"),
+            pytest.param([], b'{"items":[],"name":"test"}', id="empty"),
+            pytest.param([1, None, "three"], b'{"items":[1,null,"three"],"name":"test"}', id="with_none_element"),
+            pytest.param([None, None, None], b'{"items":[null,null,null],"name":"test"}', id="all_none"),
+        ],
+    )
+    def test_list_any(self, impl: Serializer, items: list, expected: bytes) -> None:
+        obj = WithListAny(items=items, name="test")
         result = impl.dump(WithListAny, obj)
-        assert result == b'{"items":[1,"two",3.0,true],"name":"test"}'
+        assert result == expected
 
-    def test_list_any_nested_dicts(self, impl: Serializer) -> None:
-        obj = WithListAny(items=[{"a": 1}, {"b": 2}], name="test")
-        result = impl.dump(WithListAny, obj)
-        assert result == b'{"items":[{"a":1},{"b":2}],"name":"test"}'
-
-    def test_list_any_empty(self, impl: Serializer) -> None:
-        obj = WithListAny(items=[], name="test")
-        result = impl.dump(WithListAny, obj)
-        assert result == b'{"items":[],"name":"test"}'
-
-    def test_list_any_with_none_element(self, impl: Serializer) -> None:
-        obj = WithListAny(items=[1, None, "three"], name="test")
-        result = impl.dump(WithListAny, obj)
-        assert result == b'{"items":[1,null,"three"],"name":"test"}'
-
-    def test_list_any_all_none(self, impl: Serializer) -> None:
-        obj = WithListAny(items=[None, None, None], name="test")
-        result = impl.dump(WithListAny, obj)
-        assert result == b'{"items":[null,null,null],"name":"test"}'
-
-    def test_dict_any_mixed_values(self, impl: Serializer) -> None:
-        obj = WithDictAny(data={"str": "hello", "int": 42, "float": 3.14, "bool": True}, name="test")
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(
+                {"str": "hello", "int": 42, "float": 3.14, "bool": True},
+                b'{"data":{"str":"hello","int":42,"float":3.14,"bool":true},"name":"test"}',
+                id="mixed_values",
+            ),
+            pytest.param(
+                {"nested": {"deep": [1, 2, 3]}}, b'{"data":{"nested":{"deep":[1,2,3]}},"name":"test"}', id="nested"
+            ),
+            pytest.param({}, b'{"data":{},"name":"test"}', id="empty"),
+            pytest.param(
+                {"key1": "value", "key2": None, "key3": 42},
+                b'{"data":{"key1":"value","key2":null,"key3":42},"name":"test"}',
+                id="with_none_value",
+            ),
+            pytest.param({"a": None, "b": None}, b'{"data":{"a":null,"b":null},"name":"test"}', id="all_none"),
+        ],
+    )
+    def test_dict_any(self, impl: Serializer, data: dict, expected: bytes) -> None:
+        obj = WithDictAny(data=data, name="test")
         result = impl.dump(WithDictAny, obj)
-        assert result == b'{"data":{"str":"hello","int":42,"float":3.14,"bool":true},"name":"test"}'
+        assert result == expected
 
-    def test_dict_any_nested(self, impl: Serializer) -> None:
-        obj = WithDictAny(data={"nested": {"deep": [1, 2, 3]}}, name="test")
-        result = impl.dump(WithDictAny, obj)
-        assert result == b'{"data":{"nested":{"deep":[1,2,3]}},"name":"test"}'
+    @pytest.mark.parametrize(
+        ("naming_case", "any_data", "expected"),
+        [
+            pytest.param(
+                mr.CAMEL_CASE, {"key": "value"}, b'{"anyData":{"key":"value"},"fieldName":"test"}', id="camel_case"
+            ),
+            pytest.param(
+                mr.CAPITAL_CAMEL_CASE, [1, 2, 3], b'{"AnyData":[1,2,3],"FieldName":"test"}', id="capital_camel_case"
+            ),
+        ],
+    )
+    def test_naming_case(self, impl: Serializer, naming_case: mr.NamingCase, any_data: object, expected: bytes) -> None:
+        obj = WithAnyNamingCase(any_data=any_data, field_name="test")
+        result = impl.dump(WithAnyNamingCase, obj, naming_case=naming_case)
+        assert result == expected
 
-    def test_dict_any_empty(self, impl: Serializer) -> None:
-        obj = WithDictAny(data={}, name="test")
-        result = impl.dump(WithDictAny, obj)
-        assert result == b'{"data":{},"name":"test"}'
-
-    def test_dict_any_with_none_value(self, impl: Serializer) -> None:
-        obj = WithDictAny(data={"key1": "value", "key2": None, "key3": 42}, name="test")
-        result = impl.dump(WithDictAny, obj)
-        assert result == b'{"data":{"key1":"value","key2":null,"key3":42},"name":"test"}'
-
-    def test_dict_any_all_none(self, impl: Serializer) -> None:
-        obj = WithDictAny(data={"a": None, "b": None}, name="test")
-        result = impl.dump(WithDictAny, obj)
-        assert result == b'{"data":{"a":null,"b":null},"name":"test"}'
-
-    def test_camel_case(self, impl: Serializer) -> None:
-        obj = WithAnyNamingCase(any_data={"key": "value"}, field_name="test")
-        result = impl.dump(WithAnyNamingCase, obj, naming_case=mr.CAMEL_CASE)
-        assert result == b'{"anyData":{"key":"value"},"fieldName":"test"}'
-
-    def test_capital_camel_case(self, impl: Serializer) -> None:
-        obj = WithAnyNamingCase(any_data=[1, 2, 3], field_name="test")
-        result = impl.dump(WithAnyNamingCase, obj, naming_case=mr.CAPITAL_CAMEL_CASE)
-        assert result == b'{"AnyData":[1,2,3],"FieldName":"test"}'
-
-    def test_none_handling_ignore(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        ("none_value_handling", "expected"),
+        [
+            pytest.param(mr.NoneValueHandling.IGNORE, b'{"name":"test"}', id="ignore"),
+            pytest.param(mr.NoneValueHandling.INCLUDE, b'{"data":null,"name":"test"}', id="include"),
+        ],
+    )
+    def test_none_handling(self, impl: Serializer, none_value_handling: mr.NoneValueHandling, expected: bytes) -> None:
         obj = WithAnyField(data=None, name="test")
-        result = impl.dump(WithAnyField, obj, none_value_handling=mr.NoneValueHandling.IGNORE)
-        assert result == b'{"name":"test"}'
+        result = impl.dump(WithAnyField, obj, none_value_handling=none_value_handling)
+        assert result == expected
 
-    def test_none_handling_include(self, impl: Serializer) -> None:
-        obj = WithAnyField(data=None, name="test")
-        result = impl.dump(WithAnyField, obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
-        assert result == b'{"data":null,"name":"test"}'
-
-    def test_rejects_datetime(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param(datetime.datetime(2024, 1, 1, 12, 0, 0), id="datetime"),
+            pytest.param(datetime.date(2024, 1, 1), id="date"),
+            pytest.param(uuid.UUID("12345678-1234-5678-1234-567812345678"), id="uuid"),
+            pytest.param(decimal.Decimal("3.14"), id="decimal"),
+        ],
+    )
+    def test_rejects_non_json_type(self, impl: Serializer, value: object) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(ValueOf[Any], ValueOf[Any](value=datetime.datetime.now()))
-        assert exc.value.messages == {"value": ["Not a valid JSON-serializable value."]}
-
-    def test_rejects_date(self, impl: Serializer) -> None:
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(ValueOf[Any], ValueOf[Any](value=datetime.date.today()))
-        assert exc.value.messages == {"value": ["Not a valid JSON-serializable value."]}
-
-    def test_rejects_uuid(self, impl: Serializer) -> None:
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(ValueOf[Any], ValueOf[Any](value=uuid.uuid4()))
-        assert exc.value.messages == {"value": ["Not a valid JSON-serializable value."]}
-
-    def test_rejects_decimal(self, impl: Serializer) -> None:
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(ValueOf[Any], ValueOf[Any](value=decimal.Decimal("3.14")))
+            impl.dump(ValueOf[Any], ValueOf[Any](value=value))
         assert exc.value.messages == {"value": ["Not a valid JSON-serializable value."]}
 
     def test_rejects_custom_object(self, impl: Serializer) -> None:
@@ -167,129 +139,85 @@ class TestAnyDump:
             impl.dump(ValueOf[Any], ValueOf[Any](value=CustomObject(field="test")))
         assert exc.value.messages == {"value": ["Not a valid JSON-serializable value."]}
 
-    def test_rejects_set(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param({1, 2, 3}, id="set"),
+            pytest.param((1, 2, 3), id="tuple"),
+            pytest.param(b"bytes", id="bytes"),
+            pytest.param({1: "value"}, id="dict_with_non_string_keys"),
+            pytest.param([1, 2, datetime.datetime(2024, 1, 1, 12, 0, 0)], id="list_with_invalid_items"),
+            pytest.param(
+                {"nested": {"deeply": {"invalid": uuid.UUID("12345678-1234-5678-1234-567812345678")}}},
+                id="nested_invalid_structures",
+            ),
+        ],
+    )
+    def test_rejects_invalid_structure(self, impl: Serializer, value: object) -> None:
         with pytest.raises(marshmallow.ValidationError):
-            impl.dump(ValueOf[Any], ValueOf[Any](value={1, 2, 3}))
-
-    def test_rejects_tuple(self, impl: Serializer) -> None:
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(ValueOf[Any], ValueOf[Any](value=(1, 2, 3)))
-
-    def test_rejects_bytes(self, impl: Serializer) -> None:
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(ValueOf[Any], ValueOf[Any](value=b"bytes"))
-
-    def test_rejects_dict_with_non_string_keys(self, impl: Serializer) -> None:
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(ValueOf[Any], ValueOf[Any](value={1: "value"}))
-
-    def test_rejects_list_with_invalid_items(self, impl: Serializer) -> None:
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(ValueOf[Any], ValueOf[Any](value=[1, 2, datetime.datetime.now()]))
-
-    def test_rejects_nested_invalid_structures(self, impl: Serializer) -> None:
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(ValueOf[Any], ValueOf[Any](value={"nested": {"deeply": {"invalid": uuid.uuid4()}}}))
+            impl.dump(ValueOf[Any], ValueOf[Any](value=value))
 
 
 class TestAnyLoad:
-    def test_string(self, impl: Serializer) -> None:
-        data = b'{"data":"hello","name":"test"}'
+    @pytest.mark.parametrize(
+        ("data", "expected_data"),
+        [
+            pytest.param(b'{"data":"hello","name":"test"}', "hello", id="string"),
+            pytest.param(b'{"data":42,"name":"test"}', 42, id="int"),
+            pytest.param(b'{"data":3.14,"name":"test"}', 3.14, id="float"),
+            pytest.param(b'{"data":true,"name":"test"}', True, id="bool"),
+            pytest.param(b'{"data":null,"name":"test"}', None, id="none"),
+            pytest.param(b'{"data":[1,2,3],"name":"test"}', [1, 2, 3], id="list"),
+            pytest.param(b'{"data":{"key":"value"},"name":"test"}', {"key": "value"}, id="dict"),
+            pytest.param(
+                b'{"data":{"items":[1,2,{"nested":true}],"count":3},"name":"test"}',
+                {"items": [1, 2, {"nested": True}], "count": 3},
+                id="nested_structure",
+            ),
+        ],
+    )
+    def test_value(self, impl: Serializer, data: bytes, expected_data: object) -> None:
         result = impl.load(WithAnyField, data)
-        assert result == WithAnyField(data="hello", name="test")
+        assert result == WithAnyField(data=expected_data, name="test")
 
-    def test_int(self, impl: Serializer) -> None:
-        data = b'{"data":42,"name":"test"}'
+    @pytest.mark.parametrize(
+        ("value", "id"),
+        [
+            pytest.param(9223372036854775808, "big_int"),
+            pytest.param(2**100, "very_large_int"),
+            pytest.param(-9223372036854775809, "big_negative_int"),
+        ],
+    )
+    def test_big_int(self, impl: Serializer, value: int, id: str) -> None:
+        data = f'{{"data": {value}, "name": "test"}}'.encode()
         result = impl.load(WithAnyField, data)
-        assert result == WithAnyField(data=42, name="test")
+        assert result == WithAnyField(data=value, name="test")
 
-    def test_big_int(self, impl: Serializer) -> None:
-        big_value = 9223372036854775808
-        data = f'{{"data": {big_value}, "name": "test"}}'.encode()
-        result = impl.load(WithAnyField, data)
-        assert result == WithAnyField(data=big_value, name="test")
-
-    def test_very_large_int(self, impl: Serializer) -> None:
-        very_large = 2**100
-        data = f'{{"data": {very_large}, "name": "test"}}'.encode()
-        result = impl.load(WithAnyField, data)
-        assert result == WithAnyField(data=very_large, name="test")
-
-    def test_big_negative_int(self, impl: Serializer) -> None:
-        big_negative = -9223372036854775809
-        data = f'{{"data": {big_negative}, "name": "test"}}'.encode()
-        result = impl.load(WithAnyField, data)
-        assert result == WithAnyField(data=big_negative, name="test")
-
-    def test_float(self, impl: Serializer) -> None:
-        data = b'{"data":3.14,"name":"test"}'
-        result = impl.load(WithAnyField, data)
-        assert result == WithAnyField(data=3.14, name="test")
-
-    def test_bool(self, impl: Serializer) -> None:
-        data = b'{"data":true,"name":"test"}'
-        result = impl.load(WithAnyField, data)
-        assert result == WithAnyField(data=True, name="test")
-
-    def test_none(self, impl: Serializer) -> None:
-        data = b'{"data":null,"name":"test"}'
-        result = impl.load(WithAnyField, data)
-        assert result == WithAnyField(data=None, name="test")
-
-    def test_list(self, impl: Serializer) -> None:
-        data = b'{"data":[1,2,3],"name":"test"}'
-        result = impl.load(WithAnyField, data)
-        assert result == WithAnyField(data=[1, 2, 3], name="test")
-
-    def test_dict(self, impl: Serializer) -> None:
-        data = b'{"data":{"key":"value"},"name":"test"}'
-        result = impl.load(WithAnyField, data)
-        assert result == WithAnyField(data={"key": "value"}, name="test")
-
-    def test_nested_structure(self, impl: Serializer) -> None:
-        data = b'{"data":{"items":[1,2,{"nested":true}],"count":3},"name":"test"}'
-        result = impl.load(WithAnyField, data)
-        assert result == WithAnyField(data={"items": [1, 2, {"nested": True}], "count": 3}, name="test")
-
-    def test_required_string(self, impl: Serializer) -> None:
-        data = b'{"data":"hello","name":"test"}'
+    @pytest.mark.parametrize(
+        ("data", "expected_data"),
+        [
+            pytest.param(b'{"data":"hello","name":"test"}', "hello", id="string"),
+            pytest.param(b'{"data":{"key":"value"},"name":"test"}', {"key": "value"}, id="dict"),
+            pytest.param(b'{"data":[1,"two",3.0],"name":"test"}', [1, "two", 3.0], id="list"),
+        ],
+    )
+    def test_required(self, impl: Serializer, data: bytes, expected_data: object) -> None:
         result = impl.load(WithRequiredAny, data)
-        assert result == WithRequiredAny(data="hello", name="test")
+        assert result == WithRequiredAny(data=expected_data, name="test")
 
-    def test_required_dict(self, impl: Serializer) -> None:
-        data = b'{"data":{"key":"value"},"name":"test"}'
-        result = impl.load(WithRequiredAny, data)
-        assert result == WithRequiredAny(data={"key": "value"}, name="test")
-
-    def test_required_list(self, impl: Serializer) -> None:
-        data = b'{"data":[1,"two",3.0],"name":"test"}'
-        result = impl.load(WithRequiredAny, data)
-        assert result == WithRequiredAny(data=[1, "two", 3.0], name="test")
-
-    def test_list_any_mixed_types(self, impl: Serializer) -> None:
-        data = b'{"items":[1,"two",3.0,true],"name":"test"}'
+    @pytest.mark.parametrize(
+        ("data", "expected_items"),
+        [
+            pytest.param(b'{"items":[1,"two",3.0,true],"name":"test"}', [1, "two", 3.0, True], id="mixed_types"),
+            pytest.param(b'{"items":[{"a":1},{"b":2}],"name":"test"}', [{"a": 1}, {"b": 2}], id="nested_dicts"),
+            pytest.param(b'{"items":[],"name":"test"}', [], id="empty"),
+            pytest.param(b'{"items":[1,null,"three"],"name":"test"}', [1, None, "three"], id="with_none_element"),
+            pytest.param(b'{"items":[null,null,null],"name":"test"}', [None, None, None], id="all_none"),
+        ],
+    )
+    def test_list_any(self, impl: Serializer, data: bytes, expected_items: list) -> None:
         result = impl.load(WithListAny, data)
-        assert result == WithListAny(items=[1, "two", 3.0, True], name="test")
-
-    def test_list_any_nested_dicts(self, impl: Serializer) -> None:
-        data = b'{"items":[{"a":1},{"b":2}],"name":"test"}'
-        result = impl.load(WithListAny, data)
-        assert result == WithListAny(items=[{"a": 1}, {"b": 2}], name="test")
-
-    def test_list_any_empty(self, impl: Serializer) -> None:
-        data = b'{"items":[],"name":"test"}'
-        result = impl.load(WithListAny, data)
-        assert result == WithListAny(items=[], name="test")
-
-    def test_list_any_with_none_element(self, impl: Serializer) -> None:
-        data = b'{"items":[1,null,"three"],"name":"test"}'
-        result = impl.load(WithListAny, data)
-        assert result == WithListAny(items=[1, None, "three"], name="test")
-
-    def test_list_any_all_none(self, impl: Serializer) -> None:
-        data = b'{"items":[null,null,null],"name":"test"}'
-        result = impl.load(WithListAny, data)
-        assert result == WithListAny(items=[None, None, None], name="test")
+        assert result == WithListAny(items=expected_items, name="test")
 
     def test_list_any_with_big_int(self, impl: Serializer) -> None:
         big_value = 9223372036854775808
@@ -297,40 +225,46 @@ class TestAnyLoad:
         result = impl.load(WithListAny, data)
         assert result == WithListAny(items=[1, big_value, "str"], name="test")
 
-    def test_dict_any_mixed_values(self, impl: Serializer) -> None:
-        data = b'{"data":{"str":"hello","int":42,"float":3.14,"bool":true},"name":"test"}'
+    @pytest.mark.parametrize(
+        ("data", "expected_data"),
+        [
+            pytest.param(
+                b'{"data":{"str":"hello","int":42,"float":3.14,"bool":true},"name":"test"}',
+                {"str": "hello", "int": 42, "float": 3.14, "bool": True},
+                id="mixed_values",
+            ),
+            pytest.param(
+                b'{"data":{"nested":{"deep":[1,2,3]}},"name":"test"}', {"nested": {"deep": [1, 2, 3]}}, id="nested"
+            ),
+            pytest.param(b'{"data":{},"name":"test"}', {}, id="empty"),
+            pytest.param(
+                b'{"data":{"key1":"value","key2":null,"key3":42},"name":"test"}',
+                {"key1": "value", "key2": None, "key3": 42},
+                id="with_none_value",
+            ),
+            pytest.param(b'{"data":{"a":null,"b":null},"name":"test"}', {"a": None, "b": None}, id="all_none"),
+        ],
+    )
+    def test_dict_any(self, impl: Serializer, data: bytes, expected_data: dict) -> None:
         result = impl.load(WithDictAny, data)
-        assert result == WithDictAny(data={"str": "hello", "int": 42, "float": 3.14, "bool": True}, name="test")
+        assert result == WithDictAny(data=expected_data, name="test")
 
-    def test_dict_any_nested(self, impl: Serializer) -> None:
-        data = b'{"data":{"nested":{"deep":[1,2,3]}},"name":"test"}'
-        result = impl.load(WithDictAny, data)
-        assert result == WithDictAny(data={"nested": {"deep": [1, 2, 3]}}, name="test")
-
-    def test_dict_any_empty(self, impl: Serializer) -> None:
-        data = b'{"data":{},"name":"test"}'
-        result = impl.load(WithDictAny, data)
-        assert result == WithDictAny(data={}, name="test")
-
-    def test_dict_any_with_none_value(self, impl: Serializer) -> None:
-        data = b'{"data":{"key1":"value","key2":null,"key3":42},"name":"test"}'
-        result = impl.load(WithDictAny, data)
-        assert result == WithDictAny(data={"key1": "value", "key2": None, "key3": 42}, name="test")
-
-    def test_dict_any_all_none(self, impl: Serializer) -> None:
-        data = b'{"data":{"a":null,"b":null},"name":"test"}'
-        result = impl.load(WithDictAny, data)
-        assert result == WithDictAny(data={"a": None, "b": None}, name="test")
-
-    def test_camel_case(self, impl: Serializer) -> None:
-        data = b'{"anyData":{"key":"value"},"fieldName":"test"}'
-        result = impl.load(WithAnyNamingCase, data, naming_case=mr.CAMEL_CASE)
-        assert result == WithAnyNamingCase(any_data={"key": "value"}, field_name="test")
-
-    def test_capital_camel_case(self, impl: Serializer) -> None:
-        data = b'{"AnyData":[1,2,3],"FieldName":"test"}'
-        result = impl.load(WithAnyNamingCase, data, naming_case=mr.CAPITAL_CAMEL_CASE)
-        assert result == WithAnyNamingCase(any_data=[1, 2, 3], field_name="test")
+    @pytest.mark.parametrize(
+        ("naming_case", "data", "expected_any_data"),
+        [
+            pytest.param(
+                mr.CAMEL_CASE, b'{"anyData":{"key":"value"},"fieldName":"test"}', {"key": "value"}, id="camel_case"
+            ),
+            pytest.param(
+                mr.CAPITAL_CAMEL_CASE, b'{"AnyData":[1,2,3],"FieldName":"test"}', [1, 2, 3], id="capital_camel_case"
+            ),
+        ],
+    )
+    def test_naming_case(
+        self, impl: Serializer, naming_case: mr.NamingCase, data: bytes, expected_any_data: object
+    ) -> None:
+        result = impl.load(WithAnyNamingCase, data, naming_case=naming_case)
+        assert result == WithAnyNamingCase(any_data=expected_any_data, field_name="test")
 
 
 class TestAnyTypeErrors:
@@ -369,3 +303,128 @@ class TestAnyTypeErrors:
         assert exc_info.value.args[0] == (
             "Any type cannot be used in Optional or Union (Any | None, Optional[Any], Union[Any, ...] are invalid)"
         )
+
+
+class TestAnyEdgeCases:
+    """Test Any type edge cases with boundary values, unicode, and nested structures."""
+
+    def test_deeply_nested_structure_5_levels(self, impl: Serializer) -> None:
+        deep_data = {"l1": {"l2": {"l3": {"l4": {"l5": "deep_value"}}}}}
+        obj = WithAnyField(data=deep_data, name="test")
+        result = impl.dump(WithAnyField, obj)
+        loaded = impl.load(WithAnyField, result)
+        assert loaded == obj
+
+    def test_unicode_keys_and_values(self, impl: Serializer) -> None:
+        unicode_data = {"ключ": "значение", "键": "值", "🔑": "🎉"}
+        obj = WithAnyField(data=unicode_data, name="test")
+        result = impl.dump(WithAnyField, obj)
+        loaded = impl.load(WithAnyField, result)
+        assert loaded == obj
+
+    def test_special_json_chars(self, impl: Serializer) -> None:
+        special_data = {"quoted": '"value"', "backslash": "back\\slash", "newline": "new\nline"}
+        obj = WithAnyField(data=special_data, name="test")
+        result = impl.dump(WithAnyField, obj)
+        loaded = impl.load(WithAnyField, result)
+        assert loaded == obj
+
+    def test_empty_string_key(self, impl: Serializer) -> None:
+        data = {"": "empty_key_value", "normal": "value"}
+        obj = WithAnyField(data=data, name="test")
+        result = impl.dump(WithAnyField, obj)
+        loaded = impl.load(WithAnyField, result)
+        assert loaded == obj
+
+    def test_whitespace_string_values(self, impl: Serializer) -> None:
+        data = {"tab": "\t", "newline": "\n", "spaces": "   ", "mixed": " \t\n "}
+        obj = WithAnyField(data=data, name="test")
+        result = impl.dump(WithAnyField, obj)
+        loaded = impl.load(WithAnyField, result)
+        assert loaded == obj
+
+    def test_mixed_types_in_list(self, impl: Serializer) -> None:
+        mixed_list = [1, "two", 3.0, True, False, None, {"nested": "dict"}, [1, 2, 3]]
+        obj = WithListAny(items=mixed_list, name="test")
+        result = impl.dump(WithListAny, obj)
+        loaded = impl.load(WithListAny, result)
+        assert loaded == obj
+
+    def test_big_int_values(self, impl: Serializer) -> None:
+        big_ints = {"big": 9223372036854775808, "bigger": 2**100, "negative": -(2**63) - 1}
+        obj = WithAnyField(data=big_ints, name="test")
+        result = impl.dump(WithAnyField, obj)
+        loaded = impl.load(WithAnyField, result)
+        assert loaded == obj
+
+    def test_float_edge_values(self, impl: Serializer) -> None:
+        float_data = {"small": 5e-324, "large": 1.7976931348623157e308, "negative": -1e-100}
+        obj = WithAnyField(data=float_data, name="test")
+        result = impl.dump(WithAnyField, obj)
+        loaded = impl.load(WithAnyField, result)
+        assert loaded == obj
+
+    def test_very_long_string(self, impl: Serializer) -> None:
+        long_string = "x" * 100000
+        obj = WithAnyField(data=long_string, name="test")
+        result = impl.dump(WithAnyField, obj)
+        loaded = impl.load(WithAnyField, result)
+        assert loaded == obj
+
+    def test_1000_element_list(self, impl: Serializer) -> None:
+        items = list(range(1000))
+        obj = WithListAny(items=items, name="test")
+        result = impl.dump(WithListAny, obj)
+        loaded = impl.load(WithListAny, result)
+        assert loaded == obj
+
+    def test_large_nested_dict(self, impl: Serializer) -> None:
+        large_dict = {f"key_{i}": {"nested": i, "values": [i, i + 1, i + 2]} for i in range(100)}
+        obj = WithDictAny(data=large_dict, name="test")
+        result = impl.dump(WithDictAny, obj)
+        loaded = impl.load(WithDictAny, result)
+        assert loaded == obj
+
+    def test_boolean_values(self, impl: Serializer) -> None:
+        bool_data = {"true_val": True, "false_val": False, "list": [True, False, True]}
+        obj = WithAnyField(data=bool_data, name="test")
+        result = impl.dump(WithAnyField, obj)
+        loaded = impl.load(WithAnyField, result)
+        assert loaded == obj
+
+    def test_null_values_in_nested_structure(self, impl: Serializer) -> None:
+        null_data = {"a": None, "b": {"c": None, "d": [None, None]}, "e": [{"f": None}]}
+        obj = WithAnyField(data=null_data, name="test")
+        result = impl.dump(WithAnyField, obj)
+        loaded = impl.load(WithAnyField, result)
+        assert loaded == obj
+
+    def test_empty_containers(self, impl: Serializer) -> None:
+        empty_data = {"empty_dict": {}, "empty_list": [], "nested_empty": {"inner": {}}}
+        obj = WithAnyField(data=empty_data, name="test")
+        result = impl.dump(WithAnyField, obj)
+        loaded = impl.load(WithAnyField, result)
+        assert loaded == obj
+
+    def test_zero_values(self, impl: Serializer) -> None:
+        zero_data = {"int_zero": 0, "float_zero": 0.0, "negative_zero": -0.0}
+        obj = WithAnyField(data=zero_data, name="test")
+        result = impl.dump(WithAnyField, obj)
+        loaded = impl.load(WithAnyField, result)
+        # Note: -0.0 becomes 0.0 after JSON serialization
+        assert loaded.data["int_zero"] == 0
+        assert loaded.data["float_zero"] == 0.0
+
+    def test_emoji_string(self, impl: Serializer) -> None:
+        emoji_data = "🎉🚀💻🌟✨🔥💯👨‍👩‍👧‍👦"
+        obj = WithAnyField(data=emoji_data, name="test")
+        result = impl.dump(WithAnyField, obj)
+        loaded = impl.load(WithAnyField, result)
+        assert loaded == obj
+
+    def test_null_bytes_in_string(self, impl: Serializer) -> None:
+        null_byte_data = "before\x00after"
+        obj = WithAnyField(data=null_byte_data, name="test")
+        result = impl.dump(WithAnyField, obj)
+        loaded = impl.load(WithAnyField, result)
+        assert loaded == obj

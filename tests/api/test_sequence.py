@@ -27,65 +27,41 @@ from .conftest import (
 
 
 class TestSequenceDump:
-    def test_str(self, impl: Serializer) -> None:
-        obj = SequenceOf[str](items=["a", "b", "c"])
-        result = impl.dump(SequenceOf[str], obj)
-        assert result == b'{"items":["a","b","c"]}'
-
-    def test_int(self, impl: Serializer) -> None:
-        obj = SequenceOf[int](items=[1, 2, 3])
-        result = impl.dump(SequenceOf[int], obj)
-        assert result == b'{"items":[1,2,3]}'
-
-    def test_float(self, impl: Serializer) -> None:
-        obj = SequenceOf[float](items=[1.5, 2.5, 3.5])
-        result = impl.dump(SequenceOf[float], obj)
-        assert result == b'{"items":[1.5,2.5,3.5]}'
-
-    def test_bool(self, impl: Serializer) -> None:
-        obj = SequenceOf[bool](items=[True, False, True])
-        result = impl.dump(SequenceOf[bool], obj)
-        assert result == b'{"items":[true,false,true]}'
-
-    def test_decimal(self, impl: Serializer) -> None:
-        obj = SequenceOf[decimal.Decimal](items=[decimal.Decimal("1.23"), decimal.Decimal("4.56")])
-        result = impl.dump(SequenceOf[decimal.Decimal], obj)
-        assert result == b'{"items":["1.23","4.56"]}'
-
-    def test_uuid(self, impl: Serializer) -> None:
-        u1 = uuid.UUID("12345678-1234-5678-1234-567812345678")
-        u2 = uuid.UUID("87654321-4321-8765-4321-876543218765")
-        obj = SequenceOf[uuid.UUID](items=[u1, u2])
-        result = impl.dump(SequenceOf[uuid.UUID], obj)
-        assert result == b'{"items":["12345678-1234-5678-1234-567812345678","87654321-4321-8765-4321-876543218765"]}'
-
-    def test_datetime(self, impl: Serializer) -> None:
-        dt = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)
-        obj = SequenceOf[datetime.datetime](items=[dt])
-        result = impl.dump(SequenceOf[datetime.datetime], obj)
-        assert result == b'{"items":["2024-01-15T10:30:00+00:00"]}'
-
-    def test_date(self, impl: Serializer) -> None:
-        d = datetime.date(2024, 1, 15)
-        obj = SequenceOf[datetime.date](items=[d])
-        result = impl.dump(SequenceOf[datetime.date], obj)
-        assert result == b'{"items":["2024-01-15"]}'
-
-    def test_time(self, impl: Serializer) -> None:
-        t = datetime.time(10, 30, 0)
-        obj = SequenceOf[datetime.time](items=[t])
-        result = impl.dump(SequenceOf[datetime.time], obj)
-        assert result == b'{"items":["10:30:00"]}'
-
-    def test_str_enum(self, impl: Serializer) -> None:
-        obj = SequenceOf[Status](items=[Status.ACTIVE, Status.PENDING])
-        result = impl.dump(SequenceOf[Status], obj)
-        assert result == b'{"items":["active","pending"]}'
-
-    def test_int_enum(self, impl: Serializer) -> None:
-        obj = SequenceOf[Priority](items=[Priority.LOW, Priority.HIGH])
-        result = impl.dump(SequenceOf[Priority], obj)
-        assert result == b'{"items":[1,3]}'
+    @pytest.mark.parametrize(
+        ("item_type", "value", "expected"),
+        [
+            pytest.param(str, ["a", "b", "c"], b'{"items":["a","b","c"]}', id="str"),
+            pytest.param(int, [1, 2, 3], b'{"items":[1,2,3]}', id="int"),
+            pytest.param(float, [1.5, 2.5, 3.5], b'{"items":[1.5,2.5,3.5]}', id="float"),
+            pytest.param(bool, [True, False, True], b'{"items":[true,false,true]}', id="bool"),
+            pytest.param(
+                decimal.Decimal,
+                [decimal.Decimal("1.23"), decimal.Decimal("4.56")],
+                b'{"items":["1.23","4.56"]}',
+                id="decimal",
+            ),
+            pytest.param(
+                uuid.UUID,
+                [uuid.UUID("12345678-1234-5678-1234-567812345678"), uuid.UUID("87654321-4321-8765-4321-876543218765")],
+                b'{"items":["12345678-1234-5678-1234-567812345678","87654321-4321-8765-4321-876543218765"]}',
+                id="uuid",
+            ),
+            pytest.param(
+                datetime.datetime,
+                [datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)],
+                b'{"items":["2024-01-15T10:30:00+00:00"]}',
+                id="datetime",
+            ),
+            pytest.param(datetime.date, [datetime.date(2024, 1, 15)], b'{"items":["2024-01-15"]}', id="date"),
+            pytest.param(datetime.time, [datetime.time(10, 30, 0)], b'{"items":["10:30:00"]}', id="time"),
+            pytest.param(Status, [Status.ACTIVE, Status.PENDING], b'{"items":["active","pending"]}', id="str_enum"),
+            pytest.param(Priority, [Priority.LOW, Priority.HIGH], b'{"items":[1,3]}', id="int_enum"),
+        ],
+    )
+    def test_value(self, impl: Serializer, item_type: type, value: list, expected: bytes) -> None:
+        obj = SequenceOf[item_type](items=value)
+        result = impl.dump(SequenceOf[item_type], obj)
+        assert result == expected
 
     def test_dataclass(self, impl: Serializer) -> None:
         addr = Address(street="Main St", city="NYC", zip_code="10001")
@@ -128,6 +104,23 @@ class TestSequenceDump:
         result = impl.dump(SequenceOf[int], obj)
         assert result == b'{"items":[]}'
 
+    def test_single_element(self, impl: Serializer) -> None:
+        obj = SequenceOf[int](items=[42])
+        result = impl.dump(SequenceOf[int], obj)
+        assert result == b'{"items":[42]}'
+
+    def test_large_sequence(self, impl: Serializer) -> None:
+        items = list(range(500))
+        obj = SequenceOf[int](items=items)
+        result = impl.dump(SequenceOf[int], obj)
+        parsed = json.loads(result)
+        assert parsed["items"] == items
+
+    def test_deeply_nested(self, impl: Serializer) -> None:
+        obj = SequenceOf[Sequence[Sequence[int]]](items=[[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
+        result = impl.dump(SequenceOf[Sequence[Sequence[int]]], obj)
+        assert result == b'{"items":[[[1,2],[3,4]],[[5,6],[7,8]]]}'
+
     def test_optional_none(self, impl: Serializer) -> None:
         obj = OptionalSequenceOf[int](items=None)
         result = impl.dump(OptionalSequenceOf[int], obj)
@@ -137,11 +130,6 @@ class TestSequenceDump:
         obj = OptionalSequenceOf[int](items=[1, 2, 3])
         result = impl.dump(OptionalSequenceOf[int], obj)
         assert result == b'{"items":[1,2,3]}'
-
-    def test_none_handling_ignore_default(self, impl: Serializer) -> None:
-        obj = OptionalSequenceOf[int](items=None)
-        result = impl.dump(OptionalSequenceOf[int], obj)
-        assert result == b"{}"
 
     def test_none_handling_ignore_explicit(self, impl: Serializer) -> None:
         obj = OptionalSequenceOf[int](items=None)
@@ -175,65 +163,40 @@ class TestSequenceDump:
 
 
 class TestSequenceLoad:
-    def test_str(self, impl: Serializer) -> None:
-        data = b'{"items":["a","b","c"]}'
-        result = impl.load(SequenceOf[str], data)
-        assert result == SequenceOf[str](items=["a", "b", "c"])
-
-    def test_int(self, impl: Serializer) -> None:
-        data = b'{"items":[1,2,3]}'
-        result = impl.load(SequenceOf[int], data)
-        assert result == SequenceOf[int](items=[1, 2, 3])
-
-    def test_float(self, impl: Serializer) -> None:
-        data = b'{"items":[1.5,2.5,3.5]}'
-        result = impl.load(SequenceOf[float], data)
-        assert result == SequenceOf[float](items=[1.5, 2.5, 3.5])
-
-    def test_bool(self, impl: Serializer) -> None:
-        data = b'{"items":[true,false,true]}'
-        result = impl.load(SequenceOf[bool], data)
-        assert result == SequenceOf[bool](items=[True, False, True])
-
-    def test_decimal(self, impl: Serializer) -> None:
-        data = b'{"items":["1.23","4.56"]}'
-        result = impl.load(SequenceOf[decimal.Decimal], data)
-        assert result == SequenceOf[decimal.Decimal](items=[decimal.Decimal("1.23"), decimal.Decimal("4.56")])
-
-    def test_uuid(self, impl: Serializer) -> None:
-        u1 = uuid.UUID("12345678-1234-5678-1234-567812345678")
-        u2 = uuid.UUID("87654321-4321-8765-4321-876543218765")
-        data = b'{"items":["12345678-1234-5678-1234-567812345678","87654321-4321-8765-4321-876543218765"]}'
-        result = impl.load(SequenceOf[uuid.UUID], data)
-        assert result == SequenceOf[uuid.UUID](items=[u1, u2])
-
-    def test_datetime(self, impl: Serializer) -> None:
-        dt = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)
-        data = b'{"items":["2024-01-15T10:30:00+00:00"]}'
-        result = impl.load(SequenceOf[datetime.datetime], data)
-        assert result == SequenceOf[datetime.datetime](items=[dt])
-
-    def test_date(self, impl: Serializer) -> None:
-        d = datetime.date(2024, 1, 15)
-        data = b'{"items":["2024-01-15"]}'
-        result = impl.load(SequenceOf[datetime.date], data)
-        assert result == SequenceOf[datetime.date](items=[d])
-
-    def test_time(self, impl: Serializer) -> None:
-        t = datetime.time(10, 30, 0)
-        data = b'{"items":["10:30:00"]}'
-        result = impl.load(SequenceOf[datetime.time], data)
-        assert result == SequenceOf[datetime.time](items=[t])
-
-    def test_str_enum(self, impl: Serializer) -> None:
-        data = b'{"items":["active","pending"]}'
-        result = impl.load(SequenceOf[Status], data)
-        assert result == SequenceOf[Status](items=[Status.ACTIVE, Status.PENDING])
-
-    def test_int_enum(self, impl: Serializer) -> None:
-        data = b'{"items":[1,3]}'
-        result = impl.load(SequenceOf[Priority], data)
-        assert result == SequenceOf[Priority](items=[Priority.LOW, Priority.HIGH])
+    @pytest.mark.parametrize(
+        ("item_type", "data", "expected_items"),
+        [
+            pytest.param(str, b'{"items":["a","b","c"]}', ["a", "b", "c"], id="str"),
+            pytest.param(int, b'{"items":[1,2,3]}', [1, 2, 3], id="int"),
+            pytest.param(float, b'{"items":[1.5,2.5,3.5]}', [1.5, 2.5, 3.5], id="float"),
+            pytest.param(bool, b'{"items":[true,false,true]}', [True, False, True], id="bool"),
+            pytest.param(
+                decimal.Decimal,
+                b'{"items":["1.23","4.56"]}',
+                [decimal.Decimal("1.23"), decimal.Decimal("4.56")],
+                id="decimal",
+            ),
+            pytest.param(
+                uuid.UUID,
+                b'{"items":["12345678-1234-5678-1234-567812345678","87654321-4321-8765-4321-876543218765"]}',
+                [uuid.UUID("12345678-1234-5678-1234-567812345678"), uuid.UUID("87654321-4321-8765-4321-876543218765")],
+                id="uuid",
+            ),
+            pytest.param(
+                datetime.datetime,
+                b'{"items":["2024-01-15T10:30:00+00:00"]}',
+                [datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)],
+                id="datetime",
+            ),
+            pytest.param(datetime.date, b'{"items":["2024-01-15"]}', [datetime.date(2024, 1, 15)], id="date"),
+            pytest.param(datetime.time, b'{"items":["10:30:00"]}', [datetime.time(10, 30, 0)], id="time"),
+            pytest.param(Status, b'{"items":["active","pending"]}', [Status.ACTIVE, Status.PENDING], id="str_enum"),
+            pytest.param(Priority, b'{"items":[1,3]}', [Priority.LOW, Priority.HIGH], id="int_enum"),
+        ],
+    )
+    def test_value(self, impl: Serializer, item_type: type, data: bytes, expected_items: list) -> None:
+        result = impl.load(SequenceOf[item_type], data)
+        assert result == SequenceOf[item_type](items=expected_items)
 
     def test_dataclass(self, impl: Serializer) -> None:
         addr = Address(street="Main St", city="NYC", zip_code="10001")
@@ -276,6 +239,22 @@ class TestSequenceLoad:
         result = impl.load(SequenceOf[int], data)
         assert result == SequenceOf[int](items=[])
 
+    def test_single_element(self, impl: Serializer) -> None:
+        data = b'{"items":[42]}'
+        result = impl.load(SequenceOf[int], data)
+        assert result == SequenceOf[int](items=[42])
+
+    def test_large_sequence(self, impl: Serializer) -> None:
+        items = list(range(500))
+        data = json.dumps({"items": items}).encode()
+        result = impl.load(SequenceOf[int], data)
+        assert result == SequenceOf[int](items=items)
+
+    def test_deeply_nested(self, impl: Serializer) -> None:
+        data = b'{"items":[[[1,2],[3,4]],[[5,6],[7,8]]]}'
+        result = impl.load(SequenceOf[Sequence[Sequence[int]]], data)
+        assert result == SequenceOf[Sequence[Sequence[int]]](items=[[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
+
     def test_optional_none(self, impl: Serializer) -> None:
         data = b"{}"
         result = impl.load(OptionalSequenceOf[int], data)
@@ -302,14 +281,8 @@ class TestSequenceLoad:
         result = impl.load(WithSequenceTwoValidators, data)
         assert result == WithSequenceTwoValidators(items=[1, 50, 99])
 
-    def test_item_two_validators_first_fails(self, impl: Serializer) -> None:
-        data = b'{"items":[1,0,50]}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithSequenceTwoValidators, data)
-        assert exc.value.messages == {"items": {1: ["Invalid value."]}}
-
-    def test_item_two_validators_second_fails(self, impl: Serializer) -> None:
-        data = b'{"items":[1,150,50]}'
+    @pytest.mark.parametrize("data", [b'{"items":[1,0,50]}', b'{"items":[1,150,50]}'])
+    def test_item_two_validators_fail(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithSequenceTwoValidators, data)
         assert exc.value.messages == {"items": {1: ["Invalid value."]}}
@@ -320,14 +293,8 @@ class TestSequenceLoad:
             impl.load(SequenceOf[int], data)
         assert exc.value.messages == {"items": {1: ["Not a valid integer."]}}
 
-    def test_wrong_type_string(self, impl: Serializer) -> None:
-        data = b'{"items":"not_a_sequence"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(SequenceOf[int], data)
-        assert exc.value.messages == {"items": ["Not a valid list."]}
-
-    def test_wrong_type_object(self, impl: Serializer) -> None:
-        data = b'{"items":{"key":1}}'
+    @pytest.mark.parametrize("data", [b'{"items":"not_a_sequence"}', b'{"items":{"key":1}}'])
+    def test_wrong_type(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(SequenceOf[int], data)
         assert exc.value.messages == {"items": ["Not a valid list."]}
@@ -365,3 +332,63 @@ class TestSequenceLoad:
         data = b'{"items":[1,2,3]}'
         result = impl.load(WithSequenceMissing, data)
         assert result == WithSequenceMissing(items=[1, 2, 3])
+
+
+class TestSequenceEdgeCases:
+    """Test sequence edge cases with multiple nulls, big ints, and special scenarios."""
+
+    def test_multiple_nulls(self, impl: Serializer) -> None:
+        obj = SequenceOf[int | None](items=[None, None, 1, None, 2, None])
+        result = impl.dump(SequenceOf[int | None], obj)
+        assert result == b'{"items":[null,null,1,null,2,null]}'
+
+    def test_all_nulls(self, impl: Serializer) -> None:
+        obj = SequenceOf[int | None](items=[None, None, None, None])
+        result = impl.dump(SequenceOf[int | None], obj)
+        assert result == b'{"items":[null,null,null,null]}'
+
+    def test_big_int_values(self, impl: Serializer) -> None:
+        big_vals = [9223372036854775808, -9223372036854775809, 2**100, -(2**100)]
+        obj = SequenceOf[int](items=big_vals)
+        result = impl.dump(SequenceOf[int], obj)
+        loaded = impl.load(SequenceOf[int], result)
+        assert loaded.items == big_vals
+
+    def test_unicode_strings(self, impl: Serializer) -> None:
+        unicode_vals = ["Привет", "你好", "🎉🎊🎁", "مرحبا"]
+        obj = SequenceOf[str](items=unicode_vals)
+        result = impl.dump(SequenceOf[str], obj)
+        loaded = impl.load(SequenceOf[str], result)
+        assert loaded.items == unicode_vals
+
+    def test_4_level_nesting(self, impl: Serializer) -> None:
+        obj = SequenceOf[Sequence[Sequence[Sequence[int]]]](items=[[[[1, 2], [3, 4]], [[5, 6], [7, 8]]]])
+        result = impl.dump(SequenceOf[Sequence[Sequence[Sequence[int]]]], obj)
+        loaded = impl.load(SequenceOf[Sequence[Sequence[Sequence[int]]]], result)
+        assert loaded == obj
+
+    def test_mixed_types_in_any(self, impl: Serializer) -> None:
+        obj = SequenceOf[Any](items=[1, "two", 3.14, True, None, {"a": 1}, [1, 2, 3]])
+        result = impl.dump(SequenceOf[Any], obj)
+        loaded = impl.load(SequenceOf[Any], result)
+        assert loaded == obj
+
+    def test_1000_elements(self, impl: Serializer) -> None:
+        items = list(range(1000))
+        obj = SequenceOf[int](items=items)
+        result = impl.dump(SequenceOf[int], obj)
+        loaded = impl.load(SequenceOf[int], result)
+        assert loaded.items == items
+
+    def test_special_chars_in_strings(self, impl: Serializer) -> None:
+        special_vals = ['"quoted"', "back\\slash", "new\nline", "tab\there"]
+        obj = SequenceOf[str](items=special_vals)
+        result = impl.dump(SequenceOf[str], obj)
+        loaded = impl.load(SequenceOf[str], result)
+        assert loaded.items == special_vals
+
+    def test_empty_strings(self, impl: Serializer) -> None:
+        obj = SequenceOf[str](items=["", "", "a", ""])
+        result = impl.dump(SequenceOf[str], obj)
+        loaded = impl.load(SequenceOf[str], result)
+        assert loaded.items == ["", "", "a", ""]
