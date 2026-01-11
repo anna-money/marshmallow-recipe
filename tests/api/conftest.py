@@ -55,7 +55,13 @@ class Serializer(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def load[T](self, schema_class: type[T], data: bytes, naming_case: mr.NamingCase | None = None) -> T:
+    def load[T](
+        self,
+        schema_class: type[T],
+        data: bytes,
+        naming_case: mr.NamingCase | None = None,
+        decimal_places: int | None = mr.MISSING,
+    ) -> T:
         raise NotImplementedError
 
     def load_many[T](self, schema_class: type[T], data: bytes, naming_case: mr.NamingCase | None = None) -> list[T]:
@@ -100,8 +106,14 @@ class MarshmallowSerializer(Serializer):
         result = mr.dump_many(schema_class, objs, naming_case=naming_case, none_value_handling=none_value_handling)
         return json.dumps(result, separators=(",", ":")).encode()
 
-    def load[T](self, schema_class: type[T], data: bytes, naming_case: mr.NamingCase | None = None) -> T:
-        return mr.load(schema_class, json.loads(data), naming_case=naming_case)
+    def load[T](
+        self,
+        schema_class: type[T],
+        data: bytes,
+        naming_case: mr.NamingCase | None = None,
+        decimal_places: int | None = mr.MISSING,
+    ) -> T:
+        return mr.load(schema_class, json.loads(data), naming_case=naming_case, decimal_places=decimal_places)
 
     def load_many[T](self, schema_class: type[T], data: bytes, naming_case: mr.NamingCase | None = None) -> list[T]:
         return mr.load_many(schema_class, json.loads(data), naming_case=naming_case)

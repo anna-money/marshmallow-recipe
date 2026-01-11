@@ -49,15 +49,24 @@ class TestDecimalDump:
         result = impl.dump(WithDecimal, obj)
         assert result == b'{"value":"0.01"}'
 
-    def test_places_0(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        ("places", "expected"),
+        [
+            (0, b'{"value":"123"}'),
+            (1, b'{"value":"123.5"}'),
+            (3, b'{"value":"123.456"}'),
+            (5, b'{"value":"123.45600"}'),
+        ],
+    )
+    def test_global_places(self, impl: Serializer, places: int, expected: bytes) -> None:
         obj = WithDecimal(value=decimal.Decimal("123.456"))
-        result = impl.dump(WithDecimal, obj, decimal_places=0)
-        assert result == b'{"value":"123"}'
+        result = impl.dump(WithDecimal, obj, decimal_places=places)
+        assert result == expected
 
-    def test_places_5(self, impl: Serializer) -> None:
-        obj = WithDecimal(value=decimal.Decimal("123.456"))
-        result = impl.dump(WithDecimal, obj, decimal_places=5)
-        assert result == b'{"value":"123.45600"}'
+    def test_field_places_overrides_global(self, impl: Serializer) -> None:
+        obj = WithAnnotatedDecimalPlaces(value=decimal.Decimal("123.456789"))
+        result = impl.dump(WithAnnotatedDecimalPlaces, obj, decimal_places=1)
+        assert result == b'{"value":"123.4568"}'
 
     def test_annotated_places(self, impl: Serializer) -> None:
         obj = WithAnnotatedDecimalPlaces(value=decimal.Decimal("123.456789"))
@@ -160,6 +169,25 @@ class TestDecimalLoad:
         data = b'{"value":"7.654"}'
         result = impl.load(WithAnnotatedDecimalRounding, data)
         assert result == WithAnnotatedDecimalRounding(value=decimal.Decimal("7.66"))
+
+    @pytest.mark.parametrize(
+        ("places", "expected"),
+        [
+            (0, decimal.Decimal("123")),
+            (1, decimal.Decimal("123.5")),
+            (3, decimal.Decimal("123.456")),
+            (5, decimal.Decimal("123.45600")),
+        ],
+    )
+    def test_global_places(self, impl: Serializer, places: int, expected: decimal.Decimal) -> None:
+        data = b'{"value":"123.456"}'
+        result = impl.load(WithDecimal, data, decimal_places=places)
+        assert result == WithDecimal(value=expected)
+
+    def test_field_places_overrides_global(self, impl: Serializer) -> None:
+        data = b'{"value":"123.456789"}'
+        result = impl.load(WithAnnotatedDecimalPlaces, data, decimal_places=1)
+        assert result == WithAnnotatedDecimalPlaces(value=decimal.Decimal("123.4568"))
 
     def test_validation_pass(self, impl: Serializer) -> None:
         data = b'{"value":"10.5"}'
