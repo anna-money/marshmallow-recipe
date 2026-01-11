@@ -9,8 +9,9 @@ from collections.abc import Mapping, Sequence
 from typing import Annotated, Any, NewType
 
 import marshmallow
-import marshmallow_recipe as mr
 import pytest
+
+import marshmallow_recipe as mr
 
 
 class Serializer(abc.ABC):
@@ -31,6 +32,10 @@ class Serializer(abc.ABC):
 
     @property
     def supports_cyclic(self) -> bool:
+        return True
+
+    @property
+    def supports_global_decimal_places(self) -> bool:
         return True
 
     @abc.abstractmethod
@@ -169,8 +174,19 @@ class NukedBytesSerializer(Serializer):
             decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
         )
 
-    def load[T](self, schema_class: type[T], data: bytes, naming_case: mr.NamingCase | None = None) -> T:
-        return mr.nuked.load_from_bytes(schema_class, data, naming_case=naming_case)
+    def load[T](
+        self,
+        schema_class: type[T],
+        data: bytes,
+        naming_case: mr.NamingCase | None = None,
+        decimal_places: int | None = mr.MISSING,
+    ) -> T:
+        return mr.nuked.load_from_bytes(
+            schema_class,
+            data,
+            naming_case=naming_case,
+            decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
+        )
 
 
 class NukedSerializer(Serializer):
@@ -201,8 +217,19 @@ class NukedSerializer(Serializer):
         )
         return json.dumps(result, separators=(",", ":")).encode()
 
-    def load[T](self, schema_class: type[T], data: bytes, naming_case: mr.NamingCase | None = None) -> T:
-        return mr.nuked.load(schema_class, json.loads(data), naming_case=naming_case)
+    def load[T](
+        self,
+        schema_class: type[T],
+        data: bytes,
+        naming_case: mr.NamingCase | None = None,
+        decimal_places: int | None = mr.MISSING,
+    ) -> T:
+        return mr.nuked.load(
+            schema_class,
+            json.loads(data),
+            naming_case=naming_case,
+            decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
+        )
 
 
 @pytest.fixture(
@@ -564,12 +591,6 @@ class WithAnnotatedDecimalPlaces:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithAnnotatedDecimalRounding:
     value: Annotated[decimal.Decimal, mr.decimal_metadata(places=2, rounding=decimal.ROUND_UP)]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithDecimalNoPlaces:
-    # places=None disables automatic rounding, preserving full precision
-    value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=None))
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

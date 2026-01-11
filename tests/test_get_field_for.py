@@ -10,8 +10,9 @@ import uuid
 from typing import Annotated, Any, NewType, Optional
 
 import marshmallow as m
-import marshmallow_recipe as mr
 import pytest
+
+import marshmallow_recipe as mr
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 

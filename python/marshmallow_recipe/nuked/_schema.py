@@ -2,6 +2,7 @@ import dataclasses
 from collections.abc import Callable
 from typing import Any
 
+from ..missing import MISSING
 from ._descriptor import TypeDescriptor
 from ._validator import build_combined_validator
 
@@ -60,7 +61,7 @@ def field_to_dict(field: Any, visited_schemas: set[type] | None = None) -> dict:
     if field.strip_whitespaces:
         result["strip_whitespaces"] = True
 
-    if field.decimal_places is not None:
+    if field.decimal_places is not MISSING:
         result["decimal_places"] = field.decimal_places
 
     if field.decimal_rounding is not None:

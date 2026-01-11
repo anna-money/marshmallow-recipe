@@ -62,7 +62,7 @@ class FieldDescriptor:
     key_type: str | None = None
     value_schema: FieldDescriptor | None = None
     strip_whitespaces: bool = False
-    decimal_places: int | None = None
+    decimal_places: int | None = MISSING
     decimal_rounding: str | None = None
     datetime_format: str | None = None
     enum_cls: type | None = None
@@ -394,9 +394,13 @@ def _build_field_descriptor(
     field_type, nested_info = _analyze_type(hint, origin, args, nested_naming_case, metadata)
     slot_offset = get_slot_offset(cls, name) if cls else None
 
-    # Apply default decimal_places only if not explicitly set
-    if field_type == "decimal" and decimal_places is None and not decimal_places_explicitly_set:
-        decimal_places = default_decimal_places if default_decimal_places is not None else 2
+    if field_type == "decimal":
+        if decimal_places_explicitly_set:
+            pass
+        elif default_decimal_places is not None:
+            decimal_places = default_decimal_places
+        elif decimal_places is None:
+            decimal_places = MISSING
 
     return FieldDescriptor(
         name=name,

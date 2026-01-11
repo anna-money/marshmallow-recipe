@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::cache::get_cached_types;
 use crate::slots::set_slot_value_direct;
-use crate::types::{FieldDescriptor, FieldType, TypeDescriptor, TypeKind};
+use crate::types::{DecimalPlaces, FieldDescriptor, FieldType, TypeDescriptor, TypeKind};
 
 fn err_dict(py: Python, field_name: &str, message: &str) -> Py<PyAny> {
     let errors = PyList::empty(py);
@@ -71,6 +71,7 @@ fn call_validator(py: Python, validator: &Py<PyAny>, value: &Bound<'_, PyAny>) -
 pub struct LoadContext<'a, 'py> {
     pub py: Python<'py>,
     pub post_loads: Option<&'a Bound<'py, PyDict>>,
+    pub decimal_places: Option<i32>,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -178,7 +179,12 @@ pub fn deserialize_field_value<'py>(
                 ));
             };
 
-            if let Some(places) = field.decimal_places.filter(|&p| p >= 0) {
+            let places = match field.decimal_places {
+                DecimalPlaces::NoRounding => None,
+                DecimalPlaces::Places(n) => Some(n),
+                DecimalPlaces::NotSpecified => ctx.decimal_places.or(Some(2)),
+            };
+            if let Some(places) = places.filter(|&p| p >= 0) {
                 let quantizer = if let Some(q) = cached.get_quantizer(places) { q.clone_ref(ctx.py) } else {
                     let quantize_str = format!("1e-{places}");
                     decimal_cls.call1((quantize_str,))?.unbind()
@@ -998,8 +1004,9 @@ pub fn load<'py>(
     value: &Bound<'py, PyAny>,
     descriptor: &TypeDescriptor,
     post_loads: Option<&Bound<'py, PyDict>>,
+    decimal_places: Option<i32>,
 ) -> PyResult<Py<PyAny>> {
-    let ctx = LoadContext { py, post_loads };
+    let ctx = LoadContext { py, post_loads, decimal_places };
 
     deserialize_root_type(value, descriptor, &ctx)
 }

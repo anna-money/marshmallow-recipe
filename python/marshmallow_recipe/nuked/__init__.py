@@ -74,12 +74,17 @@ def dump_to_bytes[T](
 
 
 def load_from_bytes[T](
-    cls: type[T], data: bytes, *, naming_case: typing.Callable[[str], str] | None = None, encoding: str = "utf-8"
+    cls: type[T],
+    data: bytes,
+    *,
+    naming_case: typing.Callable[[str], str] | None = None,
+    decimal_places: int | None = None,
+    encoding: str = "utf-8",
 ) -> T:
     schema_id = _ensure_registered(cls, naming_case)
     post_loads, _ = _schema_cache[schema_id]
     try:
-        return nuked.load_from_bytes(schema_id, data, post_loads, encoding)  # type: ignore[return-value]
+        return nuked.load_from_bytes(schema_id, data, post_loads, decimal_places, encoding)  # type: ignore[return-value]
     except ValueError as e:
         raise _convert_rust_error_to_validation_error(e)
 
@@ -104,7 +109,13 @@ def dump[T](
         raise _convert_rust_error_to_validation_error(e)
 
 
-def load[T](cls: type[T], data: typing.Any, *, naming_case: typing.Callable[[str], str] | None = None) -> T:
+def load[T](
+    cls: type[T],
+    data: typing.Any,
+    *,
+    naming_case: typing.Callable[[str], str] | None = None,
+    decimal_places: int | None = None,
+) -> T:
     schema_id = _ensure_registered(cls, naming_case)
     post_loads, _ = _schema_cache[schema_id]
 
@@ -112,6 +123,6 @@ def load[T](cls: type[T], data: typing.Any, *, naming_case: typing.Callable[[str
         data = pre_load(data)
 
     try:
-        return nuked.load(schema_id, data, post_loads)  # type: ignore[return-value]
+        return nuked.load(schema_id, data, post_loads, decimal_places)  # type: ignore[return-value]
     except ValueError as e:
         raise _convert_rust_error_to_validation_error(e)

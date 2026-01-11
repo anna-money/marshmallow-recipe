@@ -1,8 +1,9 @@
 import decimal
 
 import marshmallow
-import marshmallow_recipe as mr
 import pytest
+
+import marshmallow_recipe as mr
 
 from .conftest import (
     OptionalValueOf,
