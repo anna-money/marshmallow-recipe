@@ -323,8 +323,6 @@ class TestDecimalDumpInvalidType:
 
 
 class TestDecimalNoPlaces:
-    """Tests for places=None (no automatic rounding)."""
-
     def test_dump_preserves_full_precision(self, impl: Serializer) -> None:
         obj = WithDecimalNoPlaces(value=decimal.Decimal("123.456789012345678901234567890"))
         result = impl.dump(WithDecimalNoPlaces, obj)
@@ -340,7 +338,17 @@ class TestDecimalNoPlaces:
         result = impl.dump(WithDecimalNoPlaces, obj)
         assert result == b'{"value":"100"}'
 
+    def test_dump_overrides_global_places(self, impl: Serializer) -> None:
+        obj = WithDecimalNoPlaces(value=decimal.Decimal("123.456789"))
+        result = impl.dump(WithDecimalNoPlaces, obj, decimal_places=2)
+        assert result == b'{"value":"123.456789"}'
+
     def test_load_preserves_full_precision(self, impl: Serializer) -> None:
         data = b'{"value":"123.456789012345678901234567890"}'
         result = impl.load(WithDecimalNoPlaces, data)
         assert result == WithDecimalNoPlaces(value=decimal.Decimal("123.456789012345678901234567890"))
+
+    def test_load_overrides_global_places(self, impl: Serializer) -> None:
+        data = b'{"value":"123.456789"}'
+        result = impl.load(WithDecimalNoPlaces, data, decimal_places=2)
+        assert result == WithDecimalNoPlaces(value=decimal.Decimal("123.456789"))
