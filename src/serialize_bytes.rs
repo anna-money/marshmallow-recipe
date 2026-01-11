@@ -40,12 +40,12 @@ fn call_validator(py: Python, validator: &Py<PyAny>, value: &Bound<'_, PyAny>) -
 
 use crate::utils::pyany_to_json_value;
 
-fn pylist_to_json_value(py: Python, list: &Py<PyAny>) -> PyResult<Value> {
+fn pylist_to_json_value(py: Python, list: &Py<PyAny>) -> Value {
     pyany_to_json_value(list.bind(py))
 }
 
 fn format_field_error_json(py: Python, field_name: &str, errors: &Py<PyAny>) -> String {
-    let errors_json = pylist_to_json_value(py, errors).unwrap_or_else(|_| json!(["Validation error"]));
+    let errors_json = pylist_to_json_value(py, errors);
     let mut map = serde_json::Map::new();
     map.insert(field_name.to_string(), errors_json);
     Value::Object(map).to_string()
@@ -53,8 +53,8 @@ fn format_field_error_json(py: Python, field_name: &str, errors: &Py<PyAny>) -> 
 
 fn format_field_item_error_json(py: Python, field_name: &str, errors: &HashMap<usize, Py<PyAny>>) -> String {
     let mut inner_map = serde_json::Map::new();
-    for (idx, err_list) in errors.iter() {
-        let json_val = pylist_to_json_value(py, err_list).unwrap_or_else(|_| json!(["Validation error"]));
+    for (idx, err_list) in errors {
+        let json_val = pylist_to_json_value(py, err_list);
         inner_map.insert(idx.to_string(), json_val);
     }
     let mut map = serde_json::Map::new();
@@ -64,8 +64,8 @@ fn format_field_item_error_json(py: Python, field_name: &str, errors: &HashMap<u
 
 fn format_field_dict_error_json(py: Python, field_name: &str, errors: &HashMap<String, Py<PyAny>>) -> String {
     let mut inner_map = serde_json::Map::new();
-    for (key, err_list) in errors.iter() {
-        let json_val = pylist_to_json_value(py, err_list).unwrap_or_else(|_| json!(["Validation error"]));
+    for (key, err_list) in errors {
+        let json_val = pylist_to_json_value(py, err_list);
         inner_map.insert(key.clone(), json_val);
     }
     let mut map = serde_json::Map::new();
@@ -84,7 +84,7 @@ pub struct AnyValueSerializer<'a, 'py> {
     pub field_name: Option<&'a str>,
 }
 
-impl<'a, 'py> Serialize for AnyValueSerializer<'a, 'py> {
+impl Serialize for AnyValueSerializer<'_, '_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -123,8 +123,7 @@ impl<'a, 'py> Serialize for AnyValueSerializer<'a, 'py> {
                 let key = k.cast::<PyString>().map_err(|_| {
                     serde::ser::Error::custom(match self.field_name {
                         Some(name) => format!(
-                            "{{\"{}\": [\"Not a valid JSON-serializable value.\"]}}",
-                            name
+                            "{{\"{name}\": [\"Not a valid JSON-serializable value.\"]}}"
                         ),
                         None => "Any field dict keys must be strings".to_string(),
                     })
@@ -141,8 +140,7 @@ impl<'a, 'py> Serialize for AnyValueSerializer<'a, 'py> {
         }
         Err(serde::ser::Error::custom(match self.field_name {
             Some(name) => format!(
-                "{{\"{}\": [\"Not a valid JSON-serializable value.\"]}}",
-                name
+                "{{\"{name}\": [\"Not a valid JSON-serializable value.\"]}}"
             ),
             None => format!(
                 "Any field value must be JSON-serializable (str/int/float/bool/None/list/dict), got: {}",
@@ -158,7 +156,8 @@ pub struct FieldValueSerializer<'a, 'py> {
     pub ctx: &'a StreamingContext<'a, 'py>,
 }
 
-impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
+impl<'py> Serialize for FieldValueSerializer<'_, 'py> {
+    #[allow(clippy::too_many_lines)]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -210,10 +209,10 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                     }
                     serializer.serialize_f64(f)
                 } else {
-                    return Err(serde::ser::Error::custom(format!(
+                    Err(serde::ser::Error::custom(format!(
                         "{{\"{}\": [\"Not a valid number.\"]}}",
                         self.field.name
-                    )));
+                    )))
                 }
             }
             FieldType::Bool => {
@@ -229,7 +228,7 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
             FieldType::Decimal => {
                 let py = self.value.py();
                 let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                if !self.value.is_instance(&cached.decimal_cls.bind(py)).map_err(serde::ser::Error::custom)? {
+                if !self.value.is_instance(cached.decimal_cls.bind(py)).map_err(serde::ser::Error::custom)? {
                     return Err(serde::ser::Error::custom(format!(
                         "{{\"{}\": [\"Not a valid decimal.\"]}}",
                         self.field.name
@@ -245,15 +244,12 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                 let decimal_value = if let Some(places) = decimal_places {
                     let cached =
                         get_cached_types(self.ctx.py).map_err(serde::ser::Error::custom)?;
-                    let quantizer = match cached.get_quantizer(places) {
-                        Some(q) => q.clone_ref(self.ctx.py),
-                        None => {
-                            let quantize_str = format!("1e-{}", places);
-                            cached.decimal_cls.bind(self.ctx.py)
-                                .call1((quantize_str,))
-                                .map_err(serde::ser::Error::custom)?
-                                .unbind()
-                        }
+                    let quantizer = if let Some(q) = cached.get_quantizer(places) { q.clone_ref(self.ctx.py) } else {
+                        let quantize_str = format!("1e-{places}");
+                        cached.decimal_cls.bind(self.ctx.py)
+                            .call1((quantize_str,))
+                            .map_err(serde::ser::Error::custom)?
+                            .unbind()
                     };
                     if let Some(ref rounding) = self.field.decimal_rounding {
                         let kwargs = PyDict::new(self.ctx.py);
@@ -282,12 +278,11 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                     serializer.serialize_str(&s)
                 } else {
                     let f: f64 = s.parse().map_err(|_| {
-                        serde::ser::Error::custom(format!("Cannot parse decimal '{}' as float", s))
+                        serde::ser::Error::custom(format!("Cannot parse decimal '{s}' as float"))
                     })?;
                     if f.is_nan() || f.is_infinite() {
                         return Err(serde::ser::Error::custom(format!(
-                            "Decimal '{}' resulted in NaN/Infinite",
-                            s
+                            "Decimal '{s}' resulted in NaN/Infinite"
                         )));
                     }
                     serializer.serialize_f64(f)
@@ -296,7 +291,7 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
             FieldType::Uuid => {
                 let py = self.value.py();
                 let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                if !self.value.is_instance(&cached.uuid_cls.bind(py)).map_err(serde::ser::Error::custom)? {
+                if !self.value.is_instance(cached.uuid_cls.bind(py)).map_err(serde::ser::Error::custom)? {
                     return Err(serde::ser::Error::custom(format!(
                         "{{\"{}\": [\"Not a valid UUID.\"]}}",
                         self.field.name
@@ -342,7 +337,7 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                             dt.get_hour(), dt.get_minute(), dt.get_second(), micros).unwrap();
                     }
                     if let Some(tz) = dt.get_tzinfo() {
-                        if tz.is(&cached.utc_tz.bind(py)) {
+                        if tz.is(cached.utc_tz.bind(py)) {
 
                             buf.push_str("+00:00");
                         } else {
@@ -399,7 +394,7 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                 }
                 if let Some(tz) = t.get_tzinfo() {
                     let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                    if tz.is(&cached.utc_tz.bind(py)) {
+                    if tz.is(cached.utc_tz.bind(py)) {
                         buf.push_str("+00:00");
                     } else {
                         let offset = tz.call_method1(cached.str_utcoffset.bind(py), (py.None(),))
@@ -525,8 +520,7 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                         let enum_name = self.field.enum_name.as_deref().unwrap_or("Enum");
                         let members_repr = self.field.enum_members_repr.as_deref().unwrap_or("[]");
                         return Err(serde::ser::Error::custom(format!(
-                            "[\"Expected {} instance, got {}. Allowed values: {}\"]",
-                            enum_name, value_type_name, members_repr
+                            "[\"Expected {enum_name} instance, got {value_type_name}. Allowed values: {members_repr}\"]"
                         )));
                     }
                 }
@@ -547,8 +541,7 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                         let enum_name = self.field.enum_name.as_deref().unwrap_or("Enum");
                         let members_repr = self.field.enum_members_repr.as_deref().unwrap_or("[]");
                         return Err(serde::ser::Error::custom(format!(
-                            "[\"Expected {} instance, got {}. Allowed values: {}\"]",
-                            enum_name, value_type_name, members_repr
+                            "[\"Expected {enum_name} instance, got {value_type_name}. Allowed values: {members_repr}\"]"
                         )));
                     }
                 }
@@ -588,7 +581,7 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                 }
 
                 let mut seq = serializer.serialize_seq(Some(items.len()))?;
-                for item in items.iter() {
+                for item in &items {
                     seq.serialize_element(&FieldValueSerializer {
                         value: item,
                         field: item_schema,
@@ -626,7 +619,7 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                 }
 
                 let mut seq = serializer.serialize_seq(Some(items.len()))?;
-                for item in items.iter() {
+                for item in &items {
                     seq.serialize_element(&FieldValueSerializer {
                         value: item,
                         field: item_schema,
@@ -664,7 +657,7 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                 }
 
                 let mut seq = serializer.serialize_seq(Some(items.len()))?;
-                for item in items.iter() {
+                for item in &items {
                     seq.serialize_element(&FieldValueSerializer {
                         value: item,
                         field: item_schema,
@@ -678,7 +671,7 @@ impl<'a, 'py> Serialize for FieldValueSerializer<'a, 'py> {
                     serde::ser::Error::custom("Union field missing union_variants")
                 })?;
 
-                for variant in variants.iter() {
+                for variant in variants {
                     let result = serde_json::to_value(&FieldValueSerializer {
                         value: self.value,
                         field: variant,
@@ -708,7 +701,7 @@ pub struct DataclassSerializer<'a, 'py> {
     pub ctx: &'a StreamingContext<'a, 'py>,
 }
 
-impl<'a, 'py> Serialize for DataclassSerializer<'a, 'py> {
+impl Serialize for DataclassSerializer<'_, '_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -716,14 +709,13 @@ impl<'a, 'py> Serialize for DataclassSerializer<'a, 'py> {
         let ignore_none = self
             .ctx
             .none_value_handling
-            .map(|s| s == "ignore")
-            .unwrap_or(true);
+            .is_none_or(|s| s == "ignore");
 
         let cached = get_cached_types(self.ctx.py).map_err(serde::ser::Error::custom)?;
         let missing_sentinel = cached.missing_sentinel.bind(self.ctx.py);
         let mut map = serializer.serialize_map(None)?;
 
-        for field in self.fields.iter() {
+        for field in self.fields {
             let py_value = match field.slot_offset {
                 Some(offset) => match unsafe { get_slot_value_direct(self.ctx.py, self.obj, offset) }
                 {
@@ -739,7 +731,7 @@ impl<'a, 'py> Serialize for DataclassSerializer<'a, 'py> {
                     .map_err(serde::ser::Error::custom)?,
             };
 
-            if py_value.is(&missing_sentinel) || (py_value.is_none() && ignore_none) {
+            if py_value.is(missing_sentinel) || (py_value.is_none() && ignore_none) {
                 continue;
             }
 
@@ -770,7 +762,8 @@ pub struct RootTypeSerializer<'a, 'py> {
     pub ctx: &'a StreamingContext<'a, 'py>,
 }
 
-impl<'a, 'py> Serialize for RootTypeSerializer<'a, 'py> {
+impl Serialize for RootTypeSerializer<'_, '_> {
+    #[allow(clippy::too_many_lines)]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -873,7 +866,7 @@ impl<'a, 'py> Serialize for RootTypeSerializer<'a, 'py> {
                     serde::ser::Error::custom("Missing union_variants for union")
                 })?;
 
-                for variant in variants.iter() {
+                for variant in variants {
                     let result = serde_json::to_value(&RootTypeSerializer {
                         value: self.value,
                         descriptor: variant,
@@ -896,7 +889,8 @@ pub struct PrimitiveSerializer<'a, 'py> {
     pub field_type: &'a FieldType,
 }
 
-impl<'a, 'py> Serialize for PrimitiveSerializer<'a, 'py> {
+impl Serialize for PrimitiveSerializer<'_, '_> {
+    #[allow(clippy::too_many_lines)]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -934,7 +928,7 @@ impl<'a, 'py> Serialize for PrimitiveSerializer<'a, 'py> {
                     }
                     serializer.serialize_f64(f)
                 } else {
-                    return Err(serde::ser::Error::custom("Not a valid number."));
+                    Err(serde::ser::Error::custom("Not a valid number."))
                 }
             }
             FieldType::Bool => {
@@ -947,7 +941,7 @@ impl<'a, 'py> Serialize for PrimitiveSerializer<'a, 'py> {
             FieldType::Decimal => {
                 let py = self.value.py();
                 let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                if !self.value.is_instance(&cached.decimal_cls.bind(py)).map_err(serde::ser::Error::custom)? {
+                if !self.value.is_instance(cached.decimal_cls.bind(py)).map_err(serde::ser::Error::custom)? {
                     return Err(serde::ser::Error::custom("Not a valid decimal."));
                 }
                 let s: String = self
@@ -961,7 +955,7 @@ impl<'a, 'py> Serialize for PrimitiveSerializer<'a, 'py> {
             FieldType::Uuid => {
                 let py = self.value.py();
                 let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                if !self.value.is_instance(&cached.uuid_cls.bind(py)).map_err(serde::ser::Error::custom)? {
+                if !self.value.is_instance(cached.uuid_cls.bind(py)).map_err(serde::ser::Error::custom)? {
                     return Err(serde::ser::Error::custom("Not a valid UUID."));
                 }
                 let uuid_int: u128 = self.value
@@ -991,7 +985,7 @@ impl<'a, 'py> Serialize for PrimitiveSerializer<'a, 'py> {
                         dt.get_hour(), dt.get_minute(), dt.get_second(), micros).unwrap();
                 }
                 if let Some(tz) = dt.get_tzinfo() {
-                    if tz.is(&cached.utc_tz.bind(py)) {
+                    if tz.is(cached.utc_tz.bind(py)) {
 
                         buf.push_str("+00:00");
                     } else {
@@ -1032,7 +1026,7 @@ impl<'a, 'py> Serialize for PrimitiveSerializer<'a, 'py> {
                 }
                 if let Some(tz) = t.get_tzinfo() {
                     let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                    if tz.is(&cached.utc_tz.bind(py)) {
+                    if tz.is(cached.utc_tz.bind(py)) {
 
                         buf.push_str("+00:00");
                     } else {

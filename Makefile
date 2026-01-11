@@ -22,6 +22,7 @@ lint: deps
 	@uv run ruff format python/marshmallow_recipe tests
 	@uv run ruff check python/marshmallow_recipe tests --fix
 	@uv run pyright
+	@cargo clippy
 
 test: deps
 	@uv run pytest -vv $(or $(T),.)
