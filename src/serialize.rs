@@ -193,23 +193,8 @@ fn serialize_field_value<'py>(
                 value.clone()
             };
 
-            if field.decimal_as_string {
-                let s = decimal_value.str()?;
-                Ok(s.into_any().unbind())
-            } else {
-                let s: String = decimal_value.str()?.extract()?;
-                let f: f64 = s.parse().map_err(|_| {
-                    PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                        "Cannot parse decimal '{s}' as float"
-                    ))
-                })?;
-                if f.is_nan() || f.is_infinite() {
-                    return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                        "Decimal '{s}' resulted in NaN/Infinite"
-                    )));
-                }
-                Ok(f.into_pyobject(ctx.py)?.into_any().unbind())
-            }
+            let s = decimal_value.str()?;
+            Ok(s.into_any().unbind())
         }
         FieldType::Uuid => {
             let cached = get_cached_types(ctx.py)?;

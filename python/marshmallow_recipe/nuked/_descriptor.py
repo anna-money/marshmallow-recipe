@@ -63,7 +63,6 @@ class FieldDescriptor:
     value_schema: FieldDescriptor | None = None
     strip_whitespaces: bool = False
     decimal_places: int | None = None
-    decimal_as_string: bool = True
     decimal_rounding: str | None = None
     datetime_format: str | None = None
     enum_cls: type | None = None
@@ -328,7 +327,7 @@ def _build_field_descriptor(
     serialized_name = None
     strip_whitespaces = False
     decimal_places: int | None = None
-    decimal_as_string = True
+    decimal_places_explicitly_set = False
     decimal_rounding: str | None = None
     datetime_format: str | None = None
     validators: list[Callable] | None = None
@@ -340,8 +339,9 @@ def _build_field_descriptor(
     if metadata:
         serialized_name = metadata.get("name")
         strip_whitespaces = metadata.get("strip_whitespaces", False)
-        decimal_places = metadata.get("places")
-        decimal_as_string = metadata.get("as_string", True)
+        if "places" in metadata:
+            decimal_places = metadata.get("places")
+            decimal_places_explicitly_set = True
         decimal_rounding = metadata.get("rounding")
         datetime_format = metadata.get("format")
         post_load_callback = metadata.get("post_load")
@@ -365,8 +365,7 @@ def _build_field_descriptor(
                     strip_whitespaces = arg["strip_whitespaces"]
                 if "places" in arg:
                     decimal_places = arg["places"]
-                if "as_string" in arg:
-                    decimal_as_string = arg["as_string"]
+                    decimal_places_explicitly_set = True
                 if "rounding" in arg:
                     decimal_rounding = arg["rounding"]
                 if "format" in arg:
@@ -395,7 +394,8 @@ def _build_field_descriptor(
     field_type, nested_info = _analyze_type(hint, origin, args, nested_naming_case, metadata)
     slot_offset = get_slot_offset(cls, name) if cls else None
 
-    if field_type == "decimal" and decimal_places is None:
+    # Apply default decimal_places only if not explicitly set
+    if field_type == "decimal" and decimal_places is None and not decimal_places_explicitly_set:
         decimal_places = default_decimal_places if default_decimal_places is not None else 2
 
     return FieldDescriptor(
@@ -406,7 +406,6 @@ def _build_field_descriptor(
         slot_offset=slot_offset,
         strip_whitespaces=strip_whitespaces,
         decimal_places=decimal_places,
-        decimal_as_string=decimal_as_string,
         decimal_rounding=decimal_rounding,
         datetime_format=datetime_format,
         default_value=default_value,

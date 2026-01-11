@@ -274,19 +274,7 @@ impl<'py> Serialize for FieldValueSerializer<'_, 'py> {
                     .extract()
                     .map_err(serde::ser::Error::custom)?;
 
-                if self.field.decimal_as_string {
-                    serializer.serialize_str(&s)
-                } else {
-                    let f: f64 = s.parse().map_err(|_| {
-                        serde::ser::Error::custom(format!("Cannot parse decimal '{s}' as float"))
-                    })?;
-                    if f.is_nan() || f.is_infinite() {
-                        return Err(serde::ser::Error::custom(format!(
-                            "Decimal '{s}' resulted in NaN/Infinite"
-                        )));
-                    }
-                    serializer.serialize_f64(f)
-                }
+                serializer.serialize_str(&s)
             }
             FieldType::Uuid => {
                 let py = self.value.py();
