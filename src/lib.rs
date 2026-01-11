@@ -12,6 +12,9 @@ mod api;
 use pyo3::prelude::*;
 
 #[cfg(feature = "alloc-stats")]
+use std::sync::atomic::Ordering;
+
+#[cfg(feature = "alloc-stats")]
 mod alloc_stats {
     use std::alloc::{GlobalAlloc, Layout, System};
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -44,7 +47,6 @@ mod alloc_stats {
 #[cfg(feature = "alloc-stats")]
 #[pyfunction]
 fn reset_alloc_stats() {
-    use std::sync::atomic::Ordering;
     alloc_stats::ALLOCATED.store(0, Ordering::Relaxed);
     alloc_stats::DEALLOCATED.store(0, Ordering::Relaxed);
     alloc_stats::ALLOC_COUNT.store(0, Ordering::Relaxed);
@@ -54,7 +56,6 @@ fn reset_alloc_stats() {
 #[cfg(feature = "alloc-stats")]
 #[pyfunction]
 fn get_alloc_stats() -> (usize, usize, usize, usize) {
-    use std::sync::atomic::Ordering;
     (
         alloc_stats::ALLOCATED.load(Ordering::Relaxed),
         alloc_stats::DEALLOCATED.load(Ordering::Relaxed),

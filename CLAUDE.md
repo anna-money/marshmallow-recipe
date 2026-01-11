@@ -17,7 +17,7 @@
 - Define `__slots__` as a tuple listing all instance attributes before the `__init__` method
 - Do not use deprecated API
 - No local imports
-- marshmallow_recipe should work the same as marshmallow_recipe.speedup
+- marshmallow_recipe should work the same as marshmallow_recipe.nuked
 
 ### Tests Guidelines
 - Always assert objects in full, do not do that field by field

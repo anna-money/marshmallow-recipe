@@ -75,7 +75,7 @@ def field_to_dict(field: Any, visited_schemas: set[type] | None = None) -> dict:
     if field.nested_schema is not None:
         if field.nested_schema.cls in visited_schemas:
             raise NotImplementedError(
-                f"Cyclic dataclass references are not supported in speedup: "
+                f"Cyclic dataclass references are not supported in nuked: "
                 f"{field.nested_schema.cls.__name__} references itself"
             )
         visited_schemas.add(field.nested_schema.cls)
