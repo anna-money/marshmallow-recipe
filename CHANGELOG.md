@@ -1,4 +1,4 @@
-## Unreleased
+## v0.0.70 (2026-01-12)
 
 * Fix ChangedInMarshmallow4Warning for validators returning False
 * [Add validation for `decimal_places` parameter - must be None or non-negative integer](https://github.com/anna-money/marshmallow-recipe/pull/229)
