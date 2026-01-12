@@ -3,13 +3,95 @@ use std::fmt::Write;
 
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDate, PyDateTime, PyDelta, PyDict, PyFloat, PyFrozenSet, PyInt, PyList, PySet, PyString, PyTime, PyTuple, PyDateAccess, PyDeltaAccess, PyTimeAccess, PyTzInfoAccess};
+use rust_decimal::Decimal;
+use rust_decimal::prelude::FromStr;
+use rust_decimal::RoundingStrategy;
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Serialize, Serializer};
-use serde_json::{Value};
+use serde_json::Value;
 
 use crate::cache::get_cached_types;
 use crate::slots::get_slot_value_direct;
 use crate::types::{DecimalPlaces, FieldDescriptor, FieldType, TypeDescriptor, TypeKind};
+
+#[inline]
+fn format_datetime_to_buf(buf: &mut arrayvec::ArrayString<32>, dt: &Bound<'_, PyDateTime>, offset_seconds: Option<i32>) {
+    let micros = dt.get_microsecond();
+    if micros == 0 {
+        write!(buf, "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
+            dt.get_year(), dt.get_month(), dt.get_day(),
+            dt.get_hour(), dt.get_minute(), dt.get_second()).unwrap();
+    } else {
+        write!(buf, "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:06}",
+            dt.get_year(), dt.get_month(), dt.get_day(),
+            dt.get_hour(), dt.get_minute(), dt.get_second(), micros).unwrap();
+    }
+    if let Some(offset_secs) = offset_seconds {
+        if offset_secs >= 0 {
+            write!(buf, "+{:02}:{:02}", offset_secs / 3600, (offset_secs % 3600) / 60).unwrap();
+        } else {
+            let abs = offset_secs.abs();
+            write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+        }
+    }
+}
+
+#[inline]
+fn format_date_to_buf(buf: &mut arrayvec::ArrayString<10>, year: i32, month: u32, day: u32) {
+    write!(buf, "{year:04}-{month:02}-{day:02}").unwrap();
+}
+
+#[inline]
+fn format_time_to_buf(buf: &mut arrayvec::ArrayString<21>, t: &Bound<'_, PyTime>, offset_seconds: Option<i32>) {
+    let micros = t.get_microsecond();
+    if micros == 0 {
+        write!(buf, "{:02}:{:02}:{:02}", t.get_hour(), t.get_minute(), t.get_second()).unwrap();
+    } else {
+        write!(buf, "{:02}:{:02}:{:02}.{micros:06}", t.get_hour(), t.get_minute(), t.get_second()).unwrap();
+    }
+    if let Some(offset_secs) = offset_seconds {
+        if offset_secs >= 0 {
+            write!(buf, "+{:02}:{:02}", offset_secs / 3600, (offset_secs % 3600) / 60).unwrap();
+        } else {
+            let abs = offset_secs.abs();
+            write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
+        }
+    }
+}
+
+#[inline]
+fn get_tz_offset_seconds(py: Python, tz: &Bound<'_, pyo3::types::PyTzInfo>, reference: &Bound<'_, PyAny>) -> PyResult<i32> {
+    let cached = get_cached_types(py)?;
+    if tz.is(cached.utc_tz.bind(py)) {
+        return Ok(0);
+    }
+    let offset = tz.call_method1(cached.str_utcoffset.bind(py), (reference,))?;
+    if let Ok(delta) = offset.cast::<PyDelta>() {
+        Ok(delta.get_days() * 86400 + delta.get_seconds())
+    } else {
+        Ok(0)
+    }
+}
+
+#[inline]
+fn python_rounding_to_rust(rounding: Option<&Py<PyAny>>, py: Python) -> RoundingStrategy {
+    let Some(rounding) = rounding else {
+        return RoundingStrategy::MidpointNearestEven;
+    };
+    let Ok(s) = rounding.bind(py).extract::<&str>() else {
+        return RoundingStrategy::MidpointNearestEven;
+    };
+    match s {
+        "ROUND_UP" => RoundingStrategy::AwayFromZero,
+        "ROUND_DOWN" => RoundingStrategy::ToZero,
+        "ROUND_CEILING" => RoundingStrategy::ToPositiveInfinity,
+        "ROUND_FLOOR" => RoundingStrategy::ToNegativeInfinity,
+        "ROUND_HALF_UP" => RoundingStrategy::MidpointAwayFromZero,
+        "ROUND_HALF_DOWN" => RoundingStrategy::MidpointTowardZero,
+        "ROUND_05UP" => panic!("ROUND_05UP is not supported in nuked implementation"),
+        _ => RoundingStrategy::MidpointNearestEven,
+    }
+}
 
 fn serialize_python_int<S>(value: &Bound<'_, PyAny>, serializer: S) -> Result<S::Ok, S::Error>
 where
@@ -241,40 +323,22 @@ impl<'py> Serialize for FieldValueSerializer<'_, 'py> {
                     DecimalPlaces::NotSpecified => self.ctx.global_decimal_places.or(Some(2)),
                 };
 
-                let decimal_value = if let Some(places) = decimal_places {
-                    let cached =
-                        get_cached_types(self.ctx.py).map_err(serde::ser::Error::custom)?;
-                    let quantizer = if let Some(q) = cached.get_quantizer(places) { q.clone_ref(self.ctx.py) } else {
-                        let quantize_str = format!("1e-{places}");
-                        cached.decimal_cls.bind(self.ctx.py)
-                            .call1((quantize_str,))
-                            .map_err(serde::ser::Error::custom)?
-                            .unbind()
-                    };
-                    if let Some(ref rounding) = self.field.decimal_rounding {
-                        let kwargs = PyDict::new(self.ctx.py);
-                        kwargs
-                            .set_item(cached.str_rounding.bind(self.ctx.py), rounding.bind(self.ctx.py))
-                            .map_err(serde::ser::Error::custom)?;
-                        self.value
-                            .call_method(cached.str_quantize.bind(self.ctx.py), (quantizer.bind(self.ctx.py),), Some(&kwargs))
-                            .map_err(serde::ser::Error::custom)?
-                    } else {
-                        self.value
-                            .call_method1(cached.str_quantize.bind(self.ctx.py), (quantizer.bind(self.ctx.py),))
-                            .map_err(serde::ser::Error::custom)?
-                    }
-                } else {
-                    self.value.clone()
-                };
-
-                let s: String = decimal_value
+                let decimal_str: String = self.value
                     .str()
                     .map_err(serde::ser::Error::custom)?
                     .extract()
                     .map_err(serde::ser::Error::custom)?;
 
-                serializer.serialize_str(&s)
+                if let Some(places) = decimal_places.filter(|&p| p >= 0) {
+                    if let Ok(mut rust_decimal) = Decimal::from_str(&decimal_str) {
+                        let strategy = python_rounding_to_rust(self.field.decimal_rounding.as_ref(), py);
+                        rust_decimal = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
+                        let formatted = format!("{:.prec$}", rust_decimal, prec = places.cast_unsigned() as usize);
+                        return serializer.serialize_str(&formatted);
+                    }
+                }
+
+                serializer.serialize_str(&decimal_str)
             }
             FieldType::Uuid => {
                 let py = self.value.py();
@@ -312,44 +376,19 @@ impl<'py> Serialize for FieldValueSerializer<'_, 'py> {
                         .map_err(serde::ser::Error::custom)?;
                     serializer.serialize_str(&s)
                 } else {
-                    let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
+                    let offset_seconds = dt.get_tzinfo()
+                        .map(|tz| get_tz_offset_seconds(py, &tz, dt.as_any()))
+                        .transpose()
+                        .map_err(serde::ser::Error::custom)?;
                     let mut buf = arrayvec::ArrayString::<32>::new();
-                    let micros = dt.get_microsecond();
-                    if micros == 0 {
-                        write!(buf, "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
-                            dt.get_year(), dt.get_month(), dt.get_day(),
-                            dt.get_hour(), dt.get_minute(), dt.get_second()).unwrap();
-                    } else {
-                        write!(buf, "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:06}",
-                            dt.get_year(), dt.get_month(), dt.get_day(),
-                            dt.get_hour(), dt.get_minute(), dt.get_second(), micros).unwrap();
-                    }
-                    if let Some(tz) = dt.get_tzinfo() {
-                        if tz.is(cached.utc_tz.bind(py)) {
-
-                            buf.push_str("+00:00");
-                        } else {
-                            let offset = tz.call_method1(cached.str_utcoffset.bind(py), (dt,))
-                                .map_err(serde::ser::Error::custom)?;
-                            if let Ok(delta) = offset.cast::<PyDelta>() {
-                                let total_seconds = delta.get_days() * 86400 + delta.get_seconds();
-                                if total_seconds >= 0 {
-                                    write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
-                                } else {
-                                    let abs = total_seconds.abs();
-                                    write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
-                                }
-                            }
-                        }
-                    }
+                    format_datetime_to_buf(&mut buf, dt, offset_seconds);
                     serializer.serialize_str(&buf)
                 }
             }
             FieldType::Date => {
                 let d: &Bound<'_, PyDate> = if let Ok(dt) = self.value.cast::<PyDateTime>() {
-                    // Serialize date from datetime directly
                     let mut buf = arrayvec::ArrayString::<10>::new();
-                    write!(buf, "{:04}-{:02}-{:02}", dt.get_year(), dt.get_month(), dt.get_day()).unwrap();
+                    format_date_to_buf(&mut buf, dt.get_year(), dt.get_month().into(), dt.get_day().into());
                     return serializer.serialize_str(&buf);
                 } else if let Ok(d) = self.value.cast::<PyDate>() {
                     d
@@ -360,7 +399,7 @@ impl<'py> Serialize for FieldValueSerializer<'_, 'py> {
                     )));
                 };
                 let mut buf = arrayvec::ArrayString::<10>::new();
-                write!(buf, "{:04}-{:02}-{:02}", d.get_year(), d.get_month(), d.get_day()).unwrap();
+                format_date_to_buf(&mut buf, d.get_year(), d.get_month().into(), d.get_day().into());
                 serializer.serialize_str(&buf)
             }
             FieldType::Time => {
@@ -371,33 +410,12 @@ impl<'py> Serialize for FieldValueSerializer<'_, 'py> {
                         self.field.name
                     ))
                 })?;
+                let offset_seconds = t.get_tzinfo()
+                    .map(|tz| get_tz_offset_seconds(py, &tz, &py.None().into_bound(py)))
+                    .transpose()
+                    .map_err(serde::ser::Error::custom)?;
                 let mut buf = arrayvec::ArrayString::<21>::new();
-                let micros = t.get_microsecond();
-                if micros == 0 {
-                    write!(buf, "{:02}:{:02}:{:02}",
-                        t.get_hour(), t.get_minute(), t.get_second()).unwrap();
-                } else {
-                    write!(buf, "{:02}:{:02}:{:02}.{:06}",
-                        t.get_hour(), t.get_minute(), t.get_second(), micros).unwrap();
-                }
-                if let Some(tz) = t.get_tzinfo() {
-                    let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                    if tz.is(cached.utc_tz.bind(py)) {
-                        buf.push_str("+00:00");
-                    } else {
-                        let offset = tz.call_method1(cached.str_utcoffset.bind(py), (py.None(),))
-                            .map_err(serde::ser::Error::custom)?;
-                        if let Ok(delta) = offset.cast::<PyDelta>() {
-                            let total_seconds = delta.get_days() * 86400 + delta.get_seconds();
-                            if total_seconds >= 0 {
-                                write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
-                            } else {
-                                let abs = total_seconds.abs();
-                                write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
-                            }
-                        }
-                    }
-                }
+                format_time_to_buf(&mut buf, t, offset_seconds);
                 serializer.serialize_str(&buf)
             }
             FieldType::List => {
@@ -958,79 +976,33 @@ impl Serialize for PrimitiveSerializer<'_, '_> {
             }
             FieldType::DateTime => {
                 let py = self.value.py();
-                let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
                 let dt: &Bound<'_, PyDateTime> = self.value.cast()
                     .map_err(|_| serde::ser::Error::custom("Not a valid datetime."))?;
+                let offset_seconds = dt.get_tzinfo()
+                    .map(|tz| get_tz_offset_seconds(py, &tz, dt.as_any()))
+                    .transpose()
+                    .map_err(serde::ser::Error::custom)?;
                 let mut buf = arrayvec::ArrayString::<32>::new();
-                let micros = dt.get_microsecond();
-                if micros == 0 {
-                    write!(buf, "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
-                        dt.get_year(), dt.get_month(), dt.get_day(),
-                        dt.get_hour(), dt.get_minute(), dt.get_second()).unwrap();
-                } else {
-                    write!(buf, "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:06}",
-                        dt.get_year(), dt.get_month(), dt.get_day(),
-                        dt.get_hour(), dt.get_minute(), dt.get_second(), micros).unwrap();
-                }
-                if let Some(tz) = dt.get_tzinfo() {
-                    if tz.is(cached.utc_tz.bind(py)) {
-
-                        buf.push_str("+00:00");
-                    } else {
-                        let offset = tz.call_method1(cached.str_utcoffset.bind(py), (dt,))
-                            .map_err(serde::ser::Error::custom)?;
-                        if let Ok(delta) = offset.cast::<PyDelta>() {
-                            let total_seconds = delta.get_days() * 86400 + delta.get_seconds();
-                            if total_seconds >= 0 {
-                                write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
-                            } else {
-                                let abs = total_seconds.abs();
-                                write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
-                            }
-                        }
-                    }
-                }
+                format_datetime_to_buf(&mut buf, dt, offset_seconds);
                 serializer.serialize_str(&buf)
             }
             FieldType::Date => {
                 let d: &Bound<'_, PyDate> = self.value.cast()
                     .map_err(|_| serde::ser::Error::custom("Not a valid date."))?;
                 let mut buf = arrayvec::ArrayString::<10>::new();
-                write!(buf, "{:04}-{:02}-{:02}", d.get_year(), d.get_month(), d.get_day()).unwrap();
+                format_date_to_buf(&mut buf, d.get_year(), d.get_month().into(), d.get_day().into());
                 serializer.serialize_str(&buf)
             }
             FieldType::Time => {
                 let py = self.value.py();
                 let t: &Bound<'_, PyTime> = self.value.cast()
                     .map_err(|_| serde::ser::Error::custom("Not a valid time."))?;
+                let offset_seconds = t.get_tzinfo()
+                    .map(|tz| get_tz_offset_seconds(py, &tz, &py.None().into_bound(py)))
+                    .transpose()
+                    .map_err(serde::ser::Error::custom)?;
                 let mut buf = arrayvec::ArrayString::<21>::new();
-                let micros = t.get_microsecond();
-                if micros == 0 {
-                    write!(buf, "{:02}:{:02}:{:02}",
-                        t.get_hour(), t.get_minute(), t.get_second()).unwrap();
-                } else {
-                    write!(buf, "{:02}:{:02}:{:02}.{:06}",
-                        t.get_hour(), t.get_minute(), t.get_second(), micros).unwrap();
-                }
-                if let Some(tz) = t.get_tzinfo() {
-                    let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
-                    if tz.is(cached.utc_tz.bind(py)) {
-
-                        buf.push_str("+00:00");
-                    } else {
-                        let offset = tz.call_method1(cached.str_utcoffset.bind(py), (py.None(),))
-                            .map_err(serde::ser::Error::custom)?;
-                        if let Ok(delta) = offset.cast::<PyDelta>() {
-                            let total_seconds = delta.get_days() * 86400 + delta.get_seconds();
-                            if total_seconds >= 0 {
-                                write!(buf, "+{:02}:{:02}", total_seconds / 3600, (total_seconds % 3600) / 60).unwrap();
-                            } else {
-                                let abs = total_seconds.abs();
-                                write!(buf, "-{:02}:{:02}", abs / 3600, (abs % 3600) / 60).unwrap();
-                            }
-                        }
-                    }
-                }
+                format_time_to_buf(&mut buf, t, offset_seconds);
                 serializer.serialize_str(&buf)
             }
             FieldType::Any => AnyValueSerializer {

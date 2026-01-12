@@ -2,6 +2,9 @@ use std::collections::HashMap;
 
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDict, PyFloat, PyFrozenSet, PyInt, PyList, PySet, PyString, PyTuple};
+use rust_decimal::Decimal;
+use rust_decimal::prelude::FromStr;
+use rust_decimal::RoundingStrategy;
 use uuid::Uuid;
 
 use crate::cache::get_cached_types;
@@ -66,6 +69,26 @@ fn call_validator(py: Python, validator: &Py<PyAny>, value: &Bound<'_, PyAny>) -
         return Ok(None);
     }
     Ok(Some(result.unbind()))
+}
+
+#[inline]
+fn python_rounding_to_rust(rounding: Option<&Py<PyAny>>, py: Python) -> RoundingStrategy {
+    let Some(rounding) = rounding else {
+        return RoundingStrategy::MidpointNearestEven;
+    };
+    let Ok(s) = rounding.bind(py).extract::<&str>() else {
+        return RoundingStrategy::MidpointNearestEven;
+    };
+    match s {
+        "ROUND_UP" => RoundingStrategy::AwayFromZero,
+        "ROUND_DOWN" => RoundingStrategy::ToZero,
+        "ROUND_CEILING" => RoundingStrategy::ToPositiveInfinity,
+        "ROUND_FLOOR" => RoundingStrategy::ToNegativeInfinity,
+        "ROUND_HALF_UP" => RoundingStrategy::MidpointAwayFromZero,
+        "ROUND_HALF_DOWN" => RoundingStrategy::MidpointTowardZero,
+        "ROUND_05UP" => panic!("ROUND_05UP is not supported in nuked implementation"),
+        _ => RoundingStrategy::MidpointNearestEven,
+    }
 }
 
 pub struct LoadContext<'a, 'py> {
@@ -161,17 +184,19 @@ pub fn deserialize_field_value<'py>(
             let cached = get_cached_types(ctx.py)?;
             let decimal_cls = cached.decimal_cls.bind(ctx.py);
 
-            let decimal_value = if value.is_instance(decimal_cls)? {
-                value.clone()
+            let decimal_str = if value.is_instance(decimal_cls)? {
+                value.str()?.extract::<String>()?
             } else if let Ok(s) = value.cast::<PyString>() {
-                if let Ok(d) = decimal_cls.call1((s,)) { d } else {
+                let s_str = s.to_str()?;
+                if Decimal::from_str(s_str).is_err() {
                     let msg = field.invalid_error.as_deref().unwrap_or("Not a valid number.");
                     return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                         err_dict(ctx.py, &field.name, msg),
                     ));
                 }
+                s_str.to_string()
             } else if (value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>()) || value.is_instance_of::<PyFloat>() {
-                decimal_cls.call1((value.str()?.to_str()?,))?
+                value.str()?.extract::<String>()?
             } else {
                 let msg = field.invalid_error.as_deref().unwrap_or("Not a valid number.");
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
@@ -184,22 +209,17 @@ pub fn deserialize_field_value<'py>(
                 DecimalPlaces::Places(n) => Some(n),
                 DecimalPlaces::NotSpecified => ctx.decimal_places.or(Some(2)),
             };
+
             if let Some(places) = places.filter(|&p| p >= 0) {
-                let quantizer = if let Some(q) = cached.get_quantizer(places) { q.clone_ref(ctx.py) } else {
-                    let quantize_str = format!("1e-{places}");
-                    decimal_cls.call1((quantize_str,))?.unbind()
-                };
-                let final_decimal_value = if let Some(ref rounding) = field.decimal_rounding {
-                    let kwargs = PyDict::new(ctx.py);
-                    kwargs.set_item(cached.str_rounding.bind(ctx.py), rounding.bind(ctx.py))?;
-                    decimal_value.call_method(cached.str_quantize.bind(ctx.py), (quantizer.bind(ctx.py),), Some(&kwargs))?
-                } else {
-                    decimal_value.call_method1(cached.str_quantize.bind(ctx.py), (quantizer.bind(ctx.py),))?
-                };
-                Ok(final_decimal_value.unbind())
-            } else {
-                Ok(decimal_value.unbind())
+                if let Ok(mut rust_decimal) = Decimal::from_str(&decimal_str) {
+                    let strategy = python_rounding_to_rust(field.decimal_rounding.as_ref(), ctx.py);
+                    rust_decimal = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
+                    let formatted = format!("{:.prec$}", rust_decimal, prec = places.cast_unsigned() as usize);
+                    return decimal_cls.call1((&formatted,)).map(pyo3::Bound::unbind);
+                }
             }
+
+            decimal_cls.call1((&decimal_str,)).map(pyo3::Bound::unbind)
         }
         FieldType::Uuid => {
             let cached = get_cached_types(ctx.py)?;

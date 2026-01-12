@@ -47,24 +47,13 @@ pub struct CachedPyTypes {
     pub time_cls: Py<PyAny>,
     pub utc_tz: Py<PyAny>,
     pub object_cls: Py<PyAny>,
-    pub quantize_0: Py<PyAny>,
-    pub quantize_1: Py<PyAny>,
-    pub quantize_2: Py<PyAny>,
-    pub quantize_3: Py<PyAny>,
-    pub quantize_4: Py<PyAny>,
-    pub quantize_5: Py<PyAny>,
-    pub quantize_6: Py<PyAny>,
-    pub quantize_8: Py<PyAny>,
-    pub quantize_12: Py<PyAny>,
     pub str_fromisoformat: Py<PyString>,
     pub str_strptime: Py<PyString>,
     pub str_new: Py<PyString>,
-    pub str_quantize: Py<PyString>,
     pub str_replace: Py<PyString>,
     pub str_strftime: Py<PyString>,
     pub str_isoformat: Py<PyString>,
     pub str_tzinfo: Py<PyString>,
-    pub str_rounding: Py<PyString>,
     pub str_value: Py<PyString>,
     pub str_int: Py<PyString>,
     pub str_is_safe: Py<PyString>,
@@ -73,21 +62,6 @@ pub struct CachedPyTypes {
 }
 
 impl CachedPyTypes {
-    pub const fn get_quantizer(&self, places: i32) -> Option<&Py<PyAny>> {
-        match places {
-            0 => Some(&self.quantize_0),
-            1 => Some(&self.quantize_1),
-            2 => Some(&self.quantize_2),
-            3 => Some(&self.quantize_3),
-            4 => Some(&self.quantize_4),
-            5 => Some(&self.quantize_5),
-            6 => Some(&self.quantize_6),
-            8 => Some(&self.quantize_8),
-            12 => Some(&self.quantize_12),
-            _ => None,
-        }
-    }
-
     pub fn create_uuid_fast(&self, py: Python, uuid_int: u128) -> PyResult<Py<PyAny>> {
         let uuid_cls = self.uuid_cls.bind(py);
         let uuid_obj = uuid_cls.call_method1(self.str_new.bind(py), (&uuid_cls,))?;
@@ -107,20 +81,9 @@ pub fn get_cached_types(py: Python) -> PyResult<&'static CachedPyTypes> {
         let builtins = py.import("builtins")?;
         let mr_missing_mod = py.import("marshmallow_recipe.missing")?;
 
-        let decimal_cls = decimal_mod.getattr("Decimal")?;
-
         Ok(CachedPyTypes {
             int_cls: builtins.getattr("int")?.unbind(),
-            quantize_0: decimal_cls.call1(("1e-0",))?.unbind(),
-            quantize_1: decimal_cls.call1(("1e-1",))?.unbind(),
-            quantize_2: decimal_cls.call1(("1e-2",))?.unbind(),
-            quantize_3: decimal_cls.call1(("1e-3",))?.unbind(),
-            quantize_4: decimal_cls.call1(("1e-4",))?.unbind(),
-            quantize_5: decimal_cls.call1(("1e-5",))?.unbind(),
-            quantize_6: decimal_cls.call1(("1e-6",))?.unbind(),
-            quantize_8: decimal_cls.call1(("1e-8",))?.unbind(),
-            quantize_12: decimal_cls.call1(("1e-12",))?.unbind(),
-            decimal_cls: decimal_cls.unbind(),
+            decimal_cls: decimal_mod.getattr("Decimal")?.unbind(),
             uuid_cls: uuid_mod.getattr("UUID")?.unbind(),
             safe_uuid_unknown: uuid_mod.getattr("SafeUUID")?.getattr("unknown")?.unbind(),
             datetime_cls: datetime_mod.getattr("datetime")?.unbind(),
@@ -131,12 +94,10 @@ pub fn get_cached_types(py: Python) -> PyResult<&'static CachedPyTypes> {
             str_fromisoformat: PyString::intern(py, "fromisoformat").unbind(),
             str_strptime: PyString::intern(py, "strptime").unbind(),
             str_new: PyString::intern(py, "__new__").unbind(),
-            str_quantize: PyString::intern(py, "quantize").unbind(),
             str_replace: PyString::intern(py, "replace").unbind(),
             str_strftime: PyString::intern(py, "strftime").unbind(),
             str_isoformat: PyString::intern(py, "isoformat").unbind(),
             str_tzinfo: PyString::intern(py, "tzinfo").unbind(),
-            str_rounding: PyString::intern(py, "rounding").unbind(),
             str_value: PyString::intern(py, "value").unbind(),
             str_int: PyString::intern(py, "int").unbind(),
             str_is_safe: PyString::intern(py, "is_safe").unbind(),
