@@ -34,10 +34,6 @@ class Serializer(abc.ABC):
     def supports_cyclic(self) -> bool:
         return True
 
-    @property
-    def supports_global_decimal_places(self) -> bool:
-        return True
-
     @abc.abstractmethod
     def dump[T](
         self,

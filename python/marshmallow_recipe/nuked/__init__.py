@@ -7,6 +7,7 @@ import marshmallow
 from .. import _nuked as nuked  # type: ignore[attr-defined]
 from ..hooks import get_pre_loads
 from ..options import NoneValueHandling
+from ..utils import validate_decimal_places
 from ._descriptor import TypeDescriptor, build_type_descriptor
 from ._schema import descriptor_to_dict, extract_post_loads
 
@@ -61,6 +62,7 @@ def dump_to_bytes[T](
     decimal_places: int | None = None,
     encoding: str = "utf-8",
 ) -> bytes:
+    validate_decimal_places(decimal_places)
     schema_id = _ensure_registered(cls, naming_case)
     _, descriptor = _schema_cache[schema_id]
 
@@ -81,6 +83,7 @@ def load_from_bytes[T](
     decimal_places: int | None = None,
     encoding: str = "utf-8",
 ) -> T:
+    validate_decimal_places(decimal_places)
     schema_id = _ensure_registered(cls, naming_case)
     post_loads, _ = _schema_cache[schema_id]
     try:
@@ -97,6 +100,7 @@ def dump[T](
     none_value_handling: NoneValueHandling | None = None,
     decimal_places: int | None = None,
 ) -> typing.Any:
+    validate_decimal_places(decimal_places)
     schema_id = _ensure_registered(cls, naming_case)
     _, descriptor = _schema_cache[schema_id]
 
@@ -116,6 +120,7 @@ def load[T](
     naming_case: typing.Callable[[str], str] | None = None,
     decimal_places: int | None = None,
 ) -> T:
+    validate_decimal_places(decimal_places)
     schema_id = _ensure_registered(cls, naming_case)
     post_loads, _ = _schema_cache[schema_id]
 
