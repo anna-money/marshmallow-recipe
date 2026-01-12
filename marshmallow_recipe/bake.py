@@ -170,12 +170,10 @@ def get_field_for(
 
 
 def _wrap_metadata_validators(metadata: Metadata) -> Metadata:
-    values = dict(metadata)
-    if "validate" in values:
-        values["validate"] = wrap_validators(values["validate"])
-    if "validate_item" in values:
-        values["validate_item"] = wrap_validators(values["validate_item"])
-    return Metadata(values)
+    validate = metadata.get("validate")
+    if validate is None:
+        return metadata
+    return Metadata({**metadata, "validate": wrap_validators(validate)})
 
 
 def _get_field_for(
