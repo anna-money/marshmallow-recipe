@@ -38,6 +38,7 @@ from .metadata import EMPTY_METADATA, Metadata, is_metadata
 from .missing import MISSING
 from .naming_case import NamingCase
 from .options import NoneValueHandling, try_get_options_for
+from .validation import wrap_validators
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -168,6 +169,13 @@ def get_field_for(
     )
 
 
+def _wrap_metadata_validators(metadata: Metadata) -> Metadata:
+    validate = metadata.get("validate")
+    if validate is None:
+        return metadata
+    return Metadata({**metadata, "validate": wrap_validators(validate)})
+
+
 def _get_field_for(
     t: TypeLike,
     *,
@@ -178,6 +186,8 @@ def _get_field_for(
     field_decimal_places: int | None,
     decimal_places: int | None,
 ) -> m.fields.Field:
+    metadata = _wrap_metadata_validators(metadata)
+
     if t is Any:
         return raw_field(**metadata)
 
