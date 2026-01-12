@@ -26,6 +26,11 @@ class TestDatetimeDump:
         result = impl.dump(ValueOf[datetime.datetime], obj)
         assert result == b'{"value":"2025-12-26T10:30:45.123456+00:00"}'
 
+    def test_microseconds_trailing_zeros(self, impl: Serializer) -> None:
+        obj = ValueOf[datetime.datetime](value=datetime.datetime(2025, 12, 26, 10, 30, 45, 100000, datetime.UTC))
+        result = impl.dump(ValueOf[datetime.datetime], obj)
+        assert result == b'{"value":"2025-12-26T10:30:45.100000+00:00"}'
+
     def test_format_date_only(self, impl: Serializer) -> None:
         obj = WithDateTimeCustomFormat(scheduled_at=datetime.datetime(2024, 12, 25, 14, 30, 0, tzinfo=datetime.UTC))
         result = impl.dump(WithDateTimeCustomFormat, obj)
@@ -80,12 +85,38 @@ class TestDatetimeDump:
 
 
 class TestDatetimeLoad:
-    def test_value(self, impl: Serializer) -> None:
-        data = b'{"value":"2025-12-26T10:30:45.123456+00:00"}'
+    @pytest.mark.parametrize(
+        "iso_string,expected",
+        [
+            ("2024-12-26T10:30:45Z", datetime.datetime(2024, 12, 26, 10, 30, 45, tzinfo=datetime.UTC)),
+            ("2024-12-26T10:30:45+00:00", datetime.datetime(2024, 12, 26, 10, 30, 45, tzinfo=datetime.UTC)),
+            (
+                "2024-12-26T10:30:45+03:00",
+                datetime.datetime(2024, 12, 26, 10, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=3))),
+            ),
+            (
+                "2024-12-26T10:30:45-05:00",
+                datetime.datetime(2024, 12, 26, 10, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=-5))),
+            ),
+            (
+                "2024-12-26T10:30:45+05:30",
+                datetime.datetime(
+                    2024, 12, 26, 10, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+                ),
+            ),
+            ("2024-12-26T10:30:45.1Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 100000, datetime.UTC)),
+            ("2024-12-26T10:30:45.12Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 120000, datetime.UTC)),
+            ("2024-12-26T10:30:45.123Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 123000, datetime.UTC)),
+            ("2024-12-26T10:30:45.1234Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 123400, datetime.UTC)),
+            ("2024-12-26T10:30:45.12345Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 123450, datetime.UTC)),
+            ("2024-12-26T10:30:45.123456Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 123456, datetime.UTC)),
+            ("2024-12-26T10:30:45.100000Z", datetime.datetime(2024, 12, 26, 10, 30, 45, 100000, datetime.UTC)),
+        ],
+    )
+    def test_value(self, impl: Serializer, iso_string: str, expected: datetime.datetime) -> None:
+        data = f'{{"value":"{iso_string}"}}'.encode()
         result = impl.load(ValueOf[datetime.datetime], data)
-        assert result == ValueOf[datetime.datetime](
-            value=datetime.datetime(2025, 12, 26, 10, 30, 45, 123456, datetime.UTC)
-        )
+        assert result == ValueOf[datetime.datetime](value=expected)
 
     def test_format_date_only(self, impl: Serializer) -> None:
         data = b'{"scheduled_at":"2024/12/25"}'

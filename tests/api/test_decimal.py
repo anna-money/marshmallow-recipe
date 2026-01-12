@@ -360,6 +360,8 @@ class TestDecimalPlacesValidation:
             impl.dump(WithDecimal, WithDecimal(value=decimal.Decimal("1.23")), decimal_places=-1)
 
     def test_dump_many_negative_raises(self, impl: Serializer) -> None:
+        if not impl.supports_many:
+            pytest.skip("many not supported")
         with pytest.raises(ValueError, match="decimal_places must be None or a non-negative integer"):
             impl.dump_many(WithDecimal, [WithDecimal(value=decimal.Decimal("1.23"))], decimal_places=-1)
 
@@ -368,5 +370,7 @@ class TestDecimalPlacesValidation:
             impl.load(WithDecimal, b'{"value": "1.23"}', decimal_places=-1)
 
     def test_load_many_negative_raises(self, impl: Serializer) -> None:
+        if not impl.supports_many:
+            pytest.skip("many not supported")
         with pytest.raises(ValueError, match="decimal_places must be None or a non-negative integer"):
             impl.load_many(WithDecimal, b'[{"value": "1.23"}]', decimal_places=-1)
