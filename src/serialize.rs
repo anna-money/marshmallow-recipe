@@ -411,8 +411,7 @@ fn serialize_field_value<'py>(
             }
             serialize_dataclass(value, &nested_schema.fields, ctx)
         }
-        FieldType::StrEnum | FieldType::IntEnum => {
-            let cached = get_cached_types(ctx.py)?;
+        FieldType::StrEnum => {
             if let Some(ref enum_cls) = field.enum_cls {
                 if !value.is_instance(enum_cls.bind(ctx.py))? {
                     let value_type_name: String = value.get_type().name()?.extract()?;
@@ -427,8 +426,24 @@ fn serialize_field_value<'py>(
                     ));
                 }
             }
-            let enum_value = value.getattr(cached.str_value.bind(ctx.py))?;
-            Ok(enum_value.unbind())
+            Ok(value.cast::<PyString>()?.to_owned().into_any().unbind())
+        }
+        FieldType::IntEnum => {
+            if let Some(ref enum_cls) = field.enum_cls {
+                if !value.is_instance(enum_cls.bind(ctx.py))? {
+                    let value_type_name: String = value.get_type().name()?.extract()?;
+                    let enum_name = field.enum_name.as_deref().unwrap_or("Enum");
+                    let members_repr = field.enum_members_repr.as_deref().unwrap_or("[]");
+                    let error_msg = format!(
+                        "Expected {enum_name} instance, got {value_type_name}. Allowed values: {members_repr}"
+                    );
+                    let errors = PyList::new(ctx.py, &[error_msg])?;
+                    return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                        errors.into_any().unbind(),
+                    ));
+                }
+            }
+            Ok(value.cast::<PyInt>()?.to_owned().into_any().unbind())
         }
         FieldType::Set => {
             if !value.is_instance_of::<PySet>() {

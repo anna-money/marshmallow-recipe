@@ -519,7 +519,6 @@ impl<'py> Serialize for FieldValueSerializer<'_, 'py> {
             }
             FieldType::StrEnum => {
                 let py = self.value.py();
-                let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
                 if let Some(ref enum_cls) = self.field.enum_cls {
                     if !self.value.is_instance(enum_cls.bind(py)).map_err(serde::ser::Error::custom)? {
                         let value_type_name: String = self.value.get_type().name().map_err(serde::ser::Error::custom)?.extract().map_err(serde::ser::Error::custom)?;
@@ -530,17 +529,12 @@ impl<'py> Serialize for FieldValueSerializer<'_, 'py> {
                         )));
                     }
                 }
-                let enum_value = self
-                    .value
-                    .getattr(cached.str_value.bind(py))
-                    .map_err(serde::ser::Error::custom)?;
-                let s = enum_value.cast::<PyString>().map_err(serde::ser::Error::custom)?
+                let s = self.value.cast::<PyString>().map_err(serde::ser::Error::custom)?
                     .to_str().map_err(serde::ser::Error::custom)?;
                 serializer.serialize_str(s)
             }
             FieldType::IntEnum => {
                 let py = self.value.py();
-                let cached = get_cached_types(py).map_err(serde::ser::Error::custom)?;
                 if let Some(ref enum_cls) = self.field.enum_cls {
                     if !self.value.is_instance(enum_cls.bind(py)).map_err(serde::ser::Error::custom)? {
                         let value_type_name: String = self.value.get_type().name().map_err(serde::ser::Error::custom)?.extract().map_err(serde::ser::Error::custom)?;
@@ -551,11 +545,7 @@ impl<'py> Serialize for FieldValueSerializer<'_, 'py> {
                         )));
                     }
                 }
-                let enum_value = self
-                    .value
-                    .getattr(cached.str_value.bind(py))
-                    .map_err(serde::ser::Error::custom)?;
-                let i: i64 = enum_value.extract().map_err(serde::ser::Error::custom)?;
+                let i: i64 = self.value.extract().map_err(serde::ser::Error::custom)?;
                 serializer.serialize_i64(i)
             }
             FieldType::Set => {
