@@ -3,9 +3,28 @@ import dataclasses
 import re
 from typing import Any
 
+import marshmallow
 import marshmallow.validate
 
 ValidationFunc = collections.abc.Callable[[Any], Any]
+
+
+def __wrap_validator(validator: ValidationFunc) -> ValidationFunc:
+    def _wrapper(value: Any) -> None:
+        if validator(value) is False:
+            raise marshmallow.ValidationError("Invalid value.")
+
+    return _wrapper
+
+
+def wrap_validators(
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None,
+) -> ValidationFunc | list[ValidationFunc] | None:
+    if validate is None:
+        return None
+    if isinstance(validate, collections.abc.Sequence) and not callable(validate):
+        return [__wrap_validator(v) for v in validate]
+    return __wrap_validator(validate)
 
 
 def regexp_validate(regexp: re.Pattern | str, *, error: str | None = None) -> ValidationFunc:
@@ -24,13 +43,11 @@ def email_validate(*, error: str | None = None) -> ValidationFunc:
 
 def validate(validator: ValidationFunc, *, error: str | None = None) -> ValidationFunc:
     if error is None:
-        return validator
+        return __wrap_validator(validator)
 
-    def _validator_with_custom_error(value: Any) -> Any:
-        result = validator(value)
-        if result is False:
+    def _validator_with_custom_error(value: Any) -> None:
+        if validator(value) is False:
             raise marshmallow.ValidationError(error)
-        return result
 
     return _validator_with_custom_error
 
