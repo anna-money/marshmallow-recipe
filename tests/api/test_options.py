@@ -1,6 +1,8 @@
 import dataclasses
 import decimal
 
+import pytest
+
 import marshmallow_recipe as mr
 
 from .conftest import Serializer
@@ -158,6 +160,10 @@ class TestOptionsDecimalPlacesDump:
 
 
 class TestOptionsDecimalPlacesLoad:
+    def test_options_decimal_places_negative_raises(self) -> None:
+        with pytest.raises(ValueError, match="decimal_places must be None or a non-negative integer"):
+            mr.options(decimal_places=-1)
+
     def test_decimal_places_in_options(self, impl: Serializer) -> None:
         @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
         @mr.options(decimal_places=4)
