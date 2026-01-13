@@ -34,22 +34,39 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-14, macos-15]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            manylinux: "2_28"
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            manylinux: "2_28"
+          - os: macos-14
+            target: aarch64-apple-darwin
+            manylinux: "auto"
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            manylinux: "auto"
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-      - run: ${{ env.RUSTUP_INIT }} && echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-      - run: echo 3.12 > .python-version
+      - name: Setup QEMU
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        uses: docker/setup-qemu-action@v3
       - name: Set version from tag
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           sed -i.bak "s/^version = .*/version = \"$VERSION\"/" Cargo.toml && rm Cargo.toml.bak
-      - run: make build-wheel
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          args: --release --out dist -i python3.12 -i python3.13 -i python3.14
       - uses: actions/upload-artifact@v4
         if: startsWith(github.ref, 'refs/tags/v')
         with:
-          name: wheel-${{ matrix.os }}
+          name: wheel-${{ matrix.os }}-${{ matrix.target }}
           path: dist/*.whl
   sdist:
     runs-on: ubuntu-latest
