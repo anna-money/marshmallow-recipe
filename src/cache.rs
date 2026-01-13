@@ -2,28 +2,10 @@ use once_cell::sync::{Lazy, OnceCell};
 use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyString, PyTuple};
-use pyo3::BoundObject;
 use std::collections::HashMap;
 use std::sync::RwLock;
 
 use crate::types::{DecimalPlaces, FieldDescriptor, FieldType, SchemaDescriptor, TypeDescriptor, TypeKind};
-
-fn force_setattr<'py, N, V>(py: Python<'py>, obj: &Bound<'py, PyAny>, attr_name: N, value: V) -> PyResult<()>
-where
-    N: IntoPyObject<'py>,
-    V: IntoPyObject<'py>,
-{
-    let attr_name = attr_name.into_pyobject(py).map_err(Into::into)?;
-    let value = value.into_pyobject(py).map_err(Into::into)?;
-    let result = unsafe {
-        ffi::PyObject_GenericSetAttr(obj.as_ptr(), attr_name.as_ptr(), value.as_ptr())
-    };
-    if result == -1 {
-        Err(PyErr::fetch(py))
-    } else {
-        Ok(())
-    }
-}
 
 fn build_field_lookup(fields: &[FieldDescriptor]) -> HashMap<String, usize> {
     let mut lookup = HashMap::with_capacity(fields.len());
@@ -41,7 +23,6 @@ pub struct CachedPyTypes {
     pub int_cls: Py<PyAny>,
     pub decimal_cls: Py<PyAny>,
     pub uuid_cls: Py<PyAny>,
-    pub safe_uuid_unknown: Py<PyAny>,
     pub datetime_cls: Py<PyAny>,
     pub date_cls: Py<PyAny>,
     pub time_cls: Py<PyAny>,
@@ -55,18 +36,23 @@ pub struct CachedPyTypes {
     pub str_isoformat: Py<PyString>,
     pub str_tzinfo: Py<PyString>,
     pub str_int: Py<PyString>,
-    pub str_is_safe: Py<PyString>,
     pub str_utcoffset: Py<PyString>,
     pub missing_sentinel: Py<PyAny>,
 }
 
 impl CachedPyTypes {
     pub fn create_uuid_fast(&self, py: Python, uuid_int: u128) -> PyResult<Py<PyAny>> {
-        let uuid_cls = self.uuid_cls.bind(py);
-        let uuid_obj = uuid_cls.call_method1(self.str_new.bind(py), (&uuid_cls,))?;
-        force_setattr(py, &uuid_obj, self.str_int.bind(py), uuid_int)?;
-        force_setattr(py, &uuid_obj, self.str_is_safe.bind(py), &self.safe_uuid_unknown)?;
-        Ok(uuid_obj.unbind())
+        let int_obj = uuid_int.into_pyobject(py)?;
+        let none = unsafe { ffi::Py_None() };
+        let args: [*mut ffi::PyObject; 5] = [none, none, none, none, int_obj.as_ptr()];
+        let result = unsafe {
+            ffi::PyObject_Vectorcall(self.uuid_cls.as_ptr(), args.as_ptr(), 5, std::ptr::null_mut())
+        };
+        if result.is_null() {
+            Err(PyErr::fetch(py))
+        } else {
+            Ok(unsafe { Py::from_owned_ptr(py, result) })
+        }
     }
 }
 
@@ -84,7 +70,6 @@ pub fn get_cached_types(py: Python) -> PyResult<&'static CachedPyTypes> {
             int_cls: builtins.getattr("int")?.unbind(),
             decimal_cls: decimal_mod.getattr("Decimal")?.unbind(),
             uuid_cls: uuid_mod.getattr("UUID")?.unbind(),
-            safe_uuid_unknown: uuid_mod.getattr("SafeUUID")?.getattr("unknown")?.unbind(),
             datetime_cls: datetime_mod.getattr("datetime")?.unbind(),
             date_cls: datetime_mod.getattr("date")?.unbind(),
             time_cls: datetime_mod.getattr("time")?.unbind(),
@@ -98,7 +83,6 @@ pub fn get_cached_types(py: Python) -> PyResult<&'static CachedPyTypes> {
             str_isoformat: PyString::intern(py, "isoformat").unbind(),
             str_tzinfo: PyString::intern(py, "tzinfo").unbind(),
             str_int: PyString::intern(py, "int").unbind(),
-            str_is_safe: PyString::intern(py, "is_safe").unbind(),
             str_utcoffset: PyString::intern(py, "utcoffset").unbind(),
             missing_sentinel: mr_missing_mod.getattr("MISSING")?.unbind(),
         })
