@@ -24,7 +24,6 @@
 - Always assert objects in full, do not do that field by field
 
 ### Development Workflow
-
 - **NEVER commit directly to main branch** - Always create a feature branch first
 - **Always run** `make lint` and `make test` before finishing any task. Both must pass without errors
 - **Always run** `git add -A` after completing implementation
@@ -32,4 +31,4 @@
 - **Always make changes** in-line with code practices within the repository
 - All PRs **must be** reflected in CHANGELOG.md
 - **When adding new features**: MUST update `examples/` with usage examples and update `context7.json` rules 
-- Use Makefile where possible. Ask to modify/add it when you cannot do that.
+- Use Makefile or uv run where possible
