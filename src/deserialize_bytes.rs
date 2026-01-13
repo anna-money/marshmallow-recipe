@@ -613,11 +613,7 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                 Ok(s.into_py_any(py).map_err(de::Error::custom)?)
             }
             FieldType::Decimal => {
-                let cached = get_cached_types(py).map_err(de::Error::custom)?;
-                if let Ok(result) = cached.decimal_cls.bind(py).call1((v,)) { self.apply_decimal_quantize(result.unbind()).map_err(de::Error::custom) } else {
-                    let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid number.");
-                    Err(de::Error::custom(err_json(&self.field.name, msg)))
-                }
+                self.create_decimal_from_str(v)
             }
             FieldType::Uuid => {
                 let cached = get_cached_types(py).map_err(de::Error::custom)?;
@@ -1000,6 +996,35 @@ impl FieldValueVisitor<'_, '_> {
         } else {
             Ok(value)
         }
+    }
+
+    fn create_decimal_from_str<E: de::Error>(&self, s: &str) -> Result<Py<PyAny>, E> {
+        let py = self.ctx.py;
+        let cached = get_cached_types(py).map_err(E::custom)?;
+
+        let places = match self.field.decimal_places {
+            DecimalPlaces::NoRounding => None,
+            DecimalPlaces::Places(n) => Some(n),
+            DecimalPlaces::NotSpecified => self.ctx.decimal_places.or(Some(2)),
+        };
+
+        if let Some(places) = places.filter(|&p| p >= 0) {
+            if let Ok(mut rust_decimal) = Decimal::from_str(s) {
+                let strategy = python_rounding_to_rust(self.field.decimal_rounding.as_ref(), py);
+                rust_decimal = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
+                let formatted = format!("{:.prec$}", rust_decimal, prec = places.cast_unsigned() as usize);
+                return cached.decimal_cls.bind(py).call1((&formatted,))
+                    .map(pyo3::Bound::unbind)
+                    .map_err(E::custom);
+            }
+        }
+
+        cached.decimal_cls.bind(py).call1((s,))
+            .map(pyo3::Bound::unbind)
+            .map_err(|_| {
+                let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid number.");
+                E::custom(err_json(&self.field.name, msg))
+            })
     }
 }
 
