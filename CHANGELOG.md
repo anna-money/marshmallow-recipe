@@ -1,3 +1,10 @@
+## v0.0.72 (2026-01-14)
+
+* Fix CI to correctly use custom marshmallow versions via `UV_EXTRA_ARGS`
+* Fix FloatFieldV2 to validate nan/inf values (match v3 behavior)
+* Fix NestedFieldV2 to check required before deserializing nested schema (match v3 behavior)
+
+
 ## v0.0.71 (2026-01-14)
 
 * Fix pre_load hooks not being able to normalize unknown field names in marshmallow 2.x

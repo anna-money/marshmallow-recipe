@@ -1,5 +1,7 @@
 all: deps lint test
 
+UV_EXTRA_ARGS ?=
+
 uv:
 	@which uv >/dev/null 2>&1 || { \
 		echo "uv is not installed"; \
@@ -10,15 +12,15 @@ deps: uv
 	@uv sync --all-extras
 
 ruff-format:
-	@uv run ruff format marshmallow_recipe tests
+	@uv run $(UV_EXTRA_ARGS) ruff format marshmallow_recipe tests
 
 ruff-lint:
-	@uv run ruff check marshmallow_recipe tests --fix
+	@uv run $(UV_EXTRA_ARGS) ruff check marshmallow_recipe tests --fix
 
 pyright:
-	@uv run pyright
+	@uv run $(UV_EXTRA_ARGS) pyright
 
 lint: ruff-format ruff-lint pyright
 
 test:
-	@uv run pytest -vv --rootdir tests .
+	@uv run $(UV_EXTRA_ARGS) pytest -vv --rootdir tests .
