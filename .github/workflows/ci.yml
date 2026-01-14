@@ -17,6 +17,8 @@ jobs:
       matrix:
         python-version: ["3.12", "3.13", "3.14"]
         marshmallow: ["marshmallow==2.20.5", "marshmallow[reco]==2.20.5", "marshmallow>=2,<3", "marshmallow[reco]>=2,<3", "marshmallow>=3,<4"]
+    env:
+      UV_EXTRA_ARGS: --with "${{ matrix.marshmallow }}"
     steps:
       - uses: actions/checkout@v6
       - name: Install uv
@@ -25,8 +27,6 @@ jobs:
         run: echo ${{ matrix.python-version }} > .python-version
       - name: Install dependencies
         run: make deps
-      - name: Install ${{ matrix.marshmallow }}
-        run: uv pip install "${{ matrix.marshmallow }}"
       - name: Lint
         run: make lint
       - name: Tests
