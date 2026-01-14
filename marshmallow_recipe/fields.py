@@ -1745,6 +1745,13 @@ else:
         def __init__(self, nested: Any, **kwargs: Any):
             super().__init__(nested, **kwargs)
 
+        def deserialize(self, value: Any, attr: str | None = None, data: Any = None, **kwargs: Any) -> Any:
+            # v2 doesn't check required before _deserialize, so nested schema
+            # validates its own fields. Match v3 behavior: check required first.
+            if value is m.missing and self.required:
+                self.fail("required")
+            return super().deserialize(value, attr, data, **kwargs)
+
         @property
         def schema(self) -> Any:
             nested = self.nested
