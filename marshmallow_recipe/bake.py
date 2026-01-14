@@ -481,12 +481,13 @@ else:
             def pre_load(self, data: dict[str, Any]) -> Any:
                 if not isinstance(data, dict):  # type: ignore
                     return data
-                # Exclude unknown fields to prevent possible value overlapping
-                known_fields = {field.load_from or field.name for field in self.fields.values()}  # type: ignore
-                result = {key: value for key, value in data.items() if key in known_fields}
+                # Run user-defined pre_load hooks first to allow field name normalization
+                result = data
                 for pre_load in get_pre_loads(cls):
                     result = pre_load(result)
-                return result
+                # Exclude unknown fields to prevent possible value overlapping
+                known_fields = {field.load_from or field.name for field in self.fields.values()}  # type: ignore
+                return {key: value for key, value in result.items() if key in known_fields}
 
         return _Schema
 

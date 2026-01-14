@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any
+from typing import Annotated, Any
 from unittest.mock import ANY
 
 import marshmallow_recipe as mr
@@ -74,3 +74,25 @@ def test_deserialize_with_pre_load_decorator() -> None:
         x: str | None
 
     assert mr.load(MyClass, {"x": "  abc  "}) == MyClass(x="abc")
+
+
+def test_pre_load_can_normalize_unknown_field_names() -> None:
+    @dataclasses.dataclass
+    class Headers:
+        """Field named 'x-id' but we want to accept 'id' too via pre_load"""
+
+        value: Annotated[str | None, mr.meta(name="x-id")] = None
+
+        @staticmethod
+        @mr.pre_load
+        def normalize(data: dict[str, Any]) -> dict[str, Any]:
+            """Map 'id' to 'x-id'"""
+            if "id" in data and "x-id" not in data:
+                data = {**data, "x-id": data["id"]}
+            return data
+
+    # Input uses 'id' which should be normalized to 'x-id' by pre_load
+    result = mr.load(Headers, {"id": "test123"})
+
+    # pre_load should have mapped 'id' -> 'x-id', so value should be populated
+    assert result.value == "test123", f"Expected 'test123', got {result.value!r}"
