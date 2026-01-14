@@ -2,6 +2,7 @@ import collections
 import collections.abc
 import dataclasses
 import datetime
+import decimal
 import enum
 import importlib.metadata
 import math
@@ -11,7 +12,7 @@ from typing import Any
 import marshmallow as m
 import marshmallow.validate
 
-from .validation import ValidationFunc
+from .validation import ValidationFunc, combine_validators
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
@@ -144,7 +145,7 @@ def decimal_field(
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
-        return m.fields.Decimal(
+        return DecimalField(
             allow_none=allow_none,
             as_string=True,
             places=places,
@@ -161,7 +162,7 @@ def decimal_field(
     if required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        return m.fields.Decimal(
+        return DecimalField(
             required=True,
             allow_none=allow_none,
             as_string=True,
@@ -175,7 +176,7 @@ def decimal_field(
             ),
         )
 
-    return m.fields.Decimal(
+    return DecimalField(
         allow_none=allow_none,
         as_string=True,
         places=places,
@@ -969,6 +970,7 @@ def union_field(
 
 DateTimeField: type[m.fields.DateTime]
 DateField: type[m.fields.Date]
+DecimalField: type[m.fields.Decimal]
 EnumField: type[m.fields.Field]
 DictField: type[m.fields.Field]
 SetField: type[m.fields.List]
@@ -1113,6 +1115,29 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             return super()._format_num(value)
 
     FloatField = FloatFieldV3
+
+    class DecimalFieldV3(m.fields.Decimal):
+        def __init__(
+            self,
+            places: int | None = None,
+            rounding: str | None = None,
+            validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+            **kwargs: Any,
+        ):
+            if places is not None and rounding is None:
+                local_places = places
+
+                def places_validator(value: decimal.Decimal) -> None:
+                    _, _, exponent = value.normalize().as_tuple()
+                    if isinstance(exponent, int) and exponent < 0 and -exponent > local_places:
+                        raise self.make_error("invalid")
+
+                validate = combine_validators(validate, places_validator)
+                places = None
+
+            super().__init__(places=places, rounding=rounding, validate=validate, **kwargs)
+
+    DecimalField = DecimalFieldV3
 
     class DateTimeFieldV3(m.fields.DateTime):
         SERIALIZATION_FUNCS = {  # noqa: RUF012
@@ -1462,6 +1487,29 @@ else:
             return super()._format_num(value)
 
     FloatField = FloatFieldV2
+
+    class DecimalFieldV2(m.fields.Decimal):
+        def __init__(
+            self,
+            places: int | None = None,
+            rounding: str | None = None,
+            validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+            **kwargs: Any,
+        ):
+            if places is not None and rounding is None:
+                local_places = places
+
+                def places_validator(value: decimal.Decimal) -> None:
+                    _, _, exponent = value.normalize().as_tuple()
+                    if isinstance(exponent, int) and exponent < 0 and -exponent > local_places:
+                        raise self.make_error("invalid")
+
+                validate = combine_validators(validate, places_validator)
+                places = None
+
+            super().__init__(places=places, rounding=rounding, validate=validate, **kwargs)
+
+    DecimalField = DecimalFieldV2
 
     class DateTimeFieldV2(m.fields.DateTime):
         @staticmethod

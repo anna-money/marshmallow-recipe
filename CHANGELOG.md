@@ -1,5 +1,6 @@
 ## v0.0.72 (2026-01-14)
 
+* Change decimal `places` to validate precision instead of rounding (use `rounding` parameter for old behavior)
 * Fix CI to correctly use custom marshmallow versions via `UV_EXTRA_ARGS`
 * Fix FloatFieldV2 to validate nan/inf values (match v3 behavior)
 * Fix NestedFieldV2 to check required before deserializing nested schema (match v3 behavior)

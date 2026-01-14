@@ -110,12 +110,12 @@ include_dict = mr.dump(include_product)
 
 ## decimal_places per Dataclass
 
-Different dataclasses can have different decimal precision:
+Different dataclasses can have different decimal precision validation:
 
 ```python
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class DefaultPrecisionProduct:
-    """Default decimal precision (2 places)."""
+    """Default decimal precision validation (max 2 places)."""
 
     unit_price: decimal.Decimal
     tax_rate: decimal.Decimal
@@ -124,7 +124,7 @@ class DefaultPrecisionProduct:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 @mr.options(decimal_places=4)
 class HighPrecisionProduct:
-    """4 decimal places via @mr.options."""
+    """Max 4 decimal places via @mr.options."""
 
     unit_price: decimal.Decimal
     tax_rate: decimal.Decimal
@@ -133,35 +133,38 @@ class HighPrecisionProduct:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 @mr.options(decimal_places=9)
 class VeryHighPrecisionProduct:
-    """9 decimal places via @mr.options (for forex/crypto)."""
+    """Max 9 decimal places via @mr.options (for forex/crypto)."""
 
     unit_price: decimal.Decimal
     tax_rate: decimal.Decimal
 
 
-# Default: 2 places
+# Default: validates at most 2 places
 default_precision = DefaultPrecisionProduct(
-    unit_price=decimal.Decimal("999.99567"),
-    tax_rate=decimal.Decimal("0.12345"),
+    unit_price=decimal.Decimal("999.99"),
+    tax_rate=decimal.Decimal("0.12"),
 )
 default_dict = mr.dump(default_precision)
-# {'unit_price': '1000.00', 'tax_rate': '0.12'}
+# {'unit_price': '999.99', 'tax_rate': '0.12'}
 
 # 4 places via @mr.options
 high_precision = HighPrecisionProduct(
-    unit_price=decimal.Decimal("999.99567"),
-    tax_rate=decimal.Decimal("0.12345"),
+    unit_price=decimal.Decimal("999.9957"),
+    tax_rate=decimal.Decimal("0.1235"),
 )
 high_dict = mr.dump(high_precision)
 # {'unit_price': '999.9957', 'tax_rate': '0.1235'}
 
 # 9 places via @mr.options
 very_high_precision = VeryHighPrecisionProduct(
-    unit_price=decimal.Decimal("999.99567123"),
-    tax_rate=decimal.Decimal("0.12345678901"),
+    unit_price=decimal.Decimal("999.995671"),
+    tax_rate=decimal.Decimal("0.123456789"),
 )
 very_high_dict = mr.dump(very_high_precision)
-# {'unit_price': '999.995671230', 'tax_rate': '0.123456789'}
+# {'unit_price': '999.995671', 'tax_rate': '0.123456789'}
+
+# If value exceeds max places, ValidationError is raised
+# DefaultPrecisionProduct(unit_price=decimal.Decimal("999.999"), ...)  # Error!
 ```
 
 ## Nested Dataclasses Keep Their Own Settings
@@ -192,11 +195,11 @@ class OuterOrder:
 
 inner = InnerProduct(
     inner_name="Widget",
-    inner_price=decimal.Decimal("123.456789"),
+    inner_price=decimal.Decimal("123.46"),  # Max 2 places (default)
 )
 outer = OuterOrder(
     outer_id=uuid.uuid4(),
-    outer_total=decimal.Decimal("999.123456"),
+    outer_total=decimal.Decimal("999.1235"),  # Max 4 places
     product=inner,
 )
 
@@ -232,7 +235,7 @@ class FullyConfiguredProduct:
 
 product = FullyConfiguredProduct(
     product_name="Laptop",
-    unit_price=decimal.Decimal("999.99567"),
+    unit_price=decimal.Decimal("999.9957"),  # Max 4 places
     description=None,
 )
 
@@ -282,7 +285,7 @@ The `@mr.options` decorator accepts:
 
 - `naming_case` - `mr.CAMEL_CASE`, `mr.CAPITAL_CAMEL_CASE`, `mr.UPPER_SNAKE_CASE`, or `None`
 - `none_value_handling` - `mr.NoneValueHandling.INCLUDE` or `mr.NoneValueHandling.IGNORE`
-- `decimal_places` - Integer or `None`
+- `decimal_places` - Integer or `None` (validates max decimal places)
 
 These settings:
 - Apply to the dataclass and its serialisation/deserialisation
