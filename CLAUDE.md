@@ -18,6 +18,7 @@
 
 ### Development Workflow
 
+- Use `export` to set env variables
 - **NEVER commit directly to main branch** - Always create a feature branch first
 - **Always run** `make lint` and `make test` before finishing any task. Both must pass without errors
 - **Always run** `git add -A` after completing implementation
