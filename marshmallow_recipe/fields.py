@@ -1502,7 +1502,7 @@ else:
                 def places_validator(value: decimal.Decimal) -> None:
                     _, _, exponent = value.normalize().as_tuple()
                     if isinstance(exponent, int) and exponent < 0 and -exponent > local_places:
-                        raise self.make_error("invalid")
+                        self.fail("invalid")
 
                 validate = combine_validators(validate, places_validator)
                 places = None
