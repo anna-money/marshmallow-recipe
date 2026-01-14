@@ -139,9 +139,101 @@ class MarshmallowSerializer(Serializer):
         return mr.load_many(schema_class, json.loads(data), naming_case=naming_case, decimal_places=decimal_places)
 
 
-@pytest.fixture
-def impl() -> Serializer:
-    return MarshmallowSerializer()
+class NukedBytesSerializer(Serializer):
+    __slots__ = ()
+
+    @property
+    def supports_pre_load(self) -> bool:
+        return False
+
+    @property
+    def supports_special_float_validation(self) -> bool:
+        return False
+
+    @property
+    def supports_cyclic(self) -> bool:
+        return False
+
+    def dump[T](
+        self,
+        schema_class: type[T],
+        obj: T,
+        naming_case: mr.NamingCase | None = None,
+        none_value_handling: mr.NoneValueHandling | None = None,
+        decimal_places: int | None = mr.MISSING,
+    ) -> bytes:
+        return mr.nuked.dump_to_bytes(
+            schema_class,
+            obj,
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
+        )
+
+    def load[T](
+        self,
+        schema_class: type[T],
+        data: bytes,
+        naming_case: mr.NamingCase | None = None,
+        decimal_places: int | None = mr.MISSING,
+    ) -> T:
+        return mr.nuked.load_from_bytes(
+            schema_class,
+            data,
+            naming_case=naming_case,
+            decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
+        )
+
+
+class NukedSerializer(Serializer):
+    __slots__ = ()
+
+    @property
+    def supports_pre_load(self) -> bool:
+        return True
+
+    @property
+    def supports_cyclic(self) -> bool:
+        return False
+
+    def dump[T](
+        self,
+        schema_class: type[T],
+        obj: T,
+        naming_case: mr.NamingCase | None = None,
+        none_value_handling: mr.NoneValueHandling | None = None,
+        decimal_places: int | None = mr.MISSING,
+    ) -> bytes:
+        result = mr.nuked.dump(
+            schema_class,
+            obj,
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
+        )
+        return json.dumps(result, separators=(",", ":")).encode()
+
+    def load[T](
+        self,
+        schema_class: type[T],
+        data: bytes,
+        naming_case: mr.NamingCase | None = None,
+        decimal_places: int | None = mr.MISSING,
+    ) -> T:
+        return mr.nuked.load(
+            schema_class,
+            json.loads(data),
+            naming_case=naming_case,
+            decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
+        )
+
+
+@pytest.fixture(
+    params=[MarshmallowSerializer(), NukedBytesSerializer(), NukedSerializer()],
+    ids=["marshmallow", "nuked_bytes", "nuked"],
+)
+def impl(request: pytest.FixtureRequest) -> Serializer:
+    return request.param
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -496,6 +588,31 @@ class WithDecimalRoundUp:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithDecimalRoundDown:
     value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=2, rounding=decimal.ROUND_DOWN))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalRoundCeiling:
+    value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=2, rounding=decimal.ROUND_CEILING))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalRoundFloor:
+    value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=2, rounding=decimal.ROUND_FLOOR))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalRoundHalfUp:
+    value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=2, rounding=decimal.ROUND_HALF_UP))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalRoundHalfDown:
+    value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=2, rounding=decimal.ROUND_HALF_DOWN))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalRoundHalfEven:
+    value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=2, rounding=decimal.ROUND_HALF_EVEN))
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

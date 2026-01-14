@@ -133,3 +133,7 @@ __all__: tuple[str, ...] = (
 __version__ = _get_version("marshmallow-recipe")
 
 version = f"{__version__}, Python {sys.version}"
+
+from marshmallow_recipe import nuked  # noqa: E402
+
+__all__ = (*__all__, "nuked")  # pyright: ignore[reportUnsupportedDunderAll]
