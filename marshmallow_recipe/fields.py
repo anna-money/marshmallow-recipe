@@ -4,6 +4,7 @@ import dataclasses
 import datetime
 import enum
 import importlib.metadata
+import math
 import types
 from typing import Any
 
@@ -1444,6 +1445,17 @@ else:
     StrField = StrFieldV2
 
     class FloatFieldV2(m.fields.Float):
+        default_error_messages = {  # noqa: RUF012
+            **m.fields.Float.default_error_messages,
+            "special": "Special numeric values (nan or infinity) are not permitted.",
+        }
+
+        def _validated(self, value: Any) -> float:
+            num = super()._validated(value)
+            if num is not None and (math.isnan(num) or num == float("inf") or num == float("-inf")):  # type: ignore[reportUnnecessaryComparison]
+                self.fail("special")
+            return num
+
         def _format_num(self, value: Any) -> float | int:
             if isinstance(value, int):
                 return value
