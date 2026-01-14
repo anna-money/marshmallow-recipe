@@ -1,6 +1,7 @@
 import dataclasses
 import decimal
 
+import marshmallow
 import pytest
 
 import marshmallow_recipe as mr
@@ -41,9 +42,19 @@ class TestOptionsDecimalPlacesDump:
         class Container:
             value: decimal.Decimal
 
-        obj = Container(value=decimal.Decimal("123.456789"))
+        obj = Container(value=decimal.Decimal("123.4567"))
         result = impl.dump(Container, obj)
-        assert result == b'{"value":"123.4568"}'
+        assert result == b'{"value":"123.4567"}'
+
+    def test_decimal_places_in_options_too_many(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        @mr.options(decimal_places=4)
+        class Container:
+            value: decimal.Decimal
+
+        obj = Container(value=decimal.Decimal("123.45678"))
+        with pytest.raises(marshmallow.ValidationError):
+            impl.dump(Container, obj)
 
     def test_decimal_places_metadata_overrides_options(self, impl: Serializer) -> None:
         @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -51,9 +62,9 @@ class TestOptionsDecimalPlacesDump:
         class Container:
             value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=1))
 
-        obj = Container(value=decimal.Decimal("123.456789"))
+        obj = Container(value=decimal.Decimal("123.4"))
         result = impl.dump(Container, obj)
-        assert result == b'{"value":"123.5"}'
+        assert result == b'{"value":"123.4"}'
 
     def test_decimal_places_multiple_fields(self, impl: Serializer) -> None:
         @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -63,9 +74,9 @@ class TestOptionsDecimalPlacesDump:
             decimal2: decimal.Decimal
             integer: int
 
-        obj = Container(decimal1=decimal.Decimal("123.456789"), decimal2=decimal.Decimal("987.654321"), integer=42)
+        obj = Container(decimal1=decimal.Decimal("123.456"), decimal2=decimal.Decimal("987.654"), integer=42)
         result = impl.dump(Container, obj)
-        assert result == b'{"decimal1":"123.457","decimal2":"987.654","integer":42}'
+        assert result == b'{"decimal1":"123.456","decimal2":"987.654","integer":42}'
 
     def test_decimal_places_mixed_options_and_metadata(self, impl: Serializer) -> None:
         @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -74,9 +85,9 @@ class TestOptionsDecimalPlacesDump:
             global_decimal: decimal.Decimal
             field_decimal: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=1))
 
-        obj = Container(global_decimal=decimal.Decimal("123.456789"), field_decimal=decimal.Decimal("123.456789"))
+        obj = Container(global_decimal=decimal.Decimal("123.456"), field_decimal=decimal.Decimal("123.4"))
         result = impl.dump(Container, obj)
-        assert result == b'{"global_decimal":"123.457","field_decimal":"123.5"}'
+        assert result == b'{"global_decimal":"123.456","field_decimal":"123.4"}'
 
     def test_decimal_places_different_classes(self, impl: Serializer) -> None:
         @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -89,13 +100,11 @@ class TestOptionsDecimalPlacesDump:
         class Container4:
             value: decimal.Decimal
 
-        test_value = decimal.Decimal("123.456789")
+        result3 = impl.dump(Container3, Container3(value=decimal.Decimal("123.456")))
+        result4 = impl.dump(Container4, Container4(value=decimal.Decimal("123.4567")))
 
-        result3 = impl.dump(Container3, Container3(value=test_value))
-        result4 = impl.dump(Container4, Container4(value=test_value))
-
-        assert result3 == b'{"value":"123.457"}'
-        assert result4 == b'{"value":"123.4568"}'
+        assert result3 == b'{"value":"123.456"}'
+        assert result4 == b'{"value":"123.4567"}'
 
     def test_decimal_places_nested_dataclass(self, impl: Serializer) -> None:
         @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -108,9 +117,9 @@ class TestOptionsDecimalPlacesDump:
             inner: Inner
             outer_value: decimal.Decimal
 
-        obj = Outer(inner=Inner(value=decimal.Decimal("123.456789")), outer_value=decimal.Decimal("987.654321"))
+        obj = Outer(inner=Inner(value=decimal.Decimal("123.45")), outer_value=decimal.Decimal("987.654"))
         result = impl.dump(Outer, obj)
-        assert result == b'{"inner":{"value":"123.46"},"outer_value":"987.654"}'
+        assert result == b'{"inner":{"value":"123.45"},"outer_value":"987.654"}'
 
     def test_decimal_places_global_parameter(self, impl: Serializer) -> None:
         @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -122,9 +131,9 @@ class TestOptionsDecimalPlacesDump:
             inner: Inner
             outer_value: decimal.Decimal
 
-        obj = Outer(inner=Inner(value=decimal.Decimal("123.456789")), outer_value=decimal.Decimal("987.654321"))
+        obj = Outer(inner=Inner(value=decimal.Decimal("123.456")), outer_value=decimal.Decimal("987.654"))
         result = impl.dump(Outer, obj, decimal_places=3)
-        assert result == b'{"inner":{"value":"123.457"},"outer_value":"987.654"}'
+        assert result == b'{"inner":{"value":"123.456"},"outer_value":"987.654"}'
 
     def test_decimal_places_nested_list(self, impl: Serializer) -> None:
         @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -154,9 +163,9 @@ class TestOptionsDecimalPlacesDump:
         class Level1:
             level2: Level2
 
-        obj = Level1(level2=Level2(level3=Level3(value=decimal.Decimal("123.456"))))
+        obj = Level1(level2=Level2(level3=Level3(value=decimal.Decimal("123.4"))))
         result = impl.dump(Level1, obj)
-        assert result == b'{"level2":{"level3":{"value":"123.46"}}}'
+        assert result == b'{"level2":{"level3":{"value":"123.4"}}}'
 
 
 class TestOptionsDecimalPlacesLoad:
@@ -170,9 +179,20 @@ class TestOptionsDecimalPlacesLoad:
         class Container:
             value: decimal.Decimal
 
-        data = b'{"value":"123.456789"}'
+        data = b'{"value":"123.4567"}'
         result = impl.load(Container, data)
-        assert result == Container(value=decimal.Decimal("123.4568"))
+        assert result == Container(value=decimal.Decimal("123.4567"))
+
+    def test_decimal_places_in_options_too_many(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        @mr.options(decimal_places=4)
+        class Container:
+            value: decimal.Decimal
+
+        data = b'{"value":"123.45678"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(Container, data)
+        assert exc.value.messages == {"value": ["Not a valid number."]}
 
     def test_decimal_places_metadata_overrides_options(self, impl: Serializer) -> None:
         @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -180,9 +200,9 @@ class TestOptionsDecimalPlacesLoad:
         class Container:
             value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=1))
 
-        data = b'{"value":"123.456789"}'
+        data = b'{"value":"123.4"}'
         result = impl.load(Container, data)
-        assert result == Container(value=decimal.Decimal("123.5"))
+        assert result == Container(value=decimal.Decimal("123.4"))
 
     def test_decimal_places_global_parameter(self, impl: Serializer) -> None:
         @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -193,9 +213,9 @@ class TestOptionsDecimalPlacesLoad:
         class Outer:
             inner: Inner
 
-        data = b'{"inner":{"value":"123.456789"}}'
+        data = b'{"inner":{"value":"123.456"}}'
         result = impl.load(Outer, data, decimal_places=3)
-        assert result == Outer(inner=Inner(value=decimal.Decimal("123.457")))
+        assert result == Outer(inner=Inner(value=decimal.Decimal("123.456")))
 
 
 class TestOptionsNoneValueHandlingDump:

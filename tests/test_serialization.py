@@ -1018,8 +1018,8 @@ def test_options_decimal_places() -> None:
     class Container:
         value: decimal.Decimal
 
-    dumped = mr.dump(Container(value=decimal.Decimal("123.456789")))
-    assert dumped == {"value": "123.4568"}
+    dumped = mr.dump(Container(value=decimal.Decimal("123.4567")))
+    assert dumped == {"value": "123.4567"}
 
 
 def test_options_decimal_places_metadata_override() -> None:
@@ -1028,8 +1028,8 @@ def test_options_decimal_places_metadata_override() -> None:
     class Container:
         value: Annotated[decimal.Decimal, mr.decimal_meta(places=1)]
 
-    dumped = mr.dump(Container(value=decimal.Decimal("123.456789")))
-    assert dumped == {"value": "123.5"}
+    dumped = mr.dump(Container(value=decimal.Decimal("123.4")))
+    assert dumped == {"value": "123.4"}
 
 
 def test_options_decimal_places_multiple_fields() -> None:
@@ -1040,9 +1040,9 @@ def test_options_decimal_places_multiple_fields() -> None:
         decimal2: decimal.Decimal
         integer: int
 
-    instance = Container(decimal1=decimal.Decimal("123.456789"), decimal2=decimal.Decimal("987.654321"), integer=42)
+    instance = Container(decimal1=decimal.Decimal("123.456"), decimal2=decimal.Decimal("987.654"), integer=42)
     dumped = mr.dump(instance)
-    assert dumped == {"decimal1": "123.457", "decimal2": "987.654", "integer": 42}
+    assert dumped == {"decimal1": "123.456", "decimal2": "987.654", "integer": 42}
 
 
 def test_options_decimal_places_mixed() -> None:
@@ -1052,9 +1052,9 @@ def test_options_decimal_places_mixed() -> None:
         global_decimal: decimal.Decimal
         field_decimal: Annotated[decimal.Decimal, mr.decimal_meta(places=1)]
 
-    instance = Container(global_decimal=decimal.Decimal("123.456789"), field_decimal=decimal.Decimal("123.456789"))
+    instance = Container(global_decimal=decimal.Decimal("123.456"), field_decimal=decimal.Decimal("123.4"))
     dumped = mr.dump(instance)
-    assert dumped == {"global_decimal": "123.457", "field_decimal": "123.5"}
+    assert dumped == {"global_decimal": "123.456", "field_decimal": "123.4"}
 
 
 def test_options_decimal_places_schema_caching() -> None:
@@ -1073,7 +1073,7 @@ def test_options_decimal_places_schema_caching() -> None:
 def test_options_decimal_places_different_values() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     @mr.options(decimal_places=3)
-    class Container2:
+    class Container3:
         value: decimal.Decimal
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1081,13 +1081,11 @@ def test_options_decimal_places_different_values() -> None:
     class Container4:
         value: decimal.Decimal
 
-    test_value = decimal.Decimal("123.456789")
+    dumped3 = mr.dump(Container3(value=decimal.Decimal("123.456")))
+    dumped4 = mr.dump(Container4(value=decimal.Decimal("123.4567")))
 
-    dumped2 = mr.dump(Container2(value=test_value))
-    dumped4 = mr.dump(Container4(value=test_value))
-
-    assert dumped2 == {"value": "123.457"}
-    assert dumped4 == {"value": "123.4568"}
+    assert dumped3 == {"value": "123.456"}
+    assert dumped4 == {"value": "123.4567"}
 
 
 def test_options_decimal_places_nested_dataclass() -> None:
@@ -1101,9 +1099,9 @@ def test_options_decimal_places_nested_dataclass() -> None:
         inner: Inner
         outer_value: decimal.Decimal
 
-    instance = Outer(inner=Inner(value=decimal.Decimal("123.456789")), outer_value=decimal.Decimal("987.654321"))
+    instance = Outer(inner=Inner(value=decimal.Decimal("123.45")), outer_value=decimal.Decimal("987.654"))
     dumped = mr.dump(instance)
-    assert dumped == {"inner": {"value": "123.46"}, "outer_value": "987.654"}
+    assert dumped == {"inner": {"value": "123.45"}, "outer_value": "987.654"}
 
 
 def test_options_decimal_places_nested_with_global_parameter() -> None:
@@ -1116,9 +1114,9 @@ def test_options_decimal_places_nested_with_global_parameter() -> None:
         inner: Inner
         outer_value: decimal.Decimal
 
-    instance = Outer(inner=Inner(value=decimal.Decimal("123.456789")), outer_value=decimal.Decimal("987.654321"))
+    instance = Outer(inner=Inner(value=decimal.Decimal("123.456")), outer_value=decimal.Decimal("987.654"))
     dumped = mr.dump(instance, decimal_places=3)
-    assert dumped == {"inner": {"value": "123.457"}, "outer_value": "987.654"}
+    assert dumped == {"inner": {"value": "123.456"}, "outer_value": "987.654"}
 
 
 def test_options_decimal_places_nested_list() -> None:
@@ -1150,9 +1148,9 @@ def test_options_decimal_places_deeply_nested() -> None:
     class Level1:
         level2: Level2
 
-    instance = Level1(level2=Level2(level3=Level3(value=decimal.Decimal("123.456"))))
+    instance = Level1(level2=Level2(level3=Level3(value=decimal.Decimal("123.4"))))
     dumped = mr.dump(instance)
-    assert dumped == {"level2": {"level3": {"value": "123.46"}}}
+    assert dumped == {"level2": {"level3": {"value": "123.4"}}}
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

@@ -74,31 +74,41 @@ loaded_include = mr.load(Product, include_dump, none_value_handling=mr.NoneValue
 
 ## decimal_places at Runtime
 
-Control decimal precision at runtime:
+Control decimal precision validation at runtime:
 
 ```python
 product = Product(
     product_id=uuid.UUID("550e8400-e29b-41d4-a716-446655440000"),
     product_name="Laptop",
-    unit_price=decimal.Decimal("999.99567"),
-    tax_rate=decimal.Decimal("0.12345"),
+    unit_price=decimal.Decimal("999.99"),
+    tax_rate=decimal.Decimal("0.12"),
 )
 
-# Default: 2 decimal places
+# Default: validates at most 2 decimal places
 default_dump = mr.dump(product)
-# {'unit_price': '999.00', 'tax_rate': '0.12'}
+# {'unit_price': '999.99', 'tax_rate': '0.12'}
 
-# Runtime: 2 decimal places (explicit)
-two_places = mr.dump(product, decimal_places=2)
-# {'unit_price': '1000.00', 'tax_rate': '0.12'}
-
-# Runtime: 4 decimal places
-four_places = mr.dump(product, decimal_places=4)
+# Runtime: validates at most 4 decimal places (allows more precision)
+product_4dp = Product(
+    product_id=uuid.UUID("550e8400-e29b-41d4-a716-446655440000"),
+    product_name="Laptop",
+    unit_price=decimal.Decimal("999.9957"),
+    tax_rate=decimal.Decimal("0.1235"),
+)
+four_places = mr.dump(product_4dp, decimal_places=4)
 # {'unit_price': '999.9957', 'tax_rate': '0.1235'}
 
-# Runtime: 9 decimal places (high precision)
-nine_places = mr.dump(product, decimal_places=9)
-# {'unit_price': '999.995670000', 'tax_rate': '0.123450000'}
+# Runtime: validates at most 9 decimal places (high precision)
+product_9dp = Product(
+    product_id=uuid.UUID("550e8400-e29b-41d4-a716-446655440000"),
+    product_name="Laptop",
+    unit_price=decimal.Decimal("999.995670000"),
+    tax_rate=decimal.Decimal("0.123450000"),
+)
+nine_places = mr.dump(product_9dp, decimal_places=9)
+# {'unit_price': '999.99567', 'tax_rate': '0.12345'}
+
+# If value has more decimal places than allowed, ValidationError is raised
 ```
 
 ## Combining Multiple Overrides
@@ -107,7 +117,7 @@ All runtime parameters can be used together:
 
 ```python
 result = mr.dump(
-    product,
+    product_4dp,
     naming_case=mr.CAMEL_CASE,
     none_value_handling=mr.NoneValueHandling.INCLUDE,
     decimal_places=4,
@@ -131,7 +141,7 @@ internal_data = mr.dump(product)
 
 # External REST API: camelCase, 4 decimal places
 external_data = mr.dump(
-    product,
+    product_4dp,
     naming_case=mr.CAMEL_CASE,
     decimal_places=4,
 )
@@ -166,7 +176,7 @@ All three functions accept these parameters:
 
 - `naming_case` - `mr.CAMEL_CASE`, `mr.CAPITAL_CAMEL_CASE`, `mr.UPPER_SNAKE_CASE`, or `None` (default)
 - `none_value_handling` - `mr.NoneValueHandling.INCLUDE` or `mr.NoneValueHandling.IGNORE` (default)
-- `decimal_places` - Integer or `None` (default 2)
+- `decimal_places` - Integer or `None` (default 2) - validates max decimal places
 
 These can be passed to:
 - `mr.dump(obj, ...)` - Serialisation

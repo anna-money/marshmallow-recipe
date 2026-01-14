@@ -1,3 +1,8 @@
+## v0.0.71 (2026-01-14)
+
+* Change decimal `places` to validate precision instead of rounding (use `rounding` parameter for old behavior)
+
+
 ## v0.0.70 (2026-01-12)
 
 * Fix ChangedInMarshmallow4Warning for validators returning False
