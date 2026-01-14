@@ -15,6 +15,8 @@ from .conftest import (
     WithDecimalMissing,
     WithDecimalNoneError,
     WithDecimalNoPlaces,
+    WithDecimalPlacesAndRange,
+    WithDecimalPlacesZero,
     WithDecimalRequiredError,
     WithDecimalRoundDown,
     WithDecimalRoundUp,
@@ -155,6 +157,72 @@ class TestDecimalDump:
         obj = WithDecimalMissing(value=decimal.Decimal("99.99"))
         result = impl.dump(WithDecimalMissing, obj)
         assert result == b'{"value":"99.99"}'
+
+    def test_places_zero_integer(self, impl: Serializer) -> None:
+        obj = WithDecimalPlacesZero(value=decimal.Decimal("100"))
+        result = impl.dump(WithDecimalPlacesZero, obj)
+        assert result == b'{"value":"100"}'
+
+    def test_places_zero_negative_integer(self, impl: Serializer) -> None:
+        obj = WithDecimalPlacesZero(value=decimal.Decimal("-50"))
+        result = impl.dump(WithDecimalPlacesZero, obj)
+        assert result == b'{"value":"-50"}'
+
+    def test_places_zero_decimal_invalid(self, impl: Serializer) -> None:
+        obj = WithDecimalPlacesZero(value=decimal.Decimal("1.5"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalPlacesZero, obj)
+        assert exc.value.messages == {"value": ["Not a valid number."]}
+
+    def test_places_zero_small_decimal_invalid(self, impl: Serializer) -> None:
+        obj = WithDecimalPlacesZero(value=decimal.Decimal("0.1"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalPlacesZero, obj)
+        assert exc.value.messages == {"value": ["Not a valid number."]}
+
+    def test_negative_exceeds_places(self, impl: Serializer) -> None:
+        obj = WithDecimal(value=decimal.Decimal("-1.234"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimal, obj)
+        assert exc.value.messages == {"value": ["Not a valid number."]}
+
+    def test_scientific_notation_small_invalid(self, impl: Serializer) -> None:
+        obj = WithDecimal(value=decimal.Decimal("1E-5"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimal, obj)
+        assert exc.value.messages == {"value": ["Not a valid number."]}
+
+    def test_scientific_notation_large(self, impl: Serializer) -> None:
+        obj = WithDecimal(value=decimal.Decimal("1E+5"))
+        result = impl.dump(WithDecimal, obj)
+        assert result == b'{"value":"100000"}'
+
+    def test_trailing_zeros_at_boundary(self, impl: Serializer) -> None:
+        obj = WithDecimal(value=decimal.Decimal("1.100"))
+        result = impl.dump(WithDecimal, obj)
+        assert result == b'{"value":"1.100"}'
+
+    def test_zero_decimal_with_places(self, impl: Serializer) -> None:
+        obj = WithDecimal(value=decimal.Decimal("0.00"))
+        result = impl.dump(WithDecimal, obj)
+        assert result == b'{"value":"0.00"}'
+
+    def test_places_with_range_both_pass(self, impl: Serializer) -> None:
+        obj = WithDecimalPlacesAndRange(value=decimal.Decimal("50.12"))
+        result = impl.dump(WithDecimalPlacesAndRange, obj)
+        assert result == b'{"value":"50.12"}'
+
+    def test_places_with_range_places_fails(self, impl: Serializer) -> None:
+        obj = WithDecimalPlacesAndRange(value=decimal.Decimal("50.123"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalPlacesAndRange, obj)
+        assert exc.value.messages == {"value": ["Not a valid number."]}
+
+    def test_places_with_range_range_fails(self, impl: Serializer) -> None:
+        obj = WithDecimalPlacesAndRange(value=decimal.Decimal("150.12"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalPlacesAndRange, obj)
+        assert exc.value.messages == {"value": ["Invalid value."]}
 
 
 class TestDecimalLoad:
@@ -330,6 +398,72 @@ class TestDecimalLoad:
         data = b'{"value":"99.99"}'
         result = impl.load(WithDecimalMissing, data)
         assert result == WithDecimalMissing(value=decimal.Decimal("99.99"))
+
+    def test_places_zero_integer(self, impl: Serializer) -> None:
+        data = b'{"value":"100"}'
+        result = impl.load(WithDecimalPlacesZero, data)
+        assert result == WithDecimalPlacesZero(value=decimal.Decimal("100"))
+
+    def test_places_zero_negative_integer(self, impl: Serializer) -> None:
+        data = b'{"value":"-50"}'
+        result = impl.load(WithDecimalPlacesZero, data)
+        assert result == WithDecimalPlacesZero(value=decimal.Decimal("-50"))
+
+    def test_places_zero_decimal_invalid(self, impl: Serializer) -> None:
+        data = b'{"value":"1.5"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalPlacesZero, data)
+        assert exc.value.messages == {"value": ["Not a valid number."]}
+
+    def test_places_zero_small_decimal_invalid(self, impl: Serializer) -> None:
+        data = b'{"value":"0.1"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalPlacesZero, data)
+        assert exc.value.messages == {"value": ["Not a valid number."]}
+
+    def test_negative_exceeds_places(self, impl: Serializer) -> None:
+        data = b'{"value":"-1.234"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimal, data)
+        assert exc.value.messages == {"value": ["Not a valid number."]}
+
+    def test_scientific_notation_small_invalid(self, impl: Serializer) -> None:
+        data = b'{"value":"1E-5"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimal, data)
+        assert exc.value.messages == {"value": ["Not a valid number."]}
+
+    def test_scientific_notation_large(self, impl: Serializer) -> None:
+        data = b'{"value":"1E+5"}'
+        result = impl.load(WithDecimal, data)
+        assert result == WithDecimal(value=decimal.Decimal("1E+5"))
+
+    def test_trailing_zeros_at_boundary(self, impl: Serializer) -> None:
+        data = b'{"value":"1.100"}'
+        result = impl.load(WithDecimal, data)
+        assert result == WithDecimal(value=decimal.Decimal("1.100"))
+
+    def test_zero_decimal_with_places(self, impl: Serializer) -> None:
+        data = b'{"value":"0.00"}'
+        result = impl.load(WithDecimal, data)
+        assert result == WithDecimal(value=decimal.Decimal("0.00"))
+
+    def test_places_with_range_both_pass(self, impl: Serializer) -> None:
+        data = b'{"value":"50.12"}'
+        result = impl.load(WithDecimalPlacesAndRange, data)
+        assert result == WithDecimalPlacesAndRange(value=decimal.Decimal("50.12"))
+
+    def test_places_with_range_places_fails(self, impl: Serializer) -> None:
+        data = b'{"value":"50.123"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalPlacesAndRange, data)
+        assert exc.value.messages == {"value": ["Not a valid number."]}
+
+    def test_places_with_range_range_fails(self, impl: Serializer) -> None:
+        data = b'{"value":"150.12"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalPlacesAndRange, data)
+        assert exc.value.messages == {"value": ["Invalid value."]}
 
 
 class TestDecimalDumpInvalidType:

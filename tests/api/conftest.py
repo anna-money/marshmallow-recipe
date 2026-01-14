@@ -477,6 +477,18 @@ class WithDecimalNoPlaces:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalPlacesZero:
+    value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalPlacesAndRange:
+    value: decimal.Decimal = dataclasses.field(
+        metadata=mr.decimal_meta(places=2, validate=lambda x: decimal.Decimal("0") < x < decimal.Decimal("100"))
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithDecimalRoundUp:
     value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=2, rounding=decimal.ROUND_UP))
 
