@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any
+from typing import Annotated, Any
 
 import pytest
 
@@ -47,6 +47,21 @@ class WithClassMethodPreLoad:
         return data
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithFieldNameNormalization:
+    """Field named 'x-id' but we want to accept 'id' too via pre_load"""
+
+    value: Annotated[str | None, mr.meta(name="x-id")] = None
+
+    @staticmethod
+    @mr.pre_load
+    def normalize(data: dict[str, Any]) -> dict[str, Any]:
+        """Map 'id' to 'x-id'"""
+        if "id" in data and "x-id" not in data:
+            data = {**data, "x-id": data["id"]}
+        return data
+
+
 class TestPreLoadLoad:
     def test_transforms_data(self, impl: Serializer) -> None:
         if not impl.supports_pre_load:
@@ -81,6 +96,13 @@ class TestPreLoadLoad:
 
         result = impl.load(WithAddedPreLoad, b'{"value":"test"}')
         assert result == WithAddedPreLoad(value="test_added")
+
+    def test_normalizes_unknown_field_names(self, impl: Serializer) -> None:
+        if not impl.supports_pre_load:
+            pytest.skip("pre_load not supported")
+
+        result = impl.load(WithFieldNameNormalization, b'{"id":"test123"}')
+        assert result == WithFieldNameNormalization(value="test123")
 
 
 class TestGetPreLoads:

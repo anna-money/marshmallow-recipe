@@ -1,3 +1,8 @@
+## v0.0.71 (2026-01-14)
+
+* Fix pre_load hooks not being able to normalize unknown field names in marshmallow 2.x
+
+
 ## v0.0.70 (2026-01-12)
 
 * Fix ChangedInMarshmallow4Warning for validators returning False
