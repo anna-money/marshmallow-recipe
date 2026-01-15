@@ -5,6 +5,7 @@ from .bake import bake_schema, get_field_for
 from .fields import (
     DateField,
     DateTimeField,
+    DecimalField,
     DictField,
     EnumField,
     FloatField,
@@ -74,6 +75,7 @@ __all__: tuple[str, ...] = (
     "Dataclass",
     "DateField",
     "DateTimeField",
+    "DecimalField",
     "DictField",
     "EmptySchema",
     "EnumField",

@@ -9,6 +9,16 @@ import marshmallow.validate
 ValidationFunc = collections.abc.Callable[[Any], Any]
 
 
+def combine_validators(
+    this: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None, that: ValidationFunc
+) -> ValidationFunc | collections.abc.Sequence[ValidationFunc]:
+    if this is None:
+        return that
+    if callable(this):
+        return [this, that]
+    return [*this, that]
+
+
 def __wrap_validator(validator: ValidationFunc) -> ValidationFunc:
     def _wrapper(value: Any) -> None:
         if validator(value) is False:

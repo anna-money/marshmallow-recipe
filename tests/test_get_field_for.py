@@ -51,9 +51,27 @@ else:
 def assert_fields_equal(a: m.fields.Field, b: m.fields.Field) -> None:
     assert a.__class__ == b.__class__, "field class"
 
+    def normalize_validators(validators: list) -> str:
+        return repr([v.__name__ if hasattr(v, "__name__") else repr(v) for v in validators])
+
+    def normalize_validate(v: Any) -> str:
+        if v is None:
+            return "None"
+        if callable(v):
+            return v.__name__ if hasattr(v, "__name__") else repr(v)
+        if isinstance(v, list):
+            return normalize_validators(v)
+        return repr(v)
+
     def attrs(x: Any) -> dict[str, str]:
         return {
-            k: f"{v!r} ({v.__mro__!r})" if inspect.isclass(v) else repr(v)
+            k: normalize_validators(v)
+            if k == "validators"
+            else normalize_validate(v)
+            if k == "validate"
+            else f"{v!r} ({v.__mro__!r})"
+            if inspect.isclass(v)
+            else repr(v)
             for k, v in x.__dict__.items()
             if not k.startswith("_")
         }
@@ -188,38 +206,38 @@ EMPTY_SCHEMA = m.Schema()
             m.fields.UUID(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: decimal
-        (decimal.Decimal, {}, m.fields.Decimal(required=True, places=2, as_string=True)),
+        (decimal.Decimal, {}, mr.DecimalField(required=True, as_string=True, places=2)),
         (
             Optional[decimal.Decimal],
             {},
-            m.fields.Decimal(allow_none=True, **default_fields(None), places=2, as_string=True),
+            mr.DecimalField(allow_none=True, as_string=True, **default_fields(None), places=2),
         ),
         (
             decimal.Decimal | None,
             {},
-            m.fields.Decimal(allow_none=True, **default_fields(None), places=2, as_string=True),
+            mr.DecimalField(allow_none=True, as_string=True, **default_fields(None), places=2),
         ),
         (
             decimal.Decimal,
             mr.decimal_meta(name="i", places=4),
-            m.fields.Decimal(required=True, **data_key_fields("i"), places=4, as_string=True),
+            mr.DecimalField(required=True, as_string=True, **data_key_fields("i"), places=4),
         ),
         (
             decimal.Decimal,
             mr.decimal_meta(name="i", places=4, rounding=decimal.ROUND_DOWN),
-            m.fields.Decimal(
-                required=True, **data_key_fields("i"), places=4, as_string=True, rounding=decimal.ROUND_DOWN
+            mr.DecimalField(
+                required=True, as_string=True, **data_key_fields("i"), places=4, rounding=decimal.ROUND_DOWN
             ),
         ),
         (
             Optional[decimal.Decimal],
             mr.decimal_meta(name="i", places=4),
-            m.fields.Decimal(allow_none=True, **default_fields(None), places=4, as_string=True, **data_key_fields("i")),
+            mr.DecimalField(allow_none=True, as_string=True, **default_fields(None), places=4, **data_key_fields("i")),
         ),
         (
             decimal.Decimal | None,
             mr.decimal_meta(name="i", places=4),
-            m.fields.Decimal(allow_none=True, **default_fields(None), places=4, as_string=True, **data_key_fields("i")),
+            mr.DecimalField(allow_none=True, as_string=True, **default_fields(None), places=4, **data_key_fields("i")),
         ),
         # simple types: datetime
         (datetime.datetime, {}, mr.DateTimeField(required=True)),
@@ -891,7 +909,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             decimal.Decimal,
             mr.decimal_meta(description="Decimal field"),
-            m.fields.Decimal(required=True, as_string=True, places=2, **description_fields("Decimal field")),
+            mr.DecimalField(required=True, as_string=True, places=2, **description_fields("Decimal field")),
         ),
         (
             datetime.datetime,
@@ -928,7 +946,7 @@ def test_get_field_for_with_global_decimal_places() -> None:
         bake_schema.return_value = EMPTY_SCHEMA
 
         field = mr.get_field_for(decimal.Decimal, mr.Metadata({}), None, None, decimal_places=5)
-        expected = m.fields.Decimal(required=True, places=5, as_string=True)
+        expected = mr.DecimalField(required=True, as_string=True, places=5)
         assert_fields_equal(field, expected)
 
 
@@ -937,7 +955,7 @@ def test_get_field_for_metadata_overrides_global_decimal_places() -> None:
         bake_schema.return_value = EMPTY_SCHEMA
 
         field = mr.get_field_for(decimal.Decimal, mr.decimal_meta(places=3), None, None, decimal_places=5)
-        expected = m.fields.Decimal(required=True, places=3, as_string=True)
+        expected = mr.DecimalField(required=True, as_string=True, places=3)
         assert_fields_equal(field, expected)
 
 

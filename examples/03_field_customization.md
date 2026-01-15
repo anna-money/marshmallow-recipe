@@ -78,7 +78,7 @@ profile_dict = mr.dump(profile)
 
 ## Decimal Precision
 
-Control decimal places per field:
+Control decimal places per field with validation or rounding:
 
 ```python
 import decimal
@@ -88,28 +88,57 @@ import decimal
 class Transaction:
     id: uuid.UUID
 
-    # 2 decimal places (standard currencies)
+    # 2 decimal places - validates (no rounding by default)
     amount: Annotated[decimal.Decimal, mr.decimal_meta(places=2)]
 
-    # 4 decimal places (fees)
+    # 4 decimal places - validates
     processing_fee: Annotated[decimal.Decimal, mr.decimal_meta(places=4)]
 
-    # 9 decimal places (forex/crypto)
+    # 9 decimal places - validates
     exchange_rate: Annotated[decimal.Decimal, mr.decimal_meta(places=9)]
 
 
 transaction = Transaction(
     id=uuid.uuid4(),
-    amount=decimal.Decimal("123.456789"),
-    processing_fee=decimal.Decimal("1.23456789"),
-    exchange_rate=decimal.Decimal("1.123456789123"),
+    amount=decimal.Decimal("123.45"),
+    processing_fee=decimal.Decimal("1.2345"),
+    exchange_rate=decimal.Decimal("1.123456789"),
 )
 
 trans_dict = mr.dump(transaction)
 # {
-#     'amount': '123.46',            # Rounded to 2 places
-#     'processing_fee': '1.2346',    # Rounded to 4 places
-#     'exchange_rate': '1.123456789' # Rounded to 9 places
+#     'amount': '123.45',            # Validated to have at most 2 places
+#     'processing_fee': '1.2345',    # Validated to have at most 4 places
+#     'exchange_rate': '1.123456789' # Validated to have at most 9 places
+# }
+
+# If value has too many decimal places, ValidationError is raised:
+# Transaction(amount=decimal.Decimal("123.456"))  # ValidationError!
+```
+
+### Rounding Mode
+
+To enable rounding instead of validation, specify a `rounding` mode:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class RoundedTransaction:
+    # Rounding enabled with ROUND_HALF_UP
+    amount: Annotated[decimal.Decimal, mr.decimal_meta(places=2, rounding=decimal.ROUND_HALF_UP)]
+
+    # Rounding with ROUND_DOWN
+    fee: Annotated[decimal.Decimal, mr.decimal_meta(places=2, rounding=decimal.ROUND_DOWN)]
+
+
+trans = RoundedTransaction(
+    amount=decimal.Decimal("123.456"),
+    fee=decimal.Decimal("1.999"),
+)
+
+trans_dict = mr.dump(trans)
+# {
+#     'amount': '123.46',  # Rounded up
+#     'fee': '1.99',       # Rounded down
 # }
 ```
 
