@@ -227,7 +227,6 @@ fn serialize_field_value<'py>(
                 ));
             }
             if value.is_instance_of::<PyInt>() {
-                // int is allowed for float field (for big int support)
                 Ok(value.clone().unbind())
             } else if value.is_instance_of::<PyFloat>() {
                 let f: f64 = value.extract()?;
@@ -260,18 +259,32 @@ fn serialize_field_value<'py>(
                 DecimalPlaces::NotSpecified => ctx.global_decimal_places.or(Some(2)),
             };
 
-            let decimal_str: String = value.str()?.extract()?;
+            let format_result = value.call_method1("__format__", ("f",))?;
+            let formatted = format_result.cast::<PyString>()?;
+            let decimal_str = formatted.to_str()?;
 
             if let Some(places) = decimal_places.filter(|&p| p >= 0) {
-                if let Ok(mut rust_decimal) = Decimal::from_str(&decimal_str) {
-                    let strategy = python_rounding_to_rust(field.decimal_rounding.as_ref(), ctx.py);
-                    rust_decimal = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
-                    let formatted = format!("{:.prec$}", rust_decimal, prec = places.cast_unsigned() as usize);
-                    return Ok(PyString::new(ctx.py, &formatted).into_any().unbind());
+                if field.decimal_rounding.is_some() {
+                    if let Ok(mut rust_decimal) = Decimal::from_str(decimal_str) {
+                        let strategy = python_rounding_to_rust(field.decimal_rounding.as_ref(), ctx.py);
+                        rust_decimal = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
+                        let rounded = format!("{:.prec$}", rust_decimal, prec = places.cast_unsigned() as usize);
+                        return Ok(PyString::new(ctx.py, &rounded).into_any().unbind());
+                    }
+                } else if let Ok(rust_decimal) = Decimal::from_str(decimal_str) {
+                    let normalized = rust_decimal.normalize();
+                    let scale = normalized.scale();
+                    if scale > places.cast_unsigned() {
+                        let msg = field.invalid_error.as_deref().unwrap_or("Not a valid number.");
+                        let errors = PyList::new(ctx.py, [msg])?;
+                        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                            err_dict_from_list(ctx.py, &field.name, errors.into_any().unbind()),
+                        ));
+                    }
                 }
             }
 
-            Ok(PyString::new(ctx.py, &decimal_str).into_any().unbind())
+            Ok(format_result.unbind())
         }
         FieldType::Uuid => {
             let cached = get_cached_types(ctx.py)?;
@@ -731,7 +744,6 @@ fn serialize_primitive<'py>(
                 ));
             }
             if value.is_instance_of::<PyInt>() {
-                // int is allowed for float field (for big int support)
                 Ok(value.clone().unbind())
             } else if value.is_instance_of::<PyFloat>() {
                 let f: f64 = value.extract()?;
@@ -754,8 +766,8 @@ fn serialize_primitive<'py>(
                     "Not a valid decimal.",
                 ));
             }
-            let s = value.str()?;
-            Ok(s.into_any().unbind())
+            let format_result = value.call_method1("__format__", ("f",))?;
+            Ok(format_result.unbind())
         }
         FieldType::Uuid => {
             let cached = get_cached_types(ctx.py)?;

@@ -10,7 +10,7 @@ use rust_decimal::prelude::FromStr;
 use rust_decimal::RoundingStrategy;
 use pyo3::conversion::IntoPyObjectExt;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList, PyDate, PyTime, PyDateTime, PyTzInfo, PySet, PyFrozenSet, PyTuple};
+use pyo3::types::{PyDict, PyList, PyDate, PyTime, PyDateTime, PyTzInfo, PySet, PyFrozenSet, PyTuple, PyString};
 use regex::Regex;
 use serde::de::{self, DeserializeSeed, MapAccess, SeqAccess, Visitor};
 use serde_json::{json, Value};
@@ -76,15 +76,11 @@ fn strip_serde_locations(s: &str) -> String {
     SERDE_LOCATION_SUFFIX.replace_all(s, "").into_owned()
 }
 
-// serde_json's private token for arbitrary precision numbers
 const SERDE_JSON_NUMBER_TOKEN: &str = "$serde_json::private::Number";
 use crate::deserialize::{LoadContext, deserialize_field_value, deserialize_root_type};
 use crate::slots::set_slot_value_direct;
 use crate::types::{DecimalPlaces, FieldDescriptor, FieldType, TypeDescriptor, TypeKind};
 
-/// Check if a JSON number string represents a float (has decimal point or exponent).
-/// JSON floats: 3.14, 1e10, 1.5E-3
-/// JSON integers: 123, -456, 9223372036854775808
 fn is_json_float_string(s: &str) -> bool {
     s.contains('.') || s.contains('e') || s.contains('E')
 }
@@ -117,8 +113,6 @@ fn err_json_from_list(py: Python, field_name: &str, errors: &Py<PyAny>) -> Strin
     }
 }
 
-/// Returns the error message for a field type when wrong JSON type is received.
-/// This ensures error messages describe the expected type, not the received JSON type.
 const fn get_type_error_message(field_type: &FieldType) -> &'static str {
     match field_type {
         FieldType::Str => "Not a valid string.",
@@ -492,7 +486,6 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             FieldType::StrEnum => {
-                // Integer received for StrEnum - show enum error with allowed values
                 let values = self.field.str_enum_values.as_ref().ok_or_else(|| {
                     de::Error::custom("StrEnum field missing str_enum_values")
                 })?;
@@ -554,7 +547,6 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             FieldType::StrEnum => {
-                // Integer received for StrEnum - show enum error with allowed values
                 let values = self.field.str_enum_values.as_ref().ok_or_else(|| {
                     de::Error::custom("StrEnum field missing str_enum_values")
                 })?;
@@ -624,7 +616,6 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
             }
             FieldType::DateTime => {
                 if let Some(ref fmt) = self.field.datetime_format {
-                    // Custom format - use Python's strptime
                     let cached = get_cached_types(py).map_err(de::Error::custom)?;
                     let datetime_cls = cached.datetime_cls.bind(py);
                     if let Ok(dt) = datetime_cls.call_method1(cached.str_strptime.bind(py), (v, fmt.as_str())) {
@@ -640,14 +631,11 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                         let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid datetime.");
                         Err(de::Error::custom(err_json(&self.field.name, msg)))
                     }
+                } else if let Some(dt) = parse_rfc3339_datetime(v) {
+                    create_pydatetime_from_jiff(py, &dt).map_err(de::Error::custom)
                 } else {
-                    // RFC 3339 only (e.g. "2024-12-26T10:30:45+00:00" or "...Z")
-                    if let Some(dt) = parse_rfc3339_datetime(v) {
-                        create_pydatetime_from_jiff(py, &dt).map_err(de::Error::custom)
-                    } else {
-                        let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid datetime.");
-                        Err(de::Error::custom(err_json(&self.field.name, msg)))
-                    }
+                    let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid datetime.");
+                    Err(de::Error::custom(err_json(&self.field.name, msg)))
                 }
             }
             FieldType::Date => {
@@ -863,11 +851,7 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
     {
         let py = self.ctx.py;
 
-        // Check for serde_json arbitrary precision number
-        // When arbitrary_precision is enabled, large numbers come as {"$serde_json::private::Number": "..."}
         if let FieldType::Int | FieldType::Float | FieldType::Decimal = self.field.field_type {
-            // Try to peek at the first key - this is a bit hacky but necessary
-            // We need to consume the map to check the key
             if let Some(key) = map.next_key::<&str>()? {
                 if key == SERDE_JSON_NUMBER_TOKEN {
                     let num_str: String = map.next_value()?;
@@ -902,7 +886,6 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                         _ => unreachable!(),
                     };
                 }
-                // Not a number token - it's a regular map/object being passed to a numeric field
                 let default_msg = match self.field.field_type {
                     FieldType::Int => "Not a valid integer.",
                     _ => "Not a valid number.",
@@ -986,13 +969,28 @@ impl FieldValueVisitor<'_, '_> {
         };
 
         let cached = get_cached_types(py)?;
-        let decimal_str: String = value.bind(py).str()?.extract()?;
+        let format_result = value.bind(py).call_method1("__format__", ("f",))?;
+        let formatted = format_result.cast::<PyString>()?;
+        let decimal_str = formatted.to_str()?;
 
-        if let Ok(mut rust_decimal) = Decimal::from_str(&decimal_str) {
-            let strategy = python_rounding_to_rust(self.field.decimal_rounding.as_ref(), py);
-            rust_decimal = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
-            let formatted = format!("{:.prec$}", rust_decimal, prec = places.cast_unsigned() as usize);
-            cached.decimal_cls.bind(py).call1((&formatted,)).map(pyo3::Bound::unbind)
+        if let Ok(rust_decimal) = Decimal::from_str(decimal_str) {
+            if self.field.decimal_rounding.is_some() {
+                let strategy = python_rounding_to_rust(self.field.decimal_rounding.as_ref(), py);
+                let rounded = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
+                let formatted_str = format!("{:.prec$}", rounded, prec = places.cast_unsigned() as usize);
+                cached.decimal_cls.bind(py).call1((&formatted_str,)).map(pyo3::Bound::unbind)
+            } else {
+                let normalized = rust_decimal.normalize();
+                let scale = normalized.scale();
+                if scale > places.cast_unsigned() {
+                    let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid number.");
+                    Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                        err_json(&self.field.name, msg),
+                    ))
+                } else {
+                    Ok(value)
+                }
+            }
         } else {
             Ok(value)
         }
@@ -1002,29 +1000,39 @@ impl FieldValueVisitor<'_, '_> {
         let py = self.ctx.py;
         let cached = get_cached_types(py).map_err(E::custom)?;
 
+        let rust_decimal = Decimal::from_str(s)
+            .or_else(|_| Decimal::from_scientific(s))
+            .map_err(|_| {
+                let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid number.");
+                E::custom(err_json(&self.field.name, msg))
+            })?;
+
         let places = match self.field.decimal_places {
             DecimalPlaces::NoRounding => None,
             DecimalPlaces::Places(n) => Some(n),
             DecimalPlaces::NotSpecified => self.ctx.decimal_places.or(Some(2)),
         };
 
-        if let Some(places) = places.filter(|&p| p >= 0) {
-            if let Ok(mut rust_decimal) = Decimal::from_str(s) {
+        let final_decimal = if let Some(places) = places.filter(|&p| p >= 0) {
+            if self.field.decimal_rounding.is_some() {
                 let strategy = python_rounding_to_rust(self.field.decimal_rounding.as_ref(), py);
-                rust_decimal = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
-                let formatted = format!("{:.prec$}", rust_decimal, prec = places.cast_unsigned() as usize);
-                return cached.decimal_cls.bind(py).call1((&formatted,))
-                    .map(pyo3::Bound::unbind)
-                    .map_err(E::custom);
+                rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy)
+            } else {
+                let normalized = rust_decimal.normalize();
+                if normalized.scale() > places.cast_unsigned() {
+                    let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid number.");
+                    return Err(E::custom(err_json(&self.field.name, msg)));
+                }
+                rust_decimal
             }
-        }
+        } else {
+            rust_decimal
+        };
 
-        cached.decimal_cls.bind(py).call1((s,))
+        let formatted = final_decimal.to_string();
+        cached.decimal_cls.bind(py).call1((&formatted,))
             .map(pyo3::Bound::unbind)
-            .map_err(|_| {
-                let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid number.");
-                E::custom(err_json(&self.field.name, msg))
-            })
+            .map_err(E::custom)
     }
 }
 
@@ -1527,7 +1535,6 @@ where
         where
             A: MapAccess<'de>,
         {
-            // Handle serde_json arbitrary precision numbers
             if let Some(key) = map.next_key::<&str>()? {
                 if key == SERDE_JSON_NUMBER_TOKEN {
                     let num_str: String = map.next_value()?;

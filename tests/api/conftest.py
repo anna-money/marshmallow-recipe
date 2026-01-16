@@ -34,6 +34,10 @@ class Serializer(abc.ABC):
     def supports_cyclic(self) -> bool:
         return True
 
+    @property
+    def supports_scientific_notation(self) -> bool:
+        return True
+
     @abc.abstractmethod
     def dump[T](
         self,
@@ -154,6 +158,10 @@ class NukedBytesSerializer(Serializer):
     def supports_cyclic(self) -> bool:
         return False
 
+    @property
+    def supports_scientific_notation(self) -> bool:
+        return False
+
     def dump[T](
         self,
         schema_class: type[T],
@@ -194,6 +202,10 @@ class NukedSerializer(Serializer):
 
     @property
     def supports_cyclic(self) -> bool:
+        return False
+
+    @property
+    def supports_scientific_notation(self) -> bool:
         return False
 
     def dump[T](

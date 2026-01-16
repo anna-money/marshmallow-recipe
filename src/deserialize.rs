@@ -54,9 +54,6 @@ fn format_item_errors_dict(py: Python, errors: &HashMap<usize, Py<PyAny>>) -> Py
     dict.into()
 }
 
-/// Extracts the error value from a `PyErr`.
-/// When we create `ValueError(dict_or_list)`, the dict/list is stored in args[0].
-/// `e.value()` returns the exception object itself, so we need to extract args[0].
 fn extract_error_value(py: Python, e: &PyErr) -> Py<PyAny> {
     e.value(py)
         .getattr("args")
@@ -103,7 +100,6 @@ pub fn deserialize_field_value<'py>(
     field: &FieldDescriptor,
     ctx: &LoadContext<'_, 'py>,
 ) -> PyResult<Py<PyAny>> {
-    // Any type accepts any value including None
     if field.field_type == FieldType::Any {
         return Ok(value.clone().unbind());
     }
@@ -145,11 +141,9 @@ pub fn deserialize_field_value<'py>(
             }
         }
         FieldType::Float => {
-            // If already an int, keep it as int (no precision loss for large numbers)
             if value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>() {
                 return Ok(value.clone().unbind());
             }
-            // For float or string, convert to f64
             let f: f64 = if value.is_instance_of::<PyFloat>() {
                 value.extract()?
             } else if let Ok(s) = value.extract::<&str>() {
@@ -184,19 +178,32 @@ pub fn deserialize_field_value<'py>(
             let cached = get_cached_types(ctx.py)?;
             let decimal_cls = cached.decimal_cls.bind(ctx.py);
 
-            let decimal_str = if value.is_instance(decimal_cls)? {
-                value.str()?.extract::<String>()?
-            } else if let Ok(s) = value.cast::<PyString>() {
+            let rust_decimal = if let Ok(s) = value.cast::<PyString>() {
                 let s_str = s.to_str()?;
-                if Decimal::from_str(s_str).is_err() {
-                    let msg = field.invalid_error.as_deref().unwrap_or("Not a valid number.");
-                    return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                        err_dict(ctx.py, &field.name, msg),
-                    ));
+                Decimal::from_str(s_str)
+                    .or_else(|_| Decimal::from_scientific(s_str))
+                    .map_err(|_| {
+                        let msg = field.invalid_error.as_deref().unwrap_or("Not a valid number.");
+                        PyErr::new::<pyo3::exceptions::PyValueError, _>(err_dict(ctx.py, &field.name, msg))
+                    })?
+            } else if value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>() {
+                if let Ok(i) = value.extract::<i64>() {
+                    Decimal::from(i)
+                } else if let Ok(u) = value.extract::<u64>() {
+                    Decimal::from(u)
+                } else {
+                    let s: String = value.str()?.extract()?;
+                    Decimal::from_str(&s).map_err(|_| {
+                        let msg = field.invalid_error.as_deref().unwrap_or("Not a valid number.");
+                        PyErr::new::<pyo3::exceptions::PyValueError, _>(err_dict(ctx.py, &field.name, msg))
+                    })?
                 }
-                s_str.to_string()
-            } else if (value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>()) || value.is_instance_of::<PyFloat>() {
-                value.str()?.extract::<String>()?
+            } else if value.is_instance_of::<PyFloat>() {
+                let f: f64 = value.extract()?;
+                Decimal::try_from(f).map_err(|_| {
+                    let msg = field.invalid_error.as_deref().unwrap_or("Not a valid number.");
+                    PyErr::new::<pyo3::exceptions::PyValueError, _>(err_dict(ctx.py, &field.name, msg))
+                })?
             } else {
                 let msg = field.invalid_error.as_deref().unwrap_or("Not a valid number.");
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
@@ -210,24 +217,31 @@ pub fn deserialize_field_value<'py>(
                 DecimalPlaces::NotSpecified => ctx.decimal_places.or(Some(2)),
             };
 
-            if let Some(places) = places.filter(|&p| p >= 0) {
-                if let Ok(mut rust_decimal) = Decimal::from_str(&decimal_str) {
+            let final_decimal = if let Some(places) = places.filter(|&p| p >= 0) {
+                if field.decimal_rounding.is_some() {
                     let strategy = python_rounding_to_rust(field.decimal_rounding.as_ref(), ctx.py);
-                    rust_decimal = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
-                    let formatted = format!("{:.prec$}", rust_decimal, prec = places.cast_unsigned() as usize);
-                    return decimal_cls.call1((&formatted,)).map(pyo3::Bound::unbind);
+                    rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy)
+                } else {
+                    let normalized = rust_decimal.normalize();
+                    if normalized.scale() > places.cast_unsigned() {
+                        let msg = field.invalid_error.as_deref().unwrap_or("Not a valid number.");
+                        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                            err_dict(ctx.py, &field.name, msg),
+                        ));
+                    }
+                    rust_decimal
                 }
-            }
+            } else {
+                rust_decimal
+            };
 
-            decimal_cls.call1((&decimal_str,)).map(pyo3::Bound::unbind)
+            let formatted = final_decimal.to_string();
+            decimal_cls.call1((&formatted,)).map(pyo3::Bound::unbind)
         }
         FieldType::Uuid => {
             let cached = get_cached_types(ctx.py)?;
-            let uuid_cls = cached.uuid_cls.bind(ctx.py);
 
-            if value.is_instance(uuid_cls)? {
-                Ok(value.clone().unbind())
-            } else if let Ok(s) = value.cast::<PyString>() {
+            if let Ok(s) = value.cast::<PyString>() {
                 let s_str = s.to_str()?;
                 if let Ok(uuid) = Uuid::parse_str(s_str) { cached.create_uuid_fast(ctx.py, uuid.as_u128()) } else {
                     let msg = field.invalid_error.as_deref().unwrap_or("Not a valid UUID.");
@@ -246,9 +260,7 @@ pub fn deserialize_field_value<'py>(
             let cached = get_cached_types(ctx.py)?;
             let datetime_cls = cached.datetime_cls.bind(ctx.py);
 
-            if value.is_instance(datetime_cls)? {
-                Ok(value.clone().unbind())
-            } else if let Ok(s) = value.cast::<PyString>() {
+            if let Ok(s) = value.cast::<PyString>() {
                 let result = if let Some(ref fmt) = field.datetime_format {
                     datetime_cls.call_method1(cached.str_strptime.bind(ctx.py), (s, fmt.as_str()))
                 } else {
@@ -280,9 +292,7 @@ pub fn deserialize_field_value<'py>(
             let cached = get_cached_types(ctx.py)?;
             let date_cls = cached.date_cls.bind(ctx.py);
 
-            if value.is_instance(date_cls)? {
-                Ok(value.clone().unbind())
-            } else if let Ok(s) = value.cast::<PyString>() {
+            if let Ok(s) = value.cast::<PyString>() {
                 if let Ok(d) = date_cls.call_method1(cached.str_fromisoformat.bind(ctx.py), (s,)) { Ok(d.unbind()) } else {
                     let msg = field.invalid_error.as_deref().unwrap_or("Not a valid date.");
                     Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
@@ -300,9 +310,7 @@ pub fn deserialize_field_value<'py>(
             let cached = get_cached_types(ctx.py)?;
             let time_cls = cached.time_cls.bind(ctx.py);
 
-            if value.is_instance(time_cls)? {
-                Ok(value.clone().unbind())
-            } else if let Ok(s) = value.cast::<PyString>() {
+            if let Ok(s) = value.cast::<PyString>() {
                 if let Ok(t) = time_cls.call_method1(cached.str_fromisoformat.bind(ctx.py), (s,)) { Ok(t.unbind()) } else {
                     let msg = field.invalid_error.as_deref().unwrap_or("Not a valid time.");
                     Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
@@ -834,7 +842,6 @@ pub fn deserialize_root_type<'py>(
             }
         }
         TypeKind::Set => {
-            // Reject strings - they're iterable but not valid sets
             if value.is_instance_of::<PyString>() {
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     "Not a valid set.",
@@ -861,7 +868,6 @@ pub fn deserialize_root_type<'py>(
             Ok(PySet::new(ctx.py, items.iter())?.into_any().unbind())
         }
         TypeKind::FrozenSet => {
-            // Reject strings - they're iterable but not valid frozensets
             if value.is_instance_of::<PyString>() {
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     "Not a valid frozenset.",
@@ -888,7 +894,6 @@ pub fn deserialize_root_type<'py>(
             Ok(PyFrozenSet::new(ctx.py, items.iter())?.into_any().unbind())
         }
         TypeKind::Tuple => {
-            // Reject strings - they're iterable but not valid tuples
             if value.is_instance_of::<PyString>() {
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     "Not a valid tuple.",

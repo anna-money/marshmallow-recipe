@@ -323,22 +323,34 @@ impl<'py> Serialize for FieldValueSerializer<'_, 'py> {
                     DecimalPlaces::NotSpecified => self.ctx.global_decimal_places.or(Some(2)),
                 };
 
-                let decimal_str: String = self.value
-                    .str()
-                    .map_err(serde::ser::Error::custom)?
-                    .extract()
+                let format_result = self.value
+                    .call_method1("__format__", ("f",))
                     .map_err(serde::ser::Error::custom)?;
+                let formatted = format_result.cast::<PyString>().map_err(serde::ser::Error::custom)?;
+                let decimal_str = formatted.to_str().map_err(serde::ser::Error::custom)?;
 
                 if let Some(places) = decimal_places.filter(|&p| p >= 0) {
-                    if let Ok(mut rust_decimal) = Decimal::from_str(&decimal_str) {
-                        let strategy = python_rounding_to_rust(self.field.decimal_rounding.as_ref(), py);
-                        rust_decimal = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
-                        let formatted = format!("{:.prec$}", rust_decimal, prec = places.cast_unsigned() as usize);
-                        return serializer.serialize_str(&formatted);
+                    if self.field.decimal_rounding.is_some() {
+                        if let Ok(mut rust_decimal) = Decimal::from_str(decimal_str) {
+                            let strategy = python_rounding_to_rust(self.field.decimal_rounding.as_ref(), py);
+                            rust_decimal = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
+                            let rounded = format!("{:.prec$}", rust_decimal, prec = places.cast_unsigned() as usize);
+                            return serializer.serialize_str(&rounded);
+                        }
+                    } else if let Ok(rust_decimal) = Decimal::from_str(decimal_str) {
+                        let normalized = rust_decimal.normalize();
+                        let scale = normalized.scale();
+                        if scale > places.cast_unsigned() {
+                            let msg = self.field.invalid_error.as_deref().unwrap_or("Not a valid number.");
+                            return Err(serde::ser::Error::custom(format!(
+                                "{{\"{}\": [\"{}\"]}}",
+                                self.field.name, msg
+                            )));
+                        }
                     }
                 }
 
-                serializer.serialize_str(&decimal_str)
+                serializer.serialize_str(decimal_str)
             }
             FieldType::Uuid => {
                 let py = self.value.py();
@@ -940,13 +952,12 @@ impl Serialize for PrimitiveSerializer<'_, '_> {
                 if !self.value.is_instance(cached.decimal_cls.bind(py)).map_err(serde::ser::Error::custom)? {
                     return Err(serde::ser::Error::custom("Not a valid decimal."));
                 }
-                let s: String = self
+                let format_result = self
                     .value
-                    .str()
-                    .map_err(serde::ser::Error::custom)?
-                    .extract()
+                    .call_method1("__format__", ("f",))
                     .map_err(serde::ser::Error::custom)?;
-                serializer.serialize_str(&s)
+                let formatted = format_result.cast::<PyString>().map_err(serde::ser::Error::custom)?;
+                serializer.serialize_str(formatted.to_str().map_err(serde::ser::Error::custom)?)
             }
             FieldType::Uuid => {
                 let py = self.value.py();
