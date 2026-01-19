@@ -499,6 +499,31 @@ class WithDecimalRoundDown:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalRoundCeiling:
+    value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=2, rounding=decimal.ROUND_CEILING))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalRoundFloor:
+    value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=2, rounding=decimal.ROUND_FLOOR))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalRoundHalfUp:
+    value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=2, rounding=decimal.ROUND_HALF_UP))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalRoundHalfDown:
+    value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=2, rounding=decimal.ROUND_HALF_DOWN))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalRoundHalfEven:
+    value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=2, rounding=decimal.ROUND_HALF_EVEN))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithAnnotatedDecimalPlaces:
     value: Annotated[decimal.Decimal, mr.decimal_metadata(places=4)]
 
@@ -516,6 +541,11 @@ class WithDateTimeCustomFormat:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithDateTimeCustomFormatFull:
     created_at: datetime.datetime = dataclasses.field(metadata=mr.datetime_meta(format="%Y-%m-%d %H:%M:%S"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDateTimeCustomFormatTimezone:
+    created_at: datetime.datetime = dataclasses.field(metadata=mr.datetime_meta(format="%Y-%m-%dT%H:%M:%S%z"))
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
