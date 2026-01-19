@@ -267,8 +267,6 @@ class TestDatetimeDumpInvalidType:
 
 
 class TestDatetimeCustomFormatIsoZ:
-    """Tests for format %Y-%m-%dT%H:%M:%SZ (ISO with Z instead of +00:00)."""
-
     @pytest.mark.parametrize(
         "dt,expected",
         [
@@ -294,8 +292,6 @@ class TestDatetimeCustomFormatIsoZ:
 
 
 class TestDatetimeCustomFormatIsoMicroseconds:
-    """Tests for format %Y-%m-%dT%H:%M:%S.%f (ISO with microseconds, no timezone)."""
-
     @pytest.mark.parametrize(
         "dt,expected",
         [
@@ -333,8 +329,6 @@ class TestDatetimeCustomFormatIsoMicroseconds:
 
 
 class TestDatetimeCustomFormatIsoMicrosecondsZ:
-    """Tests for format %Y-%m-%dT%H:%M:%S.%fZ (ISO with microseconds and Z)."""
-
     @pytest.mark.parametrize(
         "dt,expected",
         [
@@ -365,8 +359,6 @@ class TestDatetimeCustomFormatIsoMicrosecondsZ:
 
 
 class TestDatetimeCustomFormatIsoNoTz:
-    """Tests for format %Y-%m-%dT%H:%M:%S (ISO without timezone)."""
-
     @pytest.mark.parametrize(
         "dt,expected",
         [
@@ -392,8 +384,6 @@ class TestDatetimeCustomFormatIsoNoTz:
 
 
 class TestDatetimeCustomFormatHumanReadable:
-    """Tests for format %d %B %Y (human readable, day month year)."""
-
     @pytest.mark.parametrize(
         "dt,expected",
         [
@@ -419,8 +409,6 @@ class TestDatetimeCustomFormatHumanReadable:
 
 
 class TestDatetimeCustomFormatDateOnly:
-    """Tests for format %Y-%m-%d (date only for datetime field)."""
-
     @pytest.mark.parametrize(
         "dt,expected",
         [
