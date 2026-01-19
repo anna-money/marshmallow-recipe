@@ -171,7 +171,7 @@ class TestFloatLoad:
     def test_negative_zero(self, impl: Serializer) -> None:
         data = b'{"value":-0.0}'
         result = impl.load(ValueOf[float], data)
-        assert result.value == 0.0
+        assert result == ValueOf[float](value=0.0)
 
     def test_validation_pass(self, impl: Serializer) -> None:
         data = b'{"value":5.5}'

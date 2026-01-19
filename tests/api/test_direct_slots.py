@@ -138,9 +138,7 @@ class TestDirectSlotsLoad:
     def test_with_post_init(self, impl: Serializer) -> None:
         data = b'{"name":"test","value":5}'
         result = impl.load(WithPostInit, data)
-        assert result.name == "test"
-        assert result.value == 5
-        assert result.computed == "test_5"
+        assert result == WithPostInit(name="test", value=5)
 
     def test_with_custom_init(self, impl: Serializer) -> None:
         data = b'{"name":"test","value":5}'
@@ -151,9 +149,7 @@ class TestDirectSlotsLoad:
     def test_with_field_init_false(self, impl: Serializer) -> None:
         data = b'{"name":"test","value":123}'
         result = impl.load(WithFieldInitFalse, data)
-        assert result.name == "test"
-        assert result.value == 123
-        assert result.auto_field == "auto"
+        assert result == WithFieldInitFalse(name="test", value=123)
 
     def test_with_default_factory_with_value(self, impl: Serializer) -> None:
         data = b'{"name":"test","tags":["x","y"]}'
@@ -163,8 +159,7 @@ class TestDirectSlotsLoad:
     def test_with_default_factory_without_value(self, impl: Serializer) -> None:
         data = b'{"name":"test"}'
         result = impl.load(WithDefaultFactory, data)
-        assert result.name == "test"
-        assert result.tags == []
+        assert result == WithDefaultFactory(name="test")
 
     def test_with_default_factory_independence(self, impl: Serializer) -> None:
         data = b'{"name":"test"}'
@@ -233,15 +228,9 @@ class TestDirectSlotsLoad:
     def test_mixed_defaults_none_provided(self, impl: Serializer) -> None:
         data = b'{"name":"test"}'
         result = impl.load(WithMixedDefaults, data)
-        assert result.name == "test"
-        assert result.count == 0
-        assert result.tags == []
-        assert result.description is None
+        assert result == WithMixedDefaults(name="test")
 
     def test_mixed_defaults_partial(self, impl: Serializer) -> None:
         data = b'{"name":"test","count":5}'
         result = impl.load(WithMixedDefaults, data)
-        assert result.name == "test"
-        assert result.count == 5
-        assert result.tags == []
-        assert result.description is None
+        assert result == WithMixedDefaults(name="test", count=5)

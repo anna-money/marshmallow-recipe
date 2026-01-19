@@ -35,31 +35,31 @@ class TestStrDump:
         obj = ValueOf[str](value="Привет мир")
         result = impl.dump(ValueOf[str], obj)
         loaded = impl.load(ValueOf[str], result)
-        assert loaded.value == "Привет мир"
+        assert loaded == ValueOf[str](value="Привет мир")
 
     def test_unicode_chinese(self, impl: Serializer) -> None:
         obj = ValueOf[str](value="你好世界")
         result = impl.dump(ValueOf[str], obj)
         loaded = impl.load(ValueOf[str], result)
-        assert loaded.value == "你好世界"
+        assert loaded == ValueOf[str](value="你好世界")
 
     def test_emoji(self, impl: Serializer) -> None:
         obj = ValueOf[str](value="Hello 👋 World 🌍")
         result = impl.dump(ValueOf[str], obj)
         loaded = impl.load(ValueOf[str], result)
-        assert loaded.value == "Hello 👋 World 🌍"
+        assert loaded == ValueOf[str](value="Hello 👋 World 🌍")
 
     def test_whitespace(self, impl: Serializer) -> None:
         obj = ValueOf[str](value="  spaces  ")
         result = impl.dump(ValueOf[str], obj)
         loaded = impl.load(ValueOf[str], result)
-        assert loaded.value == "  spaces  "
+        assert loaded == ValueOf[str](value="  spaces  ")
 
     def test_special_chars(self, impl: Serializer) -> None:
         obj = ValueOf[str](value="Line1\nLine2\tTab\r\nNewline\"Quote'")
         dumped = impl.dump(ValueOf[str], obj)
         loaded = impl.load(ValueOf[str], dumped)
-        assert loaded.value == "Line1\nLine2\tTab\r\nNewline\"Quote'"
+        assert loaded == ValueOf[str](value="Line1\nLine2\tTab\r\nNewline\"Quote'")
 
     def test_optional_none(self, impl: Serializer) -> None:
         obj = OptionalValueOf[str](value=None)
