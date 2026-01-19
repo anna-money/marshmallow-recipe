@@ -18,7 +18,12 @@ from .conftest import (
     WithDecimalPlacesAndRange,
     WithDecimalPlacesZero,
     WithDecimalRequiredError,
+    WithDecimalRoundCeiling,
     WithDecimalRoundDown,
+    WithDecimalRoundFloor,
+    WithDecimalRoundHalfDown,
+    WithDecimalRoundHalfEven,
+    WithDecimalRoundHalfUp,
     WithDecimalRoundUp,
     WithDecimalTwoValidators,
     WithDecimalValidation,
@@ -112,6 +117,71 @@ class TestDecimalDump:
         obj = WithDecimalRoundDown(value=decimal.Decimal("1.235"))
         result = impl.dump(WithDecimalRoundDown, obj)
         assert result == b'{"value":"1.23"}'
+
+    def test_round_ceiling_positive(self, impl: Serializer) -> None:
+        obj = WithDecimalRoundCeiling(value=decimal.Decimal("1.231"))
+        result = impl.dump(WithDecimalRoundCeiling, obj)
+        assert result == b'{"value":"1.24"}'
+
+    def test_round_ceiling_negative(self, impl: Serializer) -> None:
+        obj = WithDecimalRoundCeiling(value=decimal.Decimal("-1.239"))
+        result = impl.dump(WithDecimalRoundCeiling, obj)
+        assert result == b'{"value":"-1.23"}'
+
+    def test_round_floor_positive(self, impl: Serializer) -> None:
+        obj = WithDecimalRoundFloor(value=decimal.Decimal("1.239"))
+        result = impl.dump(WithDecimalRoundFloor, obj)
+        assert result == b'{"value":"1.23"}'
+
+    def test_round_floor_negative(self, impl: Serializer) -> None:
+        obj = WithDecimalRoundFloor(value=decimal.Decimal("-1.231"))
+        result = impl.dump(WithDecimalRoundFloor, obj)
+        assert result == b'{"value":"-1.24"}'
+
+    def test_round_half_up_midpoint(self, impl: Serializer) -> None:
+        obj = WithDecimalRoundHalfUp(value=decimal.Decimal("1.235"))
+        result = impl.dump(WithDecimalRoundHalfUp, obj)
+        assert result == b'{"value":"1.24"}'
+
+    def test_round_half_up_below_midpoint(self, impl: Serializer) -> None:
+        obj = WithDecimalRoundHalfUp(value=decimal.Decimal("1.234"))
+        result = impl.dump(WithDecimalRoundHalfUp, obj)
+        assert result == b'{"value":"1.23"}'
+
+    def test_round_half_up_negative_midpoint(self, impl: Serializer) -> None:
+        obj = WithDecimalRoundHalfUp(value=decimal.Decimal("-1.235"))
+        result = impl.dump(WithDecimalRoundHalfUp, obj)
+        assert result == b'{"value":"-1.24"}'
+
+    def test_round_half_down_midpoint(self, impl: Serializer) -> None:
+        obj = WithDecimalRoundHalfDown(value=decimal.Decimal("1.235"))
+        result = impl.dump(WithDecimalRoundHalfDown, obj)
+        assert result == b'{"value":"1.23"}'
+
+    def test_round_half_down_above_midpoint(self, impl: Serializer) -> None:
+        obj = WithDecimalRoundHalfDown(value=decimal.Decimal("1.236"))
+        result = impl.dump(WithDecimalRoundHalfDown, obj)
+        assert result == b'{"value":"1.24"}'
+
+    def test_round_half_down_negative_midpoint(self, impl: Serializer) -> None:
+        obj = WithDecimalRoundHalfDown(value=decimal.Decimal("-1.235"))
+        result = impl.dump(WithDecimalRoundHalfDown, obj)
+        assert result == b'{"value":"-1.23"}'
+
+    def test_round_half_even_to_even_up(self, impl: Serializer) -> None:
+        obj = WithDecimalRoundHalfEven(value=decimal.Decimal("1.235"))
+        result = impl.dump(WithDecimalRoundHalfEven, obj)
+        assert result == b'{"value":"1.24"}'
+
+    def test_round_half_even_to_even_down(self, impl: Serializer) -> None:
+        obj = WithDecimalRoundHalfEven(value=decimal.Decimal("1.225"))
+        result = impl.dump(WithDecimalRoundHalfEven, obj)
+        assert result == b'{"value":"1.22"}'
+
+    def test_round_half_even_245(self, impl: Serializer) -> None:
+        obj = WithDecimalRoundHalfEven(value=decimal.Decimal("1.245"))
+        result = impl.dump(WithDecimalRoundHalfEven, obj)
+        assert result == b'{"value":"1.24"}'
 
     def test_annotated_rounding(self, impl: Serializer) -> None:
         obj = WithAnnotatedDecimalRounding(value=decimal.Decimal("5.123"))
@@ -267,6 +337,71 @@ class TestDecimalLoad:
         data = b'{"value":"7.654"}'
         result = impl.load(WithAnnotatedDecimalRounding, data)
         assert result == WithAnnotatedDecimalRounding(value=decimal.Decimal("7.66"))
+
+    def test_round_ceiling_positive(self, impl: Serializer) -> None:
+        data = b'{"value":"1.231"}'
+        result = impl.load(WithDecimalRoundCeiling, data)
+        assert result == WithDecimalRoundCeiling(value=decimal.Decimal("1.24"))
+
+    def test_round_ceiling_negative(self, impl: Serializer) -> None:
+        data = b'{"value":"-1.239"}'
+        result = impl.load(WithDecimalRoundCeiling, data)
+        assert result == WithDecimalRoundCeiling(value=decimal.Decimal("-1.23"))
+
+    def test_round_floor_positive(self, impl: Serializer) -> None:
+        data = b'{"value":"1.239"}'
+        result = impl.load(WithDecimalRoundFloor, data)
+        assert result == WithDecimalRoundFloor(value=decimal.Decimal("1.23"))
+
+    def test_round_floor_negative(self, impl: Serializer) -> None:
+        data = b'{"value":"-1.231"}'
+        result = impl.load(WithDecimalRoundFloor, data)
+        assert result == WithDecimalRoundFloor(value=decimal.Decimal("-1.24"))
+
+    def test_round_half_up_midpoint(self, impl: Serializer) -> None:
+        data = b'{"value":"1.235"}'
+        result = impl.load(WithDecimalRoundHalfUp, data)
+        assert result == WithDecimalRoundHalfUp(value=decimal.Decimal("1.24"))
+
+    def test_round_half_up_below_midpoint(self, impl: Serializer) -> None:
+        data = b'{"value":"1.234"}'
+        result = impl.load(WithDecimalRoundHalfUp, data)
+        assert result == WithDecimalRoundHalfUp(value=decimal.Decimal("1.23"))
+
+    def test_round_half_up_negative_midpoint(self, impl: Serializer) -> None:
+        data = b'{"value":"-1.235"}'
+        result = impl.load(WithDecimalRoundHalfUp, data)
+        assert result == WithDecimalRoundHalfUp(value=decimal.Decimal("-1.24"))
+
+    def test_round_half_down_midpoint(self, impl: Serializer) -> None:
+        data = b'{"value":"1.235"}'
+        result = impl.load(WithDecimalRoundHalfDown, data)
+        assert result == WithDecimalRoundHalfDown(value=decimal.Decimal("1.23"))
+
+    def test_round_half_down_above_midpoint(self, impl: Serializer) -> None:
+        data = b'{"value":"1.236"}'
+        result = impl.load(WithDecimalRoundHalfDown, data)
+        assert result == WithDecimalRoundHalfDown(value=decimal.Decimal("1.24"))
+
+    def test_round_half_down_negative_midpoint(self, impl: Serializer) -> None:
+        data = b'{"value":"-1.235"}'
+        result = impl.load(WithDecimalRoundHalfDown, data)
+        assert result == WithDecimalRoundHalfDown(value=decimal.Decimal("-1.23"))
+
+    def test_round_half_even_to_even_up(self, impl: Serializer) -> None:
+        data = b'{"value":"1.235"}'
+        result = impl.load(WithDecimalRoundHalfEven, data)
+        assert result == WithDecimalRoundHalfEven(value=decimal.Decimal("1.24"))
+
+    def test_round_half_even_to_even_down(self, impl: Serializer) -> None:
+        data = b'{"value":"1.225"}'
+        result = impl.load(WithDecimalRoundHalfEven, data)
+        assert result == WithDecimalRoundHalfEven(value=decimal.Decimal("1.22"))
+
+    def test_round_half_even_245(self, impl: Serializer) -> None:
+        data = b'{"value":"1.245"}'
+        result = impl.load(WithDecimalRoundHalfEven, data)
+        assert result == WithDecimalRoundHalfEven(value=decimal.Decimal("1.24"))
 
     @pytest.mark.parametrize(("places", "expected"), [(3, decimal.Decimal("123.456")), (5, decimal.Decimal("123.456"))])
     def test_global_places_valid(self, impl: Serializer, places: int, expected: decimal.Decimal) -> None:

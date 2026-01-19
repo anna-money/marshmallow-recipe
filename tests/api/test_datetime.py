@@ -11,6 +11,7 @@ from .conftest import (
     ValueOf,
     WithDateTimeCustomFormat,
     WithDateTimeCustomFormatFull,
+    WithDateTimeCustomFormatTimezone,
     WithDatetimeInvalidError,
     WithDatetimeMissing,
     WithDatetimeNoneError,
@@ -40,6 +41,12 @@ class TestDatetimeDump:
         obj = WithDateTimeCustomFormatFull(created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=datetime.UTC))
         result = impl.dump(WithDateTimeCustomFormatFull, obj)
         assert result == b'{"created_at":"2024-06-15 14:30:45"}'
+
+    def test_format_with_timezone(self, impl: Serializer) -> None:
+        tz = datetime.timezone(datetime.timedelta(hours=3))
+        obj = WithDateTimeCustomFormatTimezone(created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=tz))
+        result = impl.dump(WithDateTimeCustomFormatTimezone, obj)
+        assert result == b'{"created_at":"2024-06-15T14:30:45+0300"}'
 
     def test_optional_none(self, impl: Serializer) -> None:
         obj = OptionalValueOf[datetime.datetime](value=None)
@@ -130,6 +137,13 @@ class TestDatetimeLoad:
         result = impl.load(WithDateTimeCustomFormatFull, data)
         assert result == WithDateTimeCustomFormatFull(
             created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=datetime.UTC)
+        )
+
+    def test_format_with_timezone(self, impl: Serializer) -> None:
+        data = b'{"created_at":"2024-06-15T14:30:45+0300"}'
+        result = impl.load(WithDateTimeCustomFormatTimezone, data)
+        assert result == WithDateTimeCustomFormatTimezone(
+            created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=3)))
         )
 
     def test_optional_none(self, impl: Serializer) -> None:
