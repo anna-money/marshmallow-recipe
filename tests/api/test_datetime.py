@@ -12,6 +12,12 @@ from .conftest import (
     WithDateTimeCustomFormat,
     WithDateTimeCustomFormatFull,
     WithDateTimeCustomFormatTimezone,
+    WithDateTimeFormatDateOnly,
+    WithDateTimeFormatHumanReadable,
+    WithDateTimeFormatIsoMicroseconds,
+    WithDateTimeFormatIsoMicrosecondsZ,
+    WithDateTimeFormatIsoNoTz,
+    WithDateTimeFormatIsoZ,
     WithDatetimeInvalidError,
     WithDatetimeMissing,
     WithDatetimeNoneError,
@@ -258,3 +264,176 @@ class TestDatetimeDumpInvalidType:
         obj = ValueOf[datetime.datetime](**{"value": 123})  # type: ignore[arg-type]
         with pytest.raises(marshmallow.ValidationError):
             impl.dump(ValueOf[datetime.datetime], obj)
+
+
+class TestDatetimeCustomFormatIsoZ:
+    """Tests for format %Y-%m-%dT%H:%M:%SZ (ISO with Z instead of +00:00)."""
+
+    @pytest.mark.parametrize(
+        "dt,expected_str",
+        [
+            (datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=datetime.UTC), "2024-06-15T14:30:45Z"),
+            (datetime.datetime(2024, 6, 15, 14, 30, 45), "2024-06-15T14:30:45Z"),
+            (
+                datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=3))),
+                "2024-06-15T14:30:45Z",
+            ),
+        ],
+    )
+    def test_dump(self, impl: Serializer, dt: datetime.datetime, expected_str: str) -> None:
+        obj = WithDateTimeFormatIsoZ(created_at=dt)
+        result = impl.dump(WithDateTimeFormatIsoZ, obj)
+        assert result == f'{{"created_at":"{expected_str}"}}'.encode()
+
+    def test_load(self, impl: Serializer) -> None:
+        data = b'{"created_at":"2024-06-15T14:30:45Z"}'
+        result = impl.load(WithDateTimeFormatIsoZ, data)
+        assert result == WithDateTimeFormatIsoZ(
+            created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=datetime.UTC)
+        )
+
+
+class TestDatetimeCustomFormatIsoMicroseconds:
+    """Tests for format %Y-%m-%dT%H:%M:%S.%f (ISO with microseconds, no timezone)."""
+
+    @pytest.mark.parametrize(
+        "dt,expected_str",
+        [
+            (datetime.datetime(2024, 6, 15, 14, 30, 45, 123456, tzinfo=datetime.UTC), "2024-06-15T14:30:45.123456"),
+            (datetime.datetime(2024, 6, 15, 14, 30, 45, 123456), "2024-06-15T14:30:45.123456"),
+            (
+                datetime.datetime(
+                    2024, 6, 15, 14, 30, 45, 123456, tzinfo=datetime.timezone(datetime.timedelta(hours=3))
+                ),
+                "2024-06-15T14:30:45.123456",
+            ),
+        ],
+    )
+    def test_dump(self, impl: Serializer, dt: datetime.datetime, expected_str: str) -> None:
+        obj = WithDateTimeFormatIsoMicroseconds(created_at=dt)
+        result = impl.dump(WithDateTimeFormatIsoMicroseconds, obj)
+        assert result == f'{{"created_at":"{expected_str}"}}'.encode()
+
+    def test_load(self, impl: Serializer) -> None:
+        data = b'{"created_at":"2024-06-15T14:30:45.123456"}'
+        result = impl.load(WithDateTimeFormatIsoMicroseconds, data)
+        assert result == WithDateTimeFormatIsoMicroseconds(
+            created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, 123456, tzinfo=datetime.UTC)
+        )
+
+    def test_load_trailing_zeros(self, impl: Serializer) -> None:
+        data = b'{"created_at":"2024-06-15T14:30:45.100000"}'
+        result = impl.load(WithDateTimeFormatIsoMicroseconds, data)
+        assert result == WithDateTimeFormatIsoMicroseconds(
+            created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, 100000, tzinfo=datetime.UTC)
+        )
+
+
+class TestDatetimeCustomFormatIsoMicrosecondsZ:
+    """Tests for format %Y-%m-%dT%H:%M:%S.%fZ (ISO with microseconds and Z)."""
+
+    @pytest.mark.parametrize(
+        "dt,expected_str",
+        [
+            (datetime.datetime(2024, 6, 15, 14, 30, 45, 123456, tzinfo=datetime.UTC), "2024-06-15T14:30:45.123456Z"),
+            (datetime.datetime(2024, 6, 15, 14, 30, 45, 123456), "2024-06-15T14:30:45.123456Z"),
+            (
+                datetime.datetime(
+                    2024, 6, 15, 14, 30, 45, 123456, tzinfo=datetime.timezone(datetime.timedelta(hours=3))
+                ),
+                "2024-06-15T14:30:45.123456Z",
+            ),
+        ],
+    )
+    def test_dump(self, impl: Serializer, dt: datetime.datetime, expected_str: str) -> None:
+        obj = WithDateTimeFormatIsoMicrosecondsZ(created_at=dt)
+        result = impl.dump(WithDateTimeFormatIsoMicrosecondsZ, obj)
+        assert result == f'{{"created_at":"{expected_str}"}}'.encode()
+
+    def test_load(self, impl: Serializer) -> None:
+        data = b'{"created_at":"2024-06-15T14:30:45.123456Z"}'
+        result = impl.load(WithDateTimeFormatIsoMicrosecondsZ, data)
+        assert result == WithDateTimeFormatIsoMicrosecondsZ(
+            created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, 123456, tzinfo=datetime.UTC)
+        )
+
+
+class TestDatetimeCustomFormatIsoNoTz:
+    """Tests for format %Y-%m-%dT%H:%M:%S (ISO without timezone)."""
+
+    @pytest.mark.parametrize(
+        "dt,expected_str",
+        [
+            (datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=datetime.UTC), "2024-06-15T14:30:45"),
+            (datetime.datetime(2024, 6, 15, 14, 30, 45), "2024-06-15T14:30:45"),
+            (
+                datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=3))),
+                "2024-06-15T14:30:45",
+            ),
+        ],
+    )
+    def test_dump(self, impl: Serializer, dt: datetime.datetime, expected_str: str) -> None:
+        obj = WithDateTimeFormatIsoNoTz(created_at=dt)
+        result = impl.dump(WithDateTimeFormatIsoNoTz, obj)
+        assert result == f'{{"created_at":"{expected_str}"}}'.encode()
+
+    def test_load(self, impl: Serializer) -> None:
+        data = b'{"created_at":"2024-06-15T14:30:45"}'
+        result = impl.load(WithDateTimeFormatIsoNoTz, data)
+        assert result == WithDateTimeFormatIsoNoTz(
+            created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=datetime.UTC)
+        )
+
+
+class TestDatetimeCustomFormatHumanReadable:
+    """Tests for format %d %B %Y (human readable, day month year)."""
+
+    @pytest.mark.parametrize(
+        "dt,expected_str",
+        [
+            (datetime.datetime(2024, 1, 15, 14, 30, 45, tzinfo=datetime.UTC), "15 January 2024"),
+            (datetime.datetime(2024, 1, 15, 14, 30, 45), "15 January 2024"),
+            (
+                datetime.datetime(2024, 1, 15, 14, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=3))),
+                "15 January 2024",
+            ),
+        ],
+    )
+    def test_dump(self, impl: Serializer, dt: datetime.datetime, expected_str: str) -> None:
+        obj = WithDateTimeFormatHumanReadable(created_at=dt)
+        result = impl.dump(WithDateTimeFormatHumanReadable, obj)
+        assert result == f'{{"created_at":"{expected_str}"}}'.encode()
+
+    def test_load(self, impl: Serializer) -> None:
+        data = b'{"created_at":"15 January 2024"}'
+        result = impl.load(WithDateTimeFormatHumanReadable, data)
+        assert result == WithDateTimeFormatHumanReadable(
+            created_at=datetime.datetime(2024, 1, 15, 0, 0, 0, tzinfo=datetime.UTC)
+        )
+
+
+class TestDatetimeCustomFormatDateOnly:
+    """Tests for format %Y-%m-%d (date only for datetime field)."""
+
+    @pytest.mark.parametrize(
+        "dt,expected_str",
+        [
+            (datetime.datetime(2024, 1, 15, 14, 30, 45, tzinfo=datetime.UTC), "2024-01-15"),
+            (datetime.datetime(2024, 1, 15, 14, 30, 45), "2024-01-15"),
+            (
+                datetime.datetime(2024, 1, 15, 14, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=3))),
+                "2024-01-15",
+            ),
+        ],
+    )
+    def test_dump(self, impl: Serializer, dt: datetime.datetime, expected_str: str) -> None:
+        obj = WithDateTimeFormatDateOnly(created_at=dt)
+        result = impl.dump(WithDateTimeFormatDateOnly, obj)
+        assert result == f'{{"created_at":"{expected_str}"}}'.encode()
+
+    def test_load(self, impl: Serializer) -> None:
+        data = b'{"created_at":"2024-01-15"}'
+        result = impl.load(WithDateTimeFormatDateOnly, data)
+        assert result == WithDateTimeFormatDateOnly(
+            created_at=datetime.datetime(2024, 1, 15, 0, 0, 0, tzinfo=datetime.UTC)
+        )
