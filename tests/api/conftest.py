@@ -549,6 +549,36 @@ class WithDateTimeCustomFormatTimezone:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDateTimeFormatIsoZ:
+    created_at: datetime.datetime = dataclasses.field(metadata=mr.datetime_meta(format="%Y-%m-%dT%H:%M:%SZ"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDateTimeFormatIsoMicroseconds:
+    created_at: datetime.datetime = dataclasses.field(metadata=mr.datetime_meta(format="%Y-%m-%dT%H:%M:%S.%f"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDateTimeFormatIsoMicrosecondsZ:
+    created_at: datetime.datetime = dataclasses.field(metadata=mr.datetime_meta(format="%Y-%m-%dT%H:%M:%S.%fZ"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDateTimeFormatIsoNoTz:
+    created_at: datetime.datetime = dataclasses.field(metadata=mr.datetime_meta(format="%Y-%m-%dT%H:%M:%S"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDateTimeFormatHumanReadable:
+    created_at: datetime.datetime = dataclasses.field(metadata=mr.datetime_meta(format="%d %B %Y"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDateTimeFormatDateOnly:
+    created_at: datetime.datetime = dataclasses.field(metadata=mr.datetime_meta(format="%Y-%m-%d"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithCustomRequiredError:
     name: str = dataclasses.field(metadata=mr.str_meta(required_error="Custom required message"))
 
