@@ -101,12 +101,12 @@ class TestUnionLoad:
     def test_optional_with_int(self, impl: Serializer) -> None:
         data = b'{"value":"x","optional_value":999}'
         result = impl.load(WithUnion, data)
-        assert result.optional_value == 999
+        assert result == WithUnion(value="x", optional_value=999)
 
     def test_optional_with_str(self, impl: Serializer) -> None:
         data = b'{"value":1,"optional_value":"optional"}'
         result = impl.load(WithUnion, data)
-        assert result.optional_value == "optional"
+        assert result == WithUnion(value=1, optional_value="optional")
 
     def test_big_int(self, impl: Serializer) -> None:
         big_value = 9223372036854775808
@@ -124,12 +124,12 @@ class TestUnionLoad:
         big_value = 18446744073709551616
         data = f'{{"value": "x", "optional_value": {big_value}}}'.encode()
         result = impl.load(WithUnion, data)
-        assert result.optional_value == big_value
+        assert result == WithUnion(value="x", optional_value=big_value)
 
     def test_int_str_with_int(self, impl: Serializer) -> None:
         data = b'{"value":123}'
         result = impl.load(WithUnion, data)
-        assert result.value == 123
+        assert result == WithUnion(value=123, optional_value=None)
         assert isinstance(result.value, int)
 
     def test_int_str_with_str_number(self, impl: Serializer) -> None:
@@ -140,17 +140,17 @@ class TestUnionLoad:
     def test_int_str_with_str(self, impl: Serializer) -> None:
         data = b'{"value":"abc"}'
         result = impl.load(WithUnion, data)
-        assert result.value == "abc"
+        assert result == WithUnion(value="abc", optional_value=None)
 
     def test_str_int_with_int(self, impl: Serializer) -> None:
         data = b'{"value":123}'
         result = impl.load(WithUnionStrInt, data)
-        assert result.value == 123
+        assert result == WithUnionStrInt(value=123)
 
     def test_str_int_with_str(self, impl: Serializer) -> None:
         data = b'{"value":"hello"}'
         result = impl.load(WithUnionStrInt, data)
-        assert result.value == "hello"
+        assert result == WithUnionStrInt(value="hello")
 
     def test_int_float_with_int(self, impl: Serializer) -> None:
         data = b'{"value":13}'
