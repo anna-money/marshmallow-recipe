@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::sync::RwLock;
 
+use chrono::{DateTime, Datelike, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 use pyo3::types::{PyDate, PyDateTime, PyDelta, PyDeltaAccess, PyDict, PyList, PyTzInfo};
@@ -70,17 +70,6 @@ pub fn extract_error_args(py: Python, e: &PyErr) -> Py<PyAny> {
         .map_or_else(|_| e.value(py).clone().into_any().unbind(), |v| v.clone().unbind())
 }
 
-static FORMAT_CACHE: Lazy<RwLock<HashMap<String, &'static str>>> = Lazy::new(|| RwLock::new(HashMap::new()));
-
-fn get_static_format(fmt: &str) -> &'static str {
-    if let Some(cached) = FORMAT_CACHE.read().unwrap().get(fmt) {
-        return cached;
-    }
-    FORMAT_CACHE.write().unwrap().entry(fmt.to_string()).or_insert_with(|| {
-        Box::leak(fmt.to_string().into_boxed_str())
-    })
-}
-
 pub fn pyany_to_json_value(obj: &Bound<'_, PyAny>) -> Value {
     if let Ok(s) = obj.extract::<String>() {
         return Value::String(s);
@@ -101,121 +90,73 @@ pub fn pyany_to_json_value(obj: &Bound<'_, PyAny>) -> Value {
 }
 
 #[inline]
-pub fn parse_iso_date(s: &str) -> Option<speedate::Date> {
-    speedate::Date::parse_str(s).ok()
+pub fn parse_iso_date(s: &str) -> Option<NaiveDate> {
+    NaiveDate::parse_from_str(s, "%Y-%m-%d").ok()
 }
 
 #[inline]
-pub fn parse_iso_time(s: &str) -> Option<speedate::Time> {
-    speedate::Time::parse_str(s).ok()
+pub fn parse_iso_time(s: &str) -> Option<NaiveTime> {
+    NaiveTime::parse_from_str(s, "%H:%M:%S").ok()
+        .or_else(|| NaiveTime::parse_from_str(s, "%H:%M:%S%.f").ok())
 }
 
 #[inline]
-pub fn parse_rfc3339_datetime(s: &str) -> Option<speedate::DateTime> {
-    speedate::DateTime::parse_str(s).ok()
+pub fn parse_rfc3339_datetime(s: &str) -> Option<DateTime<FixedOffset>> {
+    DateTime::parse_from_rfc3339(s).ok()
 }
 
-fn extract_microseconds_for_format(s: &str, fmt: &str) -> Option<(String, String, u32)> {
-    let f_pos = fmt.find("%f")?;
-    let prefix_before_f = &fmt[..f_pos];
-    let suffix_after_f = &fmt[f_pos + 2..];
+fn python_to_chrono_format(fmt: &str) -> String {
+    fmt.replace(".%f", "%.6f").replace("%f", "%6f")
+}
 
-    let literal_before = prefix_before_f.chars().last()?;
-    let mut s_pos = 0;
-    for c in prefix_before_f.chars() {
-        if c == '%' {
-            continue;
-        }
-        if let Some(idx) = s[s_pos..].find(c) {
-            s_pos += idx + 1;
-        }
+#[inline]
+pub fn parse_datetime_with_format(s: &str, fmt: &str) -> Option<DateTime<FixedOffset>> {
+    let chrono_fmt = python_to_chrono_format(fmt);
+
+    if let Ok(dt) = DateTime::parse_from_str(s, &chrono_fmt) {
+        return Some(dt);
     }
-    s_pos = s_pos.saturating_sub(1);
-    let dot_pos = s[s_pos..].find(literal_before).map(|i| s_pos + i)?;
 
-    let micro_start = dot_pos + 1;
-    if micro_start + 6 > s.len() {
-        return None;
+    if let Ok(naive) = NaiveDateTime::parse_from_str(s, &chrono_fmt) {
+        return Some(naive.and_utc().fixed_offset());
     }
-    let micro_str = &s[micro_start..micro_start + 6];
-    if !micro_str.chars().all(|c| c.is_ascii_digit()) {
-        return None;
-    }
-    let microseconds = micro_str.parse::<u32>().ok()?;
 
-    let modified_s = format!("{}{}", &s[..dot_pos], &s[micro_start + 6..]);
-    let modified_fmt = format!("{}{}", &fmt[..f_pos - 1], suffix_after_f);
-
-    Some((modified_s, modified_fmt, microseconds))
+    NaiveDate::parse_from_str(s, &chrono_fmt)
+        .ok()
+        .map(|d| d.and_hms_opt(0, 0, 0).unwrap().and_utc().fixed_offset())
 }
 
 #[inline]
-pub fn parse_datetime_with_format(s: &str, fmt: &str) -> Option<speedate::DateTime> {
-    let (parse_s, parse_fmt, extracted_microseconds) = if fmt.contains("%f") {
-        let (modified_s, modified_fmt, micros) = extract_microseconds_for_format(s, fmt)?;
-        (modified_s, modified_fmt, Some(micros))
-    } else {
-        (s.to_string(), fmt.to_string(), None)
-    };
-
-    let fmt_static = get_static_format(&parse_fmt);
-    let raw = strptime::Parser::new(fmt_static).parse(&parse_s).ok()?;
-    let date = raw.date().ok()?;
-
-    let speedate_date = speedate::Date {
-        year: u16::try_from(date.year()).ok()?,
-        month: date.month(),
-        day: date.day(),
-    };
-
-    let speedate_time = raw.time().map_or_else(
-        |_| speedate::Time { hour: 0, minute: 0, second: 0, microsecond: extracted_microseconds.unwrap_or(0), tz_offset: Some(0) },
-        |t| speedate::Time {
-            hour: t.hour(),
-            minute: t.minute(),
-            second: t.second(),
-            microsecond: extracted_microseconds.unwrap_or_else(|| (t.nanosecond() / 1000).try_into().unwrap_or(0)),
-            tz_offset: t.utc_offset(),
-        },
-    );
-
-    Some(speedate::DateTime { date: speedate_date, time: speedate_time })
-}
-
-#[inline]
-pub fn create_pydatetime_from_speedate(py: Python, dt: &speedate::DateTime) -> PyResult<Py<PyAny>> {
-    let offset_seconds = dt.time.tz_offset.unwrap_or(0);
+#[allow(clippy::cast_possible_truncation)]
+pub fn create_pydatetime_from_chrono(py: Python, dt: DateTime<FixedOffset>) -> PyResult<Py<PyAny>> {
+    let offset_seconds = dt.offset().local_minus_utc();
     let cached = get_cached_types(py)?;
-
-    let py_tz: Bound<'_, PyTzInfo> = if offset_seconds == 0 {
-        cached.utc_tz.bind(py).clone().cast_into()?
-    } else {
-        let py_delta = PyDelta::new(py, 0, offset_seconds, 0, true)?;
-        cached.timezone_cls.bind(py).call1((py_delta,))?.cast_into()?
-    };
+    let py_tz: Bound<'_, PyTzInfo> = cached.get_timezone(py, offset_seconds)?.bind(py).clone().cast_into()?;
 
     PyDateTime::new(
         py,
-        i32::from(dt.date.year),
-        dt.date.month,
-        dt.date.day,
-        dt.time.hour,
-        dt.time.minute,
-        dt.time.second,
-        dt.time.microsecond,
+        dt.year(),
+        dt.month() as u8,
+        dt.day() as u8,
+        dt.hour() as u8,
+        dt.minute() as u8,
+        dt.second() as u8,
+        dt.nanosecond() / 1000,
         Some(&py_tz),
     )
     .map(|dt| dt.into_any().unbind())
 }
 
 #[inline]
-pub fn create_pydate_from_speedate(py: Python, d: &speedate::Date) -> PyResult<Py<PyAny>> {
-    PyDate::new(py, i32::from(d.year), d.month, d.day).map(|d| d.into_any().unbind())
+#[allow(clippy::cast_possible_truncation)]
+pub fn create_pydate_from_chrono(py: Python, d: NaiveDate) -> PyResult<Py<PyAny>> {
+    PyDate::new(py, d.year(), d.month() as u8, d.day() as u8).map(|d| d.into_any().unbind())
 }
 
 #[inline]
-pub fn create_pytime_from_speedate(py: Python, t: &speedate::Time) -> PyResult<Py<PyAny>> {
-    pyo3::types::PyTime::new(py, t.hour, t.minute, t.second, t.microsecond, None).map(|t| t.into_any().unbind())
+#[allow(clippy::cast_possible_truncation)]
+pub fn create_pytime_from_chrono(py: Python, t: NaiveTime) -> PyResult<Py<PyAny>> {
+    pyo3::types::PyTime::new(py, t.hour() as u8, t.minute() as u8, t.second() as u8, t.nanosecond() / 1000, None).map(|t| t.into_any().unbind())
 }
 
 #[inline]

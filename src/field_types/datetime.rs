@@ -1,12 +1,13 @@
 use std::fmt::Write;
 
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime};
 use pyo3::prelude::*;
 use pyo3::types::{PyDateTime, PyDateAccess, PyString, PyTimeAccess, PyTzInfoAccess};
 use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, DATETIME_ERROR};
 use crate::types::SerializeContext;
-use crate::utils::{create_pydatetime_from_speedate, get_tz_offset_seconds, parse_datetime_with_format, parse_rfc3339_datetime};
+use crate::utils::{create_pydatetime_from_chrono, get_tz_offset_seconds, parse_datetime_with_format, parse_rfc3339_datetime};
 
 pub struct DateTimeComponents {
     pub year: i32,
@@ -73,7 +74,9 @@ fn write_tz_offset(buf: &mut arrayvec::ArrayString<32>, offset_secs: i32) {
     write!(buf, "{sign}{hours:02}:{minutes:02}").unwrap();
 }
 
-const MICROSECONDS_PLACEHOLDER: &str = "__MICROSECONDS__";
+fn python_to_chrono_format(fmt: &str) -> String {
+    fmt.replace(".%f", "%.6f").replace("%f", "%6f")
+}
 
 #[inline]
 fn format_strftime(
@@ -81,62 +84,32 @@ fn format_strftime(
     dt: &DateTimeComponents,
     fmt: &str,
 ) -> StrftimeResult {
-    let Ok(year_u16) = u16::try_from(dt.year) else {
+    let Some(date) = NaiveDate::from_ymd_opt(dt.year, dt.month.into(), dt.day.into()) else {
         return StrftimeResult::InvalidDatetime;
     };
-
-    let speedate_dt = speedate::DateTime {
-        date: speedate::Date { year: year_u16, month: dt.month, day: dt.day },
-        time: speedate::Time {
-            hour: dt.hour,
-            minute: dt.minute,
-            second: dt.second,
-            microsecond: dt.microsecond,
-            tz_offset: None
-        },
-    };
-
-    let has_microseconds = fmt.contains("%f");
-    let fmt_for_lib = if has_microseconds {
-        std::borrow::Cow::Owned(fmt.replace("%f", MICROSECONDS_PLACEHOLDER))
-    } else {
-        std::borrow::Cow::Borrowed(fmt)
-    };
-
-    let Ok(s) = time_format::strftime_utc(&fmt_for_lib, speedate_dt.timestamp()) else {
+    let Some(time) = NaiveTime::from_hms_micro_opt(
+        dt.hour.into(), dt.minute.into(), dt.second.into(), dt.microsecond
+    ) else {
         return StrftimeResult::InvalidDatetime;
     };
+    let naive = NaiveDateTime::new(date, time);
 
-    let s = if has_microseconds {
-        std::borrow::Cow::Owned(s.replace(MICROSECONDS_PLACEHOLDER, &format!("{:06}", dt.microsecond)))
-    } else {
-        std::borrow::Cow::Borrowed(s.as_str())
+    let Some(offset) = FixedOffset::east_opt(dt.offset_seconds.unwrap_or(0)) else {
+        return StrftimeResult::InvalidDatetime;
     };
+    let datetime: DateTime<FixedOffset> = DateTime::from_naive_utc_and_offset(
+        naive - offset,
+        offset,
+    );
 
-    let final_str = if fmt.contains("%z") || fmt.contains("%Z") {
-        std::borrow::Cow::Owned(apply_offset_to_formatted(&s, dt.offset_seconds.unwrap_or(0)))
-    } else {
-        s
-    };
+    let chrono_fmt = python_to_chrono_format(fmt);
+    let formatted = datetime.format(&chrono_fmt).to_string();
 
-    if buf.try_push_str(&final_str).is_ok() {
+    if buf.try_push_str(&formatted).is_ok() {
         StrftimeResult::Ok
     } else {
         StrftimeResult::BufferTooSmall
     }
-}
-
-fn apply_offset_to_formatted(s: &str, offset_secs: i32) -> String {
-    let sign = if offset_secs >= 0 { '+' } else { '-' };
-    let abs_secs = offset_secs.abs();
-    let hours = abs_secs / 3600;
-    let minutes = (abs_secs % 3600) / 60;
-    let offset_str = format!("{sign}{hours:02}{minutes:02}");
-    let offset_colon_str = format!("{sign}{hours:02}:{minutes:02}");
-
-    s.replace("+0000", &offset_str)
-        .replace("+00:00", &offset_colon_str)
-        .replace("UTC", &offset_str)
 }
 
 pub mod datetime_serializer {
@@ -297,14 +270,14 @@ pub mod datetime_deserializer {
 
         if let Some(fmt) = datetime_format {
             if let Some(dt) = parse_datetime_with_format(s_str, fmt) {
-                return create_pydatetime_from_speedate(ctx.py, &dt)
+                return create_pydatetime_from_chrono(ctx.py, dt)
                     .map_err(|e| field_error(ctx.py, field_name, &e.to_string()));
             }
             return Err(datetime_err());
         }
 
         if let Some(dt) = parse_rfc3339_datetime(s_str) {
-            return create_pydatetime_from_speedate(ctx.py, &dt)
+            return create_pydatetime_from_chrono(ctx.py, dt)
                 .map_err(|e| field_error(ctx.py, field_name, &e.to_string()));
         }
         Err(datetime_err())
@@ -319,12 +292,12 @@ pub mod datetime_deserializer {
     ) -> Result<Py<PyAny>, E> {
         if let Some(fmt) = format {
             if let Some(dt) = parse_datetime_with_format(s, fmt) {
-                return create_pydatetime_from_speedate(py, &dt).map_err(de::Error::custom);
+                return create_pydatetime_from_chrono(py, dt).map_err(de::Error::custom);
             }
             return Err(de::Error::custom(err_msg));
         }
         parse_rfc3339_datetime(s)
             .ok_or_else(|| de::Error::custom(err_msg))
-            .and_then(|dt| create_pydatetime_from_speedate(py, &dt).map_err(de::Error::custom))
+            .and_then(|dt| create_pydatetime_from_chrono(py, dt).map_err(de::Error::custom))
     }
 }

@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, TIME_ERROR};
 use crate::types::SerializeContext;
-use crate::utils::{create_pytime_from_speedate, parse_iso_time};
+use crate::utils::{create_pytime_from_chrono, parse_iso_time};
 
 pub mod time_serializer {
     use super::*;
@@ -85,7 +85,7 @@ pub mod time_deserializer {
         let s = value.cast::<PyString>().map_err(|_| time_err())?;
         let s_str = s.to_str()?;
         if let Some(t) = parse_iso_time(s_str) {
-            return create_pytime_from_speedate(ctx.py, &t)
+            return create_pytime_from_chrono(ctx.py, t)
                 .map_err(|e| field_error(ctx.py, field_name, &e.to_string()));
         }
         Err(time_err())
@@ -95,6 +95,6 @@ pub mod time_deserializer {
     pub fn deserialize_from_str<E: de::Error>(py: Python, s: &str, err_msg: &str) -> Result<Py<PyAny>, E> {
         parse_iso_time(s)
             .ok_or_else(|| de::Error::custom(err_msg))
-            .and_then(|t| create_pytime_from_speedate(py, &t).map_err(de::Error::custom))
+            .and_then(|t| create_pytime_from_chrono(py, t).map_err(de::Error::custom))
     }
 }

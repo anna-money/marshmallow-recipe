@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, DATE_ERROR};
 use crate::types::SerializeContext;
-use crate::utils::{create_pydate_from_speedate, parse_iso_date};
+use crate::utils::{create_pydate_from_chrono, parse_iso_date};
 
 pub mod date_serializer {
     use super::*;
@@ -73,7 +73,7 @@ pub mod date_deserializer {
         let s = value.cast::<PyString>().map_err(|_| date_err())?;
         let s_str = s.to_str()?;
         if let Some(d) = parse_iso_date(s_str) {
-            return create_pydate_from_speedate(ctx.py, &d)
+            return create_pydate_from_chrono(ctx.py, d)
                 .map_err(|e| field_error(ctx.py, field_name, &e.to_string()));
         }
         Err(date_err())
@@ -83,6 +83,6 @@ pub mod date_deserializer {
     pub fn deserialize_from_str<E: de::Error>(py: Python, s: &str, err_msg: &str) -> Result<Py<PyAny>, E> {
         parse_iso_date(s)
             .ok_or_else(|| de::Error::custom(err_msg))
-            .and_then(|d| create_pydate_from_speedate(py, &d).map_err(de::Error::custom))
+            .and_then(|d| create_pydate_from_chrono(py, d).map_err(de::Error::custom))
     }
 }
