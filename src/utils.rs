@@ -115,10 +115,51 @@ pub fn parse_rfc3339_datetime(s: &str) -> Option<speedate::DateTime> {
     speedate::DateTime::parse_str(s).ok()
 }
 
+fn extract_microseconds_for_format(s: &str, fmt: &str) -> Option<(String, String, u32)> {
+    let f_pos = fmt.find("%f")?;
+    let prefix_before_f = &fmt[..f_pos];
+    let suffix_after_f = &fmt[f_pos + 2..];
+
+    let literal_before = prefix_before_f.chars().last()?;
+    let mut s_pos = 0;
+    for c in prefix_before_f.chars() {
+        if c == '%' {
+            continue;
+        }
+        if let Some(idx) = s[s_pos..].find(c) {
+            s_pos += idx + 1;
+        }
+    }
+    s_pos = s_pos.saturating_sub(1);
+    let dot_pos = s[s_pos..].find(literal_before).map(|i| s_pos + i)?;
+
+    let micro_start = dot_pos + 1;
+    if micro_start + 6 > s.len() {
+        return None;
+    }
+    let micro_str = &s[micro_start..micro_start + 6];
+    if !micro_str.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    let microseconds = micro_str.parse::<u32>().ok()?;
+
+    let modified_s = format!("{}{}", &s[..dot_pos], &s[micro_start + 6..]);
+    let modified_fmt = format!("{}{}", &fmt[..f_pos - 1], suffix_after_f);
+
+    Some((modified_s, modified_fmt, microseconds))
+}
+
 #[inline]
 pub fn parse_datetime_with_format(s: &str, fmt: &str) -> Option<speedate::DateTime> {
-    let fmt_static = get_static_format(fmt);
-    let raw = strptime::Parser::new(fmt_static).parse(s).ok()?;
+    let (parse_s, parse_fmt, extracted_microseconds) = if fmt.contains("%f") {
+        let (modified_s, modified_fmt, micros) = extract_microseconds_for_format(s, fmt)?;
+        (modified_s, modified_fmt, Some(micros))
+    } else {
+        (s.to_string(), fmt.to_string(), None)
+    };
+
+    let fmt_static = get_static_format(&parse_fmt);
+    let raw = strptime::Parser::new(fmt_static).parse(&parse_s).ok()?;
     let date = raw.date().ok()?;
 
     let speedate_date = speedate::Date {
@@ -128,12 +169,12 @@ pub fn parse_datetime_with_format(s: &str, fmt: &str) -> Option<speedate::DateTi
     };
 
     let speedate_time = raw.time().map_or_else(
-        |_| speedate::Time { hour: 0, minute: 0, second: 0, microsecond: 0, tz_offset: Some(0) },
+        |_| speedate::Time { hour: 0, minute: 0, second: 0, microsecond: extracted_microseconds.unwrap_or(0), tz_offset: Some(0) },
         |t| speedate::Time {
             hour: t.hour(),
             minute: t.minute(),
             second: t.second(),
-            microsecond: (t.nanosecond() / 1000).try_into().unwrap_or(0),
+            microsecond: extracted_microseconds.unwrap_or_else(|| (t.nanosecond() / 1000).try_into().unwrap_or(0)),
             tz_offset: t.utc_offset(),
         },
     );

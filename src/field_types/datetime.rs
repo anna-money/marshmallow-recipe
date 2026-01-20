@@ -73,6 +73,8 @@ fn write_tz_offset(buf: &mut arrayvec::ArrayString<32>, offset_secs: i32) {
     write!(buf, "{sign}{hours:02}:{minutes:02}").unwrap();
 }
 
+const MICROSECONDS_PLACEHOLDER: &str = "__MICROSECONDS__";
+
 #[inline]
 fn format_strftime(
     buf: &mut arrayvec::ArrayString<128>,
@@ -94,12 +96,25 @@ fn format_strftime(
         },
     };
 
-    let Ok(s) = time_format::strftime_utc(fmt, speedate_dt.timestamp()) else {
+    let has_microseconds = fmt.contains("%f");
+    let fmt_for_lib = if has_microseconds {
+        std::borrow::Cow::Owned(fmt.replace("%f", MICROSECONDS_PLACEHOLDER))
+    } else {
+        std::borrow::Cow::Borrowed(fmt)
+    };
+
+    let Ok(s) = time_format::strftime_utc(&fmt_for_lib, speedate_dt.timestamp()) else {
         return StrftimeResult::InvalidDatetime;
     };
 
+    let s = if has_microseconds {
+        std::borrow::Cow::Owned(s.replace(MICROSECONDS_PLACEHOLDER, &format!("{:06}", dt.microsecond)))
+    } else {
+        std::borrow::Cow::Borrowed(s.as_str())
+    };
+
     let final_str = if fmt.contains("%z") || fmt.contains("%Z") {
-        apply_offset_to_formatted(&s, dt.offset_seconds.unwrap_or(0))
+        std::borrow::Cow::Owned(apply_offset_to_formatted(&s, dt.offset_seconds.unwrap_or(0)))
     } else {
         s
     };
