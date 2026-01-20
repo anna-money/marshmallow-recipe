@@ -1,0 +1,379 @@
+#![allow(clippy::struct_field_names)]
+
+use pyo3::prelude::*;
+use serde_json::Value;
+
+pub use crate::field_types::collection::CollectionKind;
+pub use crate::field_types::nested::{DataclassSerializerSchema, FieldSerializer};
+use crate::types::{DecimalPlaces, SerializeContext};
+
+pub use crate::field_types::nested::nested_serializer::serialize_dataclass;
+
+pub struct StrEnumData {
+    pub enum_cls: Py<PyAny>,
+    pub enum_name: Option<String>,
+    pub enum_members_repr: Option<String>,
+}
+
+impl Clone for StrEnumData {
+    fn clone(&self) -> Self {
+        Python::attach(|py| Self {
+            enum_cls: self.enum_cls.clone_ref(py),
+            enum_name: self.enum_name.clone(),
+            enum_members_repr: self.enum_members_repr.clone(),
+        })
+    }
+}
+
+pub struct IntEnumData {
+    pub enum_cls: Py<PyAny>,
+    pub enum_name: Option<String>,
+    pub enum_members_repr: Option<String>,
+}
+
+impl Clone for IntEnumData {
+    fn clone(&self) -> Self {
+        Python::attach(|py| Self {
+            enum_cls: self.enum_cls.clone_ref(py),
+            enum_name: self.enum_name.clone(),
+            enum_members_repr: self.enum_members_repr.clone(),
+        })
+    }
+}
+
+pub struct DecimalData {
+    pub decimal_places: DecimalPlaces,
+    pub decimal_rounding: Option<Py<PyAny>>,
+    pub invalid_error: Option<String>,
+}
+
+impl Clone for DecimalData {
+    fn clone(&self) -> Self {
+        Python::attach(|py| Self {
+            decimal_places: self.decimal_places,
+            decimal_rounding: self.decimal_rounding.as_ref().map(|r| r.clone_ref(py)),
+            invalid_error: self.invalid_error.clone(),
+        })
+    }
+}
+
+pub struct CollectionData {
+    pub item: Box<Serializer>,
+    pub item_validator: Option<Py<PyAny>>,
+    pub kind: CollectionKind,
+}
+
+impl Clone for CollectionData {
+    fn clone(&self) -> Self {
+        Python::attach(|py| Self {
+            item: self.item.clone(),
+            item_validator: self.item_validator.as_ref().map(|v| v.clone_ref(py)),
+            kind: self.kind,
+        })
+    }
+}
+
+pub struct DictData {
+    pub value: Box<Serializer>,
+    pub value_validator: Option<Py<PyAny>>,
+}
+
+impl Clone for DictData {
+    fn clone(&self) -> Self {
+        Python::attach(|py| Self {
+            value: self.value.clone(),
+            value_validator: self.value_validator.as_ref().map(|v| v.clone_ref(py)),
+        })
+    }
+}
+
+impl std::fmt::Debug for Serializer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Str { strip_whitespaces } => f.debug_struct("Str").field("strip_whitespaces", strip_whitespaces).finish(),
+            Self::Int => write!(f, "Int"),
+            Self::Float => write!(f, "Float"),
+            Self::Bool => write!(f, "Bool"),
+            Self::Decimal(_) => write!(f, "Decimal"),
+            Self::Date => write!(f, "Date"),
+            Self::Time => write!(f, "Time"),
+            Self::DateTime { format } => f.debug_struct("DateTime").field("format", format).finish(),
+            Self::Uuid => write!(f, "Uuid"),
+            Self::StrEnum(_) => write!(f, "StrEnum"),
+            Self::IntEnum(_) => write!(f, "IntEnum"),
+            Self::Any => write!(f, "Any"),
+            Self::Collection(_) => write!(f, "Collection"),
+            Self::Dict(_) => write!(f, "Dict"),
+            Self::Nested { .. } => write!(f, "Nested"),
+            Self::Union { .. } => write!(f, "Union"),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum Serializer {
+    Str { strip_whitespaces: bool },
+    Int,
+    Float,
+    Bool,
+    Decimal(Box<DecimalData>),
+    Date,
+    Time,
+    DateTime { format: Option<String> },
+    Uuid,
+    StrEnum(Box<StrEnumData>),
+    IntEnum(Box<IntEnumData>),
+    Any,
+    Collection(Box<CollectionData>),
+    Dict(Box<DictData>),
+    Nested { schema: Box<DataclassSerializerSchema> },
+    Union { variants: Vec<Self> },
+}
+
+impl Serializer {
+    pub fn serialize_to_dict<'py>(
+        &self,
+        value: &Bound<'py, PyAny>,
+        field_name: &str,
+        ctx: &SerializeContext<'_, 'py>,
+    ) -> PyResult<Py<PyAny>> {
+        use crate::field_types::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, any, collection, dict, nested, union};
+
+        match self {
+            Self::Str { strip_whitespaces } => {
+                str_type::str_serializer::serialize_to_dict(value, field_name, ctx, *strip_whitespaces)
+            }
+            Self::Int => int::int_serializer::serialize_to_dict(value, field_name, ctx),
+            Self::Float => float::float_serializer::serialize_to_dict(value, field_name, ctx),
+            Self::Bool => bool_type::bool_serializer::serialize_to_dict(value, field_name, ctx),
+            Self::Decimal(data) => {
+                decimal::decimal_serializer::serialize_to_dict(
+                    value,
+                    field_name,
+                    ctx,
+                    data.decimal_places,
+                    data.decimal_rounding.as_ref(),
+                    data.invalid_error.as_deref(),
+                )
+            }
+            Self::Date => date::date_serializer::serialize_to_dict(value, field_name, ctx),
+            Self::Time => time::time_serializer::serialize_to_dict(value, field_name, ctx),
+            Self::DateTime { format } => {
+                datetime::datetime_serializer::serialize_value_to_dict(value, field_name, ctx, format.as_deref())
+            }
+            Self::Uuid => uuid::uuid_serializer::serialize_to_dict(value, field_name, ctx),
+            Self::StrEnum(data) => {
+                str_enum::str_enum_serializer::serialize_to_dict(
+                    value,
+                    field_name,
+                    ctx,
+                    &data.enum_cls,
+                    data.enum_name.as_deref(),
+                    data.enum_members_repr.as_deref(),
+                )
+            }
+            Self::IntEnum(data) => {
+                str_enum::int_enum_serializer::serialize_to_dict(
+                    value,
+                    field_name,
+                    ctx,
+                    &data.enum_cls,
+                    data.enum_name.as_deref(),
+                    data.enum_members_repr.as_deref(),
+                )
+            }
+            Self::Any => any::any_serializer::serialize_to_dict(ctx.py, value, field_name),
+            Self::Collection(data) => {
+                collection::collection_serializer::serialize_to_dict(
+                    value,
+                    field_name,
+                    ctx,
+                    data.kind,
+                    &data.item,
+                    data.item_validator.as_ref(),
+                )
+            }
+            Self::Dict(data) => {
+                dict::dict_serializer::serialize_to_dict(
+                    value,
+                    field_name,
+                    ctx,
+                    &data.value,
+                    data.value_validator.as_ref(),
+                )
+            }
+            Self::Nested { schema } => {
+                nested::nested_serializer::serialize_to_dict(value, field_name, ctx, schema)
+            }
+            Self::Union { variants } => {
+                union::union_serializer::serialize_to_dict(value, field_name, ctx, variants)
+            }
+        }
+    }
+
+    pub fn serialize_to_json<'py>(
+        &self,
+        value: &Bound<'py, PyAny>,
+        field_name: &str,
+        ctx: &SerializeContext<'_, 'py>,
+    ) -> Result<Value, String> {
+        use crate::field_types::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, any, collection, dict, nested, union};
+
+        match self {
+            Self::Str { strip_whitespaces } => {
+                str_type::str_serializer::serialize_to_json(value, field_name, *strip_whitespaces)
+            }
+            Self::Int => int::int_serializer::serialize_to_json(value, field_name),
+            Self::Float => float::float_serializer::serialize_to_json(value, field_name),
+            Self::Bool => bool_type::bool_serializer::serialize_to_json(value, field_name),
+            Self::Decimal(data) => {
+                decimal::decimal_serializer::serialize_to_json(
+                    value,
+                    field_name,
+                    ctx,
+                    data.decimal_places,
+                    data.decimal_rounding.as_ref(),
+                    data.invalid_error.as_deref(),
+                )
+            }
+            Self::Date => date::date_serializer::serialize_to_json(value, field_name),
+            Self::Time => time::time_serializer::serialize_to_json(value, field_name),
+            Self::DateTime { format } => {
+                datetime::datetime_serializer::serialize_value_to_json(value, field_name, ctx, format.as_deref())
+            }
+            Self::Uuid => uuid::uuid_serializer::serialize_to_json(value, field_name, ctx),
+            Self::StrEnum(data) => {
+                str_enum::str_enum_serializer::serialize_to_json(
+                    value,
+                    field_name,
+                    ctx,
+                    &data.enum_cls,
+                    data.enum_name.as_deref(),
+                    data.enum_members_repr.as_deref(),
+                )
+            }
+            Self::IntEnum(data) => {
+                str_enum::int_enum_serializer::serialize_to_json(
+                    value,
+                    field_name,
+                    ctx,
+                    &data.enum_cls,
+                    data.enum_name.as_deref(),
+                    data.enum_members_repr.as_deref(),
+                )
+            }
+            Self::Any => any::any_serializer::serialize_to_json(value, field_name),
+            Self::Collection(data) => {
+                collection::collection_serializer::serialize_to_json(
+                    value,
+                    field_name,
+                    ctx,
+                    data.kind,
+                    &data.item,
+                    data.item_validator.as_ref(),
+                )
+            }
+            Self::Dict(data) => {
+                dict::dict_serializer::serialize_to_json(
+                    value,
+                    field_name,
+                    ctx,
+                    &data.value,
+                    data.value_validator.as_ref(),
+                )
+            }
+            Self::Nested { schema } => {
+                nested::nested_serializer::serialize_to_json(value, field_name, ctx, schema)
+            }
+            Self::Union { variants } => {
+                union::union_serializer::serialize_to_json(value, field_name, ctx, variants)
+            }
+        }
+    }
+
+    pub fn serialize<S: serde::Serializer>(
+        &self,
+        value: &Bound<'_, PyAny>,
+        field_name: &str,
+        ctx: &SerializeContext<'_, '_>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        use crate::field_types::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, any, collection, dict, nested, union};
+
+        match self {
+            Self::Str { strip_whitespaces } => {
+                str_type::str_serializer::serialize(value, field_name, *strip_whitespaces, serializer)
+            }
+            Self::Int => int::int_serializer::serialize(value, field_name, serializer),
+            Self::Float => float::float_serializer::serialize(value, field_name, serializer),
+            Self::Bool => bool_type::bool_serializer::serialize(value, field_name, serializer),
+            Self::Decimal(data) => {
+                decimal::decimal_serializer::serialize(
+                    value,
+                    field_name,
+                    ctx,
+                    data.decimal_places,
+                    data.decimal_rounding.as_ref(),
+                    data.invalid_error.as_deref(),
+                    serializer,
+                )
+            }
+            Self::Date => date::date_serializer::serialize(value, field_name, serializer),
+            Self::Time => time::time_serializer::serialize(value, field_name, serializer),
+            Self::DateTime { format } => {
+                datetime::datetime_serializer::serialize(value, field_name, ctx, format.as_deref(), serializer)
+            }
+            Self::Uuid => uuid::uuid_serializer::serialize(value, field_name, ctx, serializer),
+            Self::StrEnum(data) => {
+                str_enum::str_enum_serializer::serialize(
+                    value,
+                    field_name,
+                    ctx,
+                    &data.enum_cls,
+                    data.enum_name.as_deref(),
+                    data.enum_members_repr.as_deref(),
+                    serializer,
+                )
+            }
+            Self::IntEnum(data) => {
+                str_enum::int_enum_serializer::serialize(
+                    value,
+                    field_name,
+                    ctx,
+                    &data.enum_cls,
+                    data.enum_name.as_deref(),
+                    data.enum_members_repr.as_deref(),
+                    serializer,
+                )
+            }
+            Self::Any => any::any_serializer::serialize(value, field_name, serializer),
+            Self::Collection(data) => {
+                collection::collection_serializer::serialize(
+                    value,
+                    field_name,
+                    ctx,
+                    data.kind,
+                    &data.item,
+                    data.item_validator.as_ref(),
+                    serializer,
+                )
+            }
+            Self::Dict(data) => {
+                dict::dict_serializer::serialize(
+                    value,
+                    field_name,
+                    ctx,
+                    &data.value,
+                    data.value_validator.as_ref(),
+                    serializer,
+                )
+            }
+            Self::Nested { schema } => {
+                nested::nested_serializer::serialize(value, field_name, ctx, schema, serializer)
+            }
+            Self::Union { variants } => {
+                union::union_serializer::serialize(value, field_name, ctx, variants, serializer)
+            }
+        }
+    }
+}

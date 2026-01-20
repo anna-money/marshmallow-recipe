@@ -1,6 +1,8 @@
 import marshmallow
 import pytest
 
+import marshmallow_recipe as mr
+
 from .conftest import (
     Address,
     Company,
@@ -210,6 +212,12 @@ class TestCyclicDump:
         result = impl.dump(CyclicParent, obj)
         expected = b'{"marker":"level 1","child":{"marker":"level 2","parent":{"marker":"level 3","child":{"marker":"level 4"}}}}'
         assert result == expected
+
+
+class TestCyclicNotSupportedInNuked:
+    def test_cyclic_raises_not_implemented(self) -> None:
+        with pytest.raises(NotImplementedError, match="Cyclic dataclass references are not supported"):
+            mr.nuked.dump(Cyclic, Cyclic(marker="test", child=None))
 
 
 class TestNestedDumpInvalidType:
