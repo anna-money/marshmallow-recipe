@@ -180,7 +180,8 @@ FieldType::IntEnum => {
 - **Inline formatting**: `write!(buf, "{:04}-{:02}-{:02}T...", year, month, day)` — no intermediate strings
 - **Timezone handling**: `PyDeltaAccess` extracts offset components directly (`get_days()`, `get_seconds()`)
 - **UTC fast-path**: Direct pointer comparison with cached `datetime.UTC` to skip `utcoffset()` call
-- **jiff library**: Uses `jiff` crate for datetime parsing (replaced `chrono`) — modern, well-maintained
+- **Timezone cache**: Pre-built `Vec<Py<PyAny>>` with 53 timezone objects (UTC-12 to UTC+14 in 30-min steps), O(1) index lookup via `(offset_seconds / 1800) + 24`
+- **chrono library**: Uses `chrono` crate for datetime parsing — mature, well-maintained, native `%f` microseconds support
 
 **Code pattern** (serialize.rs):
 ```rust
