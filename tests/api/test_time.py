@@ -19,15 +19,16 @@ from .conftest import (
 
 
 class TestTimeDump:
-    def test_value(self, impl: Serializer) -> None:
-        obj = ValueOf[datetime.time](value=datetime.time(10, 30, 45, 123456))
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            (ValueOf[datetime.time](value=datetime.time(10, 30, 45, 123456)), b'{"value":"10:30:45.123456"}'),
+            (ValueOf[datetime.time](value=datetime.time(15, 45, 30)), b'{"value":"15:45:30"}'),
+        ],
+    )
+    def test_value(self, impl: Serializer, obj: ValueOf[datetime.time], expected: bytes) -> None:
         result = impl.dump(ValueOf[datetime.time], obj)
-        assert result == b'{"value":"10:30:45.123456"}'
-
-    def test_value_no_microseconds(self, impl: Serializer) -> None:
-        obj = ValueOf[datetime.time](value=datetime.time(15, 45, 30))
-        result = impl.dump(ValueOf[datetime.time], obj)
-        assert result == b'{"value":"15:45:30"}'
+        assert result == expected
 
     def test_optional_none(self, impl: Serializer) -> None:
         obj = OptionalValueOf[datetime.time](value=None)
@@ -39,62 +40,57 @@ class TestTimeDump:
         result = impl.dump(OptionalValueOf[datetime.time], obj)
         assert result == b'{"value":"10:30:45"}'
 
-    def test_none_handling_ignore_default(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        ("none_value_handling", "expected"),
+        [(None, b"{}"), (mr.NoneValueHandling.IGNORE, b"{}"), (mr.NoneValueHandling.INCLUDE, b'{"value":null}')],
+    )
+    def test_none_handling(
+        self, impl: Serializer, none_value_handling: mr.NoneValueHandling | None, expected: bytes
+    ) -> None:
         obj = OptionalValueOf[datetime.time](value=None)
-        result = impl.dump(OptionalValueOf[datetime.time], obj)
-        assert result == b"{}"
-
-    def test_none_handling_ignore_explicit(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[datetime.time](value=None)
-        result = impl.dump(OptionalValueOf[datetime.time], obj, none_value_handling=mr.NoneValueHandling.IGNORE)
-        assert result == b"{}"
-
-    def test_none_handling_include(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[datetime.time](value=None)
-        result = impl.dump(OptionalValueOf[datetime.time], obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
-        assert result == b'{"value":null}'
+        if none_value_handling is None:
+            result = impl.dump(OptionalValueOf[datetime.time], obj)
+        else:
+            result = impl.dump(OptionalValueOf[datetime.time], obj, none_value_handling=none_value_handling)
+        assert result == expected
 
     def test_none_handling_include_with_value(self, impl: Serializer) -> None:
         obj = OptionalValueOf[datetime.time](value=datetime.time(10, 30, 45))
         result = impl.dump(OptionalValueOf[datetime.time], obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
         assert result == b'{"value":"10:30:45"}'
 
-    def test_missing(self, impl: Serializer) -> None:
-        obj = WithTimeMissing()
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [(WithTimeMissing(), b"{}"), (WithTimeMissing(value=datetime.time(10, 30, 45)), b'{"value":"10:30:45"}')],
+    )
+    def test_missing(self, impl: Serializer, obj: WithTimeMissing, expected: bytes) -> None:
         result = impl.dump(WithTimeMissing, obj)
-        assert result == b"{}"
-
-    def test_missing_with_value(self, impl: Serializer) -> None:
-        obj = WithTimeMissing(value=datetime.time(10, 30, 45))
-        result = impl.dump(WithTimeMissing, obj)
-        assert result == b'{"value":"10:30:45"}'
+        assert result == expected
 
 
 class TestTimeLoad:
-    def test_value(self, impl: Serializer) -> None:
-        data = b'{"value":"10:30:45.123456"}'
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            (b'{"value":"10:30:45.123456"}', ValueOf[datetime.time](value=datetime.time(10, 30, 45, 123456))),
+            (b'{"value":"15:45:30"}', ValueOf[datetime.time](value=datetime.time(15, 45, 30))),
+        ],
+    )
+    def test_value(self, impl: Serializer, data: bytes, expected: ValueOf[datetime.time]) -> None:
         result = impl.load(ValueOf[datetime.time], data)
-        assert result == ValueOf[datetime.time](value=datetime.time(10, 30, 45, 123456))
+        assert result == expected
 
-    def test_value_no_microseconds(self, impl: Serializer) -> None:
-        data = b'{"value":"15:45:30"}'
-        result = impl.load(ValueOf[datetime.time], data)
-        assert result == ValueOf[datetime.time](value=datetime.time(15, 45, 30))
-
-    def test_optional_none(self, impl: Serializer) -> None:
-        data = b'{"value":null}'
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            (b'{"value":null}', OptionalValueOf[datetime.time](value=None)),
+            (b"{}", OptionalValueOf[datetime.time](value=None)),
+            (b'{"value":"10:30:45"}', OptionalValueOf[datetime.time](value=datetime.time(10, 30, 45))),
+        ],
+    )
+    def test_optional(self, impl: Serializer, data: bytes, expected: OptionalValueOf[datetime.time]) -> None:
         result = impl.load(OptionalValueOf[datetime.time], data)
-        assert result == OptionalValueOf[datetime.time](value=None)
-
-    def test_optional_missing(self, impl: Serializer) -> None:
-        data = b"{}"
-        result = impl.load(OptionalValueOf[datetime.time], data)
-        assert result == OptionalValueOf[datetime.time](value=None)
-
-    def test_optional_value(self, impl: Serializer) -> None:
-        data = b'{"value":"10:30:45"}'
-        result = impl.load(OptionalValueOf[datetime.time], data)
-        assert result == OptionalValueOf[datetime.time](value=datetime.time(10, 30, 45))
+        assert result == expected
 
     def test_validation_pass(self, impl: Serializer) -> None:
         data = b'{"value":"10:30:00"}'
@@ -112,14 +108,14 @@ class TestTimeLoad:
         result = impl.load(WithTimeTwoValidators, data)
         assert result == WithTimeTwoValidators(value=datetime.time(12, 0, 0))
 
-    def test_two_validators_first_fails(self, impl: Serializer) -> None:
-        data = b'{"value":"08:00:00"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithTimeTwoValidators, data)
-        assert exc.value.messages == {"value": ["Invalid value."]}
-
-    def test_two_validators_second_fails(self, impl: Serializer) -> None:
-        data = b'{"value":"19:00:00"}'
+    @pytest.mark.parametrize(
+        "data",
+        [
+            pytest.param(b'{"value":"08:00:00"}', id="first_fails"),
+            pytest.param(b'{"value":"19:00:00"}', id="second_fails"),
+        ],
+    )
+    def test_two_validators_fail(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithTimeTwoValidators, data)
         assert exc.value.messages == {"value": ["Invalid value."]}
@@ -142,20 +138,15 @@ class TestTimeLoad:
             impl.load(WithTimeInvalidError, data)
         assert exc.value.messages == {"value": ["Custom invalid message"]}
 
-    def test_invalid_format(self, impl: Serializer) -> None:
-        data = b'{"value":"not-a-time"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[datetime.time], data)
-        assert exc.value.messages == {"value": ["Not a valid time."]}
-
-    def test_wrong_type_int(self, impl: Serializer) -> None:
-        data = b'{"value":12345}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[datetime.time], data)
-        assert exc.value.messages == {"value": ["Not a valid time."]}
-
-    def test_wrong_type_list(self, impl: Serializer) -> None:
-        data = b'{"value":["10:30:45"]}'
+    @pytest.mark.parametrize(
+        "data",
+        [
+            pytest.param(b'{"value":"not-a-time"}', id="invalid_format"),
+            pytest.param(b'{"value":12345}', id="wrong_type_int"),
+            pytest.param(b'{"value":["10:30:45"]}', id="wrong_type_list"),
+        ],
+    )
+    def test_invalid_value(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(ValueOf[datetime.time], data)
         assert exc.value.messages == {"value": ["Not a valid time."]}
@@ -166,12 +157,10 @@ class TestTimeLoad:
             impl.load(ValueOf[datetime.time], data)
         assert exc.value.messages == {"value": ["Missing data for required field."]}
 
-    def test_missing(self, impl: Serializer) -> None:
-        data = b"{}"
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [(b"{}", WithTimeMissing()), (b'{"value":"10:30:45"}', WithTimeMissing(value=datetime.time(10, 30, 45)))],
+    )
+    def test_missing(self, impl: Serializer, data: bytes, expected: WithTimeMissing) -> None:
         result = impl.load(WithTimeMissing, data)
-        assert result == WithTimeMissing()
-
-    def test_missing_with_value(self, impl: Serializer) -> None:
-        data = b'{"value":"10:30:45"}'
-        result = impl.load(WithTimeMissing, data)
-        assert result == WithTimeMissing(value=datetime.time(10, 30, 45))
+        assert result == expected

@@ -29,65 +29,55 @@ from .conftest import (
 
 
 class TestListDump:
-    def test_str(self, impl: Serializer) -> None:
-        obj = ListOf[str](items=["a", "b", "c"])
-        result = impl.dump(ListOf[str], obj)
-        assert result == b'{"items":["a","b","c"]}'
+    @pytest.mark.parametrize(
+        ("schema_type", "obj", "expected"),
+        [
+            (ListOf[str], ListOf[str](items=["a", "b", "c"]), b'{"items":["a","b","c"]}'),
+            (ListOf[int], ListOf[int](items=[1, 2, 3]), b'{"items":[1,2,3]}'),
+            (ListOf[float], ListOf[float](items=[1.5, 2.5, 3.5]), b'{"items":[1.5,2.5,3.5]}'),
+            (ListOf[bool], ListOf[bool](items=[True, False, True]), b'{"items":[true,false,true]}'),
+            (
+                ListOf[decimal.Decimal],
+                ListOf[decimal.Decimal](items=[decimal.Decimal("1.23"), decimal.Decimal("4.56")]),
+                b'{"items":["1.23","4.56"]}',
+            ),
+            (
+                ListOf[uuid.UUID],
+                ListOf[uuid.UUID](
+                    items=[
+                        uuid.UUID("12345678-1234-5678-1234-567812345678"),
+                        uuid.UUID("87654321-4321-8765-4321-876543218765"),
+                    ]
+                ),
+                b'{"items":["12345678-1234-5678-1234-567812345678","87654321-4321-8765-4321-876543218765"]}',
+            ),
+            (
+                ListOf[datetime.datetime],
+                ListOf[datetime.datetime](items=[datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)]),
+                b'{"items":["2024-01-15T10:30:00+00:00"]}',
+            ),
+            (
+                ListOf[datetime.date],
+                ListOf[datetime.date](items=[datetime.date(2024, 1, 15)]),
+                b'{"items":["2024-01-15"]}',
+            ),
+            (ListOf[datetime.time], ListOf[datetime.time](items=[datetime.time(10, 30, 0)]), b'{"items":["10:30:00"]}'),
+        ],
+    )
+    def test_value(self, impl: Serializer, schema_type: type, obj: object, expected: bytes) -> None:
+        result = impl.dump(schema_type, obj)
+        assert result == expected
 
-    def test_int(self, impl: Serializer) -> None:
-        obj = ListOf[int](items=[1, 2, 3])
-        result = impl.dump(ListOf[int], obj)
-        assert result == b'{"items":[1,2,3]}'
-
-    def test_float(self, impl: Serializer) -> None:
-        obj = ListOf[float](items=[1.5, 2.5, 3.5])
-        result = impl.dump(ListOf[float], obj)
-        assert result == b'{"items":[1.5,2.5,3.5]}'
-
-    def test_bool(self, impl: Serializer) -> None:
-        obj = ListOf[bool](items=[True, False, True])
-        result = impl.dump(ListOf[bool], obj)
-        assert result == b'{"items":[true,false,true]}'
-
-    def test_decimal(self, impl: Serializer) -> None:
-        obj = ListOf[decimal.Decimal](items=[decimal.Decimal("1.23"), decimal.Decimal("4.56")])
-        result = impl.dump(ListOf[decimal.Decimal], obj)
-        assert result == b'{"items":["1.23","4.56"]}'
-
-    def test_uuid(self, impl: Serializer) -> None:
-        u1 = uuid.UUID("12345678-1234-5678-1234-567812345678")
-        u2 = uuid.UUID("87654321-4321-8765-4321-876543218765")
-        obj = ListOf[uuid.UUID](items=[u1, u2])
-        result = impl.dump(ListOf[uuid.UUID], obj)
-        assert result == b'{"items":["12345678-1234-5678-1234-567812345678","87654321-4321-8765-4321-876543218765"]}'
-
-    def test_datetime(self, impl: Serializer) -> None:
-        dt = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)
-        obj = ListOf[datetime.datetime](items=[dt])
-        result = impl.dump(ListOf[datetime.datetime], obj)
-        assert result == b'{"items":["2024-01-15T10:30:00+00:00"]}'
-
-    def test_date(self, impl: Serializer) -> None:
-        d = datetime.date(2024, 1, 15)
-        obj = ListOf[datetime.date](items=[d])
-        result = impl.dump(ListOf[datetime.date], obj)
-        assert result == b'{"items":["2024-01-15"]}'
-
-    def test_time(self, impl: Serializer) -> None:
-        t = datetime.time(10, 30, 0)
-        obj = ListOf[datetime.time](items=[t])
-        result = impl.dump(ListOf[datetime.time], obj)
-        assert result == b'{"items":["10:30:00"]}'
-
-    def test_str_enum(self, impl: Serializer) -> None:
-        obj = ListOf[Status](items=[Status.ACTIVE, Status.PENDING])
-        result = impl.dump(ListOf[Status], obj)
-        assert result == b'{"items":["active","pending"]}'
-
-    def test_int_enum(self, impl: Serializer) -> None:
-        obj = ListOf[Priority](items=[Priority.LOW, Priority.HIGH])
-        result = impl.dump(ListOf[Priority], obj)
-        assert result == b'{"items":[1,3]}'
+    @pytest.mark.parametrize(
+        ("schema_type", "obj", "expected"),
+        [
+            (ListOf[Status], ListOf[Status](items=[Status.ACTIVE, Status.PENDING]), b'{"items":["active","pending"]}'),
+            (ListOf[Priority], ListOf[Priority](items=[Priority.LOW, Priority.HIGH]), b'{"items":[1,3]}'),
+        ],
+    )
+    def test_enum(self, impl: Serializer, schema_type: type, obj: object, expected: bytes) -> None:
+        result = impl.dump(schema_type, obj)
+        assert result == expected
 
     def test_dataclass(self, impl: Serializer) -> None:
         addr = Address(street="Main St", city="NYC", zip_code="10001")
@@ -130,117 +120,109 @@ class TestListDump:
         result = impl.dump(ListOf[int], obj)
         assert result == b'{"items":[]}'
 
-    def test_optional_none(self, impl: Serializer) -> None:
-        obj = OptionalListOf[int](items=None)
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [(OptionalListOf[int](items=None), b"{}"), (OptionalListOf[int](items=[1, 2, 3]), b'{"items":[1,2,3]}')],
+    )
+    def test_optional(self, impl: Serializer, obj: OptionalListOf[int], expected: bytes) -> None:
         result = impl.dump(OptionalListOf[int], obj)
-        assert result == b"{}"
+        assert result == expected
 
-    def test_optional_value(self, impl: Serializer) -> None:
-        obj = OptionalListOf[int](items=[1, 2, 3])
-        result = impl.dump(OptionalListOf[int], obj)
-        assert result == b'{"items":[1,2,3]}'
-
-    def test_none_handling_ignore_default(self, impl: Serializer) -> None:
-        obj = OptionalListOf[int](items=None)
-        result = impl.dump(OptionalListOf[int], obj)
-        assert result == b"{}"
-
-    def test_none_handling_ignore_explicit(self, impl: Serializer) -> None:
-        obj = OptionalListOf[int](items=None)
-        result = impl.dump(OptionalListOf[int], obj, none_value_handling=mr.NoneValueHandling.IGNORE)
-        assert result == b"{}"
-
-    def test_none_handling_include(self, impl: Serializer) -> None:
-        obj = OptionalListOf[int](items=None)
-        result = impl.dump(OptionalListOf[int], obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
-        assert result == b'{"items":null}'
-
-    def test_none_handling_include_with_value(self, impl: Serializer) -> None:
-        obj = OptionalListOf[int](items=[1, 2, 3])
-        result = impl.dump(OptionalListOf[int], obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
-        assert result == b'{"items":[1,2,3]}'
+    @pytest.mark.parametrize(
+        ("obj", "none_value_handling", "expected"),
+        [
+            (OptionalListOf[int](items=None), mr.NoneValueHandling.IGNORE, b"{}"),
+            (OptionalListOf[int](items=None), mr.NoneValueHandling.INCLUDE, b'{"items":null}'),
+            (OptionalListOf[int](items=[1, 2, 3]), mr.NoneValueHandling.INCLUDE, b'{"items":[1,2,3]}'),
+        ],
+    )
+    def test_none_handling(
+        self, impl: Serializer, obj: OptionalListOf[int], none_value_handling: mr.NoneValueHandling, expected: bytes
+    ) -> None:
+        result = impl.dump(OptionalListOf[int], obj, none_value_handling=none_value_handling)
+        assert result == expected
 
     def test_item_validation(self, impl: Serializer) -> None:
         obj = WithListItemValidation(items=[5, 10, 15])
         result = impl.dump(WithListItemValidation, obj)
         assert result == b'{"items":[5,10,15]}'
 
-    def test_missing(self, impl: Serializer) -> None:
-        obj = WithListMissing()
+    @pytest.mark.parametrize(
+        ("obj", "expected"), [(WithListMissing(), b"{}"), (WithListMissing(items=[1, 2, 3]), b'{"items":[1,2,3]}')]
+    )
+    def test_missing(self, impl: Serializer, obj: WithListMissing, expected: bytes) -> None:
         result = impl.dump(WithListMissing, obj)
-        assert result == b"{}"
-
-    def test_missing_with_value(self, impl: Serializer) -> None:
-        obj = WithListMissing(items=[1, 2, 3])
-        result = impl.dump(WithListMissing, obj)
-        assert result == b'{"items":[1,2,3]}'
+        assert result == expected
 
     def test_unsubscripted(self, impl: Serializer) -> None:
         obj = CollectionHolder[list](items=["str", 123, {"a": "s"}])
         result = impl.dump(CollectionHolder[list], obj)
         assert result == b'{"items":["str",123,{"a":"s"}]}'
 
+    @pytest.mark.parametrize(
+        "obj",
+        [
+            pytest.param(ListOf[int](**{"items": "not a list"}), id="string"),  # type: ignore[arg-type]
+            pytest.param(ListOf[int](**{"items": {"a": 1}}), id="dict"),  # type: ignore[arg-type]
+            pytest.param(ListOf[int](**{"items": 123}), id="int"),  # type: ignore[arg-type]
+            pytest.param(ListOf[int](**{"items": (1, 2, 3)}), id="tuple"),  # type: ignore[arg-type]
+        ],
+    )
+    def test_invalid_type(self, impl: Serializer, obj: ListOf[int]) -> None:
+        with pytest.raises(marshmallow.ValidationError):
+            impl.dump(ListOf[int], obj)
+
 
 class TestListLoad:
-    def test_str(self, impl: Serializer) -> None:
-        data = b'{"items":["a","b","c"]}'
-        result = impl.load(ListOf[str], data)
-        assert result == ListOf[str](items=["a", "b", "c"])
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "expected"),
+        [
+            (ListOf[str], b'{"items":["a","b","c"]}', ListOf[str](items=["a", "b", "c"])),
+            (ListOf[int], b'{"items":[1,2,3]}', ListOf[int](items=[1, 2, 3])),
+            (ListOf[float], b'{"items":[1.5,2.5,3.5]}', ListOf[float](items=[1.5, 2.5, 3.5])),
+            (ListOf[bool], b'{"items":[true,false,true]}', ListOf[bool](items=[True, False, True])),
+            (
+                ListOf[decimal.Decimal],
+                b'{"items":["1.23","4.56"]}',
+                ListOf[decimal.Decimal](items=[decimal.Decimal("1.23"), decimal.Decimal("4.56")]),
+            ),
+            (
+                ListOf[uuid.UUID],
+                b'{"items":["12345678-1234-5678-1234-567812345678","87654321-4321-8765-4321-876543218765"]}',
+                ListOf[uuid.UUID](
+                    items=[
+                        uuid.UUID("12345678-1234-5678-1234-567812345678"),
+                        uuid.UUID("87654321-4321-8765-4321-876543218765"),
+                    ]
+                ),
+            ),
+            (
+                ListOf[datetime.datetime],
+                b'{"items":["2024-01-15T10:30:00+00:00"]}',
+                ListOf[datetime.datetime](items=[datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)]),
+            ),
+            (
+                ListOf[datetime.date],
+                b'{"items":["2024-01-15"]}',
+                ListOf[datetime.date](items=[datetime.date(2024, 1, 15)]),
+            ),
+            (ListOf[datetime.time], b'{"items":["10:30:00"]}', ListOf[datetime.time](items=[datetime.time(10, 30, 0)])),
+        ],
+    )
+    def test_value(self, impl: Serializer, schema_type: type, data: bytes, expected: object) -> None:
+        result = impl.load(schema_type, data)
+        assert result == expected
 
-    def test_int(self, impl: Serializer) -> None:
-        data = b'{"items":[1,2,3]}'
-        result = impl.load(ListOf[int], data)
-        assert result == ListOf[int](items=[1, 2, 3])
-
-    def test_float(self, impl: Serializer) -> None:
-        data = b'{"items":[1.5,2.5,3.5]}'
-        result = impl.load(ListOf[float], data)
-        assert result == ListOf[float](items=[1.5, 2.5, 3.5])
-
-    def test_bool(self, impl: Serializer) -> None:
-        data = b'{"items":[true,false,true]}'
-        result = impl.load(ListOf[bool], data)
-        assert result == ListOf[bool](items=[True, False, True])
-
-    def test_decimal(self, impl: Serializer) -> None:
-        data = b'{"items":["1.23","4.56"]}'
-        result = impl.load(ListOf[decimal.Decimal], data)
-        assert result == ListOf[decimal.Decimal](items=[decimal.Decimal("1.23"), decimal.Decimal("4.56")])
-
-    def test_uuid(self, impl: Serializer) -> None:
-        u1 = uuid.UUID("12345678-1234-5678-1234-567812345678")
-        u2 = uuid.UUID("87654321-4321-8765-4321-876543218765")
-        data = b'{"items":["12345678-1234-5678-1234-567812345678","87654321-4321-8765-4321-876543218765"]}'
-        result = impl.load(ListOf[uuid.UUID], data)
-        assert result == ListOf[uuid.UUID](items=[u1, u2])
-
-    def test_datetime(self, impl: Serializer) -> None:
-        dt = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)
-        data = b'{"items":["2024-01-15T10:30:00+00:00"]}'
-        result = impl.load(ListOf[datetime.datetime], data)
-        assert result == ListOf[datetime.datetime](items=[dt])
-
-    def test_date(self, impl: Serializer) -> None:
-        d = datetime.date(2024, 1, 15)
-        data = b'{"items":["2024-01-15"]}'
-        result = impl.load(ListOf[datetime.date], data)
-        assert result == ListOf[datetime.date](items=[d])
-
-    def test_time(self, impl: Serializer) -> None:
-        t = datetime.time(10, 30, 0)
-        data = b'{"items":["10:30:00"]}'
-        result = impl.load(ListOf[datetime.time], data)
-        assert result == ListOf[datetime.time](items=[t])
-
-    def test_str_enum(self, impl: Serializer) -> None:
-        data = b'{"items":["active","pending"]}'
-        result = impl.load(ListOf[Status], data)
-        assert result == ListOf[Status](items=[Status.ACTIVE, Status.PENDING])
-
-    def test_int_enum(self, impl: Serializer) -> None:
-        data = b'{"items":[1,3]}'
-        result = impl.load(ListOf[Priority], data)
-        assert result == ListOf[Priority](items=[Priority.LOW, Priority.HIGH])
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "expected"),
+        [
+            (ListOf[Status], b'{"items":["active","pending"]}', ListOf[Status](items=[Status.ACTIVE, Status.PENDING])),
+            (ListOf[Priority], b'{"items":[1,3]}', ListOf[Priority](items=[Priority.LOW, Priority.HIGH])),
+        ],
+    )
+    def test_enum(self, impl: Serializer, schema_type: type, data: bytes, expected: object) -> None:
+        result = impl.load(schema_type, data)
+        assert result == expected
 
     def test_dataclass(self, impl: Serializer) -> None:
         addr = Address(street="Main St", city="NYC", zip_code="10001")
@@ -283,49 +265,51 @@ class TestListLoad:
         result = impl.load(ListOf[int], data)
         assert result == ListOf[int](items=[])
 
-    def test_optional_none(self, impl: Serializer) -> None:
-        data = b"{}"
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [(b"{}", OptionalListOf[int](items=None)), (b'{"items":[1,2,3]}', OptionalListOf[int](items=[1, 2, 3]))],
+    )
+    def test_optional(self, impl: Serializer, data: bytes, expected: OptionalListOf[int]) -> None:
         result = impl.load(OptionalListOf[int], data)
-        assert result == OptionalListOf[int](items=None)
-
-    def test_optional_value(self, impl: Serializer) -> None:
-        data = b'{"items":[1,2,3]}'
-        result = impl.load(OptionalListOf[int], data)
-        assert result == OptionalListOf[int](items=[1, 2, 3])
+        assert result == expected
 
     def test_item_validation_pass(self, impl: Serializer) -> None:
         data = b'{"items":[1,2,3]}'
         result = impl.load(WithListItemValidation, data)
         assert result == WithListItemValidation(items=[1, 2, 3])
 
-    def test_item_validation_zero_fail(self, impl: Serializer) -> None:
-        data = b'{"items":[1,0,3]}'
+    @pytest.mark.parametrize(
+        ("data", "error_messages"),
+        [
+            pytest.param(b'{"items":[1,0,3]}', {"items": {1: ["Invalid value."]}}, id="zero"),
+            pytest.param(b'{"items":[1,-5,3]}', {"items": {1: ["Invalid value."]}}, id="negative"),
+        ],
+    )
+    def test_item_validation_fail(
+        self, impl: Serializer, data: bytes, error_messages: dict[str, dict[int, list[str]]]
+    ) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithListItemValidation, data)
-        assert exc.value.messages == {"items": {1: ["Invalid value."]}}
-
-    def test_item_validation_negative_fail(self, impl: Serializer) -> None:
-        data = b'{"items":[1,-5,3]}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithListItemValidation, data)
-        assert exc.value.messages == {"items": {1: ["Invalid value."]}}
+        assert exc.value.messages == error_messages
 
     def test_item_two_validators_pass(self, impl: Serializer) -> None:
         data = b'{"items":[1,50,99]}'
         result = impl.load(WithListItemTwoValidators, data)
         assert result == WithListItemTwoValidators(items=[1, 50, 99])
 
-    def test_item_two_validators_first_fails(self, impl: Serializer) -> None:
-        data = b'{"items":[1,0,50]}'
+    @pytest.mark.parametrize(
+        ("data", "error_messages"),
+        [
+            pytest.param(b'{"items":[1,0,50]}', {"items": {1: ["Invalid value."]}}, id="first_fails"),
+            pytest.param(b'{"items":[1,150,50]}', {"items": {1: ["Invalid value."]}}, id="second_fails"),
+        ],
+    )
+    def test_item_two_validators_fail(
+        self, impl: Serializer, data: bytes, error_messages: dict[str, dict[int, list[str]]]
+    ) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithListItemTwoValidators, data)
-        assert exc.value.messages == {"items": {1: ["Invalid value."]}}
-
-    def test_item_two_validators_second_fails(self, impl: Serializer) -> None:
-        data = b'{"items":[1,150,50]}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithListItemTwoValidators, data)
-        assert exc.value.messages == {"items": {1: ["Invalid value."]}}
+        assert exc.value.messages == error_messages
 
     def test_item_wrong_type(self, impl: Serializer) -> None:
         data = b'{"items":[1,"not_int",3]}'
@@ -333,17 +317,17 @@ class TestListLoad:
             impl.load(ListOf[int], data)
         assert exc.value.messages == {"items": {1: ["Not a valid integer."]}}
 
-    def test_wrong_type_string(self, impl: Serializer) -> None:
-        data = b'{"items":"not_a_list"}'
+    @pytest.mark.parametrize(
+        ("data", "error_messages"),
+        [
+            pytest.param(b'{"items":"not_a_list"}', {"items": ["Not a valid list."]}, id="string"),
+            pytest.param(b'{"items":{"key":1}}', {"items": ["Not a valid list."]}, id="object"),
+        ],
+    )
+    def test_wrong_type(self, impl: Serializer, data: bytes, error_messages: dict[str, list[str]]) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(ListOf[int], data)
-        assert exc.value.messages == {"items": ["Not a valid list."]}
-
-    def test_wrong_type_object(self, impl: Serializer) -> None:
-        data = b'{"items":{"key":1}}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ListOf[int], data)
-        assert exc.value.messages == {"items": ["Not a valid list."]}
+        assert exc.value.messages == error_messages
 
     def test_missing_required(self, impl: Serializer) -> None:
         data = b"{}"
@@ -351,59 +335,31 @@ class TestListLoad:
             impl.load(ListOf[int], data)
         assert exc.value.messages == {"items": ["Missing data for required field."]}
 
-    def test_custom_required_error(self, impl: Serializer) -> None:
-        data = b"{}"
+    @pytest.mark.parametrize(
+        ("data", "schema_type", "error_messages"),
+        [
+            pytest.param(b"{}", WithListRequiredError, {"items": ["Custom required message"]}, id="required"),
+            pytest.param(b'{"items":null}', WithListNoneError, {"items": ["Custom none message"]}, id="none"),
+            pytest.param(
+                b'{"items":"not_a_list"}', WithListInvalidError, {"items": ["Custom invalid message"]}, id="invalid"
+            ),
+        ],
+    )
+    def test_custom_error(
+        self, impl: Serializer, data: bytes, schema_type: type, error_messages: dict[str, list[str]]
+    ) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithListRequiredError, data)
-        assert exc.value.messages == {"items": ["Custom required message"]}
+            impl.load(schema_type, data)
+        assert exc.value.messages == error_messages
 
-    def test_custom_none_error(self, impl: Serializer) -> None:
-        data = b'{"items":null}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithListNoneError, data)
-        assert exc.value.messages == {"items": ["Custom none message"]}
-
-    def test_custom_invalid_error(self, impl: Serializer) -> None:
-        data = b'{"items":"not_a_list"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithListInvalidError, data)
-        assert exc.value.messages == {"items": ["Custom invalid message"]}
-
-    def test_missing(self, impl: Serializer) -> None:
-        data = b"{}"
+    @pytest.mark.parametrize(
+        ("data", "expected"), [(b"{}", WithListMissing()), (b'{"items":[1,2,3]}', WithListMissing(items=[1, 2, 3]))]
+    )
+    def test_missing(self, impl: Serializer, data: bytes, expected: WithListMissing) -> None:
         result = impl.load(WithListMissing, data)
-        assert result == WithListMissing()
-
-    def test_missing_with_value(self, impl: Serializer) -> None:
-        data = b'{"items":[1,2,3]}'
-        result = impl.load(WithListMissing, data)
-        assert result == WithListMissing(items=[1, 2, 3])
+        assert result == expected
 
     def test_strip_whitespace(self, impl: Serializer) -> None:
         data = b'{"items":[" hello "," world "]}'
         result = impl.load(WithListStripWhitespace, data)
         assert result == WithListStripWhitespace(items=["hello", "world"])
-
-
-class TestListDumpInvalidType:
-    """Test that invalid types in list fields raise ValidationError on dump."""
-
-    def test_string(self, impl: Serializer) -> None:
-        obj = ListOf[int](**{"items": "not a list"})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(ListOf[int], obj)
-
-    def test_dict(self, impl: Serializer) -> None:
-        obj = ListOf[int](**{"items": {"a": 1}})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(ListOf[int], obj)
-
-    def test_int(self, impl: Serializer) -> None:
-        obj = ListOf[int](**{"items": 123})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(ListOf[int], obj)
-
-    def test_tuple(self, impl: Serializer) -> None:
-        obj = ListOf[int](**{"items": (1, 2, 3)})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(ListOf[int], obj)

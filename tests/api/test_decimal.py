@@ -31,44 +31,55 @@ from .conftest import (
 
 
 class TestDecimalDump:
-    def test_default_places_valid(self, impl: Serializer) -> None:
-        obj = WithDecimal(value=decimal.Decimal("123.45"))
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            (WithDecimal(value=decimal.Decimal("123.45")), b'{"value":"123.45"}'),
+            (WithDecimal(value=decimal.Decimal("99.99")), b'{"value":"99.99"}'),
+            (WithDecimal(value=decimal.Decimal("-999.99")), b'{"value":"-999.99"}'),
+            (WithDecimal(value=decimal.Decimal("0")), b'{"value":"0"}'),
+            (WithDecimal(value=decimal.Decimal("999999999999999.99")), b'{"value":"999999999999999.99"}'),
+            (WithDecimal(value=decimal.Decimal("0.01")), b'{"value":"0.01"}'),
+            (WithDecimal(value=decimal.Decimal("1E+5")), b'{"value":"100000"}'),
+            (WithDecimal(value=decimal.Decimal("1.100")), b'{"value":"1.100"}'),
+            (WithDecimal(value=decimal.Decimal("0.00")), b'{"value":"0.00"}'),
+        ],
+    )
+    def test_valid_values(self, impl: Serializer, obj: WithDecimal, expected: bytes) -> None:
         result = impl.dump(WithDecimal, obj)
-        assert result == b'{"value":"123.45"}'
+        assert result == expected
 
-    def test_default_places_too_many(self, impl: Serializer) -> None:
-        obj = WithDecimal(value=decimal.Decimal("123.456"))
-        with pytest.raises(marshmallow.ValidationError):
+    @pytest.mark.parametrize(
+        ("obj", "expected_messages"),
+        [
+            pytest.param(
+                WithDecimal(value=decimal.Decimal("123.456")), {"value": ["Not a valid number."]}, id="too_many_places"
+            ),
+            pytest.param(
+                WithDecimal(value=decimal.Decimal("-1.234")),
+                {"value": ["Not a valid number."]},
+                id="negative_exceeds_places",
+            ),
+            pytest.param(
+                WithDecimal(value=decimal.Decimal("1E-5")),
+                {"value": ["Not a valid number."]},
+                id="scientific_notation_small",
+            ),
+        ],
+    )
+    def test_invalid_places(self, impl: Serializer, obj: WithDecimal, expected_messages: dict[str, list[str]]) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(WithDecimal, obj)
+        assert exc.value.messages == expected_messages
 
-    def test_positive(self, impl: Serializer) -> None:
-        obj = WithDecimal(value=decimal.Decimal("99.99"))
-        result = impl.dump(WithDecimal, obj)
-        assert result == b'{"value":"99.99"}'
-
-    def test_negative(self, impl: Serializer) -> None:
-        obj = WithDecimal(value=decimal.Decimal("-999.99"))
-        result = impl.dump(WithDecimal, obj)
-        assert result == b'{"value":"-999.99"}'
-
-    def test_zero(self, impl: Serializer) -> None:
-        obj = WithDecimal(value=decimal.Decimal("0"))
-        result = impl.dump(WithDecimal, obj)
-        assert result == b'{"value":"0"}'
-
-    def test_very_large(self, impl: Serializer) -> None:
-        obj = WithDecimal(value=decimal.Decimal("999999999999999.99"))
-        result = impl.dump(WithDecimal, obj)
-        assert result == b'{"value":"999999999999999.99"}'
-
-    def test_very_small(self, impl: Serializer) -> None:
-        obj = WithDecimal(value=decimal.Decimal("0.01"))
-        result = impl.dump(WithDecimal, obj)
-        assert result == b'{"value":"0.01"}'
-
-    @pytest.mark.parametrize(("places", "expected"), [(3, b'{"value":"123.456"}'), (5, b'{"value":"123.456"}')])
-    def test_global_places_valid(self, impl: Serializer, places: int, expected: bytes) -> None:
-        obj = WithDecimal(value=decimal.Decimal("123.456"))
+    @pytest.mark.parametrize(
+        ("obj", "places", "expected"),
+        [
+            (WithDecimal(value=decimal.Decimal("123.456")), 3, b'{"value":"123.456"}'),
+            (WithDecimal(value=decimal.Decimal("123.456")), 5, b'{"value":"123.456"}'),
+        ],
+    )
+    def test_global_places_valid(self, impl: Serializer, obj: WithDecimal, places: int, expected: bytes) -> None:
         result = impl.dump(WithDecimal, obj, decimal_places=places)
         assert result == expected
 
@@ -93,100 +104,85 @@ class TestDecimalDump:
         with pytest.raises(marshmallow.ValidationError):
             impl.dump(WithAnnotatedDecimalPlaces, obj)
 
-    def test_round_up(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundUp(value=decimal.Decimal("1.234"))
-        result = impl.dump(WithDecimalRoundUp, obj)
-        assert result == b'{"value":"1.24"}'
-
-    def test_round_up_edge_case(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundUp(value=decimal.Decimal("1.235"))
-        result = impl.dump(WithDecimalRoundUp, obj)
-        assert result == b'{"value":"1.24"}'
-
-    def test_round_up_already_rounded(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundUp(value=decimal.Decimal("1.20"))
-        result = impl.dump(WithDecimalRoundUp, obj)
-        assert result == b'{"value":"1.20"}'
-
-    def test_round_down(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundDown(value=decimal.Decimal("1.239"))
-        result = impl.dump(WithDecimalRoundDown, obj)
-        assert result == b'{"value":"1.23"}'
-
-    def test_round_down_edge_case(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundDown(value=decimal.Decimal("1.235"))
-        result = impl.dump(WithDecimalRoundDown, obj)
-        assert result == b'{"value":"1.23"}'
-
-    def test_round_ceiling_positive(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundCeiling(value=decimal.Decimal("1.231"))
-        result = impl.dump(WithDecimalRoundCeiling, obj)
-        assert result == b'{"value":"1.24"}'
-
-    def test_round_ceiling_negative(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundCeiling(value=decimal.Decimal("-1.239"))
-        result = impl.dump(WithDecimalRoundCeiling, obj)
-        assert result == b'{"value":"-1.23"}'
-
-    def test_round_floor_positive(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundFloor(value=decimal.Decimal("1.239"))
-        result = impl.dump(WithDecimalRoundFloor, obj)
-        assert result == b'{"value":"1.23"}'
-
-    def test_round_floor_negative(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundFloor(value=decimal.Decimal("-1.231"))
-        result = impl.dump(WithDecimalRoundFloor, obj)
-        assert result == b'{"value":"-1.24"}'
-
-    def test_round_half_up_midpoint(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundHalfUp(value=decimal.Decimal("1.235"))
-        result = impl.dump(WithDecimalRoundHalfUp, obj)
-        assert result == b'{"value":"1.24"}'
-
-    def test_round_half_up_below_midpoint(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundHalfUp(value=decimal.Decimal("1.234"))
-        result = impl.dump(WithDecimalRoundHalfUp, obj)
-        assert result == b'{"value":"1.23"}'
-
-    def test_round_half_up_negative_midpoint(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundHalfUp(value=decimal.Decimal("-1.235"))
-        result = impl.dump(WithDecimalRoundHalfUp, obj)
-        assert result == b'{"value":"-1.24"}'
-
-    def test_round_half_down_midpoint(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundHalfDown(value=decimal.Decimal("1.235"))
-        result = impl.dump(WithDecimalRoundHalfDown, obj)
-        assert result == b'{"value":"1.23"}'
-
-    def test_round_half_down_above_midpoint(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundHalfDown(value=decimal.Decimal("1.236"))
-        result = impl.dump(WithDecimalRoundHalfDown, obj)
-        assert result == b'{"value":"1.24"}'
-
-    def test_round_half_down_negative_midpoint(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundHalfDown(value=decimal.Decimal("-1.235"))
-        result = impl.dump(WithDecimalRoundHalfDown, obj)
-        assert result == b'{"value":"-1.23"}'
-
-    def test_round_half_even_to_even_up(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundHalfEven(value=decimal.Decimal("1.235"))
-        result = impl.dump(WithDecimalRoundHalfEven, obj)
-        assert result == b'{"value":"1.24"}'
-
-    def test_round_half_even_to_even_down(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundHalfEven(value=decimal.Decimal("1.225"))
-        result = impl.dump(WithDecimalRoundHalfEven, obj)
-        assert result == b'{"value":"1.22"}'
-
-    def test_round_half_even_245(self, impl: Serializer) -> None:
-        obj = WithDecimalRoundHalfEven(value=decimal.Decimal("1.245"))
-        result = impl.dump(WithDecimalRoundHalfEven, obj)
-        assert result == b'{"value":"1.24"}'
-
-    def test_annotated_rounding(self, impl: Serializer) -> None:
-        obj = WithAnnotatedDecimalRounding(value=decimal.Decimal("5.123"))
-        result = impl.dump(WithAnnotatedDecimalRounding, obj)
-        assert result == b'{"value":"5.13"}'
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            pytest.param(WithDecimalRoundUp(value=decimal.Decimal("1.234")), b'{"value":"1.24"}', id="round_up"),
+            pytest.param(WithDecimalRoundUp(value=decimal.Decimal("1.235")), b'{"value":"1.24"}', id="round_up_edge"),
+            pytest.param(
+                WithDecimalRoundUp(value=decimal.Decimal("1.20")), b'{"value":"1.20"}', id="round_up_already_rounded"
+            ),
+            pytest.param(WithDecimalRoundDown(value=decimal.Decimal("1.239")), b'{"value":"1.23"}', id="round_down"),
+            pytest.param(
+                WithDecimalRoundDown(value=decimal.Decimal("1.235")), b'{"value":"1.23"}', id="round_down_edge"
+            ),
+            pytest.param(
+                WithDecimalRoundCeiling(value=decimal.Decimal("1.231")),
+                b'{"value":"1.24"}',
+                id="round_ceiling_positive",
+            ),
+            pytest.param(
+                WithDecimalRoundCeiling(value=decimal.Decimal("-1.239")),
+                b'{"value":"-1.23"}',
+                id="round_ceiling_negative",
+            ),
+            pytest.param(
+                WithDecimalRoundFloor(value=decimal.Decimal("1.239")), b'{"value":"1.23"}', id="round_floor_positive"
+            ),
+            pytest.param(
+                WithDecimalRoundFloor(value=decimal.Decimal("-1.231")), b'{"value":"-1.24"}', id="round_floor_negative"
+            ),
+            pytest.param(
+                WithDecimalRoundHalfUp(value=decimal.Decimal("1.235")), b'{"value":"1.24"}', id="round_half_up_midpoint"
+            ),
+            pytest.param(
+                WithDecimalRoundHalfUp(value=decimal.Decimal("1.234")),
+                b'{"value":"1.23"}',
+                id="round_half_up_below_midpoint",
+            ),
+            pytest.param(
+                WithDecimalRoundHalfUp(value=decimal.Decimal("-1.235")),
+                b'{"value":"-1.24"}',
+                id="round_half_up_negative_midpoint",
+            ),
+            pytest.param(
+                WithDecimalRoundHalfDown(value=decimal.Decimal("1.235")),
+                b'{"value":"1.23"}',
+                id="round_half_down_midpoint",
+            ),
+            pytest.param(
+                WithDecimalRoundHalfDown(value=decimal.Decimal("1.236")),
+                b'{"value":"1.24"}',
+                id="round_half_down_above_midpoint",
+            ),
+            pytest.param(
+                WithDecimalRoundHalfDown(value=decimal.Decimal("-1.235")),
+                b'{"value":"-1.23"}',
+                id="round_half_down_negative_midpoint",
+            ),
+            pytest.param(
+                WithDecimalRoundHalfEven(value=decimal.Decimal("1.235")),
+                b'{"value":"1.24"}',
+                id="round_half_even_to_even_up",
+            ),
+            pytest.param(
+                WithDecimalRoundHalfEven(value=decimal.Decimal("1.225")),
+                b'{"value":"1.22"}',
+                id="round_half_even_to_even_down",
+            ),
+            pytest.param(
+                WithDecimalRoundHalfEven(value=decimal.Decimal("1.245")), b'{"value":"1.24"}', id="round_half_even_245"
+            ),
+            pytest.param(
+                WithAnnotatedDecimalRounding(value=decimal.Decimal("5.123")),
+                b'{"value":"5.13"}',
+                id="annotated_rounding",
+            ),
+        ],
+    )
+    def test_rounding_modes(self, impl: Serializer, obj: object, expected: bytes) -> None:
+        result = impl.dump(type(obj), obj)
+        assert result == expected
 
     def test_optional_none(self, impl: Serializer) -> None:
         obj = OptionalValueOf[decimal.Decimal](value=None)
@@ -228,54 +224,28 @@ class TestDecimalDump:
         result = impl.dump(WithDecimalMissing, obj)
         assert result == b'{"value":"99.99"}'
 
-    def test_places_zero_integer(self, impl: Serializer) -> None:
-        obj = WithDecimalPlacesZero(value=decimal.Decimal("100"))
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            (WithDecimalPlacesZero(value=decimal.Decimal("100")), b'{"value":"100"}'),
+            (WithDecimalPlacesZero(value=decimal.Decimal("-50")), b'{"value":"-50"}'),
+        ],
+    )
+    def test_places_zero_valid(self, impl: Serializer, obj: WithDecimalPlacesZero, expected: bytes) -> None:
         result = impl.dump(WithDecimalPlacesZero, obj)
-        assert result == b'{"value":"100"}'
+        assert result == expected
 
-    def test_places_zero_negative_integer(self, impl: Serializer) -> None:
-        obj = WithDecimalPlacesZero(value=decimal.Decimal("-50"))
-        result = impl.dump(WithDecimalPlacesZero, obj)
-        assert result == b'{"value":"-50"}'
-
-    def test_places_zero_decimal_invalid(self, impl: Serializer) -> None:
-        obj = WithDecimalPlacesZero(value=decimal.Decimal("1.5"))
+    @pytest.mark.parametrize(
+        "obj",
+        [
+            pytest.param(WithDecimalPlacesZero(value=decimal.Decimal("1.5")), id="decimal"),
+            pytest.param(WithDecimalPlacesZero(value=decimal.Decimal("0.1")), id="small_decimal"),
+        ],
+    )
+    def test_places_zero_invalid(self, impl: Serializer, obj: WithDecimalPlacesZero) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(WithDecimalPlacesZero, obj)
         assert exc.value.messages == {"value": ["Not a valid number."]}
-
-    def test_places_zero_small_decimal_invalid(self, impl: Serializer) -> None:
-        obj = WithDecimalPlacesZero(value=decimal.Decimal("0.1"))
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(WithDecimalPlacesZero, obj)
-        assert exc.value.messages == {"value": ["Not a valid number."]}
-
-    def test_negative_exceeds_places(self, impl: Serializer) -> None:
-        obj = WithDecimal(value=decimal.Decimal("-1.234"))
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(WithDecimal, obj)
-        assert exc.value.messages == {"value": ["Not a valid number."]}
-
-    def test_scientific_notation_small_invalid(self, impl: Serializer) -> None:
-        obj = WithDecimal(value=decimal.Decimal("1E-5"))
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(WithDecimal, obj)
-        assert exc.value.messages == {"value": ["Not a valid number."]}
-
-    def test_scientific_notation_large(self, impl: Serializer) -> None:
-        obj = WithDecimal(value=decimal.Decimal("1E+5"))
-        result = impl.dump(WithDecimal, obj)
-        assert result == b'{"value":"100000"}'
-
-    def test_trailing_zeros_at_boundary(self, impl: Serializer) -> None:
-        obj = WithDecimal(value=decimal.Decimal("1.100"))
-        result = impl.dump(WithDecimal, obj)
-        assert result == b'{"value":"1.100"}'
-
-    def test_zero_decimal_with_places(self, impl: Serializer) -> None:
-        obj = WithDecimal(value=decimal.Decimal("0.00"))
-        result = impl.dump(WithDecimal, obj)
-        assert result == b'{"value":"0.00"}'
 
     def test_places_with_range_both_pass(self, impl: Serializer) -> None:
         obj = WithDecimalPlacesAndRange(value=decimal.Decimal("50.12"))
@@ -294,23 +264,46 @@ class TestDecimalDump:
             impl.dump(WithDecimalPlacesAndRange, obj)
         assert exc.value.messages == {"value": ["Invalid value."]}
 
+    @pytest.mark.parametrize(
+        "obj",
+        [
+            pytest.param(WithDecimal(**{"value": "123.45"}), id="string"),  # type: ignore[arg-type]
+            pytest.param(WithDecimal(**{"value": 123}), id="int"),  # type: ignore[arg-type]
+            pytest.param(WithDecimal(**{"value": 123.45}), id="float"),  # type: ignore[arg-type]
+        ],
+    )
+    def test_invalid_type(self, impl: Serializer, obj: WithDecimal) -> None:
+        with pytest.raises(marshmallow.ValidationError):
+            impl.dump(WithDecimal, obj)
+
 
 class TestDecimalLoad:
-    def test_default_places_valid(self, impl: Serializer) -> None:
-        data = b'{"value":"123.45"}'
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            (b'{"value":"123.45"}', WithDecimal(value=decimal.Decimal("123.45"))),
+            (b'{"value":"99.99"}', WithDecimal(value=decimal.Decimal("99.99"))),
+            (b'{"value":"1E+5"}', WithDecimal(value=decimal.Decimal("1E+5"))),
+            (b'{"value":"1.100"}', WithDecimal(value=decimal.Decimal("1.100"))),
+            (b'{"value":"0.00"}', WithDecimal(value=decimal.Decimal("0.00"))),
+        ],
+    )
+    def test_valid_values(self, impl: Serializer, data: bytes, expected: WithDecimal) -> None:
         result = impl.load(WithDecimal, data)
-        assert result == WithDecimal(value=decimal.Decimal("123.45"))
+        assert result == expected
 
-    def test_default_places_too_many(self, impl: Serializer) -> None:
-        data = b'{"value":"123.456"}'
+    @pytest.mark.parametrize(
+        ("data", "expected_messages"),
+        [
+            pytest.param(b'{"value":"123.456"}', {"value": ["Not a valid number."]}, id="too_many_places"),
+            pytest.param(b'{"value":"-1.234"}', {"value": ["Not a valid number."]}, id="negative_exceeds_places"),
+            pytest.param(b'{"value":"1E-5"}', {"value": ["Not a valid number."]}, id="scientific_notation_small"),
+        ],
+    )
+    def test_invalid_places(self, impl: Serializer, data: bytes, expected_messages: dict[str, list[str]]) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithDecimal, data)
-        assert exc.value.messages == {"value": ["Not a valid number."]}
-
-    def test_positive(self, impl: Serializer) -> None:
-        data = b'{"value":"99.99"}'
-        result = impl.load(WithDecimal, data)
-        assert result == WithDecimal(value=decimal.Decimal("99.99"))
+        assert exc.value.messages == expected_messages
 
     def test_annotated_places(self, impl: Serializer) -> None:
         data = b'{"value":"99.1234"}'
@@ -323,91 +316,87 @@ class TestDecimalLoad:
             impl.load(WithAnnotatedDecimalPlaces, data)
         assert exc.value.messages == {"value": ["Not a valid number."]}
 
-    def test_round_up(self, impl: Serializer) -> None:
-        data = b'{"value":"9.876"}'
-        result = impl.load(WithDecimalRoundUp, data)
-        assert result == WithDecimalRoundUp(value=decimal.Decimal("9.88"))
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b'{"value":"9.876"}', WithDecimalRoundUp(value=decimal.Decimal("9.88")), id="round_up"),
+            pytest.param(b'{"value":"7.654"}', WithDecimalRoundDown(value=decimal.Decimal("7.65")), id="round_down"),
+            pytest.param(
+                b'{"value":"7.654"}',
+                WithAnnotatedDecimalRounding(value=decimal.Decimal("7.66")),
+                id="annotated_rounding",
+            ),
+            pytest.param(
+                b'{"value":"1.231"}',
+                WithDecimalRoundCeiling(value=decimal.Decimal("1.24")),
+                id="round_ceiling_positive",
+            ),
+            pytest.param(
+                b'{"value":"-1.239"}',
+                WithDecimalRoundCeiling(value=decimal.Decimal("-1.23")),
+                id="round_ceiling_negative",
+            ),
+            pytest.param(
+                b'{"value":"1.239"}', WithDecimalRoundFloor(value=decimal.Decimal("1.23")), id="round_floor_positive"
+            ),
+            pytest.param(
+                b'{"value":"-1.231"}', WithDecimalRoundFloor(value=decimal.Decimal("-1.24")), id="round_floor_negative"
+            ),
+            pytest.param(
+                b'{"value":"1.235"}', WithDecimalRoundHalfUp(value=decimal.Decimal("1.24")), id="round_half_up_midpoint"
+            ),
+            pytest.param(
+                b'{"value":"1.234"}',
+                WithDecimalRoundHalfUp(value=decimal.Decimal("1.23")),
+                id="round_half_up_below_midpoint",
+            ),
+            pytest.param(
+                b'{"value":"-1.235"}',
+                WithDecimalRoundHalfUp(value=decimal.Decimal("-1.24")),
+                id="round_half_up_negative_midpoint",
+            ),
+            pytest.param(
+                b'{"value":"1.235"}',
+                WithDecimalRoundHalfDown(value=decimal.Decimal("1.23")),
+                id="round_half_down_midpoint",
+            ),
+            pytest.param(
+                b'{"value":"1.236"}',
+                WithDecimalRoundHalfDown(value=decimal.Decimal("1.24")),
+                id="round_half_down_above_midpoint",
+            ),
+            pytest.param(
+                b'{"value":"-1.235"}',
+                WithDecimalRoundHalfDown(value=decimal.Decimal("-1.23")),
+                id="round_half_down_negative_midpoint",
+            ),
+            pytest.param(
+                b'{"value":"1.235"}',
+                WithDecimalRoundHalfEven(value=decimal.Decimal("1.24")),
+                id="round_half_even_to_even_up",
+            ),
+            pytest.param(
+                b'{"value":"1.225"}',
+                WithDecimalRoundHalfEven(value=decimal.Decimal("1.22")),
+                id="round_half_even_to_even_down",
+            ),
+            pytest.param(
+                b'{"value":"1.245"}', WithDecimalRoundHalfEven(value=decimal.Decimal("1.24")), id="round_half_even_245"
+            ),
+        ],
+    )
+    def test_rounding_modes(self, impl: Serializer, data: bytes, expected: object) -> None:
+        result = impl.load(type(expected), data)
+        assert result == expected
 
-    def test_round_down(self, impl: Serializer) -> None:
-        data = b'{"value":"7.654"}'
-        result = impl.load(WithDecimalRoundDown, data)
-        assert result == WithDecimalRoundDown(value=decimal.Decimal("7.65"))
-
-    def test_annotated_rounding(self, impl: Serializer) -> None:
-        data = b'{"value":"7.654"}'
-        result = impl.load(WithAnnotatedDecimalRounding, data)
-        assert result == WithAnnotatedDecimalRounding(value=decimal.Decimal("7.66"))
-
-    def test_round_ceiling_positive(self, impl: Serializer) -> None:
-        data = b'{"value":"1.231"}'
-        result = impl.load(WithDecimalRoundCeiling, data)
-        assert result == WithDecimalRoundCeiling(value=decimal.Decimal("1.24"))
-
-    def test_round_ceiling_negative(self, impl: Serializer) -> None:
-        data = b'{"value":"-1.239"}'
-        result = impl.load(WithDecimalRoundCeiling, data)
-        assert result == WithDecimalRoundCeiling(value=decimal.Decimal("-1.23"))
-
-    def test_round_floor_positive(self, impl: Serializer) -> None:
-        data = b'{"value":"1.239"}'
-        result = impl.load(WithDecimalRoundFloor, data)
-        assert result == WithDecimalRoundFloor(value=decimal.Decimal("1.23"))
-
-    def test_round_floor_negative(self, impl: Serializer) -> None:
-        data = b'{"value":"-1.231"}'
-        result = impl.load(WithDecimalRoundFloor, data)
-        assert result == WithDecimalRoundFloor(value=decimal.Decimal("-1.24"))
-
-    def test_round_half_up_midpoint(self, impl: Serializer) -> None:
-        data = b'{"value":"1.235"}'
-        result = impl.load(WithDecimalRoundHalfUp, data)
-        assert result == WithDecimalRoundHalfUp(value=decimal.Decimal("1.24"))
-
-    def test_round_half_up_below_midpoint(self, impl: Serializer) -> None:
-        data = b'{"value":"1.234"}'
-        result = impl.load(WithDecimalRoundHalfUp, data)
-        assert result == WithDecimalRoundHalfUp(value=decimal.Decimal("1.23"))
-
-    def test_round_half_up_negative_midpoint(self, impl: Serializer) -> None:
-        data = b'{"value":"-1.235"}'
-        result = impl.load(WithDecimalRoundHalfUp, data)
-        assert result == WithDecimalRoundHalfUp(value=decimal.Decimal("-1.24"))
-
-    def test_round_half_down_midpoint(self, impl: Serializer) -> None:
-        data = b'{"value":"1.235"}'
-        result = impl.load(WithDecimalRoundHalfDown, data)
-        assert result == WithDecimalRoundHalfDown(value=decimal.Decimal("1.23"))
-
-    def test_round_half_down_above_midpoint(self, impl: Serializer) -> None:
-        data = b'{"value":"1.236"}'
-        result = impl.load(WithDecimalRoundHalfDown, data)
-        assert result == WithDecimalRoundHalfDown(value=decimal.Decimal("1.24"))
-
-    def test_round_half_down_negative_midpoint(self, impl: Serializer) -> None:
-        data = b'{"value":"-1.235"}'
-        result = impl.load(WithDecimalRoundHalfDown, data)
-        assert result == WithDecimalRoundHalfDown(value=decimal.Decimal("-1.23"))
-
-    def test_round_half_even_to_even_up(self, impl: Serializer) -> None:
-        data = b'{"value":"1.235"}'
-        result = impl.load(WithDecimalRoundHalfEven, data)
-        assert result == WithDecimalRoundHalfEven(value=decimal.Decimal("1.24"))
-
-    def test_round_half_even_to_even_down(self, impl: Serializer) -> None:
-        data = b'{"value":"1.225"}'
-        result = impl.load(WithDecimalRoundHalfEven, data)
-        assert result == WithDecimalRoundHalfEven(value=decimal.Decimal("1.22"))
-
-    def test_round_half_even_245(self, impl: Serializer) -> None:
-        data = b'{"value":"1.245"}'
-        result = impl.load(WithDecimalRoundHalfEven, data)
-        assert result == WithDecimalRoundHalfEven(value=decimal.Decimal("1.24"))
-
-    @pytest.mark.parametrize(("places", "expected"), [(3, decimal.Decimal("123.456")), (5, decimal.Decimal("123.456"))])
-    def test_global_places_valid(self, impl: Serializer, places: int, expected: decimal.Decimal) -> None:
+    @pytest.mark.parametrize(
+        ("places", "expected"),
+        [(3, WithDecimal(value=decimal.Decimal("123.456"))), (5, WithDecimal(value=decimal.Decimal("123.456")))],
+    )
+    def test_global_places_valid(self, impl: Serializer, places: int, expected: WithDecimal) -> None:
         data = b'{"value":"123.456"}'
         result = impl.load(WithDecimal, data, decimal_places=places)
-        assert result == WithDecimal(value=expected)
+        assert result == expected
 
     @pytest.mark.parametrize("places", [0, 1, 2])
     def test_global_places_too_many(self, impl: Serializer, places: int) -> None:
@@ -426,14 +415,10 @@ class TestDecimalLoad:
         result = impl.load(WithDecimalValidation, data)
         assert result == WithDecimalValidation(value=decimal.Decimal("10.5"))
 
-    def test_validation_zero_fail(self, impl: Serializer) -> None:
-        data = b'{"value":"0"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithDecimalValidation, data)
-        assert exc.value.messages == {"value": ["Invalid value."]}
-
-    def test_validation_negative_fail(self, impl: Serializer) -> None:
-        data = b'{"value":"-5.5"}'
+    @pytest.mark.parametrize(
+        "data", [pytest.param(b'{"value":"0"}', id="zero"), pytest.param(b'{"value":"-5.5"}', id="negative")]
+    )
+    def test_validation_fail(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithDecimalValidation, data)
         assert exc.value.messages == {"value": ["Invalid value."]}
@@ -443,14 +428,10 @@ class TestDecimalLoad:
         result = impl.load(WithDecimalTwoValidators, data)
         assert result == WithDecimalTwoValidators(value=decimal.Decimal("50.5"))
 
-    def test_two_validators_first_fails(self, impl: Serializer) -> None:
-        data = b'{"value":"0"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithDecimalTwoValidators, data)
-        assert exc.value.messages == {"value": ["Invalid value."]}
-
-    def test_two_validators_second_fails(self, impl: Serializer) -> None:
-        data = b'{"value":"1500"}'
+    @pytest.mark.parametrize(
+        "data", [pytest.param(b'{"value":"0"}', id="first_fails"), pytest.param(b'{"value":"1500"}', id="second_fails")]
+    )
+    def test_two_validators_fail(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithDecimalTwoValidators, data)
         assert exc.value.messages == {"value": ["Invalid value."]}
@@ -488,20 +469,15 @@ class TestDecimalLoad:
             impl.load(WithDecimalInvalidError, data)
         assert exc.value.messages == {"value": ["Custom invalid message"]}
 
-    def test_invalid_format(self, impl: Serializer) -> None:
-        data = b'{"value":"not-a-decimal"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithDecimal, data)
-        assert exc.value.messages == {"value": ["Not a valid number."]}
-
-    def test_wrong_type_list(self, impl: Serializer) -> None:
-        data = b'{"value":[1,2]}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithDecimal, data)
-        assert exc.value.messages == {"value": ["Not a valid number."]}
-
-    def test_wrong_type_object(self, impl: Serializer) -> None:
-        data = b'{"value":{"key":"1.23"}}'
+    @pytest.mark.parametrize(
+        "data",
+        [
+            pytest.param(b'{"value":"not-a-decimal"}', id="invalid_format"),
+            pytest.param(b'{"value":[1,2]}', id="wrong_type_list"),
+            pytest.param(b'{"value":{"key":"1.23"}}', id="wrong_type_object"),
+        ],
+    )
+    def test_invalid_format(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithDecimal, data)
         assert exc.value.messages == {"value": ["Not a valid number."]}
@@ -512,17 +488,24 @@ class TestDecimalLoad:
             impl.load(WithDecimal, data)
         assert exc.value.messages == {"value": ["Missing data for required field."]}
 
-    def test_big_from_int_larger_than_i64_max(self, impl: Serializer) -> None:
-        big_value = 9223372036854775808
-        data = b'{"value":9223372036854775808}'
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(
+                b'{"value":9223372036854775808}',
+                WithDecimal(value=decimal.Decimal("9223372036854775808")),
+                id="larger_than_i64_max",
+            ),
+            pytest.param(
+                b'{"value":18446744073709551616}',
+                WithDecimal(value=decimal.Decimal("18446744073709551616")),
+                id="larger_than_u64_max",
+            ),
+        ],
+    )
+    def test_big_integers(self, impl: Serializer, data: bytes, expected: WithDecimal) -> None:
         result = impl.load(WithDecimal, data)
-        assert result == WithDecimal(value=decimal.Decimal(big_value))
-
-    def test_big_from_int_larger_than_u64_max(self, impl: Serializer) -> None:
-        huge_value = 18446744073709551616
-        data = b'{"value":18446744073709551616}'
-        result = impl.load(WithDecimal, data)
-        assert result == WithDecimal(value=decimal.Decimal(huge_value))
+        assert result == expected
 
     def test_missing(self, impl: Serializer) -> None:
         data = b"{}"
@@ -534,54 +517,24 @@ class TestDecimalLoad:
         result = impl.load(WithDecimalMissing, data)
         assert result == WithDecimalMissing(value=decimal.Decimal("99.99"))
 
-    def test_places_zero_integer(self, impl: Serializer) -> None:
-        data = b'{"value":"100"}'
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            (b'{"value":"100"}', WithDecimalPlacesZero(value=decimal.Decimal("100"))),
+            (b'{"value":"-50"}', WithDecimalPlacesZero(value=decimal.Decimal("-50"))),
+        ],
+    )
+    def test_places_zero_valid(self, impl: Serializer, data: bytes, expected: WithDecimalPlacesZero) -> None:
         result = impl.load(WithDecimalPlacesZero, data)
-        assert result == WithDecimalPlacesZero(value=decimal.Decimal("100"))
+        assert result == expected
 
-    def test_places_zero_negative_integer(self, impl: Serializer) -> None:
-        data = b'{"value":"-50"}'
-        result = impl.load(WithDecimalPlacesZero, data)
-        assert result == WithDecimalPlacesZero(value=decimal.Decimal("-50"))
-
-    def test_places_zero_decimal_invalid(self, impl: Serializer) -> None:
-        data = b'{"value":"1.5"}'
+    @pytest.mark.parametrize(
+        "data", [pytest.param(b'{"value":"1.5"}', id="decimal"), pytest.param(b'{"value":"0.1"}', id="small_decimal")]
+    )
+    def test_places_zero_invalid(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithDecimalPlacesZero, data)
         assert exc.value.messages == {"value": ["Not a valid number."]}
-
-    def test_places_zero_small_decimal_invalid(self, impl: Serializer) -> None:
-        data = b'{"value":"0.1"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithDecimalPlacesZero, data)
-        assert exc.value.messages == {"value": ["Not a valid number."]}
-
-    def test_negative_exceeds_places(self, impl: Serializer) -> None:
-        data = b'{"value":"-1.234"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithDecimal, data)
-        assert exc.value.messages == {"value": ["Not a valid number."]}
-
-    def test_scientific_notation_small_invalid(self, impl: Serializer) -> None:
-        data = b'{"value":"1E-5"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithDecimal, data)
-        assert exc.value.messages == {"value": ["Not a valid number."]}
-
-    def test_scientific_notation_large(self, impl: Serializer) -> None:
-        data = b'{"value":"1E+5"}'
-        result = impl.load(WithDecimal, data)
-        assert result == WithDecimal(value=decimal.Decimal("1E+5"))
-
-    def test_trailing_zeros_at_boundary(self, impl: Serializer) -> None:
-        data = b'{"value":"1.100"}'
-        result = impl.load(WithDecimal, data)
-        assert result == WithDecimal(value=decimal.Decimal("1.100"))
-
-    def test_zero_decimal_with_places(self, impl: Serializer) -> None:
-        data = b'{"value":"0.00"}'
-        result = impl.load(WithDecimal, data)
-        assert result == WithDecimal(value=decimal.Decimal("0.00"))
 
     def test_places_with_range_both_pass(self, impl: Serializer) -> None:
         data = b'{"value":"50.12"}'
@@ -601,50 +554,39 @@ class TestDecimalLoad:
         assert exc.value.messages == {"value": ["Invalid value."]}
 
 
-class TestDecimalDumpInvalidType:
-    """Test that invalid types in decimal fields raise ValidationError on dump."""
-
-    def test_string(self, impl: Serializer) -> None:
-        obj = WithDecimal(**{"value": "123.45"})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(WithDecimal, obj)
-
-    def test_int(self, impl: Serializer) -> None:
-        obj = WithDecimal(**{"value": 123})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(WithDecimal, obj)
-
-    def test_float(self, impl: Serializer) -> None:
-        obj = WithDecimal(**{"value": 123.45})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(WithDecimal, obj)
-
-
 class TestDecimalNoPlaces:
-    def test_dump_preserves_full_precision(self, impl: Serializer) -> None:
-        obj = WithDecimalNoPlaces(value=decimal.Decimal("123.456789012345678901234567890"))
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            (
+                WithDecimalNoPlaces(value=decimal.Decimal("123.456789012345678901234567890")),
+                b'{"value":"123.456789012345678901234567890"}',
+            ),
+            (WithDecimalNoPlaces(value=decimal.Decimal("99.99")), b'{"value":"99.99"}'),
+            (WithDecimalNoPlaces(value=decimal.Decimal("100")), b'{"value":"100"}'),
+        ],
+    )
+    def test_dump(self, impl: Serializer, obj: WithDecimalNoPlaces, expected: bytes) -> None:
         result = impl.dump(WithDecimalNoPlaces, obj)
-        assert result == b'{"value":"123.456789012345678901234567890"}'
-
-    def test_dump_simple(self, impl: Serializer) -> None:
-        obj = WithDecimalNoPlaces(value=decimal.Decimal("99.99"))
-        result = impl.dump(WithDecimalNoPlaces, obj)
-        assert result == b'{"value":"99.99"}'
-
-    def test_dump_integer(self, impl: Serializer) -> None:
-        obj = WithDecimalNoPlaces(value=decimal.Decimal("100"))
-        result = impl.dump(WithDecimalNoPlaces, obj)
-        assert result == b'{"value":"100"}'
+        assert result == expected
 
     def test_dump_overrides_global_places(self, impl: Serializer) -> None:
         obj = WithDecimalNoPlaces(value=decimal.Decimal("123.456789"))
         result = impl.dump(WithDecimalNoPlaces, obj, decimal_places=2)
         assert result == b'{"value":"123.456789"}'
 
-    def test_load_preserves_full_precision(self, impl: Serializer) -> None:
-        data = b'{"value":"123.456789012345678901234567890"}'
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            (
+                b'{"value":"123.456789012345678901234567890"}',
+                WithDecimalNoPlaces(value=decimal.Decimal("123.456789012345678901234567890")),
+            )
+        ],
+    )
+    def test_load(self, impl: Serializer, data: bytes, expected: WithDecimalNoPlaces) -> None:
         result = impl.load(WithDecimalNoPlaces, data)
-        assert result == WithDecimalNoPlaces(value=decimal.Decimal("123.456789012345678901234567890"))
+        assert result == expected
 
     def test_load_overrides_global_places(self, impl: Serializer) -> None:
         data = b'{"value":"123.456789"}'
@@ -673,22 +615,24 @@ class TestDecimalPlacesValidation:
         with pytest.raises(ValueError, match="decimal_places must be None or a non-negative integer"):
             impl.load_many(WithDecimal, b'[{"value": "1.23"}]', decimal_places=-1)
 
-    def test_trailing_zeros_dump_valid(self, impl: Serializer) -> None:
-        obj = WithDecimal(value=decimal.Decimal("1.230"))
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            (WithDecimal(value=decimal.Decimal("1.230")), b'{"value":"1.230"}'),
+            (WithDecimal(value=decimal.Decimal("100")), b'{"value":"100"}'),
+        ],
+    )
+    def test_dump_valid(self, impl: Serializer, obj: WithDecimal, expected: bytes) -> None:
         result = impl.dump(WithDecimal, obj)
-        assert result == b'{"value":"1.230"}'
+        assert result == expected
 
-    def test_trailing_zeros_load_valid(self, impl: Serializer) -> None:
-        data = b'{"value":"1.230"}'
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            (b'{"value":"1.230"}', WithDecimal(value=decimal.Decimal("1.230"))),
+            (b'{"value":"100"}', WithDecimal(value=decimal.Decimal("100"))),
+        ],
+    )
+    def test_load_valid(self, impl: Serializer, data: bytes, expected: WithDecimal) -> None:
         result = impl.load(WithDecimal, data)
-        assert result == WithDecimal(value=decimal.Decimal("1.230"))
-
-    def test_integer_dump_valid(self, impl: Serializer) -> None:
-        obj = WithDecimal(value=decimal.Decimal("100"))
-        result = impl.dump(WithDecimal, obj)
-        assert result == b'{"value":"100"}'
-
-    def test_integer_load_valid(self, impl: Serializer) -> None:
-        data = b'{"value":"100"}'
-        result = impl.load(WithDecimal, data)
-        assert result == WithDecimal(value=decimal.Decimal("100"))
+        assert result == expected
