@@ -10,6 +10,7 @@ import decimal
 import enum
 import json
 import uuid
+from typing import Annotated
 
 import pyperf
 
@@ -111,6 +112,26 @@ class TransactionData:
     is_technical: bool = False
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class TransactionDataValidated:
+    id: Annotated[uuid.UUID, mr.meta(validate=lambda x: True)]
+    status: Annotated[TransactionStatus, mr.meta(validate=lambda x: True)]
+    created_at: Annotated[datetime.datetime, mr.meta(validate=lambda x: True)]
+    updated_at: Annotated[datetime.datetime, mr.meta(validate=lambda x: True)]
+    amount: Annotated[decimal.Decimal, mr.meta(validate=lambda x: True)]
+    currency: Annotated[str, mr.meta(validate=lambda x: True)]
+    transaction_amount: Annotated[decimal.Decimal, mr.meta(validate=lambda x: True)]
+    transaction_currency: Annotated[str, mr.meta(validate=lambda x: True)]
+    description: Annotated[str, mr.meta(validate=lambda x: True)]
+    type: Annotated[str, mr.meta(validate=lambda x: True)]
+    account_id: Annotated[uuid.UUID, mr.meta(validate=lambda x: True)]
+    company_id: Annotated[uuid.UUID, mr.meta(validate=lambda x: True)]
+    processed_at: Annotated[datetime.datetime | None, mr.meta(validate=lambda x: True)] = None
+    card_id: Annotated[uuid.UUID | None, mr.meta(validate=lambda x: True)] = None
+    reference: Annotated[str | None, mr.meta(validate=lambda x: True)] = None
+    is_technical: Annotated[bool, mr.meta(validate=lambda x: True)] = False
+
+
 # Test data
 TRANSACTION = TransactionData(
     id=uuid.uuid4(),
@@ -175,6 +196,25 @@ TRANSACTIONS = [
     for i in range(100)
 ]
 
+TRANSACTIONS_1000 = [
+    TransactionData(
+        id=uuid.uuid4(),
+        status=TransactionStatus.PROCESSED,
+        created_at=datetime.datetime.now(tz=datetime.UTC),
+        updated_at=datetime.datetime.now(tz=datetime.UTC),
+        amount=decimal.Decimal("123.45"),
+        currency="GBP",
+        transaction_amount=decimal.Decimal("123.45"),
+        transaction_currency="GBP",
+        description=f"Payment {i}",
+        type="FP",
+        account_id=uuid.uuid4(),
+        company_id=uuid.uuid4(),
+        reference=f"REF{i:06d}",
+    )
+    for i in range(1000)
+]
+
 
 def marshmallow_dump_many() -> bytes:
     return json.dumps(mr.dump_many(TransactionData, TRANSACTIONS), separators=(",", ":")).encode()
@@ -201,6 +241,33 @@ def nuked_load_many() -> list[TransactionData]:
 
 def nuked_load_from_bytes_many() -> list[TransactionData]:
     return mr.nuked.load_from_bytes(list[TransactionData], DATA_MANY)
+
+
+def marshmallow_dump_many_1000() -> bytes:
+    return json.dumps(mr.dump_many(TransactionData, TRANSACTIONS_1000), separators=(",", ":")).encode()
+
+
+def nuked_dump_many_1000() -> bytes:
+    return json.dumps(mr.nuked.dump(list[TransactionData], TRANSACTIONS_1000), separators=(",", ":")).encode()
+
+
+def nuked_dump_to_bytes_many_1000() -> bytes:
+    return mr.nuked.dump_to_bytes(list[TransactionData], TRANSACTIONS_1000)
+
+
+DATA_MANY_1000 = marshmallow_dump_many_1000()
+
+
+def marshmallow_load_many_1000() -> list[TransactionData]:
+    return mr.load_many(TransactionData, json.loads(DATA_MANY_1000))
+
+
+def nuked_load_many_1000() -> list[TransactionData]:
+    return mr.nuked.load(list[TransactionData], json.loads(DATA_MANY_1000))
+
+
+def nuked_load_from_bytes_many_1000() -> list[TransactionData]:
+    return mr.nuked.load_from_bytes(list[TransactionData], DATA_MANY_1000)
 
 
 def marshmallow_load() -> TransactionData:
@@ -236,6 +303,148 @@ def nuked_load_datetime_non_utc() -> DatetimeOnlyNonUTC:
     return mr.nuked.load_from_bytes(DatetimeOnlyNonUTC, DATETIME_NON_UTC_DATA)
 
 
+TRANSACTION_VALIDATED = TransactionDataValidated(
+    id=uuid.uuid4(),
+    status=TransactionStatus.PROCESSED,
+    created_at=datetime.datetime.now(tz=datetime.UTC),
+    updated_at=datetime.datetime.now(tz=datetime.UTC),
+    amount=decimal.Decimal("123.45"),
+    currency="GBP",
+    transaction_amount=decimal.Decimal("123.45"),
+    transaction_currency="GBP",
+    description="Payment to ACME Corp",
+    type="FP",
+    account_id=uuid.uuid4(),
+    company_id=uuid.uuid4(),
+    reference="REF123456",
+)
+
+TRANSACTIONS_VALIDATED = [
+    TransactionDataValidated(
+        id=uuid.uuid4(),
+        status=TransactionStatus.PROCESSED,
+        created_at=datetime.datetime.now(tz=datetime.UTC),
+        updated_at=datetime.datetime.now(tz=datetime.UTC),
+        amount=decimal.Decimal("123.45"),
+        currency="GBP",
+        transaction_amount=decimal.Decimal("123.45"),
+        transaction_currency="GBP",
+        description=f"Payment {i}",
+        type="FP",
+        account_id=uuid.uuid4(),
+        company_id=uuid.uuid4(),
+        reference=f"REF{i:06d}",
+    )
+    for i in range(100)
+]
+
+TRANSACTIONS_VALIDATED_1000 = [
+    TransactionDataValidated(
+        id=uuid.uuid4(),
+        status=TransactionStatus.PROCESSED,
+        created_at=datetime.datetime.now(tz=datetime.UTC),
+        updated_at=datetime.datetime.now(tz=datetime.UTC),
+        amount=decimal.Decimal("123.45"),
+        currency="GBP",
+        transaction_amount=decimal.Decimal("123.45"),
+        transaction_currency="GBP",
+        description=f"Payment {i}",
+        type="FP",
+        account_id=uuid.uuid4(),
+        company_id=uuid.uuid4(),
+        reference=f"REF{i:06d}",
+    )
+    for i in range(1000)
+]
+
+
+def marshmallow_dump_validated() -> bytes:
+    return json.dumps(mr.dump(TransactionDataValidated, TRANSACTION_VALIDATED), separators=(",", ":")).encode()
+
+
+def nuked_dump_validated() -> bytes:
+    return json.dumps(mr.nuked.dump(TransactionDataValidated, TRANSACTION_VALIDATED), separators=(",", ":")).encode()
+
+
+def nuked_dump_to_bytes_validated() -> bytes:
+    return mr.nuked.dump_to_bytes(TransactionDataValidated, TRANSACTION_VALIDATED)
+
+
+DATA_VALIDATED = marshmallow_dump_validated()
+
+
+def marshmallow_load_validated() -> TransactionDataValidated:
+    return mr.load(TransactionDataValidated, json.loads(DATA_VALIDATED))
+
+
+def nuked_load_validated() -> TransactionDataValidated:
+    return mr.nuked.load(TransactionDataValidated, json.loads(DATA_VALIDATED))
+
+
+def nuked_load_from_bytes_validated() -> TransactionDataValidated:
+    return mr.nuked.load_from_bytes(TransactionDataValidated, DATA_VALIDATED)
+
+
+def marshmallow_dump_many_validated() -> bytes:
+    return json.dumps(mr.dump_many(TransactionDataValidated, TRANSACTIONS_VALIDATED), separators=(",", ":")).encode()
+
+
+def nuked_dump_many_validated() -> bytes:
+    return json.dumps(
+        mr.nuked.dump(list[TransactionDataValidated], TRANSACTIONS_VALIDATED), separators=(",", ":")
+    ).encode()
+
+
+def nuked_dump_to_bytes_many_validated() -> bytes:
+    return mr.nuked.dump_to_bytes(list[TransactionDataValidated], TRANSACTIONS_VALIDATED)
+
+
+DATA_MANY_VALIDATED = marshmallow_dump_many_validated()
+
+
+def marshmallow_load_many_validated() -> list[TransactionDataValidated]:
+    return mr.load_many(TransactionDataValidated, json.loads(DATA_MANY_VALIDATED))
+
+
+def nuked_load_many_validated() -> list[TransactionDataValidated]:
+    return mr.nuked.load(list[TransactionDataValidated], json.loads(DATA_MANY_VALIDATED))
+
+
+def nuked_load_from_bytes_many_validated() -> list[TransactionDataValidated]:
+    return mr.nuked.load_from_bytes(list[TransactionDataValidated], DATA_MANY_VALIDATED)
+
+
+def marshmallow_dump_many_1000_validated() -> bytes:
+    return json.dumps(
+        mr.dump_many(TransactionDataValidated, TRANSACTIONS_VALIDATED_1000), separators=(",", ":")
+    ).encode()
+
+
+def nuked_dump_many_1000_validated() -> bytes:
+    return json.dumps(
+        mr.nuked.dump(list[TransactionDataValidated], TRANSACTIONS_VALIDATED_1000), separators=(",", ":")
+    ).encode()
+
+
+def nuked_dump_to_bytes_many_1000_validated() -> bytes:
+    return mr.nuked.dump_to_bytes(list[TransactionDataValidated], TRANSACTIONS_VALIDATED_1000)
+
+
+DATA_MANY_1000_VALIDATED = marshmallow_dump_many_1000_validated()
+
+
+def marshmallow_load_many_1000_validated() -> list[TransactionDataValidated]:
+    return mr.load_many(TransactionDataValidated, json.loads(DATA_MANY_1000_VALIDATED))
+
+
+def nuked_load_many_1000_validated() -> list[TransactionDataValidated]:
+    return mr.nuked.load(list[TransactionDataValidated], json.loads(DATA_MANY_1000_VALIDATED))
+
+
+def nuked_load_from_bytes_many_1000_validated() -> list[TransactionDataValidated]:
+    return mr.nuked.load_from_bytes(list[TransactionDataValidated], DATA_MANY_1000_VALIDATED)
+
+
 if __name__ == "__main__":
     runner = pyperf.Runner()
     # Single item
@@ -252,6 +461,34 @@ if __name__ == "__main__":
     runner.bench_func("marshmallow_load_many", marshmallow_load_many)
     runner.bench_func("nuked_load_many", nuked_load_many)
     runner.bench_func("nuked_load_from_bytes_many", nuked_load_from_bytes_many)
+    # 1000 items
+    runner.bench_func("marshmallow_dump_many_1000", marshmallow_dump_many_1000)
+    runner.bench_func("nuked_dump_many_1000", nuked_dump_many_1000)
+    runner.bench_func("nuked_dump_to_bytes_many_1000", nuked_dump_to_bytes_many_1000)
+    runner.bench_func("marshmallow_load_many_1000", marshmallow_load_many_1000)
+    runner.bench_func("nuked_load_many_1000", nuked_load_many_1000)
+    runner.bench_func("nuked_load_from_bytes_many_1000", nuked_load_from_bytes_many_1000)
+    # Single item validated
+    runner.bench_func("marshmallow_dump_validated", marshmallow_dump_validated)
+    runner.bench_func("nuked_dump_validated", nuked_dump_validated)
+    runner.bench_func("nuked_dump_to_bytes_validated", nuked_dump_to_bytes_validated)
+    runner.bench_func("marshmallow_load_validated", marshmallow_load_validated)
+    runner.bench_func("nuked_load_validated", nuked_load_validated)
+    runner.bench_func("nuked_load_from_bytes_validated", nuked_load_from_bytes_validated)
+    # 100 items validated
+    runner.bench_func("marshmallow_dump_many_validated", marshmallow_dump_many_validated)
+    runner.bench_func("nuked_dump_many_validated", nuked_dump_many_validated)
+    runner.bench_func("nuked_dump_to_bytes_many_validated", nuked_dump_to_bytes_many_validated)
+    runner.bench_func("marshmallow_load_many_validated", marshmallow_load_many_validated)
+    runner.bench_func("nuked_load_many_validated", nuked_load_many_validated)
+    runner.bench_func("nuked_load_from_bytes_many_validated", nuked_load_from_bytes_many_validated)
+    # 1000 items validated
+    runner.bench_func("marshmallow_dump_many_1000_validated", marshmallow_dump_many_1000_validated)
+    runner.bench_func("nuked_dump_many_1000_validated", nuked_dump_many_1000_validated)
+    runner.bench_func("nuked_dump_to_bytes_many_1000_validated", nuked_dump_to_bytes_many_1000_validated)
+    runner.bench_func("marshmallow_load_many_1000_validated", marshmallow_load_many_1000_validated)
+    runner.bench_func("nuked_load_many_1000_validated", nuked_load_many_1000_validated)
+    runner.bench_func("nuked_load_from_bytes_many_1000_validated", nuked_load_from_bytes_many_1000_validated)
     # Datetime-specific (UTC vs non-UTC)
     runner.bench_func("nuked_dump_datetime_utc", nuked_dump_datetime_utc)
     runner.bench_func("nuked_dump_datetime_non_utc", nuked_dump_datetime_non_utc)
