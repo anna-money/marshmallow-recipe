@@ -120,28 +120,30 @@ pub mod datetime_dumper {
     }
 
     #[inline]
-    #[allow(clippy::option_if_let_else)]
     pub fn format_to_dict(
         py: Python<'_>,
         dt: &DateTimeComponents,
         datetime_format: Option<&str>,
     ) -> PyResult<Py<PyAny>> {
-        if let Some(fmt) = datetime_format {
-            let mut buf = arrayvec::ArrayString::<128>::new();
-            match format_strftime(&mut buf, dt, fmt) {
-                StrftimeResult::Ok => Ok(PyString::new(py, &buf).into_any().unbind()),
-                StrftimeResult::InvalidDatetime => {
-                    Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(DATETIME_ERROR))
+        datetime_format.map_or_else(
+            || {
+                let mut buf = arrayvec::ArrayString::<32>::new();
+                format_iso(&mut buf, dt);
+                Ok(PyString::new(py, &buf).into_any().unbind())
+            },
+            |fmt| {
+                let mut buf = arrayvec::ArrayString::<128>::new();
+                match format_strftime(&mut buf, dt, fmt) {
+                    StrftimeResult::Ok => Ok(PyString::new(py, &buf).into_any().unbind()),
+                    StrftimeResult::InvalidDatetime => {
+                        Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(DATETIME_ERROR))
+                    }
+                    StrftimeResult::BufferTooSmall => {
+                        Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(BUFFER_ERROR_MSG))
+                    }
                 }
-                StrftimeResult::BufferTooSmall => {
-                    Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(BUFFER_ERROR_MSG))
-                }
-            }
-        } else {
-            let mut buf = arrayvec::ArrayString::<32>::new();
-            format_iso(&mut buf, dt);
-            Ok(PyString::new(py, &buf).into_any().unbind())
-        }
+            },
+        )
     }
 
     #[inline]
