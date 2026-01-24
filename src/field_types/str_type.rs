@@ -15,12 +15,17 @@ pub mod str_dumper {
         ctx: &DumpContext<'_, 'py>,
         strip_whitespaces: bool,
     ) -> PyResult<Py<PyAny>> {
-        if !value.is_instance_of::<PyString>() {
-            return Err(field_error(ctx.py, field_name, STR_ERROR));
-        }
+        let py_str = value
+            .cast::<PyString>()
+            .map_err(|_| field_error(ctx.py, field_name, STR_ERROR))?;
         if strip_whitespaces {
-            let s: String = value.extract()?;
-            Ok(PyString::new(ctx.py, s.trim()).into_any().unbind())
+            let s = py_str.to_str()?;
+            let trimmed = s.trim();
+            if trimmed.len() == s.len() {
+                Ok(value.clone().unbind())
+            } else {
+                Ok(PyString::new(ctx.py, trimmed).into_any().unbind())
+            }
         } else {
             Ok(value.clone().unbind())
         }
@@ -32,16 +37,15 @@ pub mod str_dumper {
         field_name: &str,
         strip_whitespaces: bool,
     ) -> Result<Value, String> {
-        if !value.is_instance_of::<PyString>() {
-            return Err(json_field_error(field_name, STR_ERROR));
-        }
-        let py_str = value.cast::<PyString>().map_err(|e| e.to_string())?;
+        let py_str = value
+            .cast::<PyString>()
+            .map_err(|_| json_field_error(field_name, STR_ERROR))?;
         let s = py_str.to_str().map_err(|e| e.to_string())?;
         if strip_whitespaces {
             Ok(Value::String(s.trim().to_string()))
         } else {
             Ok(Value::String(s.to_string()))
-        }
+        }   
     }
 
     #[inline]
@@ -52,10 +56,9 @@ pub mod str_dumper {
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
         use serde::ser::Error;
-        if !value.is_instance_of::<PyString>() {
-            return Err(S::Error::custom(json_field_error(field_name, STR_ERROR)));
-        }
-        let py_str = value.cast::<PyString>().map_err(|e| S::Error::custom(e.to_string()))?;
+        let py_str = value
+            .cast::<PyString>()
+            .map_err(|_| S::Error::custom(json_field_error(field_name, STR_ERROR)))?;
         let s = py_str.to_str().map_err(|e| S::Error::custom(e.to_string()))?;
         if strip_whitespaces {
             serializer.serialize_str(s.trim())
@@ -79,10 +82,15 @@ pub mod str_loader {
         ctx: &LoadContext<'_, 'py>,
         strip_whitespaces: bool,
     ) -> PyResult<Py<PyAny>> {
-        if let Ok(s) = value.cast::<PyString>() {
+        if let Ok(py_str) = value.cast::<PyString>() {
             if strip_whitespaces {
-                let trimmed = s.to_str()?.trim();
-                Ok(PyString::new(ctx.py, trimmed).into_any().unbind())
+                let s = py_str.to_str()?;
+                let trimmed = s.trim();
+                if trimmed.len() == s.len() {
+                    Ok(value.clone().unbind())
+                } else {
+                    Ok(PyString::new(ctx.py, trimmed).into_any().unbind())
+                }
             } else {
                 Ok(value.clone().unbind())
             }
