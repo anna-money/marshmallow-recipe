@@ -8,7 +8,7 @@ use crate::utils::{call_validator, pyany_to_json_value, wrap_err_dict};
 
 pub mod dict_dumper {
     use super::*;
-    use crate::serializer::Dumper;
+    use crate::dumper::Dumper;
 
     #[inline]
     pub fn can_dump<'py>(
@@ -139,7 +139,7 @@ pub mod dict_dumper {
 
 pub mod dict_loader {
     use super::*;
-    use crate::deserializer::Loader;
+    use crate::loader::Loader;
     use crate::types::LoadContext;
     use crate::utils::extract_error_value;
 

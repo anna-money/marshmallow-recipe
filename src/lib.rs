@@ -4,13 +4,13 @@ mod slots;
 mod cache;
 mod utils;
 mod field_types;
-mod deserialize_bytes;
-mod serialize_bytes;
-mod serialize;
-mod deserialize;
+mod load_bytes;
+mod dump_bytes;
+mod dump;
+mod load;
 mod api;
-mod serializer;
-mod deserializer;
+mod dumper;
+mod loader;
 
 use pyo3::prelude::*;
 

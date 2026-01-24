@@ -4,8 +4,8 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyString};
 use pyo3::Borrowed;
 
-use crate::deserializer::{Loader, FieldLoader};
-use crate::serializer::{FieldDumper, Dumper};
+use crate::loader::{Loader, FieldLoader};
+use crate::dumper::{FieldDumper, Dumper};
 
 pub struct DumpContext<'a, 'py> {
     pub py: Python<'py>,

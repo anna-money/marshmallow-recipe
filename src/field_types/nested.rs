@@ -34,7 +34,7 @@ pub struct FieldDumper {
     pub name: String,
     pub name_interned: Py<PyString>,
     pub data_key: Option<String>,
-    pub dumper: crate::serializer::Dumper,
+    pub dumper: crate::dumper::Dumper,
     pub optional: bool,
     pub slot_offset: Option<isize>,
     pub validator: Option<Py<PyAny>>,
@@ -87,7 +87,7 @@ pub struct FieldLoader {
     pub name: String,
     pub name_interned: Py<PyString>,
     pub data_key: Option<String>,
-    pub loader: crate::deserializer::Loader,
+    pub loader: crate::loader::Loader,
     pub optional: bool,
     pub slot_offset: Option<isize>,
     pub default_value: Option<Py<PyAny>>,
@@ -204,7 +204,7 @@ pub mod nested_dumper {
 
     struct FieldValueDumper<'a, 'py> {
         value: &'a Bound<'py, PyAny>,
-        dumper: &'a crate::serializer::Dumper,
+        dumper: &'a crate::dumper::Dumper,
         field_name: &'a str,
         ctx: &'a DumpContext<'a, 'py>,
     }
@@ -287,7 +287,7 @@ pub mod nested_dumper {
 
 pub mod nested_loader {
     use super::*;
-    use crate::deserializer::Loader;
+    use crate::loader::Loader;
 
     #[inline]
     pub fn load_from_dict<'py>(

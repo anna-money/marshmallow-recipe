@@ -37,7 +37,7 @@ impl CollectionKind {
 
 pub mod collection_dumper {
     use super::*;
-    use crate::serializer::Dumper;
+    use crate::dumper::Dumper;
     use crate::utils::pyany_to_json_value;
 
     #[inline]
@@ -199,7 +199,7 @@ pub mod collection_dumper {
 
 pub mod collection_loader {
     use super::*;
-    use crate::deserializer::Loader;
+    use crate::loader::Loader;
     use crate::types::LoadContext;
     use crate::utils::extract_error_value;
 

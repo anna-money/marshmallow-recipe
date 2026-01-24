@@ -9,12 +9,12 @@ use crate::types::{
     DecimalPlaces, FieldDescriptor, FieldType, SchemaDescriptor, TypeDescriptor, TypeKind, build_field_lookup,
     callback_required_dump, callback_required_dump_json, callback_required_load,
 };
-use crate::serializer::{
+use crate::dumper::{
     Dumper, FieldDumper, DataclassDumperSchema,
     CollectionData, CollectionKind, DictData,
     StrEnumData, IntEnumData, DecimalData as DumpDecimalData,
 };
-use crate::deserializer::{
+use crate::loader::{
     Loader, FieldLoader, DataclassLoaderSchema,
     CollectionLoaderData, DictLoaderData,
     StrEnumLoaderData, IntEnumLoaderData, DecimalLoaderData,

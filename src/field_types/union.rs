@@ -5,7 +5,7 @@ use crate::types::DumpContext;
 
 pub mod union_dumper {
     use super::*;
-    use crate::serializer::Dumper;
+    use crate::dumper::Dumper;
 
     #[inline]
     pub fn can_dump<'py>(
@@ -56,7 +56,7 @@ pub mod union_dumper {
 
 pub mod union_loader {
     use super::*;
-    use crate::deserializer::Loader;
+    use crate::loader::Loader;
     use crate::types::LoadContext;
 
     #[inline]

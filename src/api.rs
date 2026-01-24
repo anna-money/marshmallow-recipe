@@ -21,7 +21,7 @@ pub fn load_from_bytes(
     })?;
 
     let utf8_bytes = decode_to_utf8_bytes(json_bytes, encoding)?;
-    crate::deserialize_bytes::load_from_bytes(py, &utf8_bytes, descriptor, post_loads, decimal_places)
+    crate::load_bytes::load_from_bytes(py, &utf8_bytes, descriptor, post_loads, decimal_places)
 }
 
 #[allow(clippy::significant_drop_tightening)]
@@ -40,7 +40,7 @@ pub fn dump_to_bytes(
         PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Schema {schema_id} not registered"))
     })?;
 
-    let json_bytes = crate::serialize_bytes::dump_to_bytes(py, obj, descriptor, none_value_handling, decimal_places)?;
+    let json_bytes = crate::dump_bytes::dump_to_bytes(py, obj, descriptor, none_value_handling, decimal_places)?;
     let output_bytes = encode_from_utf8_bytes(&json_bytes, encoding)?;
     Ok(PyBytes::new(py, &output_bytes).unbind())
 }
@@ -60,7 +60,7 @@ pub fn load(
         PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Schema {schema_id} not registered"))
     })?;
 
-    crate::deserialize::load(py, data, descriptor, post_loads, decimal_places)
+    crate::load::load(py, data, descriptor, post_loads, decimal_places)
 }
 
 #[allow(clippy::significant_drop_tightening)]
@@ -78,5 +78,5 @@ pub fn dump(
         PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Schema {schema_id} not registered"))
     })?;
 
-    crate::serialize::dump(py, obj, descriptor, none_value_handling, decimal_places)
+    crate::dump::dump(py, obj, descriptor, none_value_handling, decimal_places)
 }

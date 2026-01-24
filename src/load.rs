@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyFrozenSet, PyList, PySet, PyString, PyTuple};
 
-use crate::deserializer::load_dataclass_from_parts;
+use crate::loader::load_dataclass_from_parts;
 use crate::utils::{extract_error_args, wrap_err_dict_idx};
 pub use crate::types::LoadContext;
 use crate::types::{TypeDescriptor, TypeKind};

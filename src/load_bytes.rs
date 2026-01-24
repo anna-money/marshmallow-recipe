@@ -14,8 +14,8 @@ use serde_json::Value;
 use smallbitvec::SmallBitVec;
 
 use crate::cache::get_cached_types;
-use crate::deserialize::{LoadContext, load_root_type};
-use crate::deserializer::{DecimalLoaderData, Loader};
+use crate::load::{LoadContext, load_root_type};
+use crate::loader::{DecimalLoaderData, Loader};
 use crate::field_types::collection::CollectionKind;
 use crate::field_types::helpers::{err_json, DATETIME_ERROR, DATE_ERROR, DECIMAL_NUMBER_ERROR, FLOAT_ERROR, FLOAT_NAN_ERROR, INT_ERROR, TIME_ERROR, UUID_ERROR};
 use crate::field_types::nested::FieldLoader;

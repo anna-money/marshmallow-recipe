@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 
-use crate::serializer::dump_dataclass;
+use crate::dumper::dump_dataclass;
 use crate::types::DumpContext;
 use crate::types::{TypeDescriptor, TypeKind};
 
