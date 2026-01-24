@@ -4,11 +4,11 @@ use serde::de;
 use super::helpers::field_error;
 use crate::types::LoadContext;
 
-pub mod int_enum_deserializer {
+pub mod int_enum_loader {
     use super::*;
 
     #[inline]
-    pub fn deserialize_from_dict<'py>(
+    pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
         ctx: &LoadContext<'_, 'py>,
@@ -44,7 +44,7 @@ pub mod int_enum_deserializer {
     }
 
     #[inline]
-    pub fn deserialize_from_i64<E: de::Error>(
+    pub fn load_from_i64<E: de::Error>(
         py: Python,
         v: i64,
         values: &[(i64, Py<PyAny>)],
@@ -60,7 +60,7 @@ pub mod int_enum_deserializer {
     }
 
     #[inline]
-    pub fn deserialize_from_u64<E: de::Error>(
+    pub fn load_from_u64<E: de::Error>(
         py: Python,
         v: u64,
         values: &[(i64, Py<PyAny>)],

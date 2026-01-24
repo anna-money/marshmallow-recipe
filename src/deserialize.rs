@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyFrozenSet, PyList, PySet, PyString, PyTuple};
 
-use crate::deserializer::deserialize_dataclass_from_parts;
+use crate::deserializer::load_dataclass_from_parts;
 use crate::utils::{extract_error_args, wrap_err_dict_idx};
 pub use crate::types::LoadContext;
 use crate::types::{TypeDescriptor, TypeKind};
@@ -15,7 +15,7 @@ fn wrap_err_dict_for_field(py: Python, field_name: &str, inner: Py<PyAny>) -> Py
     dict.into()
 }
 
-fn deserialize_iterable_items<'py>(
+fn load_iterable_items<'py>(
     value: &Bound<'py, PyAny>,
     item_descriptor: &TypeDescriptor,
     ctx: &LoadContext<'_, 'py>,
@@ -24,7 +24,7 @@ fn deserialize_iterable_items<'py>(
     let mut items: Vec<Py<PyAny>> = Vec::with_capacity(len_hint);
     for (idx, item) in value.try_iter()?.enumerate() {
         let item = item?;
-        match deserialize_root_type(&item, item_descriptor, ctx) {
+        match load_root_type(&item, item_descriptor, ctx) {
             Ok(v) => items.push(v),
             Err(e) => {
                 let inner = extract_error_args(ctx.py, &e);
@@ -38,7 +38,7 @@ fn deserialize_iterable_items<'py>(
 }
 
 #[allow(clippy::too_many_lines)]
-pub fn deserialize_root_type<'py>(
+pub fn load_root_type<'py>(
     value: &Bound<'py, PyAny>,
     descriptor: &TypeDescriptor,
     ctx: &LoadContext<'_, 'py>,
@@ -49,11 +49,11 @@ pub fn deserialize_root_type<'py>(
                 PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing cls for dataclass")
             })?;
             let cls_bound = cls.bind(ctx.py);
-            let deserializer_fields = descriptor.deserializer_fields.as_ref().ok_or_else(|| {
-                PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing deserializer_fields for dataclass")
+            let loader_fields = descriptor.loader_fields.as_ref().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing loader_fields for dataclass")
             })?;
-            deserialize_dataclass_from_parts(
-                value, cls_bound, deserializer_fields, &descriptor.field_lookup,
+            load_dataclass_from_parts(
+                value, cls_bound, loader_fields, &descriptor.field_lookup,
                 descriptor.can_use_direct_slots, ctx
             )
         }
@@ -61,10 +61,10 @@ pub fn deserialize_root_type<'py>(
             if value.is_none() {
                 return Ok(ctx.py.None());
             }
-            let deserializer = descriptor.primitive_deserializer.as_ref().ok_or_else(|| {
-                PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing primitive_deserializer")
+            let loader = descriptor.primitive_loader.as_ref().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing primitive_loader")
             })?;
-            deserializer.deserialize_from_dict(value, "", None, ctx)
+            loader.load_from_dict(value, "", None, ctx)
         }
         TypeKind::List => {
             let list = value.cast::<PyList>().map_err(|_| {
@@ -76,7 +76,7 @@ pub fn deserialize_root_type<'py>(
 
             let mut items: Vec<Py<PyAny>> = Vec::with_capacity(list.len());
             for (idx, item) in list.iter().enumerate() {
-                match deserialize_root_type(&item, item_descriptor, ctx) {
+                match load_root_type(&item, item_descriptor, ctx) {
                     Ok(v) => items.push(v),
                     Err(e) => {
                         let inner = extract_error_args(ctx.py, &e);
@@ -99,7 +99,7 @@ pub fn deserialize_root_type<'py>(
             let result = PyDict::new(ctx.py);
             for (k, v) in dict.iter() {
                 let key_str: String = k.extract()?;
-                match deserialize_root_type(&v, value_descriptor, ctx) {
+                match load_root_type(&v, value_descriptor, ctx) {
                     Ok(val) => result.set_item(k, val)?,
                     Err(e) => {
                         let inner = extract_error_args(ctx.py, &e);
@@ -118,7 +118,7 @@ pub fn deserialize_root_type<'py>(
                 let inner_descriptor = descriptor.inner_type.as_ref().ok_or_else(|| {
                     PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing inner_type for optional")
                 })?;
-                deserialize_root_type(value, inner_descriptor, ctx)
+                load_root_type(value, inner_descriptor, ctx)
             }
         }
         TypeKind::Set | TypeKind::FrozenSet | TypeKind::Tuple => {
@@ -139,7 +139,7 @@ pub fn deserialize_root_type<'py>(
                 PyErr::new::<pyo3::exceptions::PyValueError, _>(missing_msg)
             })?;
 
-            let items = deserialize_iterable_items(value, item_descriptor, ctx)?;
+            let items = load_iterable_items(value, item_descriptor, ctx)?;
 
             match descriptor.type_kind {
                 TypeKind::Set => Ok(PySet::new(ctx.py, items.iter())?.into_any().unbind()),
@@ -154,7 +154,7 @@ pub fn deserialize_root_type<'py>(
             })?;
 
             for variant in variants {
-                if let Ok(result) = deserialize_root_type(value, variant, ctx) {
+                if let Ok(result) = load_root_type(value, variant, ctx) {
                     return Ok(result);
                 }
             }
@@ -174,5 +174,5 @@ pub fn load<'py>(
 ) -> PyResult<Py<PyAny>> {
     let ctx = LoadContext { py, post_loads, decimal_places };
 
-    deserialize_root_type(value, descriptor, &ctx)
+    load_root_type(value, descriptor, &ctx)
 }

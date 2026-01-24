@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyFrozenSet, PyList, PySet, PyTuple};
 
 use super::helpers::{field_error, json_field_error, LIST_ERROR, SET_ERROR, FROZENSET_ERROR, TUPLE_ERROR};
-use crate::types::SerializeContext;
+use crate::types::DumpContext;
 use crate::utils::{call_validator, format_item_errors_dict, wrap_err_dict, wrap_err_dict_idx};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -35,18 +35,18 @@ impl CollectionKind {
     }
 }
 
-pub mod collection_serializer {
+pub mod collection_dumper {
     use super::*;
-    use crate::serializer::Serializer;
+    use crate::serializer::Dumper;
     use crate::utils::pyany_to_json_value;
 
     #[inline]
-    pub fn serialize_to_dict<'py>(
+    pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
         kind: CollectionKind,
-        item_serializer: &Serializer,
+        item_dumper: &Dumper,
         item_validator: Option<&Py<PyAny>>,
     ) -> PyResult<Py<PyAny>> {
         let err_msg = kind.error_msg();
@@ -66,8 +66,8 @@ pub mod collection_serializer {
                     item_errors.get_or_insert_with(HashMap::new).insert(idx, errors);
                 }
             }
-            let serialized = serialize_item(item_serializer, &item, &idx.to_string(), ctx)?;
-            result.append(serialized)?;
+            let dumped = dump_item(item_dumper, &item, &idx.to_string(), ctx)?;
+            result.append(dumped)?;
         }
 
         if let Some(ref errs) = item_errors {
@@ -79,25 +79,25 @@ pub mod collection_serializer {
         Ok(result.into_any().unbind())
     }
 
-    fn serialize_item<'py>(
-        item_serializer: &Serializer,
+    fn dump_item<'py>(
+        item_dumper: &Dumper,
         value: &Bound<'py, PyAny>,
         item_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
         if value.is_none() {
             return Ok(ctx.py.None());
         }
-        item_serializer.serialize_to_dict(value, item_name, ctx)
+        item_dumper.dump_to_dict(value, item_name, ctx)
     }
 
     #[inline]
-    pub fn serialize_to_json<'py>(
+    pub fn dump_to_serde_value<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
         kind: CollectionKind,
-        item_serializer: &Serializer,
+        item_dumper: &Dumper,
         item_validator: Option<&Py<PyAny>>,
     ) -> Result<serde_json::Value, String> {
         let err_msg = kind.error_msg();
@@ -124,56 +124,56 @@ pub mod collection_serializer {
             }
             let mut result = Vec::with_capacity(validated_items.len());
             for (idx, item) in validated_items.iter().enumerate() {
-                let serialized = serialize_item_json(item_serializer, item, &idx.to_string(), ctx)?;
-                result.push(serialized);
+                let dumped = dump_item_to_serde_value(item_dumper, item, &idx.to_string(), ctx)?;
+                result.push(dumped);
             }
             Ok(serde_json::Value::Array(result))
         } else {
             let mut result = Vec::new();
             for (idx, item_result) in iter.enumerate() {
                 let item = item_result.map_err(|e| e.to_string())?;
-                let serialized = serialize_item_json(item_serializer, &item, &idx.to_string(), ctx)?;
-                result.push(serialized);
+                let dumped = dump_item_to_serde_value(item_dumper, &item, &idx.to_string(), ctx)?;
+                result.push(dumped);
             }
             Ok(serde_json::Value::Array(result))
         }
     }
 
-    fn serialize_item_json<'py>(
-        item_serializer: &Serializer,
+    fn dump_item_to_serde_value<'py>(
+        item_dumper: &Dumper,
         value: &Bound<'py, PyAny>,
         item_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
     ) -> Result<serde_json::Value, String> {
         if value.is_none() {
             return Ok(serde_json::Value::Null);
         }
-        item_serializer.serialize_to_json(value, item_name, ctx)
+        item_dumper.dump_to_serde_value(value, item_name, ctx)
     }
 
-    struct ItemSerializer<'a, 'py> {
+    struct ItemDumper<'a, 'py> {
         value: &'a Bound<'py, PyAny>,
-        inner: &'a Serializer,
+        inner: &'a Dumper,
         name: String,
-        ctx: &'a SerializeContext<'a, 'py>,
+        ctx: &'a DumpContext<'a, 'py>,
     }
 
-    impl serde::Serialize for ItemSerializer<'_, '_> {
+    impl serde::Serialize for ItemDumper<'_, '_> {
         fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
             if self.value.is_none() {
                 return serializer.serialize_none();
             }
-            self.inner.serialize(self.value, &self.name, self.ctx, serializer)
+            self.inner.dump(self.value, &self.name, self.ctx, serializer)
         }
     }
 
     #[inline]
-    pub fn serialize<S: serde::Serializer>(
+    pub fn dump<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, '_>,
+        ctx: &DumpContext<'_, '_>,
         kind: CollectionKind,
-        item_serializer: &Serializer,
+        item_dumper: &Dumper,
         item_validator: Option<&Py<PyAny>>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
@@ -204,9 +204,9 @@ pub mod collection_serializer {
             }
             let mut seq = serializer.serialize_seq(Some(validated_items.len()))?;
             for (idx, item) in validated_items.iter().enumerate() {
-                seq.serialize_element(&ItemSerializer {
+                seq.serialize_element(&ItemDumper {
                     value: item,
-                    inner: item_serializer,
+                    inner: item_dumper,
                     name: idx.to_string(),
                     ctx,
                 })?;
@@ -221,9 +221,9 @@ pub mod collection_serializer {
 
             let mut seq = serializer.serialize_seq(Some(items.len()))?;
             for (idx, item) in &items {
-                seq.serialize_element(&ItemSerializer {
+                seq.serialize_element(&ItemDumper {
                     value: item,
-                    inner: item_serializer,
+                    inner: item_dumper,
                     name: idx.to_string(),
                     ctx,
                 })?;
@@ -233,20 +233,20 @@ pub mod collection_serializer {
     }
 }
 
-pub mod collection_deserializer {
+pub mod collection_loader {
     use super::*;
-    use crate::deserializer::Deserializer;
+    use crate::deserializer::Loader;
     use crate::types::LoadContext;
     use crate::utils::extract_error_value;
 
     #[inline]
-    pub fn deserialize_from_dict<'py>(
+    pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
         ctx: &LoadContext<'_, 'py>,
         kind: CollectionKind,
-        item_deserializer: &Deserializer,
+        item_loader: &Loader,
         item_validator: Option<&Py<PyAny>>,
     ) -> PyResult<Py<PyAny>> {
         let err_msg = kind.error_msg();
@@ -269,7 +269,7 @@ pub mod collection_deserializer {
         let items = PyList::empty(ctx.py);
         for (idx, item_result) in iter.enumerate() {
             let item = item_result?;
-            match deserialize_item(item_deserializer, &item, ctx) {
+            match load_item(item_loader, &item, ctx) {
                 Ok(v) => {
                     if let Some(validator) = item_validator {
                         if let Some(errors) = call_validator(ctx.py, validator, v.bind(ctx.py))? {
@@ -297,14 +297,14 @@ pub mod collection_deserializer {
         }
     }
 
-    fn deserialize_item<'py>(
-        item_deserializer: &Deserializer,
+    fn load_item<'py>(
+        item_loader: &Loader,
         value: &Bound<'py, PyAny>,
         ctx: &LoadContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
         if value.is_none() {
             return Ok(ctx.py.None());
         }
-        item_deserializer.deserialize_from_dict(value, "", None, ctx)
+        item_loader.load_from_dict(value, "", None, ctx)
     }
 }

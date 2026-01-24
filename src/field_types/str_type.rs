@@ -3,16 +3,16 @@ use pyo3::types::PyString;
 use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, STR_ERROR};
-use crate::types::SerializeContext;
+use crate::types::DumpContext;
 
-pub mod str_serializer {
+pub mod str_dumper {
     use super::*;
 
     #[inline]
-    pub fn serialize_to_dict<'py>(
+    pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
         strip_whitespaces: bool,
     ) -> PyResult<Py<PyAny>> {
         if !value.is_instance_of::<PyString>() {
@@ -27,7 +27,7 @@ pub mod str_serializer {
     }
 
     #[inline]
-    pub fn serialize_to_json(
+    pub fn dump_to_serde_value(
         value: &Bound<'_, PyAny>,
         field_name: &str,
         strip_whitespaces: bool,
@@ -45,7 +45,7 @@ pub mod str_serializer {
     }
 
     #[inline]
-    pub fn serialize<S: serde::Serializer>(
+    pub fn dump<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         field_name: &str,
         strip_whitespaces: bool,
@@ -65,14 +65,14 @@ pub mod str_serializer {
     }
 }
 
-pub mod str_deserializer {
+pub mod str_loader {
     use super::*;
     use crate::types::LoadContext;
     use pyo3::conversion::IntoPyObjectExt;
     use serde::de;
 
     #[inline]
-    pub fn deserialize_from_dict<'py>(
+    pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
@@ -92,7 +92,7 @@ pub mod str_deserializer {
     }
 
     #[inline]
-    pub fn deserialize_from_str<E: de::Error>(
+    pub fn load_from_str<E: de::Error>(
         py: Python,
         s: &str,
         strip_whitespaces: bool,

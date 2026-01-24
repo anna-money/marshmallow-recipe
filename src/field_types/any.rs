@@ -4,12 +4,12 @@ use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, ANY_ERROR};
 
-pub mod any_serializer {
+pub mod any_dumper {
     use super::*;
     use serde::ser::{SerializeMap, SerializeSeq};
 
     #[inline]
-    pub fn serialize_to_dict<'py>(
+    pub fn dump_to_dict<'py>(
         py: Python<'py>,
         value: &Bound<'py, PyAny>,
         field_name: &str,
@@ -30,7 +30,7 @@ pub mod any_serializer {
         if let Ok(list) = value.cast::<PyList>() {
             let result = PyList::empty(py);
             for item in list.iter() {
-                result.append(serialize_to_dict(py, &item, field_name)?)?;
+                result.append(dump_to_dict(py, &item, field_name)?)?;
             }
             return Ok(result.into_any().unbind());
         }
@@ -41,7 +41,7 @@ pub mod any_serializer {
                 if !k.is_instance_of::<PyString>() {
                     return Err(field_error(py, field_name, ANY_ERROR));
                 }
-                result.set_item(k, serialize_to_dict(py, &v, field_name)?)?;
+                result.set_item(k, dump_to_dict(py, &v, field_name)?)?;
             }
             return Ok(result.into_any().unbind());
         }
@@ -50,7 +50,7 @@ pub mod any_serializer {
     }
 
     #[inline]
-    pub fn serialize_to_json(value: &Bound<'_, PyAny>, field_name: &str) -> Result<Value, String> {
+    pub fn dump_to_serde_value(value: &Bound<'_, PyAny>, field_name: &str) -> Result<Value, String> {
         if value.is_none() {
             return Ok(Value::Null);
         }
@@ -83,7 +83,7 @@ pub mod any_serializer {
         if let Ok(list) = value.cast::<PyList>() {
             let mut result = Vec::with_capacity(list.len());
             for item in list.iter() {
-                result.push(serialize_to_json(&item, field_name)?);
+                result.push(dump_to_serde_value(&item, field_name)?);
             }
             return Ok(Value::Array(result));
         }
@@ -92,25 +92,25 @@ pub mod any_serializer {
             for (k, v) in dict.iter() {
                 let key = k.cast::<PyString>().map_err(|_| json_field_error(field_name, ANY_ERROR))?
                     .to_str().map_err(|e: PyErr| e.to_string())?;
-                result.insert(key.to_string(), serialize_to_json(&v, field_name)?);
+                result.insert(key.to_string(), dump_to_serde_value(&v, field_name)?);
             }
             return Ok(Value::Object(result));
         }
         Err(json_field_error(field_name, ANY_ERROR))
     }
 
-    struct AnySerializer<'a, 'py> {
+    struct AnyDumper<'a, 'py> {
         value: &'a Bound<'py, PyAny>,
         field_name: &'a str,
     }
 
-    impl serde::Serialize for AnySerializer<'_, '_> {
+    impl serde::Serialize for AnyDumper<'_, '_> {
         fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-            serialize_any(self.value, self.field_name, serializer)
+            dump_any(self.value, self.field_name, serializer)
         }
     }
 
-    fn serialize_any<S: serde::Serializer>(
+    fn dump_any<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         field_name: &str,
         serializer: S,
@@ -149,7 +149,7 @@ pub mod any_serializer {
         if let Ok(list) = value.cast::<PyList>() {
             let mut seq = serializer.serialize_seq(Some(list.len()))?;
             for item in list.iter() {
-                seq.serialize_element(&AnySerializer { value: &item, field_name })?;
+                seq.serialize_element(&AnyDumper { value: &item, field_name })?;
             }
             return seq.end();
         }
@@ -158,7 +158,7 @@ pub mod any_serializer {
             for (k, v) in dict.iter() {
                 let key = k.cast::<PyString>().map_err(|_| S::Error::custom(json_field_error(field_name, ANY_ERROR)))?
                     .to_str().map_err(|e| S::Error::custom(e.to_string()))?;
-                map.serialize_entry(key, &AnySerializer { value: &v, field_name })?;
+                map.serialize_entry(key, &AnyDumper { value: &v, field_name })?;
             }
             return map.end();
         }
@@ -166,21 +166,21 @@ pub mod any_serializer {
     }
 
     #[inline]
-    pub fn serialize<S: serde::Serializer>(
+    pub fn dump<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         field_name: &str,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        serialize_any(value, field_name, serializer)
+        dump_any(value, field_name, serializer)
     }
 }
 
-pub mod any_deserializer {
+pub mod any_loader {
     use super::*;
     use crate::types::LoadContext;
 
     #[inline]
-    pub fn deserialize_from_dict<'py>(
+    pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         _ctx: &LoadContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {

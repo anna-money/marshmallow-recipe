@@ -9,9 +9,8 @@ from collections.abc import Mapping, Sequence
 from typing import Annotated, Any, NewType
 
 import marshmallow
-import pytest
-
 import marshmallow_recipe as mr
+import pytest
 
 
 class Serializer(abc.ABC):

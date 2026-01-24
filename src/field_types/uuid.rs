@@ -4,16 +4,16 @@ use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, UUID_ERROR};
 use crate::cache::get_cached_types;
-use crate::types::SerializeContext;
+use crate::types::DumpContext;
 
-pub mod uuid_serializer {
+pub mod uuid_dumper {
     use super::*;
 
     #[inline]
-    pub fn serialize_to_dict<'py>(
+    pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
         let cached = get_cached_types(ctx.py)?;
         if !value.is_instance(cached.uuid_cls.bind(ctx.py))? {
@@ -27,10 +27,10 @@ pub mod uuid_serializer {
     }
 
     #[inline]
-    pub fn serialize_to_json<'py>(
+    pub fn dump_to_serde_value<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
     ) -> Result<Value, String> {
         let cached = get_cached_types(ctx.py).map_err(|e| e.to_string())?;
         if !value.is_instance(cached.uuid_cls.bind(ctx.py)).map_err(|e| e.to_string())? {
@@ -44,10 +44,10 @@ pub mod uuid_serializer {
     }
 
     #[inline]
-    pub fn serialize<S: serde::Serializer>(
+    pub fn dump<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, '_>,
+        ctx: &DumpContext<'_, '_>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
         use serde::ser::Error;
@@ -64,13 +64,13 @@ pub mod uuid_serializer {
     }
 }
 
-pub mod uuid_deserializer {
+pub mod uuid_loader {
     use super::*;
     use crate::types::LoadContext;
     use serde::de;
 
     #[inline]
-    pub fn deserialize_from_dict<'py>(
+    pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
@@ -90,7 +90,7 @@ pub mod uuid_deserializer {
     }
 
     #[inline]
-    pub fn deserialize_from_str<E: de::Error>(py: Python, s: &str, err_msg: &str) -> Result<Py<PyAny>, E> {
+    pub fn load_from_str<E: de::Error>(py: Python, s: &str, err_msg: &str) -> Result<Py<PyAny>, E> {
         let cached = get_cached_types(py).map_err(de::Error::custom)?;
         let uuid = uuid::Uuid::parse_str(s).map_err(|_| de::Error::custom(err_msg))?;
         cached.create_uuid_fast(py, uuid.as_u128()).map_err(de::Error::custom)

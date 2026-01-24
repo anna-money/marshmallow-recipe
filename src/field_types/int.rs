@@ -3,16 +3,16 @@ use pyo3::types::{PyBool, PyInt};
 use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, INT_ERROR};
-use crate::types::SerializeContext;
+use crate::types::DumpContext;
 
-pub mod int_serializer {
+pub mod int_dumper {
     use super::*;
 
     #[inline]
-    pub fn serialize_to_dict<'py>(
+    pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
         if !value.is_instance_of::<PyInt>() || value.is_instance_of::<PyBool>() {
             return Err(field_error(ctx.py, field_name, INT_ERROR));
@@ -21,7 +21,7 @@ pub mod int_serializer {
     }
 
     #[inline]
-    pub fn serialize_to_json(
+    pub fn dump_to_serde_value(
         value: &Bound<'_, PyAny>,
         field_name: &str,
     ) -> Result<Value, String> {
@@ -40,7 +40,7 @@ pub mod int_serializer {
     }
 
     #[inline]
-    pub fn serialize<S: serde::Serializer>(
+    pub fn dump<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         field_name: &str,
         serializer: S,
@@ -63,14 +63,14 @@ pub mod int_serializer {
     }
 }
 
-pub mod int_deserializer {
+pub mod int_loader {
     use super::*;
     use crate::types::LoadContext;
     use pyo3::conversion::IntoPyObjectExt;
     use serde::de;
 
     #[inline]
-    pub fn deserialize_from_dict<'py>(
+    pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
@@ -84,17 +84,17 @@ pub mod int_deserializer {
     }
 
     #[inline]
-    pub fn deserialize_from_i64<E: de::Error>(py: Python, v: i64) -> Result<Py<PyAny>, E> {
+    pub fn load_from_i64<E: de::Error>(py: Python, v: i64) -> Result<Py<PyAny>, E> {
         v.into_py_any(py).map_err(de::Error::custom)
     }
 
     #[inline]
-    pub fn deserialize_from_u64<E: de::Error>(py: Python, v: u64) -> Result<Py<PyAny>, E> {
+    pub fn load_from_u64<E: de::Error>(py: Python, v: u64) -> Result<Py<PyAny>, E> {
         v.into_py_any(py).map_err(de::Error::custom)
     }
 
     #[inline]
-    pub fn deserialize_from_str<E: de::Error>(py: Python, s: &str, err_msg: &str) -> Result<Py<PyAny>, E> {
+    pub fn load_from_str<E: de::Error>(py: Python, s: &str, err_msg: &str) -> Result<Py<PyAny>, E> {
         s.parse::<i64>()
             .map_err(|_| de::Error::custom(err_msg))
             .and_then(|i| i.into_py_any(py).map_err(de::Error::custom))

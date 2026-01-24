@@ -3,16 +3,16 @@ use pyo3::types::{PyInt, PyString};
 use serde_json::Value;
 
 use super::helpers::field_error;
-use crate::types::SerializeContext;
+use crate::types::DumpContext;
 
-pub mod str_enum_serializer {
+pub mod str_enum_dumper {
     use super::*;
 
     #[inline]
-    pub fn serialize_to_dict<'py>(
+    pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
         enum_cls: &Py<PyAny>,
         enum_name: Option<&str>,
         enum_members_repr: Option<&str>,
@@ -28,10 +28,10 @@ pub mod str_enum_serializer {
     }
 
     #[inline]
-    pub fn serialize_to_json<'py>(
+    pub fn dump_to_serde_value<'py>(
         value: &Bound<'py, PyAny>,
         _field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
         enum_cls: &Py<PyAny>,
         enum_name: Option<&str>,
         enum_members_repr: Option<&str>,
@@ -49,10 +49,10 @@ pub mod str_enum_serializer {
     }
 
     #[inline]
-    pub fn serialize<S: serde::Serializer>(
+    pub fn dump<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         _field_name: &str,
-        ctx: &SerializeContext<'_, '_>,
+        ctx: &DumpContext<'_, '_>,
         enum_cls: &Py<PyAny>,
         enum_name: Option<&str>,
         enum_members_repr: Option<&str>,
@@ -73,13 +73,13 @@ pub mod str_enum_serializer {
     }
 }
 
-pub mod str_enum_deserializer {
+pub mod str_enum_loader {
     use super::*;
     use crate::types::LoadContext;
     use serde::de;
 
     #[inline]
-    pub fn deserialize_from_dict<'py>(
+    pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
         ctx: &LoadContext<'_, 'py>,
@@ -115,7 +115,7 @@ pub mod str_enum_deserializer {
     }
 
     #[inline]
-    pub fn deserialize_from_str<E: de::Error>(
+    pub fn load_from_str<E: de::Error>(
         py: Python,
         s: &str,
         values: &[(String, Py<PyAny>)],
@@ -131,14 +131,14 @@ pub mod str_enum_deserializer {
     }
 }
 
-pub mod int_enum_serializer {
+pub mod int_enum_dumper {
     use super::*;
 
     #[inline]
-    pub fn serialize_to_dict<'py>(
+    pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
         enum_cls: &Py<PyAny>,
         enum_name: Option<&str>,
         enum_members_repr: Option<&str>,
@@ -154,10 +154,10 @@ pub mod int_enum_serializer {
     }
 
     #[inline]
-    pub fn serialize_to_json<'py>(
+    pub fn dump_to_serde_value<'py>(
         value: &Bound<'py, PyAny>,
         _field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
         enum_cls: &Py<PyAny>,
         enum_name: Option<&str>,
         enum_members_repr: Option<&str>,
@@ -174,10 +174,10 @@ pub mod int_enum_serializer {
     }
 
     #[inline]
-    pub fn serialize<S: serde::Serializer>(
+    pub fn dump<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         _field_name: &str,
-        ctx: &SerializeContext<'_, '_>,
+        ctx: &DumpContext<'_, '_>,
         enum_cls: &Py<PyAny>,
         enum_name: Option<&str>,
         enum_members_repr: Option<&str>,

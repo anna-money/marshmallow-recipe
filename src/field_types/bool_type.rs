@@ -3,16 +3,16 @@ use pyo3::types::PyBool;
 use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, BOOL_ERROR};
-use crate::types::SerializeContext;
+use crate::types::DumpContext;
 
-pub mod bool_serializer {
+pub mod bool_dumper {
     use super::*;
 
     #[inline]
-    pub fn serialize_to_dict<'py>(
+    pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
         if !value.is_instance_of::<PyBool>() {
             return Err(field_error(ctx.py, field_name, BOOL_ERROR));
@@ -21,7 +21,7 @@ pub mod bool_serializer {
     }
 
     #[inline]
-    pub fn serialize_to_json(
+    pub fn dump_to_serde_value(
         value: &Bound<'_, PyAny>,
         field_name: &str,
     ) -> Result<Value, String> {
@@ -33,7 +33,7 @@ pub mod bool_serializer {
     }
 
     #[inline]
-    pub fn serialize<S: serde::Serializer>(
+    pub fn dump<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         field_name: &str,
         serializer: S,
@@ -47,14 +47,14 @@ pub mod bool_serializer {
     }
 }
 
-pub mod bool_deserializer {
+pub mod bool_loader {
     use super::*;
     use crate::types::LoadContext;
     use pyo3::conversion::IntoPyObjectExt;
     use serde::de;
 
     #[inline]
-    pub fn deserialize_from_dict<'py>(
+    pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
@@ -68,7 +68,7 @@ pub mod bool_deserializer {
     }
 
     #[inline]
-    pub fn deserialize_from_bool<E: de::Error>(py: Python, v: bool) -> Result<Py<PyAny>, E> {
+    pub fn load_from_bool<E: de::Error>(py: Python, v: bool) -> Result<Py<PyAny>, E> {
         v.into_py_any(py).map_err(de::Error::custom)
     }
 }

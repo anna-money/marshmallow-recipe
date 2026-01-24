@@ -6,17 +6,17 @@ use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, DECIMAL_ERROR, DECIMAL_NUMBER_ERROR};
 use crate::cache::get_cached_types;
-use crate::types::{DecimalPlaces, SerializeContext};
+use crate::types::{DecimalPlaces, DumpContext};
 use crate::utils::python_rounding_to_rust;
 
-pub mod decimal_serializer {
+pub mod decimal_dumper {
     use super::*;
 
     #[inline]
-    pub fn serialize_to_dict<'py>(
+    pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
         decimal_places: DecimalPlaces,
         decimal_rounding: Option<&Py<PyAny>>,
         invalid_error: Option<&str>,
@@ -54,10 +54,10 @@ pub mod decimal_serializer {
     }
 
     #[inline]
-    pub fn serialize_to_json<'py>(
+    pub fn dump_to_serde_value<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
         decimal_places: DecimalPlaces,
         decimal_rounding: Option<&Py<PyAny>>,
         invalid_error: Option<&str>,
@@ -95,10 +95,10 @@ pub mod decimal_serializer {
     }
 
     #[inline]
-    pub fn serialize<S: serde::Serializer>(
+    pub fn dump<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, '_>,
+        ctx: &DumpContext<'_, '_>,
         decimal_places: DecimalPlaces,
         decimal_rounding: Option<&Py<PyAny>>,
         invalid_error: Option<&str>,
@@ -138,13 +138,13 @@ pub mod decimal_serializer {
     }
 }
 
-pub mod decimal_deserializer {
+pub mod decimal_loader {
     use super::*;
     use crate::types::LoadContext;
     use serde::de;
 
     #[inline]
-    pub fn deserialize_from_dict<'py>(
+    pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
@@ -199,7 +199,7 @@ pub mod decimal_deserializer {
     }
 
     #[inline]
-    pub fn deserialize_from_str<E: de::Error>(
+    pub fn load_from_str<E: de::Error>(
         py: Python,
         s: &str,
         decimal_places: DecimalPlaces,
@@ -235,7 +235,7 @@ pub mod decimal_deserializer {
     }
 
     #[inline]
-    pub fn deserialize_from_i64<E: de::Error>(
+    pub fn load_from_i64<E: de::Error>(
         py: Python,
         v: i64,
         decimal_places: DecimalPlaces,
@@ -269,7 +269,7 @@ pub mod decimal_deserializer {
     }
 
     #[inline]
-    pub fn deserialize_from_u64<E: de::Error>(
+    pub fn load_from_u64<E: de::Error>(
         py: Python,
         v: u64,
         decimal_places: DecimalPlaces,
@@ -303,7 +303,7 @@ pub mod decimal_deserializer {
     }
 
     #[inline]
-    pub fn deserialize_from_f64<E: de::Error>(
+    pub fn load_from_f64<E: de::Error>(
         py: Python,
         v: f64,
         decimal_places: DecimalPlaces,

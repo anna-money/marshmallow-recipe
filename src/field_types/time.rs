@@ -5,17 +5,17 @@ use pyo3::types::{PyString, PyTime, PyTimeAccess};
 use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, TIME_ERROR};
-use crate::types::SerializeContext;
+use crate::types::DumpContext;
 use crate::utils::{create_pytime_from_chrono, parse_iso_time};
 
-pub mod time_serializer {
+pub mod time_dumper {
     use super::*;
 
     #[inline]
-    pub fn serialize_to_dict<'py>(
+    pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
         if !value.is_instance_of::<PyTime>() {
             return Err(field_error(ctx.py, field_name, TIME_ERROR));
@@ -31,7 +31,7 @@ pub mod time_serializer {
     }
 
     #[inline]
-    pub fn serialize_to_json(
+    pub fn dump_to_serde_value(
         value: &Bound<'_, PyAny>,
         field_name: &str,
     ) -> Result<Value, String> {
@@ -49,7 +49,7 @@ pub mod time_serializer {
     }
 
     #[inline]
-    pub fn serialize<S: serde::Serializer>(
+    pub fn dump<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         field_name: &str,
         serializer: S,
@@ -69,13 +69,13 @@ pub mod time_serializer {
     }
 }
 
-pub mod time_deserializer {
+pub mod time_loader {
     use super::*;
     use crate::types::LoadContext;
     use serde::de;
 
     #[inline]
-    pub fn deserialize_from_dict<'py>(
+    pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
@@ -92,7 +92,7 @@ pub mod time_deserializer {
     }
 
     #[inline]
-    pub fn deserialize_from_str<E: de::Error>(py: Python, s: &str, err_msg: &str) -> Result<Py<PyAny>, E> {
+    pub fn load_from_str<E: de::Error>(py: Python, s: &str, err_msg: &str) -> Result<Py<PyAny>, E> {
         parse_iso_time(s)
             .ok_or_else(|| de::Error::custom(err_msg))
             .and_then(|t| create_pytime_from_chrono(py, t).map_err(de::Error::custom))

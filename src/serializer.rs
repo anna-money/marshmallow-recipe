@@ -4,10 +4,10 @@ use pyo3::prelude::*;
 use serde_json::Value;
 
 pub use crate::field_types::collection::CollectionKind;
-pub use crate::field_types::nested::{DataclassSerializerSchema, FieldSerializer};
-use crate::types::{DecimalPlaces, SerializeContext};
+pub use crate::field_types::nested::{DataclassDumperSchema, FieldDumper};
+use crate::types::{DecimalPlaces, DumpContext};
 
-pub use crate::field_types::nested::nested_serializer::serialize_dataclass;
+pub use crate::field_types::nested::nested_dumper::dump_dataclass;
 
 pub struct StrEnumData {
     pub enum_cls: Py<PyAny>,
@@ -58,7 +58,7 @@ impl Clone for DecimalData {
 }
 
 pub struct CollectionData {
-    pub item: Box<Serializer>,
+    pub item: Box<Dumper>,
     pub item_validator: Option<Py<PyAny>>,
     pub kind: CollectionKind,
 }
@@ -74,7 +74,7 @@ impl Clone for CollectionData {
 }
 
 pub struct DictData {
-    pub value: Box<Serializer>,
+    pub value: Box<Dumper>,
     pub value_validator: Option<Py<PyAny>>,
 }
 
@@ -87,7 +87,7 @@ impl Clone for DictData {
     }
 }
 
-impl std::fmt::Debug for Serializer {
+impl std::fmt::Debug for Dumper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Str { strip_whitespaces } => f.debug_struct("Str").field("strip_whitespaces", strip_whitespaces).finish(),
@@ -111,7 +111,7 @@ impl std::fmt::Debug for Serializer {
 }
 
 #[derive(Clone)]
-pub enum Serializer {
+pub enum Dumper {
     Str { strip_whitespaces: bool },
     Int,
     Float,
@@ -126,28 +126,28 @@ pub enum Serializer {
     Any,
     Collection(Box<CollectionData>),
     Dict(Box<DictData>),
-    Nested { schema: Box<DataclassSerializerSchema> },
+    Nested { schema: Box<DataclassDumperSchema> },
     Union { variants: Vec<Self> },
 }
 
-impl Serializer {
-    pub fn serialize_to_dict<'py>(
+impl Dumper {
+    pub fn dump_to_dict<'py>(
         &self,
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
         use crate::field_types::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, any, collection, dict, nested, union};
 
         match self {
             Self::Str { strip_whitespaces } => {
-                str_type::str_serializer::serialize_to_dict(value, field_name, ctx, *strip_whitespaces)
+                str_type::str_dumper::dump_to_dict(value, field_name, ctx, *strip_whitespaces)
             }
-            Self::Int => int::int_serializer::serialize_to_dict(value, field_name, ctx),
-            Self::Float => float::float_serializer::serialize_to_dict(value, field_name, ctx),
-            Self::Bool => bool_type::bool_serializer::serialize_to_dict(value, field_name, ctx),
+            Self::Int => int::int_dumper::dump_to_dict(value, field_name, ctx),
+            Self::Float => float::float_dumper::dump_to_dict(value, field_name, ctx),
+            Self::Bool => bool_type::bool_dumper::dump_to_dict(value, field_name, ctx),
             Self::Decimal(data) => {
-                decimal::decimal_serializer::serialize_to_dict(
+                decimal::decimal_dumper::dump_to_dict(
                     value,
                     field_name,
                     ctx,
@@ -156,14 +156,14 @@ impl Serializer {
                     data.invalid_error.as_deref(),
                 )
             }
-            Self::Date => date::date_serializer::serialize_to_dict(value, field_name, ctx),
-            Self::Time => time::time_serializer::serialize_to_dict(value, field_name, ctx),
+            Self::Date => date::date_dumper::dump_to_dict(value, field_name, ctx),
+            Self::Time => time::time_dumper::dump_to_dict(value, field_name, ctx),
             Self::DateTime { format } => {
-                datetime::datetime_serializer::serialize_value_to_dict(value, field_name, ctx, format.as_deref())
+                datetime::datetime_dumper::dump_to_dict(value, field_name, ctx, format.as_deref())
             }
-            Self::Uuid => uuid::uuid_serializer::serialize_to_dict(value, field_name, ctx),
+            Self::Uuid => uuid::uuid_dumper::dump_to_dict(value, field_name, ctx),
             Self::StrEnum(data) => {
-                str_enum::str_enum_serializer::serialize_to_dict(
+                str_enum::str_enum_dumper::dump_to_dict(
                     value,
                     field_name,
                     ctx,
@@ -173,7 +173,7 @@ impl Serializer {
                 )
             }
             Self::IntEnum(data) => {
-                str_enum::int_enum_serializer::serialize_to_dict(
+                str_enum::int_enum_dumper::dump_to_dict(
                     value,
                     field_name,
                     ctx,
@@ -182,9 +182,9 @@ impl Serializer {
                     data.enum_members_repr.as_deref(),
                 )
             }
-            Self::Any => any::any_serializer::serialize_to_dict(ctx.py, value, field_name),
+            Self::Any => any::any_dumper::dump_to_dict(ctx.py, value, field_name),
             Self::Collection(data) => {
-                collection::collection_serializer::serialize_to_dict(
+                collection::collection_dumper::dump_to_dict(
                     value,
                     field_name,
                     ctx,
@@ -194,7 +194,7 @@ impl Serializer {
                 )
             }
             Self::Dict(data) => {
-                dict::dict_serializer::serialize_to_dict(
+                dict::dict_dumper::dump_to_dict(
                     value,
                     field_name,
                     ctx,
@@ -203,31 +203,31 @@ impl Serializer {
                 )
             }
             Self::Nested { schema } => {
-                nested::nested_serializer::serialize_to_dict(value, field_name, ctx, schema)
+                nested::nested_dumper::dump_to_dict(value, field_name, ctx, schema)
             }
             Self::Union { variants } => {
-                union::union_serializer::serialize_to_dict(value, field_name, ctx, variants)
+                union::union_dumper::dump_to_dict(value, field_name, ctx, variants)
             }
         }
     }
 
-    pub fn serialize_to_json<'py>(
+    pub fn dump_to_serde_value<'py>(
         &self,
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
     ) -> Result<Value, String> {
         use crate::field_types::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, any, collection, dict, nested, union};
 
         match self {
             Self::Str { strip_whitespaces } => {
-                str_type::str_serializer::serialize_to_json(value, field_name, *strip_whitespaces)
+                str_type::str_dumper::dump_to_serde_value(value, field_name, *strip_whitespaces)
             }
-            Self::Int => int::int_serializer::serialize_to_json(value, field_name),
-            Self::Float => float::float_serializer::serialize_to_json(value, field_name),
-            Self::Bool => bool_type::bool_serializer::serialize_to_json(value, field_name),
+            Self::Int => int::int_dumper::dump_to_serde_value(value, field_name),
+            Self::Float => float::float_dumper::dump_to_serde_value(value, field_name),
+            Self::Bool => bool_type::bool_dumper::dump_to_serde_value(value, field_name),
             Self::Decimal(data) => {
-                decimal::decimal_serializer::serialize_to_json(
+                decimal::decimal_dumper::dump_to_serde_value(
                     value,
                     field_name,
                     ctx,
@@ -236,14 +236,14 @@ impl Serializer {
                     data.invalid_error.as_deref(),
                 )
             }
-            Self::Date => date::date_serializer::serialize_to_json(value, field_name),
-            Self::Time => time::time_serializer::serialize_to_json(value, field_name),
+            Self::Date => date::date_dumper::dump_to_serde_value(value, field_name),
+            Self::Time => time::time_dumper::dump_to_serde_value(value, field_name),
             Self::DateTime { format } => {
-                datetime::datetime_serializer::serialize_value_to_json(value, field_name, ctx, format.as_deref())
+                datetime::datetime_dumper::dump_to_serde_value(value, field_name, ctx, format.as_deref())
             }
-            Self::Uuid => uuid::uuid_serializer::serialize_to_json(value, field_name, ctx),
+            Self::Uuid => uuid::uuid_dumper::dump_to_serde_value(value, field_name, ctx),
             Self::StrEnum(data) => {
-                str_enum::str_enum_serializer::serialize_to_json(
+                str_enum::str_enum_dumper::dump_to_serde_value(
                     value,
                     field_name,
                     ctx,
@@ -253,7 +253,7 @@ impl Serializer {
                 )
             }
             Self::IntEnum(data) => {
-                str_enum::int_enum_serializer::serialize_to_json(
+                str_enum::int_enum_dumper::dump_to_serde_value(
                     value,
                     field_name,
                     ctx,
@@ -262,9 +262,9 @@ impl Serializer {
                     data.enum_members_repr.as_deref(),
                 )
             }
-            Self::Any => any::any_serializer::serialize_to_json(value, field_name),
+            Self::Any => any::any_dumper::dump_to_serde_value(value, field_name),
             Self::Collection(data) => {
-                collection::collection_serializer::serialize_to_json(
+                collection::collection_dumper::dump_to_serde_value(
                     value,
                     field_name,
                     ctx,
@@ -274,7 +274,7 @@ impl Serializer {
                 )
             }
             Self::Dict(data) => {
-                dict::dict_serializer::serialize_to_json(
+                dict::dict_dumper::dump_to_serde_value(
                     value,
                     field_name,
                     ctx,
@@ -283,32 +283,32 @@ impl Serializer {
                 )
             }
             Self::Nested { schema } => {
-                nested::nested_serializer::serialize_to_json(value, field_name, ctx, schema)
+                nested::nested_dumper::dump_to_serde_value(value, field_name, ctx, schema)
             }
             Self::Union { variants } => {
-                union::union_serializer::serialize_to_json(value, field_name, ctx, variants)
+                union::union_dumper::dump_to_serde_value(value, field_name, ctx, variants)
             }
         }
     }
 
-    pub fn serialize<S: serde::Serializer>(
+    pub fn dump<S: serde::Serializer>(
         &self,
         value: &Bound<'_, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, '_>,
+        ctx: &DumpContext<'_, '_>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
         use crate::field_types::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, any, collection, dict, nested, union};
 
         match self {
             Self::Str { strip_whitespaces } => {
-                str_type::str_serializer::serialize(value, field_name, *strip_whitespaces, serializer)
+                str_type::str_dumper::dump(value, field_name, *strip_whitespaces, serializer)
             }
-            Self::Int => int::int_serializer::serialize(value, field_name, serializer),
-            Self::Float => float::float_serializer::serialize(value, field_name, serializer),
-            Self::Bool => bool_type::bool_serializer::serialize(value, field_name, serializer),
+            Self::Int => int::int_dumper::dump(value, field_name, serializer),
+            Self::Float => float::float_dumper::dump(value, field_name, serializer),
+            Self::Bool => bool_type::bool_dumper::dump(value, field_name, serializer),
             Self::Decimal(data) => {
-                decimal::decimal_serializer::serialize(
+                decimal::decimal_dumper::dump(
                     value,
                     field_name,
                     ctx,
@@ -318,14 +318,14 @@ impl Serializer {
                     serializer,
                 )
             }
-            Self::Date => date::date_serializer::serialize(value, field_name, serializer),
-            Self::Time => time::time_serializer::serialize(value, field_name, serializer),
+            Self::Date => date::date_dumper::dump(value, field_name, serializer),
+            Self::Time => time::time_dumper::dump(value, field_name, serializer),
             Self::DateTime { format } => {
-                datetime::datetime_serializer::serialize(value, field_name, ctx, format.as_deref(), serializer)
+                datetime::datetime_dumper::dump(value, field_name, ctx, format.as_deref(), serializer)
             }
-            Self::Uuid => uuid::uuid_serializer::serialize(value, field_name, ctx, serializer),
+            Self::Uuid => uuid::uuid_dumper::dump(value, field_name, ctx, serializer),
             Self::StrEnum(data) => {
-                str_enum::str_enum_serializer::serialize(
+                str_enum::str_enum_dumper::dump(
                     value,
                     field_name,
                     ctx,
@@ -336,7 +336,7 @@ impl Serializer {
                 )
             }
             Self::IntEnum(data) => {
-                str_enum::int_enum_serializer::serialize(
+                str_enum::int_enum_dumper::dump(
                     value,
                     field_name,
                     ctx,
@@ -346,9 +346,9 @@ impl Serializer {
                     serializer,
                 )
             }
-            Self::Any => any::any_serializer::serialize(value, field_name, serializer),
+            Self::Any => any::any_dumper::dump(value, field_name, serializer),
             Self::Collection(data) => {
-                collection::collection_serializer::serialize(
+                collection::collection_dumper::dump(
                     value,
                     field_name,
                     ctx,
@@ -359,7 +359,7 @@ impl Serializer {
                 )
             }
             Self::Dict(data) => {
-                dict::dict_serializer::serialize(
+                dict::dict_dumper::dump(
                     value,
                     field_name,
                     ctx,
@@ -369,10 +369,10 @@ impl Serializer {
                 )
             }
             Self::Nested { schema } => {
-                nested::nested_serializer::serialize(value, field_name, ctx, schema, serializer)
+                nested::nested_dumper::dump(value, field_name, ctx, schema, serializer)
             }
             Self::Union { variants } => {
-                union::union_serializer::serialize(value, field_name, ctx, variants, serializer)
+                union::union_dumper::dump(value, field_name, ctx, variants, serializer)
             }
         }
     }

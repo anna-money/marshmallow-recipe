@@ -3,17 +3,17 @@ use pyo3::types::{PyDict, PyList, PyString};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Serialize, Serializer};
 
-use crate::field_types::nested::nested_serializer::serialize_dataclass_streaming;
-use crate::types::SerializeContext;
+use crate::field_types::nested::nested_dumper::dump_dataclass_streaming;
+use crate::types::DumpContext;
 use crate::types::{TypeDescriptor, TypeKind};
 
-pub struct RootTypeSerializer<'a, 'py> {
+pub struct RootTypeDumper<'a, 'py> {
     pub value: &'a Bound<'py, PyAny>,
     pub descriptor: &'a TypeDescriptor,
-    pub ctx: &'a SerializeContext<'a, 'py>,
+    pub ctx: &'a DumpContext<'a, 'py>,
 }
 
-impl Serialize for RootTypeSerializer<'_, '_> {
+impl Serialize for RootTypeDumper<'_, '_> {
     #[allow(clippy::too_many_lines)]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -21,19 +21,19 @@ impl Serialize for RootTypeSerializer<'_, '_> {
     {
         match self.descriptor.type_kind {
             TypeKind::Dataclass => {
-                let serializer_fields = self.descriptor.serializer_fields.as_ref().ok_or_else(|| {
-                    serde::ser::Error::custom("Missing serializer_fields for dataclass")
+                let dumper_fields = self.descriptor.dumper_fields.as_ref().ok_or_else(|| {
+                    serde::ser::Error::custom("Missing dumper_fields for dataclass")
                 })?;
-                serialize_dataclass_streaming(self.value, serializer_fields, self.ctx, serializer)
+                dump_dataclass_streaming(self.value, dumper_fields, self.ctx, serializer)
             }
             TypeKind::Primitive => {
                 if self.value.is_none() {
                     return serializer.serialize_none();
                 }
-                let prim_serializer = self.descriptor.primitive_serializer.as_ref().ok_or_else(|| {
-                    serde::ser::Error::custom("Missing primitive_serializer")
+                let prim_dumper = self.descriptor.primitive_dumper.as_ref().ok_or_else(|| {
+                    serde::ser::Error::custom("Missing primitive_dumper")
                 })?;
-                prim_serializer.serialize(self.value, "", self.ctx, serializer)
+                prim_dumper.dump(self.value, "", self.ctx, serializer)
             }
             TypeKind::List => {
                 let list = self
@@ -46,7 +46,7 @@ impl Serialize for RootTypeSerializer<'_, '_> {
 
                 let mut seq = serializer.serialize_seq(Some(list.len()))?;
                 for item in list.iter() {
-                    seq.serialize_element(&RootTypeSerializer {
+                    seq.serialize_element(&RootTypeDumper {
                         value: &item,
                         descriptor: item_descriptor,
                         ctx: self.ctx,
@@ -69,7 +69,7 @@ impl Serialize for RootTypeSerializer<'_, '_> {
                         .to_str().map_err(serde::ser::Error::custom)?;
                     map.serialize_entry(
                         key,
-                        &RootTypeSerializer {
+                        &RootTypeDumper {
                             value: &v,
                             descriptor: value_descriptor,
                             ctx: self.ctx,
@@ -85,7 +85,7 @@ impl Serialize for RootTypeSerializer<'_, '_> {
                     let inner_descriptor = self.descriptor.inner_type.as_ref().ok_or_else(|| {
                         serde::ser::Error::custom("Missing inner_type for optional")
                     })?;
-                    RootTypeSerializer {
+                    RootTypeDumper {
                         value: self.value,
                         descriptor: inner_descriptor,
                         ctx: self.ctx,
@@ -103,7 +103,7 @@ impl Serialize for RootTypeSerializer<'_, '_> {
                 let mut seq = serializer.serialize_seq(Some(len_hint))?;
                 for item_result in iter {
                     let item = item_result.map_err(serde::ser::Error::custom)?;
-                    seq.serialize_element(&RootTypeSerializer {
+                    seq.serialize_element(&RootTypeDumper {
                         value: &item,
                         descriptor: item_descriptor,
                         ctx: self.ctx,
@@ -117,7 +117,7 @@ impl Serialize for RootTypeSerializer<'_, '_> {
                 })?;
 
                 for variant in variants {
-                    let result = serde_json::to_value(&RootTypeSerializer {
+                    let result = serde_json::to_value(&RootTypeDumper {
                         value: self.value,
                         descriptor: variant,
                         ctx: self.ctx,
@@ -141,18 +141,18 @@ pub fn dump_to_bytes<'py>(
     none_value_handling: Option<&str>,
     global_decimal_places: Option<i32>,
 ) -> PyResult<Vec<u8>> {
-    let ctx = SerializeContext {
+    let ctx = DumpContext {
         py,
         none_value_handling,
         global_decimal_places,
     };
 
-    let serializer = RootTypeSerializer {
+    let dumper = RootTypeDumper {
         value,
         descriptor,
         ctx: &ctx,
     };
 
-    serde_json::to_vec(&serializer)
+    serde_json::to_vec(&dumper)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
 }

@@ -1,28 +1,28 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 
-use crate::serializer::serialize_dataclass;
-use crate::types::SerializeContext;
+use crate::serializer::dump_dataclass;
+use crate::types::DumpContext;
 use crate::types::{TypeDescriptor, TypeKind};
 
-fn serialize_root_type<'py>(
+fn dump_root_type<'py>(
     value: &Bound<'py, PyAny>,
     descriptor: &TypeDescriptor,
-    ctx: &SerializeContext<'_, 'py>,
+    ctx: &DumpContext<'_, 'py>,
 ) -> PyResult<Py<PyAny>> {
     match descriptor.type_kind {
         TypeKind::Dataclass => {
-            let serializer_fields = descriptor.serializer_fields.as_ref()
-                .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing serializer_fields for dataclass"))?;
-            serialize_dataclass(value, serializer_fields, ctx)
+            let dumper_fields = descriptor.dumper_fields.as_ref()
+                .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing dumper_fields for dataclass"))?;
+            dump_dataclass(value, dumper_fields, ctx)
         }
         TypeKind::Primitive => {
             if value.is_none() {
                 return Ok(ctx.py.None());
             }
-            let serializer = descriptor.primitive_serializer.as_ref()
-                .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing primitive_serializer"))?;
-            serializer.serialize_to_dict(value, "", ctx)
+            let dumper = descriptor.primitive_dumper.as_ref()
+                .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing primitive_dumper"))?;
+            dumper.dump_to_dict(value, "", ctx)
         }
         TypeKind::List => {
             let list = value.cast::<PyList>()?;
@@ -31,7 +31,7 @@ fn serialize_root_type<'py>(
 
             let result = PyList::empty(ctx.py);
             for item in list.iter() {
-                result.append(serialize_root_type(&item, item_descriptor, ctx)?)?;
+                result.append(dump_root_type(&item, item_descriptor, ctx)?)?;
             }
             Ok(result.into_any().unbind())
         }
@@ -42,7 +42,7 @@ fn serialize_root_type<'py>(
 
             let result = PyDict::new(ctx.py);
             for (k, v) in dict.iter() {
-                result.set_item(k, serialize_root_type(&v, value_descriptor, ctx)?)?;
+                result.set_item(k, dump_root_type(&v, value_descriptor, ctx)?)?;
             }
             Ok(result.into_any().unbind())
         }
@@ -52,7 +52,7 @@ fn serialize_root_type<'py>(
             } else {
                 let inner_descriptor = descriptor.inner_type.as_ref()
                     .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing inner_type for optional"))?;
-                serialize_root_type(value, inner_descriptor, ctx)
+                dump_root_type(value, inner_descriptor, ctx)
             }
         }
         TypeKind::Set | TypeKind::FrozenSet | TypeKind::Tuple => {
@@ -61,7 +61,7 @@ fn serialize_root_type<'py>(
 
             let result = PyList::empty(ctx.py);
             for item_result in value.try_iter()? {
-                result.append(serialize_root_type(&item_result?, item_descriptor, ctx)?)?;
+                result.append(dump_root_type(&item_result?, item_descriptor, ctx)?)?;
             }
             Ok(result.into_any().unbind())
         }
@@ -70,7 +70,7 @@ fn serialize_root_type<'py>(
                 .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing union_variants for union"))?;
 
             for variant in variants {
-                if let Ok(result) = serialize_root_type(value, variant, ctx) {
+                if let Ok(result) = dump_root_type(value, variant, ctx) {
                     return Ok(result);
                 }
             }
@@ -88,11 +88,11 @@ pub fn dump<'py>(
     none_value_handling: Option<&str>,
     global_decimal_places: Option<i32>,
 ) -> PyResult<Py<PyAny>> {
-    let ctx = SerializeContext {
+    let ctx = DumpContext {
         py,
         none_value_handling,
         global_decimal_places,
     };
 
-    serialize_root_type(value, descriptor, &ctx)
+    dump_root_type(value, descriptor, &ctx)
 }

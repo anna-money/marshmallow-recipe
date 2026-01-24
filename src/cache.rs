@@ -7,17 +7,17 @@ use std::sync::RwLock;
 
 use crate::types::{
     DecimalPlaces, FieldDescriptor, FieldType, SchemaDescriptor, TypeDescriptor, TypeKind, build_field_lookup,
-    callback_required_serialize, callback_required_serialize_json, callback_required_deserialize,
+    callback_required_dump, callback_required_dump_json, callback_required_load,
 };
 use crate::serializer::{
-    Serializer, FieldSerializer, DataclassSerializerSchema,
+    Dumper, FieldDumper, DataclassDumperSchema,
     CollectionData, CollectionKind, DictData,
-    StrEnumData, IntEnumData, DecimalData as SerDecimalData,
+    StrEnumData, IntEnumData, DecimalData as DumpDecimalData,
 };
 use crate::deserializer::{
-    Deserializer, FieldDeserializer, DataclassDeserializerSchema,
-    CollectionDeserData, DictDeserData,
-    StrEnumDeserData, IntEnumDeserData, DecimalDeserData,
+    Loader, FieldLoader, DataclassLoaderSchema,
+    CollectionLoaderData, DictLoaderData,
+    StrEnumLoaderData, IntEnumLoaderData, DecimalLoaderData,
 };
 
 pub static SCHEMA_CACHE: Lazy<RwLock<HashMap<u64, TypeDescriptor>>> =
@@ -148,15 +148,15 @@ pub fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<Type
 
             let py = raw.py();
             let field_lookup = build_field_lookup(&fields);
-            let serializer_fields = build_serializer_fields(py, &fields);
-            let deserializer_fields = build_deserializer_fields(py, &fields);
+            let dumper_fields = build_dumper_fields(py, &fields);
+            let loader_fields = build_loader_fields(py, &fields);
             Ok(TypeDescriptor {
                 type_kind: TypeKind::Dataclass,
                 primitive_type: None,
-                primitive_serialize_fn: None,
-                primitive_serialize_json_fn: None,
-                primitive_serializer: None,
-                primitive_deserializer: None,
+                primitive_dump_fn: None,
+                primitive_dump_json_fn: None,
+                primitive_dumper: None,
+                primitive_loader: None,
                 optional: false,
                 inner_type: None,
                 item_type: None,
@@ -167,8 +167,8 @@ pub fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<Type
                 union_variants: None,
                 can_use_direct_slots,
                 has_post_init,
-                serializer_fields: Some(serializer_fields),
-                deserializer_fields: Some(deserializer_fields),
+                dumper_fields: Some(dumper_fields),
+                loader_fields: Some(loader_fields),
             })
         }
         "primitive" => {
@@ -177,12 +177,12 @@ pub fn build_type_descriptor_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<Type
             })?.extract()?;
 
             let parsed_type = parse_field_type(&primitive_type)?;
-            let primitive_serializer = build_primitive_serializer(parsed_type);
-            let primitive_deserializer = build_primitive_deserializer(parsed_type);
+            let primitive_dumper = build_primitive_dumper(parsed_type);
+            let primitive_loader = build_primitive_loader(parsed_type);
             Ok(TypeDescriptor {
                 primitive_type: Some(parsed_type),
-                primitive_serializer: Some(primitive_serializer),
-                primitive_deserializer: Some(primitive_deserializer),
+                primitive_dumper: Some(primitive_dumper),
+                primitive_loader: Some(primitive_loader),
                 ..default_type_descriptor(TypeKind::Primitive)
             })
         }
@@ -283,10 +283,10 @@ fn default_type_descriptor(type_kind: TypeKind) -> TypeDescriptor {
     TypeDescriptor {
         type_kind,
         primitive_type: None,
-        primitive_serialize_fn: None,
-        primitive_serialize_json_fn: None,
-        primitive_serializer: None,
-        primitive_deserializer: None,
+        primitive_dump_fn: None,
+        primitive_dump_json_fn: None,
+        primitive_dumper: None,
+        primitive_loader: None,
         optional: false,
         inner_type: None,
         item_type: None,
@@ -297,45 +297,45 @@ fn default_type_descriptor(type_kind: TypeKind) -> TypeDescriptor {
         union_variants: None,
         can_use_direct_slots: false,
         has_post_init: false,
-        serializer_fields: None,
-        deserializer_fields: None,
+        dumper_fields: None,
+        loader_fields: None,
     }
 }
 
-fn build_primitive_serializer(field_type: FieldType) -> Serializer {
+fn build_primitive_dumper(field_type: FieldType) -> Dumper {
     match field_type {
-        FieldType::Str => Serializer::Str { strip_whitespaces: false },
-        FieldType::Int => Serializer::Int,
-        FieldType::Float => Serializer::Float,
-        FieldType::Bool => Serializer::Bool,
-        FieldType::Decimal => Serializer::Decimal(Box::new(SerDecimalData {
+        FieldType::Str => Dumper::Str { strip_whitespaces: false },
+        FieldType::Int => Dumper::Int,
+        FieldType::Float => Dumper::Float,
+        FieldType::Bool => Dumper::Bool,
+        FieldType::Decimal => Dumper::Decimal(Box::new(DumpDecimalData {
             decimal_places: DecimalPlaces::NotSpecified,
             decimal_rounding: None,
             invalid_error: None,
         })),
-        FieldType::Date => Serializer::Date,
-        FieldType::Time => Serializer::Time,
-        FieldType::DateTime => Serializer::DateTime { format: None },
-        FieldType::Uuid => Serializer::Uuid,
-        _ => Serializer::Any,
+        FieldType::Date => Dumper::Date,
+        FieldType::Time => Dumper::Time,
+        FieldType::DateTime => Dumper::DateTime { format: None },
+        FieldType::Uuid => Dumper::Uuid,
+        _ => Dumper::Any,
     }
 }
 
-fn build_primitive_deserializer(field_type: FieldType) -> Deserializer {
+fn build_primitive_loader(field_type: FieldType) -> Loader {
     match field_type {
-        FieldType::Str => Deserializer::Str { strip_whitespaces: false },
-        FieldType::Int => Deserializer::Int,
-        FieldType::Float => Deserializer::Float,
-        FieldType::Bool => Deserializer::Bool,
-        FieldType::Decimal => Deserializer::Decimal(Box::new(DecimalDeserData {
+        FieldType::Str => Loader::Str { strip_whitespaces: false },
+        FieldType::Int => Loader::Int,
+        FieldType::Float => Loader::Float,
+        FieldType::Bool => Loader::Bool,
+        FieldType::Decimal => Loader::Decimal(Box::new(DecimalLoaderData {
             decimal_places: DecimalPlaces::NotSpecified,
             decimal_rounding: None,
         })),
-        FieldType::Date => Deserializer::Date,
-        FieldType::Time => Deserializer::Time,
-        FieldType::DateTime => Deserializer::DateTime { format: None },
-        FieldType::Uuid => Deserializer::Uuid,
-        _ => Deserializer::Any,
+        FieldType::Date => Loader::Date,
+        FieldType::Time => Loader::Time,
+        FieldType::DateTime => Loader::DateTime { format: None },
+        FieldType::Uuid => Loader::Uuid,
+        _ => Loader::Any,
     }
 }
 
@@ -407,7 +407,7 @@ pub fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescripto
     })?.extract()?;
     let name_interned = PyString::intern(py, &name).unbind();
 
-    let serialized_name: Option<String> = raw.get_item("serialized_name")?
+    let data_key: Option<String> = raw.get_item("data_key")?
         .and_then(|v| v.extract().ok());
 
     let field_type: String = raw.get_item("field_type")?.ok_or_else(|| {
@@ -474,11 +474,11 @@ pub fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescripto
     Ok(FieldDescriptor {
         name,
         name_interned,
-        serialized_name,
+        data_key,
         field_type: parsed_field_type,
-        serialize_fn: callback_required_serialize,
-        serialize_json_fn: callback_required_serialize_json,
-        deserialize_fn: callback_required_deserialize,
+        dump_fn: callback_required_dump,
+        dump_json_fn: callback_required_dump_json,
+        load_fn: callback_required_load,
         optional,
         slot_offset,
         nested_schema,
@@ -528,86 +528,86 @@ pub fn build_schema_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<SchemaDescrip
 
     let py = raw.py();
     let field_lookup = build_field_lookup(&fields);
-    let serializer_fields = build_serializer_fields(py, &fields);
-    let deserializer_fields = build_deserializer_fields(py, &fields);
-    Ok(SchemaDescriptor { cls, fields, field_lookup, can_use_direct_slots, has_post_init, serializer_fields: Some(serializer_fields), deserializer_fields: Some(deserializer_fields) })
+    let dumper_fields = build_dumper_fields(py, &fields);
+    let loader_fields = build_loader_fields(py, &fields);
+    Ok(SchemaDescriptor { cls, fields, field_lookup, can_use_direct_slots, has_post_init, dumper_fields: Some(dumper_fields), loader_fields: Some(loader_fields) })
 }
 
 fn clone_py_opt(py: Python<'_>, opt: Option<&Py<PyAny>>) -> Option<Py<PyAny>> {
     opt.map(|v| v.clone_ref(py))
 }
 
-fn build_serializer_from_field(py: Python<'_>, field: &FieldDescriptor) -> Serializer {
+fn build_dumper_from_field(py: Python<'_>, field: &FieldDescriptor) -> Dumper {
     match field.field_type {
-        FieldType::Str => Serializer::Str { strip_whitespaces: field.strip_whitespaces },
-        FieldType::Int => Serializer::Int,
-        FieldType::Float => Serializer::Float,
-        FieldType::Bool => Serializer::Bool,
-        FieldType::Decimal => Serializer::Decimal(Box::new(SerDecimalData {
+        FieldType::Str => Dumper::Str { strip_whitespaces: field.strip_whitespaces },
+        FieldType::Int => Dumper::Int,
+        FieldType::Float => Dumper::Float,
+        FieldType::Bool => Dumper::Bool,
+        FieldType::Decimal => Dumper::Decimal(Box::new(DumpDecimalData {
             decimal_places: field.decimal_places,
             decimal_rounding: clone_py_opt(py, field.decimal_rounding.as_ref()),
             invalid_error: field.invalid_error.clone(),
         })),
-        FieldType::Date => Serializer::Date,
-        FieldType::Time => Serializer::Time,
-        FieldType::DateTime => Serializer::DateTime { format: field.datetime_format.clone() },
-        FieldType::Uuid => Serializer::Uuid,
-        FieldType::StrEnum => Serializer::StrEnum(Box::new(StrEnumData {
+        FieldType::Date => Dumper::Date,
+        FieldType::Time => Dumper::Time,
+        FieldType::DateTime => Dumper::DateTime { format: field.datetime_format.clone() },
+        FieldType::Uuid => Dumper::Uuid,
+        FieldType::StrEnum => Dumper::StrEnum(Box::new(StrEnumData {
             enum_cls: field.enum_cls.as_ref().expect("enum_cls required for StrEnum").clone_ref(py),
             enum_name: field.enum_name.clone(),
             enum_members_repr: field.enum_members_repr.clone(),
         })),
-        FieldType::IntEnum => Serializer::IntEnum(Box::new(IntEnumData {
+        FieldType::IntEnum => Dumper::IntEnum(Box::new(IntEnumData {
             enum_cls: field.enum_cls.as_ref().expect("enum_cls required for IntEnum").clone_ref(py),
             enum_name: field.enum_name.clone(),
             enum_members_repr: field.enum_members_repr.clone(),
         })),
-        FieldType::Any => Serializer::Any,
-        FieldType::List => Serializer::Collection(Box::new(CollectionData {
-            item: Box::new(build_serializer_from_field(py, field.item_schema.as_ref().expect("item_schema required for List"))),
+        FieldType::Any => Dumper::Any,
+        FieldType::List => Dumper::Collection(Box::new(CollectionData {
+            item: Box::new(build_dumper_from_field(py, field.item_schema.as_ref().expect("item_schema required for List"))),
             item_validator: clone_py_opt(py, field.item_validator.as_ref()),
             kind: CollectionKind::List,
         })),
-        FieldType::Set => Serializer::Collection(Box::new(CollectionData {
-            item: Box::new(build_serializer_from_field(py, field.item_schema.as_ref().expect("item_schema required for Set"))),
+        FieldType::Set => Dumper::Collection(Box::new(CollectionData {
+            item: Box::new(build_dumper_from_field(py, field.item_schema.as_ref().expect("item_schema required for Set"))),
             item_validator: clone_py_opt(py, field.item_validator.as_ref()),
             kind: CollectionKind::Set,
         })),
-        FieldType::FrozenSet => Serializer::Collection(Box::new(CollectionData {
-            item: Box::new(build_serializer_from_field(py, field.item_schema.as_ref().expect("item_schema required for FrozenSet"))),
+        FieldType::FrozenSet => Dumper::Collection(Box::new(CollectionData {
+            item: Box::new(build_dumper_from_field(py, field.item_schema.as_ref().expect("item_schema required for FrozenSet"))),
             item_validator: clone_py_opt(py, field.item_validator.as_ref()),
             kind: CollectionKind::FrozenSet,
         })),
-        FieldType::Tuple => Serializer::Collection(Box::new(CollectionData {
-            item: Box::new(build_serializer_from_field(py, field.item_schema.as_ref().expect("item_schema required for Tuple"))),
+        FieldType::Tuple => Dumper::Collection(Box::new(CollectionData {
+            item: Box::new(build_dumper_from_field(py, field.item_schema.as_ref().expect("item_schema required for Tuple"))),
             item_validator: clone_py_opt(py, field.item_validator.as_ref()),
             kind: CollectionKind::Tuple,
         })),
-        FieldType::Dict => Serializer::Dict(Box::new(DictData {
-            value: Box::new(build_serializer_from_field(py, field.value_schema.as_ref().expect("value_schema required for Dict"))),
+        FieldType::Dict => Dumper::Dict(Box::new(DictData {
+            value: Box::new(build_dumper_from_field(py, field.value_schema.as_ref().expect("value_schema required for Dict"))),
             value_validator: clone_py_opt(py, field.value_validator.as_ref()),
         })),
         FieldType::Nested => {
             let nested = field.nested_schema.as_ref().expect("nested_schema required for Nested");
-            Serializer::Nested {
-                schema: Box::new(build_dataclass_serializer_schema(py, nested))
+            Dumper::Nested {
+                schema: Box::new(build_dataclass_dumper_schema(py, nested))
             }
         }
         FieldType::Union => {
             let variants = field.union_variants.as_ref().expect("union_variants required for Union");
-            Serializer::Union {
-                variants: variants.iter().map(|v| build_serializer_from_field(py, v)).collect()
+            Dumper::Union {
+                variants: variants.iter().map(|v| build_dumper_from_field(py, v)).collect()
             }
         }
     }
 }
 
-fn build_dataclass_serializer_schema(py: Python<'_>, schema: &SchemaDescriptor) -> DataclassSerializerSchema {
-    let fields: Vec<FieldSerializer> = schema.fields.iter().map(|f| build_field_serializer(py, f)).collect();
+fn build_dataclass_dumper_schema(py: Python<'_>, schema: &SchemaDescriptor) -> DataclassDumperSchema {
+    let fields: Vec<FieldDumper> = schema.fields.iter().map(|f| build_field_dumper(py, f)).collect();
     let field_lookup = fields.iter().enumerate()
-        .map(|(idx, f)| (f.serialized_name.as_ref().unwrap_or(&f.name).clone(), idx))
+        .map(|(idx, f)| (f.data_key.as_ref().unwrap_or(&f.name).clone(), idx))
         .collect();
-    DataclassSerializerSchema {
+    DataclassDumperSchema {
         cls: schema.cls.clone_ref(py),
         fields,
         field_lookup,
@@ -616,12 +616,12 @@ fn build_dataclass_serializer_schema(py: Python<'_>, schema: &SchemaDescriptor) 
     }
 }
 
-fn build_field_serializer(py: Python<'_>, field: &FieldDescriptor) -> FieldSerializer {
-    FieldSerializer {
+fn build_field_dumper(py: Python<'_>, field: &FieldDescriptor) -> FieldDumper {
+    FieldDumper {
         name: field.name.clone(),
         name_interned: field.name_interned.clone_ref(py),
-        serialized_name: field.serialized_name.clone(),
-        serializer: build_serializer_from_field(py, field),
+        data_key: field.data_key.clone(),
+        dumper: build_dumper_from_field(py, field),
         optional: field.optional,
         slot_offset: field.slot_offset,
         validator: clone_py_opt(py, field.validator.as_ref()),
@@ -632,72 +632,72 @@ fn clone_py_vec<T: Clone>(py: Python<'_>, values: &[(T, Py<PyAny>)]) -> Vec<(T, 
     values.iter().map(|(k, v)| (k.clone(), v.clone_ref(py))).collect()
 }
 
-fn build_deserializer_from_field(py: Python<'_>, field: &FieldDescriptor) -> Deserializer {
+fn build_loader_from_field(py: Python<'_>, field: &FieldDescriptor) -> Loader {
     match field.field_type {
-        FieldType::Str => Deserializer::Str { strip_whitespaces: field.strip_whitespaces },
-        FieldType::Int => Deserializer::Int,
-        FieldType::Float => Deserializer::Float,
-        FieldType::Bool => Deserializer::Bool,
-        FieldType::Decimal => Deserializer::Decimal(Box::new(DecimalDeserData {
+        FieldType::Str => Loader::Str { strip_whitespaces: field.strip_whitespaces },
+        FieldType::Int => Loader::Int,
+        FieldType::Float => Loader::Float,
+        FieldType::Bool => Loader::Bool,
+        FieldType::Decimal => Loader::Decimal(Box::new(DecimalLoaderData {
             decimal_places: field.decimal_places,
             decimal_rounding: clone_py_opt(py, field.decimal_rounding.as_ref()),
         })),
-        FieldType::Date => Deserializer::Date,
-        FieldType::Time => Deserializer::Time,
-        FieldType::DateTime => Deserializer::DateTime { format: field.datetime_format.clone() },
-        FieldType::Uuid => Deserializer::Uuid,
-        FieldType::StrEnum => Deserializer::StrEnum(Box::new(StrEnumDeserData {
+        FieldType::Date => Loader::Date,
+        FieldType::Time => Loader::Time,
+        FieldType::DateTime => Loader::DateTime { format: field.datetime_format.clone() },
+        FieldType::Uuid => Loader::Uuid,
+        FieldType::StrEnum => Loader::StrEnum(Box::new(StrEnumLoaderData {
             values: clone_py_vec(py, field.str_enum_values.as_ref().expect("str_enum_values required for StrEnum")),
         })),
-        FieldType::IntEnum => Deserializer::IntEnum(Box::new(IntEnumDeserData {
+        FieldType::IntEnum => Loader::IntEnum(Box::new(IntEnumLoaderData {
             values: clone_py_vec(py, field.int_enum_values.as_ref().expect("int_enum_values required for IntEnum")),
         })),
-        FieldType::Any => Deserializer::Any,
-        FieldType::List => Deserializer::Collection(Box::new(CollectionDeserData {
-            item: Box::new(build_deserializer_from_field(py, field.item_schema.as_ref().expect("item_schema required for List"))),
+        FieldType::Any => Loader::Any,
+        FieldType::List => Loader::Collection(Box::new(CollectionLoaderData {
+            item: Box::new(build_loader_from_field(py, field.item_schema.as_ref().expect("item_schema required for List"))),
             kind: CollectionKind::List,
             item_validator: clone_py_opt(py, field.item_validator.as_ref()),
         })),
-        FieldType::Set => Deserializer::Collection(Box::new(CollectionDeserData {
-            item: Box::new(build_deserializer_from_field(py, field.item_schema.as_ref().expect("item_schema required for Set"))),
+        FieldType::Set => Loader::Collection(Box::new(CollectionLoaderData {
+            item: Box::new(build_loader_from_field(py, field.item_schema.as_ref().expect("item_schema required for Set"))),
             kind: CollectionKind::Set,
             item_validator: clone_py_opt(py, field.item_validator.as_ref()),
         })),
-        FieldType::FrozenSet => Deserializer::Collection(Box::new(CollectionDeserData {
-            item: Box::new(build_deserializer_from_field(py, field.item_schema.as_ref().expect("item_schema required for FrozenSet"))),
+        FieldType::FrozenSet => Loader::Collection(Box::new(CollectionLoaderData {
+            item: Box::new(build_loader_from_field(py, field.item_schema.as_ref().expect("item_schema required for FrozenSet"))),
             kind: CollectionKind::FrozenSet,
             item_validator: clone_py_opt(py, field.item_validator.as_ref()),
         })),
-        FieldType::Tuple => Deserializer::Collection(Box::new(CollectionDeserData {
-            item: Box::new(build_deserializer_from_field(py, field.item_schema.as_ref().expect("item_schema required for Tuple"))),
+        FieldType::Tuple => Loader::Collection(Box::new(CollectionLoaderData {
+            item: Box::new(build_loader_from_field(py, field.item_schema.as_ref().expect("item_schema required for Tuple"))),
             kind: CollectionKind::Tuple,
             item_validator: clone_py_opt(py, field.item_validator.as_ref()),
         })),
-        FieldType::Dict => Deserializer::Dict(Box::new(DictDeserData {
-            value: Box::new(build_deserializer_from_field(py, field.value_schema.as_ref().expect("value_schema required for Dict"))),
+        FieldType::Dict => Loader::Dict(Box::new(DictLoaderData {
+            value: Box::new(build_loader_from_field(py, field.value_schema.as_ref().expect("value_schema required for Dict"))),
             value_validator: clone_py_opt(py, field.value_validator.as_ref()),
         })),
         FieldType::Nested => {
             let nested = field.nested_schema.as_ref().expect("nested_schema required for Nested");
-            Deserializer::Nested {
-                schema: Box::new(build_dataclass_deserializer_schema(py, nested))
+            Loader::Nested {
+                schema: Box::new(build_dataclass_loader_schema(py, nested))
             }
         }
         FieldType::Union => {
             let variants = field.union_variants.as_ref().expect("union_variants required for Union");
-            Deserializer::Union {
-                variants: variants.iter().map(|v| build_deserializer_from_field(py, v)).collect()
+            Loader::Union {
+                variants: variants.iter().map(|v| build_loader_from_field(py, v)).collect()
             }
         }
     }
 }
 
-fn build_dataclass_deserializer_schema(py: Python<'_>, schema: &SchemaDescriptor) -> DataclassDeserializerSchema {
-    let fields: Vec<FieldDeserializer> = schema.fields.iter().map(|f| build_field_deserializer(py, f)).collect();
+fn build_dataclass_loader_schema(py: Python<'_>, schema: &SchemaDescriptor) -> DataclassLoaderSchema {
+    let fields: Vec<FieldLoader> = schema.fields.iter().map(|f| build_field_loader(py, f)).collect();
     let field_lookup = fields.iter().enumerate()
-        .map(|(idx, f)| (f.serialized_name.as_ref().unwrap_or(&f.name).clone(), idx))
+        .map(|(idx, f)| (f.data_key.as_ref().unwrap_or(&f.name).clone(), idx))
         .collect();
-    DataclassDeserializerSchema {
+    DataclassLoaderSchema {
         cls: schema.cls.clone_ref(py),
         fields,
         field_lookup,
@@ -706,12 +706,12 @@ fn build_dataclass_deserializer_schema(py: Python<'_>, schema: &SchemaDescriptor
     }
 }
 
-fn build_field_deserializer(py: Python<'_>, field: &FieldDescriptor) -> FieldDeserializer {
-    FieldDeserializer {
+fn build_field_loader(py: Python<'_>, field: &FieldDescriptor) -> FieldLoader {
+    FieldLoader {
         name: field.name.clone(),
         name_interned: field.name_interned.clone_ref(py),
-        serialized_name: field.serialized_name.clone(),
-        deserializer: build_deserializer_from_field(py, field),
+        data_key: field.data_key.clone(),
+        loader: build_loader_from_field(py, field),
         optional: field.optional,
         slot_offset: field.slot_offset,
         default_value: clone_py_opt(py, field.default_value.as_ref()),
@@ -726,10 +726,10 @@ fn build_field_deserializer(py: Python<'_>, field: &FieldDescriptor) -> FieldDes
     }
 }
 
-pub fn build_serializer_fields(py: Python<'_>, fields: &[FieldDescriptor]) -> Vec<FieldSerializer> {
-    fields.iter().map(|f| build_field_serializer(py, f)).collect()
+pub fn build_dumper_fields(py: Python<'_>, fields: &[FieldDescriptor]) -> Vec<FieldDumper> {
+    fields.iter().map(|f| build_field_dumper(py, f)).collect()
 }
 
-pub fn build_deserializer_fields(py: Python<'_>, fields: &[FieldDescriptor]) -> Vec<FieldDeserializer> {
-    fields.iter().map(|f| build_field_deserializer(py, f)).collect()
+pub fn build_loader_fields(py: Python<'_>, fields: &[FieldDescriptor]) -> Vec<FieldLoader> {
+    fields.iter().map(|f| build_field_loader(py, f)).collect()
 }

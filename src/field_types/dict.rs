@@ -3,19 +3,19 @@ use pyo3::types::{PyDict, PyString};
 use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, DICT_ERROR};
-use crate::types::SerializeContext;
+use crate::types::DumpContext;
 use crate::utils::{call_validator, pyany_to_json_value, wrap_err_dict};
 
-pub mod dict_serializer {
+pub mod dict_dumper {
     use super::*;
-    use crate::serializer::Serializer;
+    use crate::serializer::Dumper;
 
     #[inline]
-    pub fn serialize_to_dict<'py>(
+    pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
-        value_serializer: &Serializer,
+        ctx: &DumpContext<'_, 'py>,
+        value_dumper: &Dumper,
         value_validator: Option<&Py<PyAny>>,
     ) -> PyResult<Py<PyAny>> {
         if !value.is_instance_of::<PyDict>() {
@@ -33,8 +33,8 @@ pub mod dict_serializer {
                 }
             }
             let key_str: String = k.extract()?;
-            let serialized = serialize_item(value_serializer, &v, &key_str, ctx)?;
-            result.set_item(k, serialized)?;
+            let dumped = dump_item(value_dumper, &v, &key_str, ctx)?;
+            result.set_item(k, dumped)?;
         }
 
         if let Some(ref errs) = value_errors {
@@ -46,24 +46,24 @@ pub mod dict_serializer {
         Ok(result.into_any().unbind())
     }
 
-    fn serialize_item<'py>(
-        value_serializer: &Serializer,
+    fn dump_item<'py>(
+        value_dumper: &Dumper,
         value: &Bound<'py, PyAny>,
         key: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
         if value.is_none() {
             return Ok(ctx.py.None());
         }
-        value_serializer.serialize_to_dict(value, key, ctx)
+        value_dumper.dump_to_dict(value, key, ctx)
     }
 
     #[inline]
-    pub fn serialize_to_json<'py>(
+    pub fn dump_to_serde_value<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
-        value_serializer: &Serializer,
+        ctx: &DumpContext<'_, 'py>,
+        value_dumper: &Dumper,
         value_validator: Option<&Py<PyAny>>,
     ) -> Result<Value, String> {
         if !value.is_instance_of::<PyDict>() {
@@ -90,46 +90,46 @@ pub mod dict_serializer {
         for (k, v) in dict.iter() {
             let key = k.cast::<PyString>().map_err(|e| e.to_string())?
                 .to_str().map_err(|e| e.to_string())?;
-            let serialized = serialize_item_json(value_serializer, &v, key, ctx)?;
-            result.insert(key.to_string(), serialized);
+            let dumped = dump_item_to_serde_value(value_dumper, &v, key, ctx)?;
+            result.insert(key.to_string(), dumped);
         }
         Ok(Value::Object(result))
     }
 
-    fn serialize_item_json<'py>(
-        value_serializer: &Serializer,
+    fn dump_item_to_serde_value<'py>(
+        value_dumper: &Dumper,
         value: &Bound<'py, PyAny>,
         key: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
     ) -> Result<Value, String> {
         if value.is_none() {
             return Ok(Value::Null);
         }
-        value_serializer.serialize_to_json(value, key, ctx)
+        value_dumper.dump_to_serde_value(value, key, ctx)
     }
 
-    struct ValueSerializer<'a, 'py> {
+    struct ValueDumper<'a, 'py> {
         value: &'a Bound<'py, PyAny>,
-        inner: &'a Serializer,
+        inner: &'a Dumper,
         key: String,
-        ctx: &'a SerializeContext<'a, 'py>,
+        ctx: &'a DumpContext<'a, 'py>,
     }
 
-    impl serde::Serialize for ValueSerializer<'_, '_> {
+    impl serde::Serialize for ValueDumper<'_, '_> {
         fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
             if self.value.is_none() {
                 return serializer.serialize_none();
             }
-            self.inner.serialize(self.value, &self.key, self.ctx, serializer)
+            self.inner.dump(self.value, &self.key, self.ctx, serializer)
         }
     }
 
     #[inline]
-    pub fn serialize<S: serde::Serializer>(
+    pub fn dump<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, '_>,
-        value_serializer: &Serializer,
+        ctx: &DumpContext<'_, '_>,
+        value_dumper: &Dumper,
         value_validator: Option<&Py<PyAny>>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
@@ -159,9 +159,9 @@ pub mod dict_serializer {
         for (k, v) in dict.iter() {
             let key = k.cast::<PyString>().map_err(|e| S::Error::custom(e.to_string()))?
                 .to_str().map_err(|e| S::Error::custom(e.to_string()))?;
-            map.serialize_entry(key, &ValueSerializer {
+            map.serialize_entry(key, &ValueDumper {
                 value: &v,
-                inner: value_serializer,
+                inner: value_dumper,
                 key: key.to_string(),
                 ctx,
             })?;
@@ -170,19 +170,19 @@ pub mod dict_serializer {
     }
 }
 
-pub mod dict_deserializer {
+pub mod dict_loader {
     use super::*;
-    use crate::deserializer::Deserializer;
+    use crate::deserializer::Loader;
     use crate::types::LoadContext;
     use crate::utils::extract_error_value;
 
     #[inline]
-    pub fn deserialize_from_dict<'py>(
+    pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
         ctx: &LoadContext<'_, 'py>,
-        value_deserializer: &Deserializer,
+        value_loader: &Loader,
         value_validator: Option<&Py<PyAny>>,
     ) -> PyResult<Py<PyAny>> {
         if !value.is_instance_of::<PyDict>() {
@@ -196,7 +196,7 @@ pub mod dict_deserializer {
             let val = if v.is_none() {
                 ctx.py.None()
             } else {
-                match value_deserializer.deserialize_from_dict(&v, "value", None, ctx) {
+                match value_loader.load_from_dict(&v, "value", None, ctx) {
                     Ok(val) => val,
                     Err(e) => {
                         let inner = extract_error_value(ctx.py, &e);

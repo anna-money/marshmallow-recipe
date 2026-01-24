@@ -6,7 +6,7 @@ use pyo3::types::{PyDateTime, PyDateAccess, PyString, PyTimeAccess, PyTzInfoAcce
 use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, DATETIME_ERROR};
-use crate::types::SerializeContext;
+use crate::types::DumpContext;
 use crate::utils::{create_pydatetime_from_chrono, get_tz_offset_seconds, parse_datetime_with_format, parse_rfc3339_datetime};
 
 pub struct DateTimeComponents {
@@ -112,12 +112,12 @@ fn format_strftime(
     }
 }
 
-pub mod datetime_serializer {
+pub mod datetime_dumper {
     use super::*;
 
     #[inline]
     #[allow(clippy::option_if_let_else)]
-    pub fn serialize_to_dict(
+    pub fn format_to_dict(
         py: Python<'_>,
         dt: &DateTimeComponents,
         datetime_format: Option<&str>,
@@ -142,7 +142,7 @@ pub mod datetime_serializer {
 
     #[inline]
     #[allow(clippy::option_if_let_else)]
-    pub fn serialize_to_json(
+    pub fn format_to_serde_value(
         dt: &DateTimeComponents,
         datetime_format: Option<&str>,
     ) -> Result<Value, ()> {
@@ -160,10 +160,10 @@ pub mod datetime_serializer {
     }
 
     #[inline]
-    pub fn serialize_value_to_dict<'py>(
+    pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
         datetime_format: Option<&str>,
     ) -> PyResult<Py<PyAny>> {
         if !value.is_instance_of::<PyDateTime>() {
@@ -171,15 +171,15 @@ pub mod datetime_serializer {
         }
         let dt: &Bound<'_, PyDateTime> = value.cast()?;
         let components = extract_components(ctx.py, dt)?;
-        serialize_to_dict(ctx.py, &components, datetime_format)
+        format_to_dict(ctx.py, &components, datetime_format)
             .map_err(|_| field_error(ctx.py, field_name, DATETIME_ERROR))
     }
 
     #[inline]
-    pub fn serialize_value_to_json<'py>(
+    pub fn dump_to_serde_value<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
         datetime_format: Option<&str>,
     ) -> Result<Value, String> {
         if !value.is_instance_of::<PyDateTime>() {
@@ -203,15 +203,15 @@ pub mod datetime_serializer {
             offset_seconds,
         };
 
-        serialize_to_json(&components, datetime_format)
+        format_to_serde_value(&components, datetime_format)
             .map_err(|()| json_field_error(field_name, DATETIME_ERROR))
     }
 
     #[inline]
-    pub fn serialize<S: serde::Serializer>(
+    pub fn dump<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, '_>,
+        ctx: &DumpContext<'_, '_>,
         datetime_format: Option<&str>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
@@ -251,13 +251,13 @@ pub mod datetime_serializer {
     }
 }
 
-pub mod datetime_deserializer {
+pub mod datetime_loader {
     use super::*;
     use crate::types::LoadContext;
     use serde::de;
 
     #[inline]
-    pub fn deserialize_from_dict<'py>(
+    pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
@@ -284,7 +284,7 @@ pub mod datetime_deserializer {
     }
 
     #[inline]
-    pub fn deserialize_from_str<E: de::Error>(
+    pub fn load_from_str<E: de::Error>(
         py: Python,
         s: &str,
         format: Option<&str>,

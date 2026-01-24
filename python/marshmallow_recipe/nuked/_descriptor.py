@@ -53,7 +53,7 @@ def get_slot_offset(cls: type, field_name: str) -> int | None:
 @dataclasses.dataclass(slots=True, kw_only=True)
 class FieldDescriptor:
     name: str
-    serialized_name: str | None
+    data_key: str | None
     field_type: str
     optional: bool
     slot_offset: int | None = None
@@ -279,13 +279,13 @@ def build_schema_descriptor(cls: type, naming_case: Callable[[str], str] | None 
             schema.fields.append(field_descriptor)
 
         for field in schema.fields:
-            if field.serialized_name is None:
+            if field.data_key is None:
                 continue
             for other in schema.fields:
                 if field is other:
                     continue
-                if field.serialized_name == other.name:
-                    raise ValueError(f"Invalid name={field.serialized_name} in metadata for field={field.name}")
+                if field.data_key == other.name:
+                    raise ValueError(f"Invalid name={field.data_key} in metadata for field={field.name}")
     finally:
         del _building_schemas[cache_key]
 
@@ -306,7 +306,7 @@ def _build_field_descriptor(
     nested_naming_case: Callable[[str], str] | None = None,
 ) -> FieldDescriptor:
     optional = has_default
-    serialized_name = None
+    data_key = None
     strip_whitespaces = False
     decimal_places: int | None = None
     decimal_places_explicitly_set = False
@@ -319,7 +319,7 @@ def _build_field_descriptor(
     invalid_error_msg: str | None = None
 
     if metadata:
-        serialized_name = metadata.get("name")
+        data_key = metadata.get("name")
         strip_whitespaces = metadata.get("strip_whitespaces", False)
         if "places" in metadata:
             decimal_places = metadata.get("places")
@@ -342,7 +342,7 @@ def _build_field_descriptor(
         for arg in args[1:]:
             if isinstance(arg, Mapping):
                 if "name" in arg:
-                    serialized_name = arg["name"]
+                    data_key = arg["name"]
                 if "strip_whitespaces" in arg:
                     strip_whitespaces = arg["strip_whitespaces"]
                 if "places" in arg:
@@ -370,8 +370,8 @@ def _build_field_descriptor(
             origin = get_origin(hint)
             args = get_args(hint)
 
-    if serialized_name is None and naming_case is not None:
-        serialized_name = naming_case(name)
+    if data_key is None and naming_case is not None:
+        data_key = naming_case(name)
 
     field_type, nested_info = _analyze_type(hint, origin, args, nested_naming_case, metadata)
     slot_offset = get_slot_offset(cls, name) if cls else None
@@ -386,7 +386,7 @@ def _build_field_descriptor(
 
     return FieldDescriptor(
         name=name,
-        serialized_name=serialized_name,
+        data_key=data_key,
         field_type=field_type,
         optional=optional,
         slot_offset=slot_offset,

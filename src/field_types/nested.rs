@@ -7,18 +7,18 @@ use serde_json::Value;
 use super::helpers::{field_error, json_field_error, err_dict_from_list, NESTED_ERROR};
 use crate::cache::get_cached_types;
 use crate::slots::set_slot_value_direct;
-use crate::types::{SerializeContext, LoadContext};
+use crate::types::{DumpContext, LoadContext};
 use crate::utils::{call_validator, extract_error_args, pyany_to_json_value, wrap_err_dict};
 
-pub struct DataclassSerializerSchema {
+pub struct DataclassDumperSchema {
     pub cls: Py<PyAny>,
-    pub fields: Vec<FieldSerializer>,
+    pub fields: Vec<FieldDumper>,
     pub field_lookup: HashMap<String, usize>,
     pub can_use_direct_slots: bool,
     pub has_post_init: bool,
 }
 
-impl Clone for DataclassSerializerSchema {
+impl Clone for DataclassDumperSchema {
     fn clone(&self) -> Self {
         Python::attach(|py| Self {
             cls: self.cls.clone_ref(py),
@@ -30,32 +30,32 @@ impl Clone for DataclassSerializerSchema {
     }
 }
 
-pub struct FieldSerializer {
+pub struct FieldDumper {
     pub name: String,
     pub name_interned: Py<PyString>,
-    pub serialized_name: Option<String>,
-    pub serializer: crate::serializer::Serializer,
+    pub data_key: Option<String>,
+    pub dumper: crate::serializer::Dumper,
     pub optional: bool,
     pub slot_offset: Option<isize>,
     pub validator: Option<Py<PyAny>>,
 }
 
-impl std::fmt::Debug for FieldSerializer {
+impl std::fmt::Debug for FieldDumper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("FieldSerializer")
+        f.debug_struct("FieldDumper")
             .field("name", &self.name)
             .field("optional", &self.optional)
             .finish_non_exhaustive()
     }
 }
 
-impl Clone for FieldSerializer {
+impl Clone for FieldDumper {
     fn clone(&self) -> Self {
         Python::attach(|py| Self {
             name: self.name.clone(),
             name_interned: self.name_interned.clone_ref(py),
-            serialized_name: self.serialized_name.clone(),
-            serializer: self.serializer.clone(),
+            data_key: self.data_key.clone(),
+            dumper: self.dumper.clone(),
             optional: self.optional,
             slot_offset: self.slot_offset,
             validator: self.validator.as_ref().map(|v| v.clone_ref(py)),
@@ -63,15 +63,15 @@ impl Clone for FieldSerializer {
     }
 }
 
-pub struct DataclassDeserializerSchema {
+pub struct DataclassLoaderSchema {
     pub cls: Py<PyAny>,
-    pub fields: Vec<FieldDeserializer>,
+    pub fields: Vec<FieldLoader>,
     pub field_lookup: HashMap<String, usize>,
     pub can_use_direct_slots: bool,
     pub has_post_init: bool,
 }
 
-impl Clone for DataclassDeserializerSchema {
+impl Clone for DataclassLoaderSchema {
     fn clone(&self) -> Self {
         Python::attach(|py| Self {
             cls: self.cls.clone_ref(py),
@@ -83,11 +83,11 @@ impl Clone for DataclassDeserializerSchema {
     }
 }
 
-pub struct FieldDeserializer {
+pub struct FieldLoader {
     pub name: String,
     pub name_interned: Py<PyString>,
-    pub serialized_name: Option<String>,
-    pub deserializer: crate::deserializer::Deserializer,
+    pub data_key: Option<String>,
+    pub loader: crate::deserializer::Loader,
     pub optional: bool,
     pub slot_offset: Option<isize>,
     pub default_value: Option<Py<PyAny>>,
@@ -101,13 +101,13 @@ pub struct FieldDeserializer {
     pub value_validator: Option<Py<PyAny>>,
 }
 
-impl Clone for FieldDeserializer {
+impl Clone for FieldLoader {
     fn clone(&self) -> Self {
         Python::attach(|py| Self {
             name: self.name.clone(),
             name_interned: self.name_interned.clone_ref(py),
-            serialized_name: self.serialized_name.clone(),
-            deserializer: self.deserializer.clone(),
+            data_key: self.data_key.clone(),
+            loader: self.loader.clone(),
             optional: self.optional,
             slot_offset: self.slot_offset,
             default_value: self.default_value.as_ref().map(|v| v.clone_ref(py)),
@@ -123,48 +123,48 @@ impl Clone for FieldDeserializer {
     }
 }
 
-impl std::fmt::Debug for FieldDeserializer {
+impl std::fmt::Debug for FieldLoader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("FieldDeserializer")
+        f.debug_struct("FieldLoader")
             .field("name", &self.name)
             .field("optional", &self.optional)
             .finish_non_exhaustive()
     }
 }
 
-pub mod nested_serializer {
+pub mod nested_dumper {
     use super::*;
 
     #[inline]
-    pub fn serialize_to_dict<'py>(
+    pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
-        schema: &DataclassSerializerSchema,
+        ctx: &DumpContext<'_, 'py>,
+        schema: &DataclassDumperSchema,
     ) -> PyResult<Py<PyAny>> {
         if !value.is_instance(schema.cls.bind(ctx.py))? {
             return Err(field_error(ctx.py, field_name, NESTED_ERROR));
         }
-        serialize_dataclass(value, &schema.fields, ctx)
+        dump_dataclass(value, &schema.fields, ctx)
     }
 
     #[inline]
-    pub fn serialize_to_json<'py>(
+    pub fn dump_to_serde_value<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
-        schema: &DataclassSerializerSchema,
+        ctx: &DumpContext<'_, 'py>,
+        schema: &DataclassDumperSchema,
     ) -> Result<Value, String> {
         if !value.is_instance(schema.cls.bind(ctx.py)).map_err(|e| e.to_string())? {
             return Err(json_field_error(field_name, NESTED_ERROR));
         }
-        serialize_dataclass_json(value, &schema.fields, ctx)
+        dump_dataclass_to_serde_value(value, &schema.fields, ctx)
     }
 
-    pub fn serialize_dataclass<'py>(
+    pub fn dump_dataclass<'py>(
         obj: &Bound<'py, PyAny>,
-        fields: &[FieldSerializer],
-        ctx: &SerializeContext<'_, 'py>,
+        fields: &[FieldDumper],
+        ctx: &DumpContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
         let ignore_none = ctx.none_value_handling.is_none_or(|s| s == "ignore");
 
@@ -193,23 +193,23 @@ pub mod nested_serializer {
                 }
             }
 
-            let key = field.serialized_name.as_ref().unwrap_or(&field.name);
+            let key = field.data_key.as_ref().unwrap_or(&field.name);
 
-            let serialized_value = if py_value.is_none() {
+            let dumped_value = if py_value.is_none() {
                 ctx.py.None()
             } else {
-                field.serializer.serialize_to_dict(&py_value, &field.name, ctx)?
+                field.dumper.dump_to_dict(&py_value, &field.name, ctx)?
             };
-            result.set_item(key.as_str(), serialized_value)?;
+            result.set_item(key.as_str(), dumped_value)?;
         }
 
         Ok(result.into_any().unbind())
     }
 
-    pub fn serialize_dataclass_json<'py>(
+    pub fn dump_dataclass_to_serde_value<'py>(
         obj: &Bound<'py, PyAny>,
-        fields: &[FieldSerializer],
-        ctx: &SerializeContext<'_, 'py>,
+        fields: &[FieldDumper],
+        ctx: &DumpContext<'_, 'py>,
     ) -> Result<Value, String> {
         let ignore_none = ctx.none_value_handling.is_none_or(|s| s == "ignore");
 
@@ -239,51 +239,51 @@ pub mod nested_serializer {
                 }
             }
 
-            let key = field.serialized_name.as_ref().unwrap_or(&field.name);
+            let key = field.data_key.as_ref().unwrap_or(&field.name);
 
-            let serialized_value = if py_value.is_none() {
+            let dumped_value = if py_value.is_none() {
                 Value::Null
             } else {
-                field.serializer.serialize_to_json(&py_value, &field.name, ctx)?
+                field.dumper.dump_to_serde_value(&py_value, &field.name, ctx)?
             };
-            result.insert(key.clone(), serialized_value);
+            result.insert(key.clone(), dumped_value);
         }
 
         Ok(Value::Object(result))
     }
 
-    struct FieldValueSerializer<'a, 'py> {
+    struct FieldValueDumper<'a, 'py> {
         value: &'a Bound<'py, PyAny>,
-        serializer: &'a crate::serializer::Serializer,
+        dumper: &'a crate::serializer::Dumper,
         field_name: &'a str,
-        ctx: &'a SerializeContext<'a, 'py>,
+        ctx: &'a DumpContext<'a, 'py>,
     }
 
-    impl serde::Serialize for FieldValueSerializer<'_, '_> {
+    impl serde::Serialize for FieldValueDumper<'_, '_> {
         fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-            self.serializer.serialize(self.value, self.field_name, self.ctx, serializer)
+            self.dumper.dump(self.value, self.field_name, self.ctx, serializer)
         }
     }
 
     #[inline]
-    pub fn serialize<S: serde::Serializer>(
+    pub fn dump<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, '_>,
-        schema: &DataclassSerializerSchema,
+        ctx: &DumpContext<'_, '_>,
+        schema: &DataclassDumperSchema,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
         use serde::ser::Error;
         if !value.is_instance(schema.cls.bind(ctx.py)).map_err(|e| S::Error::custom(e.to_string()))? {
             return Err(S::Error::custom(json_field_error(field_name, NESTED_ERROR)));
         }
-        serialize_dataclass_streaming(value, &schema.fields, ctx, serializer)
+        dump_dataclass_streaming(value, &schema.fields, ctx, serializer)
     }
 
-    pub fn serialize_dataclass_streaming<S: serde::Serializer>(
+    pub fn dump_dataclass_streaming<S: serde::Serializer>(
         obj: &Bound<'_, PyAny>,
-        fields: &[FieldSerializer],
-        ctx: &SerializeContext<'_, '_>,
+        fields: &[FieldDumper],
+        ctx: &DumpContext<'_, '_>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
         use serde::ser::{Error, SerializeMap};
@@ -317,14 +317,14 @@ pub mod nested_serializer {
                 }
             }
 
-            let key = field.serialized_name.as_ref().unwrap_or(&field.name);
+            let key = field.data_key.as_ref().unwrap_or(&field.name);
 
             if py_value.is_none() {
                 map.serialize_entry(key.as_str(), &())?;
             } else {
-                map.serialize_entry(key.as_str(), &FieldValueSerializer {
+                map.serialize_entry(key.as_str(), &FieldValueDumper {
                     value: &py_value,
-                    serializer: &field.serializer,
+                    dumper: &field.dumper,
                     field_name: &field.name,
                     ctx,
                 })?;
@@ -335,22 +335,22 @@ pub mod nested_serializer {
     }
 }
 
-pub mod nested_deserializer {
+pub mod nested_loader {
     use super::*;
-    use crate::deserializer::Deserializer;
+    use crate::deserializer::Loader;
 
     #[inline]
-    pub fn deserialize_from_dict<'py>(
+    pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
         ctx: &LoadContext<'_, 'py>,
-        schema: &DataclassDeserializerSchema,
+        schema: &DataclassLoaderSchema,
     ) -> PyResult<Py<PyAny>> {
         if !value.is_instance_of::<PyDict>() {
             return Err(field_error(ctx.py, field_name, invalid_error.unwrap_or(NESTED_ERROR)));
         }
-        deserialize_dataclass(value, schema, ctx).map_err(|e| {
+        load_dataclass(value, schema, ctx).map_err(|e| {
             let inner = extract_error_args(ctx.py, &e);
             PyErr::new::<pyo3::exceptions::PyValueError, _>(
                 wrap_err_dict(ctx.py, field_name, inner),
@@ -358,9 +358,9 @@ pub mod nested_deserializer {
         })
     }
 
-    pub fn deserialize_dataclass<'py>(
+    pub fn load_dataclass<'py>(
         value: &Bound<'py, PyAny>,
-        schema: &DataclassDeserializerSchema,
+        schema: &DataclassLoaderSchema,
         ctx: &LoadContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
         let dict = value.cast::<PyDict>().map_err(|_| {
@@ -368,16 +368,16 @@ pub mod nested_deserializer {
         })?;
         let cls = schema.cls.bind(ctx.py);
         if schema.can_use_direct_slots {
-            deserialize_dataclass_direct_slots(dict, cls, &schema.fields, &schema.field_lookup, ctx)
+            load_dataclass_direct_slots(dict, cls, &schema.fields, &schema.field_lookup, ctx)
         } else {
-            deserialize_dataclass_kwargs(dict, cls, &schema.fields, &schema.field_lookup, ctx)
+            load_dataclass_kwargs(dict, cls, &schema.fields, &schema.field_lookup, ctx)
         }
     }
 
-    pub fn deserialize_dataclass_from_parts<'py>(
+    pub fn load_dataclass_from_parts<'py>(
         value: &Bound<'py, PyAny>,
         cls: &Bound<'py, PyAny>,
-        fields: &[FieldDeserializer],
+        fields: &[FieldLoader],
         field_lookup: &HashMap<String, usize>,
         can_use_direct_slots: bool,
         ctx: &LoadContext<'_, 'py>,
@@ -386,16 +386,16 @@ pub mod nested_deserializer {
             PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected a dict for dataclass")
         })?;
         if can_use_direct_slots {
-            deserialize_dataclass_direct_slots(dict, cls, fields, field_lookup, ctx)
+            load_dataclass_direct_slots(dict, cls, fields, field_lookup, ctx)
         } else {
-            deserialize_dataclass_kwargs(dict, cls, fields, field_lookup, ctx)
+            load_dataclass_kwargs(dict, cls, fields, field_lookup, ctx)
         }
     }
 
-    fn deserialize_dataclass_kwargs<'py>(
+    fn load_dataclass_kwargs<'py>(
         dict: &Bound<'py, PyDict>,
         cls: &Bound<'py, PyAny>,
-        fields: &[FieldDeserializer],
+        fields: &[FieldLoader],
         field_lookup: &HashMap<String, usize>,
         ctx: &LoadContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
@@ -410,8 +410,8 @@ pub mod nested_deserializer {
                 if !field.field_init {
                     continue;
                 }
-                let deserialized = deserialize_field_value(&value, field, ctx)?;
-                let validated = apply_post_load_and_validate(deserialized, field, ctx)?;
+                let loaded = load_field_value(&value, field, ctx)?;
+                let validated = apply_post_load_and_validate(loaded, field, ctx)?;
                 kwargs.set_item(field.name_interned.bind(ctx.py), validated)?;
             }
         }
@@ -430,10 +430,10 @@ pub mod nested_deserializer {
         cls.call((), Some(&kwargs)).map(pyo3::Bound::unbind)
     }
 
-    fn deserialize_dataclass_direct_slots<'py>(
+    fn load_dataclass_direct_slots<'py>(
         dict: &Bound<'py, PyDict>,
         cls: &Bound<'py, PyAny>,
-        fields: &[FieldDeserializer],
+        fields: &[FieldLoader],
         field_lookup: &HashMap<String, usize>,
         ctx: &LoadContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
@@ -447,8 +447,8 @@ pub mod nested_deserializer {
             let key_str: String = key.extract()?;
             if let Some(&idx) = field_lookup.get(&key_str) {
                 let field = &fields[idx];
-                let deserialized = deserialize_field_value(&value, field, ctx)?;
-                let validated = apply_post_load_and_validate(deserialized, field, ctx)?;
+                let loaded = load_field_value(&value, field, ctx)?;
+                let validated = apply_post_load_and_validate(loaded, field, ctx)?;
                 field_values[idx] = Some(validated);
             }
         }
@@ -475,12 +475,12 @@ pub mod nested_deserializer {
         Ok(instance.unbind())
     }
 
-    pub fn deserialize_field_value<'py>(
+    pub fn load_field_value<'py>(
         value: &Bound<'py, PyAny>,
-        field: &FieldDeserializer,
+        field: &FieldLoader,
         ctx: &LoadContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
-        if matches!(field.deserializer, Deserializer::Any) {
+        if matches!(field.loader, Loader::Any) {
             return Ok(value.clone().unbind());
         }
 
@@ -492,10 +492,10 @@ pub mod nested_deserializer {
             return Ok(ctx.py.None());
         }
 
-        field.deserializer.deserialize_from_dict(value, &field.name, field.invalid_error.as_deref(), ctx)
+        field.loader.load_from_dict(value, &field.name, field.invalid_error.as_deref(), ctx)
     }
 
-    fn get_default_value(field: &FieldDeserializer, ctx: &LoadContext<'_, '_>) -> PyResult<Option<Py<PyAny>>> {
+    fn get_default_value(field: &FieldLoader, ctx: &LoadContext<'_, '_>) -> PyResult<Option<Py<PyAny>>> {
         if let Some(ref factory) = field.default_factory {
             return Ok(Some(factory.call0(ctx.py)?));
         }
@@ -507,7 +507,7 @@ pub mod nested_deserializer {
 
     fn apply_post_load_and_validate(
         value: Py<PyAny>,
-        field: &FieldDeserializer,
+        field: &FieldLoader,
         ctx: &LoadContext<'_, '_>,
     ) -> PyResult<Py<PyAny>> {
         let mut result = value;

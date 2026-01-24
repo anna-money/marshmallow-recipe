@@ -52,8 +52,8 @@ def field_to_dict(field: Any, visited_schemas: set[type] | None = None) -> dict:
     if field.slot_offset is not None:
         result["slot_offset"] = field.slot_offset
 
-    if field.serialized_name is not None:
-        result["serialized_name"] = field.serialized_name
+    if field.data_key is not None:
+        result["data_key"] = field.data_key
 
     if field.strip_whitespaces:
         result["strip_whitespaces"] = True

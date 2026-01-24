@@ -4,10 +4,10 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyString};
 use pyo3::Borrowed;
 
-use crate::deserializer::{Deserializer, FieldDeserializer};
-use crate::serializer::{FieldSerializer, Serializer};
+use crate::deserializer::{Loader, FieldLoader};
+use crate::serializer::{FieldDumper, Dumper};
 
-pub struct SerializeContext<'a, 'py> {
+pub struct DumpContext<'a, 'py> {
     pub py: Python<'py>,
     pub none_value_handling: Option<&'a str>,
     pub global_decimal_places: Option<i32>,
@@ -19,47 +19,47 @@ pub struct LoadContext<'a, 'py> {
     pub decimal_places: Option<i32>,
 }
 
-pub type SerializeFn = for<'a, 'py> fn(
+pub type DumpFn = for<'a, 'py> fn(
     value: &Bound<'py, PyAny>,
     field: Option<&FieldDescriptor>,
-    ctx: &SerializeContext<'a, 'py>,
+    ctx: &DumpContext<'a, 'py>,
 ) -> PyResult<Py<PyAny>>;
 
-pub type SerializeJsonFn = for<'a, 'py> fn(
+pub type DumpJsonFn = for<'a, 'py> fn(
     value: &Bound<'py, PyAny>,
     field: Option<&FieldDescriptor>,
-    ctx: &SerializeContext<'a, 'py>,
+    ctx: &DumpContext<'a, 'py>,
 ) -> Result<serde_json::Value, String>;
 
-pub type DeserializeFn = for<'a, 'py> fn(
+pub type LoadFn = for<'a, 'py> fn(
     value: &Bound<'py, PyAny>,
     field: &FieldDescriptor,
     ctx: &LoadContext<'a, 'py>,
 ) -> PyResult<Py<PyAny>>;
 
 
-pub fn callback_required_serialize<'py>(
+pub fn callback_required_dump<'py>(
     _value: &Bound<'py, PyAny>,
     _field: Option<&FieldDescriptor>,
-    _ctx: &SerializeContext<'_, 'py>,
+    _ctx: &DumpContext<'_, 'py>,
 ) -> PyResult<Py<PyAny>> {
-    Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Serialize callback not configured"))
+    Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Dump callback not configured"))
 }
 
-pub fn callback_required_serialize_json<'py>(
+pub fn callback_required_dump_json<'py>(
     _value: &Bound<'py, PyAny>,
     _field: Option<&FieldDescriptor>,
-    _ctx: &SerializeContext<'_, 'py>,
+    _ctx: &DumpContext<'_, 'py>,
 ) -> Result<serde_json::Value, String> {
-    Err("Serialize JSON callback not configured".to_string())
+    Err("Dump JSON callback not configured".to_string())
 }
 
-pub fn callback_required_deserialize<'py>(
+pub fn callback_required_load<'py>(
     _value: &Bound<'py, PyAny>,
     _field: &FieldDescriptor,
     _ctx: &LoadContext<'_, 'py>,
 ) -> PyResult<Py<PyAny>> {
-    Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Deserialize callback not configured"))
+    Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Load callback not configured"))
 }
 
 
@@ -149,11 +149,11 @@ impl FieldType {
 pub struct FieldDescriptor {
     pub name: String,
     pub name_interned: Py<PyString>,
-    pub serialized_name: Option<String>,
+    pub data_key: Option<String>,
     pub field_type: FieldType,
-    pub serialize_fn: SerializeFn,
-    pub serialize_json_fn: SerializeJsonFn,
-    pub deserialize_fn: DeserializeFn,
+    pub dump_fn: DumpFn,
+    pub dump_json_fn: DumpJsonFn,
+    pub load_fn: LoadFn,
     pub optional: bool,
     pub slot_offset: Option<isize>,
     pub nested_schema: Option<Box<SchemaDescriptor>>,
@@ -195,11 +195,11 @@ impl Clone for FieldDescriptor {
         Python::attach(|py| Self {
             name: self.name.clone(),
             name_interned: self.name_interned.clone_ref(py),
-            serialized_name: self.serialized_name.clone(),
+            data_key: self.data_key.clone(),
             field_type: self.field_type,
-            serialize_fn: self.serialize_fn,
-            serialize_json_fn: self.serialize_json_fn,
-            deserialize_fn: self.deserialize_fn,
+            dump_fn: self.dump_fn,
+            dump_json_fn: self.dump_json_fn,
+            load_fn: self.load_fn,
             optional: self.optional,
             slot_offset: self.slot_offset,
             nested_schema: self.nested_schema.clone(),
@@ -239,7 +239,7 @@ impl FromPyObject<'_, '_> for FieldDescriptor {
         let py = ob.py();
         let name: String = ob.getattr("name")?.extract()?;
         let name_interned = PyString::intern(py, &name).unbind();
-        let serialized_name: Option<String> = ob.getattr("serialized_name")?.extract()?;
+        let data_key: Option<String> = ob.getattr("data_key")?.extract()?;
         let field_type: FieldType = ob.getattr("field_type")?.extract()?;
         let optional: bool = ob.getattr("optional")?.extract()?;
         let slot_offset: Option<isize> = ob.getattr("slot_offset")?.extract().ok().flatten()
@@ -275,10 +275,10 @@ impl FromPyObject<'_, '_> for FieldDescriptor {
         Ok(Self {
             name,
             name_interned,
-            serialized_name,
-            serialize_fn: callback_required_serialize,
-            serialize_json_fn: callback_required_serialize_json,
-            deserialize_fn: callback_required_deserialize,
+            data_key,
+            dump_fn: callback_required_dump,
+            dump_json_fn: callback_required_dump_json,
+            load_fn: callback_required_load,
             field_type,
             optional,
             slot_offset,
@@ -315,8 +315,8 @@ pub struct SchemaDescriptor {
     pub field_lookup: HashMap<String, usize>,
     pub can_use_direct_slots: bool,
     pub has_post_init: bool,
-    pub serializer_fields: Option<Vec<FieldSerializer>>,
-    pub deserializer_fields: Option<Vec<FieldDeserializer>>,
+    pub dumper_fields: Option<Vec<FieldDumper>>,
+    pub loader_fields: Option<Vec<FieldLoader>>,
 }
 
 impl Clone for SchemaDescriptor {
@@ -327,8 +327,8 @@ impl Clone for SchemaDescriptor {
             field_lookup: self.field_lookup.clone(),
             can_use_direct_slots: self.can_use_direct_slots,
             has_post_init: self.has_post_init,
-            serializer_fields: self.serializer_fields.clone(),
-            deserializer_fields: self.deserializer_fields.clone(),
+            dumper_fields: self.dumper_fields.clone(),
+            loader_fields: self.loader_fields.clone(),
         })
     }
 }
@@ -342,7 +342,7 @@ impl FromPyObject<'_, '_> for SchemaDescriptor {
         let can_use_direct_slots: bool = ob.getattr("can_use_direct_slots")?.extract().unwrap_or(false);
         let has_post_init: bool = ob.getattr("has_post_init")?.extract().unwrap_or(false);
         let field_lookup = build_field_lookup(&fields);
-        Ok(Self { cls, fields, field_lookup, can_use_direct_slots, has_post_init, serializer_fields: None, deserializer_fields: None })
+        Ok(Self { cls, fields, field_lookup, can_use_direct_slots, has_post_init, dumper_fields: None, loader_fields: None })
     }
 }
 
@@ -391,10 +391,10 @@ impl TypeKind {
 pub struct TypeDescriptor {
     pub type_kind: TypeKind,
     pub primitive_type: Option<FieldType>,
-    pub primitive_serialize_fn: Option<SerializeFn>,
-    pub primitive_serialize_json_fn: Option<SerializeJsonFn>,
-    pub primitive_serializer: Option<Serializer>,
-    pub primitive_deserializer: Option<Deserializer>,
+    pub primitive_dump_fn: Option<DumpFn>,
+    pub primitive_dump_json_fn: Option<DumpJsonFn>,
+    pub primitive_dumper: Option<Dumper>,
+    pub primitive_loader: Option<Loader>,
     pub optional: bool,
     pub inner_type: Option<Box<Self>>,
     pub item_type: Option<Box<Self>>,
@@ -405,8 +405,8 @@ pub struct TypeDescriptor {
     pub union_variants: Option<Vec<Self>>,
     pub can_use_direct_slots: bool,
     pub has_post_init: bool,
-    pub serializer_fields: Option<Vec<FieldSerializer>>,
-    pub deserializer_fields: Option<Vec<FieldDeserializer>>,
+    pub dumper_fields: Option<Vec<FieldDumper>>,
+    pub loader_fields: Option<Vec<FieldLoader>>,
 }
 
 impl Clone for TypeDescriptor {
@@ -414,10 +414,10 @@ impl Clone for TypeDescriptor {
         Python::attach(|py| Self {
             type_kind: self.type_kind.clone(),
             primitive_type: self.primitive_type,
-            primitive_serialize_fn: self.primitive_serialize_fn,
-            primitive_serialize_json_fn: self.primitive_serialize_json_fn,
-            primitive_serializer: self.primitive_serializer.clone(),
-            primitive_deserializer: self.primitive_deserializer.clone(),
+            primitive_dump_fn: self.primitive_dump_fn,
+            primitive_dump_json_fn: self.primitive_dump_json_fn,
+            primitive_dumper: self.primitive_dumper.clone(),
+            primitive_loader: self.primitive_loader.clone(),
             optional: self.optional,
             inner_type: self.inner_type.clone(),
             item_type: self.item_type.clone(),
@@ -428,8 +428,8 @@ impl Clone for TypeDescriptor {
             union_variants: self.union_variants.clone(),
             can_use_direct_slots: self.can_use_direct_slots,
             has_post_init: self.has_post_init,
-            serializer_fields: self.serializer_fields.clone(),
-            deserializer_fields: self.deserializer_fields.clone(),
+            dumper_fields: self.dumper_fields.clone(),
+            loader_fields: self.loader_fields.clone(),
         })
     }
 }
@@ -454,10 +454,10 @@ impl FromPyObject<'_, '_> for TypeDescriptor {
         Ok(Self {
             type_kind,
             primitive_type,
-            primitive_serialize_fn: None,
-            primitive_serialize_json_fn: None,
-            primitive_serializer: None,
-            primitive_deserializer: None,
+            primitive_dump_fn: None,
+            primitive_dump_json_fn: None,
+            primitive_dumper: None,
+            primitive_loader: None,
             optional,
             inner_type: inner_type.map(Box::new),
             item_type: item_type.map(Box::new),
@@ -468,14 +468,14 @@ impl FromPyObject<'_, '_> for TypeDescriptor {
             union_variants,
             can_use_direct_slots,
             has_post_init,
-            serializer_fields: None,
-            deserializer_fields: None,
+            dumper_fields: None,
+            loader_fields: None,
         })
     }
 }
 
 pub fn build_field_lookup(fields: &[FieldDescriptor]) -> HashMap<String, usize> {
     fields.iter().enumerate()
-        .map(|(idx, field)| (field.serialized_name.as_ref().unwrap_or(&field.name).clone(), idx))
+        .map(|(idx, field)| (field.data_key.as_ref().unwrap_or(&field.name).clone(), idx))
         .collect()
 }

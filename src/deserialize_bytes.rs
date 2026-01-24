@@ -14,11 +14,11 @@ use serde_json::Value;
 use smallbitvec::SmallBitVec;
 
 use crate::cache::get_cached_types;
-use crate::deserialize::{LoadContext, deserialize_root_type};
-use crate::deserializer::{DecimalDeserData, Deserializer};
+use crate::deserialize::{LoadContext, load_root_type};
+use crate::deserializer::{DecimalLoaderData, Loader};
 use crate::field_types::collection::CollectionKind;
 use crate::field_types::helpers::{err_json, DATETIME_ERROR, DATE_ERROR, DECIMAL_NUMBER_ERROR, FLOAT_ERROR, FLOAT_NAN_ERROR, INT_ERROR, TIME_ERROR, UUID_ERROR};
-use crate::field_types::nested::FieldDeserializer;
+use crate::field_types::nested::FieldLoader;
 use crate::field_types::{int, float, bool_type, decimal, date, time, datetime, uuid, str_type, str_enum, int_enum};
 use crate::slots::set_slot_value_direct;
 use crate::types::{TypeDescriptor, TypeKind};
@@ -124,30 +124,30 @@ impl<'de> DeserializeSeed<'de> for TypeDescriptorSeed<'_, '_> {
                 let cls = self.descriptor.cls.as_ref().ok_or_else(|| {
                     de::Error::custom("Missing cls for dataclass")
                 })?;
-                let deserializer_fields = self.descriptor.deserializer_fields.as_ref().ok_or_else(|| {
-                    de::Error::custom("Missing deserializer_fields for dataclass")
+                let loader_fields = self.descriptor.loader_fields.as_ref().ok_or_else(|| {
+                    de::Error::custom("Missing loader_fields for dataclass")
                 })?;
                 if self.descriptor.can_use_direct_slots {
                     deserializer.deserialize_map(DataclassDirectSlotsVisitor {
                         ctx: self.ctx,
                         cls: cls.bind(self.ctx.py),
-                        fields: deserializer_fields,
+                        fields: loader_fields,
                         field_lookup: &self.descriptor.field_lookup,
                     })
                 } else {
                     deserializer.deserialize_map(DataclassVisitor {
                         ctx: self.ctx,
                         cls: cls.bind(self.ctx.py),
-                        fields: deserializer_fields,
+                        fields: loader_fields,
                         field_lookup: &self.descriptor.field_lookup,
                     })
                 }
             }
             TypeKind::Primitive => {
-                let prim_deserializer = self.descriptor.primitive_deserializer.as_ref().ok_or_else(|| {
-                    de::Error::custom("Missing primitive_deserializer")
+                let prim_deserializer = self.descriptor.primitive_loader.as_ref().ok_or_else(|| {
+                    de::Error::custom("Missing primitive_loader")
                 })?;
-                PrimitiveDeserializerSeed {
+                PrimitiveLoaderSeed {
                     ctx: self.ctx,
                     deserializer: prim_deserializer,
                 }.deserialize(deserializer)
@@ -196,7 +196,7 @@ impl<'de> DeserializeSeed<'de> for TypeDescriptorSeed<'_, '_> {
                     decimal_places: self.ctx.decimal_places,
                 };
                 for variant in variants {
-                    if let Ok(result) = deserialize_root_type(py_value.bind(self.ctx.py), variant, &dict_ctx) {
+                    if let Ok(result) = load_root_type(py_value.bind(self.ctx.py), variant, &dict_ctx) {
                         return Ok(result);
                     }
                 }
@@ -324,23 +324,23 @@ impl<'de> Visitor<'de> for OptionalVisitor<'_, '_> {
     }
 }
 
-pub struct FieldDeserializerSeed<'a, 'py> {
+pub struct FieldLoaderSeed<'a, 'py> {
     pub ctx: &'a StreamingContext<'a, 'py>,
-    pub field: &'a FieldDeserializer,
+    pub field: &'a FieldLoader,
 }
 
-impl<'de> DeserializeSeed<'de> for FieldDeserializerSeed<'_, '_> {
+impl<'de> DeserializeSeed<'de> for FieldLoaderSeed<'_, '_> {
     type Value = Py<PyAny>;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
         D: de::Deserializer<'de>,
     {
-        if matches!(self.field.deserializer, Deserializer::Any) {
+        if matches!(self.field.loader, Loader::Any) {
             let json_value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
             return json_value_to_py(self.ctx.py, &json_value).map_err(de::Error::custom);
         }
-        if matches!(self.field.deserializer, Deserializer::Union { .. }) {
+        if matches!(self.field.loader, Loader::Union { .. }) {
             let json_value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
             let py_value = json_value_to_py(self.ctx.py, &json_value).map_err(de::Error::custom)?;
             let dict_ctx = crate::types::LoadContext {
@@ -348,7 +348,7 @@ impl<'de> DeserializeSeed<'de> for FieldDeserializerSeed<'_, '_> {
                 post_loads: self.ctx.post_loads,
                 decimal_places: self.ctx.decimal_places,
             };
-            return self.field.deserializer.deserialize_from_dict(
+            return self.field.loader.load_from_dict(
                 py_value.bind(self.ctx.py),
                 &self.field.name,
                 self.field.invalid_error.as_deref(),
@@ -364,7 +364,7 @@ impl<'de> DeserializeSeed<'de> for FieldDeserializerSeed<'_, '_> {
 
 struct FieldValueVisitor<'a, 'py> {
     ctx: &'a StreamingContext<'a, 'py>,
-    field: &'a FieldDeserializer,
+    field: &'a FieldLoader,
 }
 
 impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
@@ -403,10 +403,10 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
     where
         E: de::Error,
     {
-        match &self.field.deserializer {
-            Deserializer::Bool => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
+        match &self.field.loader {
+            Loader::Bool => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
             _ => {
-                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.deserializer));
+                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.loader));
                 Err(de::Error::custom(err_json(&self.field.name, msg)))
             }
         }
@@ -416,30 +416,30 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
     where
         E: de::Error,
     {
-        match &self.field.deserializer {
-            Deserializer::Int => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
-            Deserializer::Float => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
-            Deserializer::Decimal(data) => {
+        match &self.field.loader {
+            Loader::Int => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
+            Loader::Float => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
+            Loader::Decimal(data) => {
                 let cached = get_cached_types(self.ctx.py).map_err(de::Error::custom)?;
                 let decimal = cached.decimal_cls.bind(self.ctx.py).call1((v,)).map_err(de::Error::custom)?;
                 apply_decimal_quantize(self.ctx.py, decimal.unbind(), data, self.ctx.decimal_places)
                     .map_err(|e| de::Error::custom(err_json(&self.field.name, &e)))
             }
-            Deserializer::IntEnum(data) => {
+            Loader::IntEnum(data) => {
                 for (k, member) in &data.values {
                     if *k == v {
                         return Ok(member.clone_ref(self.ctx.py));
                     }
                 }
-                let msg = crate::field_types::int_enum::int_enum_deserializer::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
+                let msg = crate::field_types::int_enum::int_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
-            Deserializer::StrEnum(data) => {
-                let msg = crate::field_types::str_enum::str_enum_deserializer::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
+            Loader::StrEnum(data) => {
+                let msg = crate::field_types::str_enum::str_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             _ => {
-                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.deserializer));
+                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.loader));
                 Err(de::Error::custom(err_json(&self.field.name, msg)))
             }
         }
@@ -449,16 +449,16 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
     where
         E: de::Error,
     {
-        match &self.field.deserializer {
-            Deserializer::Int => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
-            Deserializer::Float => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
-            Deserializer::Decimal(data) => {
+        match &self.field.loader {
+            Loader::Int => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
+            Loader::Float => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
+            Loader::Decimal(data) => {
                 let cached = get_cached_types(self.ctx.py).map_err(de::Error::custom)?;
                 let decimal = cached.decimal_cls.bind(self.ctx.py).call1((v,)).map_err(de::Error::custom)?;
                 apply_decimal_quantize(self.ctx.py, decimal.unbind(), data, self.ctx.decimal_places)
                     .map_err(|e| de::Error::custom(err_json(&self.field.name, &e)))
             }
-            Deserializer::IntEnum(data) => {
+            Loader::IntEnum(data) => {
                 if let Ok(v_i64) = i64::try_from(v) {
                     for (k, member) in &data.values {
                         if *k == v_i64 {
@@ -466,15 +466,15 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                         }
                     }
                 }
-                let msg = crate::field_types::int_enum::int_enum_deserializer::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
+                let msg = crate::field_types::int_enum::int_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
-            Deserializer::StrEnum(data) => {
-                let msg = crate::field_types::str_enum::str_enum_deserializer::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
+            Loader::StrEnum(data) => {
+                let msg = crate::field_types::str_enum::str_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             _ => {
-                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.deserializer));
+                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.loader));
                 Err(de::Error::custom(err_json(&self.field.name, msg)))
             }
         }
@@ -484,16 +484,16 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
     where
         E: de::Error,
     {
-        match &self.field.deserializer {
-            Deserializer::Float => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
-            Deserializer::Decimal(data) => {
-                decimal::decimal_deserializer::deserialize_from_f64(
+        match &self.field.loader {
+            Loader::Float => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
+            Loader::Decimal(data) => {
+                decimal::decimal_loader::load_from_f64(
                     self.ctx.py, v, data.decimal_places, data.decimal_rounding.as_ref(),
                     self.ctx.decimal_places, self.field.invalid_error.as_deref().unwrap_or(DECIMAL_NUMBER_ERROR),
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json(&self.field.name, &e.to_string())))
             }
             _ => {
-                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.deserializer));
+                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.loader));
                 Err(de::Error::custom(err_json(&self.field.name, msg)))
             }
         }
@@ -503,18 +503,18 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
     where
         E: de::Error,
     {
-        match &self.field.deserializer {
-            Deserializer::Str { strip_whitespaces } => {
+        match &self.field.loader {
+            Loader::Str { strip_whitespaces } => {
                 let s = if *strip_whitespaces { v.trim() } else { v };
                 s.into_py_any(self.ctx.py).map_err(de::Error::custom)
             }
-            Deserializer::Int => {
+            Loader::Int => {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(INT_ERROR).to_string();
                 v.parse::<i64>()
                     .map_err(|_| de::Error::custom(err_json(&self.field.name, &err_msg())))
                     .and_then(|i| i.into_py_any(self.ctx.py).map_err(de::Error::custom))
             }
-            Deserializer::Float => {
+            Loader::Float => {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(FLOAT_ERROR).to_string();
                 let nan_err = || self.field.invalid_error.as_deref().unwrap_or(FLOAT_NAN_ERROR).to_string();
                 let f: f64 = v.parse().map_err(|_| de::Error::custom(err_json(&self.field.name, &err_msg())))?;
@@ -523,7 +523,7 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                 }
                 f.into_py_any(self.ctx.py).map_err(de::Error::custom)
             }
-            Deserializer::Decimal(data) => {
+            Loader::Decimal(data) => {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(DECIMAL_NUMBER_ERROR).to_string();
                 let rust_decimal = Decimal::from_str(v)
                     .or_else(|_| Decimal::from_scientific(v))
@@ -551,19 +551,19 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                     .map(Bound::unbind)
                     .map_err(de::Error::custom)
             }
-            Deserializer::Date => {
+            Loader::Date => {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(DATE_ERROR).to_string();
                 parse_iso_date(v)
                     .ok_or_else(|| de::Error::custom(err_json(&self.field.name, &err_msg())))
                     .and_then(|d| create_pydate_from_chrono(self.ctx.py, d).map_err(de::Error::custom))
             }
-            Deserializer::Time => {
+            Loader::Time => {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(TIME_ERROR).to_string();
                 parse_iso_time(v)
                     .ok_or_else(|| de::Error::custom(err_json(&self.field.name, &err_msg())))
                     .and_then(|t| create_pytime_from_chrono(self.ctx.py, t).map_err(de::Error::custom))
             }
-            Deserializer::DateTime { format } => {
+            Loader::DateTime { format } => {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(DATETIME_ERROR).to_string();
                 if let Some(ref fmt) = format {
                     if let Some(dt) = parse_datetime_with_format(v, fmt) {
@@ -575,27 +575,27 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                     .ok_or_else(|| de::Error::custom(err_json(&self.field.name, &err_msg())))
                     .and_then(|dt| create_pydatetime_from_chrono(self.ctx.py, dt).map_err(de::Error::custom))
             }
-            Deserializer::Uuid => {
+            Loader::Uuid => {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(UUID_ERROR).to_string();
                 let cached = get_cached_types(self.ctx.py).map_err(de::Error::custom)?;
                 let parsed_uuid = ::uuid::Uuid::parse_str(v).map_err(|_| de::Error::custom(err_json(&self.field.name, &err_msg())))?;
                 cached.create_uuid_fast(self.ctx.py, parsed_uuid.as_u128()).map_err(de::Error::custom)
             }
-            Deserializer::StrEnum(data) => {
+            Loader::StrEnum(data) => {
                 for (k, member) in &data.values {
                     if k == v {
                         return Ok(member.clone_ref(self.ctx.py));
                     }
                 }
-                let msg = crate::field_types::str_enum::str_enum_deserializer::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
+                let msg = crate::field_types::str_enum::str_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
-            Deserializer::IntEnum(data) => {
-                let msg = crate::field_types::int_enum::int_enum_deserializer::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
+            Loader::IntEnum(data) => {
+                let msg = crate::field_types::int_enum::int_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             _ => {
-                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.deserializer));
+                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.loader));
                 Err(de::Error::custom(err_json(&self.field.name, msg)))
             }
         }
@@ -612,13 +612,13 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
     where
         A: SeqAccess<'de>,
     {
-        match &self.field.deserializer {
-            Deserializer::Collection(data) => {
+        match &self.field.loader {
+            Loader::Collection(data) => {
                 let mut items = Vec::with_capacity(seq.size_hint().unwrap_or(0));
                 let mut item_errors: Vec<(usize, Py<PyAny>)> = Vec::new();
                 let mut idx = 0usize;
 
-                while let Some(item) = seq.next_element_seed(PrimitiveDeserializerSeed {
+                while let Some(item) = seq.next_element_seed(PrimitiveLoaderSeed {
                     ctx: self.ctx,
                     deserializer: &data.item,
                 }).map_err(|e| {
@@ -650,7 +650,7 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                 }
             }
             _ => {
-                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.deserializer));
+                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.loader));
                 Err(de::Error::custom(err_json(&self.field.name, msg)))
             }
         }
@@ -662,22 +662,22 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
     {
         const SERDE_JSON_NUMBER_TOKEN: &str = "$serde_json::private::Number";
 
-        match &self.field.deserializer {
-            Deserializer::Int | Deserializer::Float | Deserializer::Decimal(_) => {
+        match &self.field.loader {
+            Loader::Int | Loader::Float | Loader::Decimal(_) => {
                 if let Some(key) = map.next_key::<&str>()? {
                     if key == SERDE_JSON_NUMBER_TOKEN {
                         let num_str: String = map.next_value()?;
                         return self.visit_big_number(&num_str);
                     }
                 }
-                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.deserializer));
+                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.loader));
                 Err(de::Error::custom(err_json(&self.field.name, msg)))
             }
-            Deserializer::Dict(data) => {
+            Loader::Dict(data) => {
                 let py = self.ctx.py;
                 let dict = PyDict::new(py);
                 while let Some(key) = map.next_key::<&str>()? {
-                    let value = map.next_value_seed(PrimitiveDeserializerSeed {
+                    let value = map.next_value_seed(PrimitiveLoaderSeed {
                         ctx: self.ctx,
                         deserializer: &data.value,
                     }).map_err(|e| {
@@ -698,7 +698,7 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                 }
                 Ok(dict.unbind().into())
             }
-            Deserializer::Nested { schema } => {
+            Loader::Nested { schema } => {
                 let result = if schema.can_use_direct_slots {
                     DataclassDirectSlotsVisitor {
                         ctx: self.ctx,
@@ -721,7 +721,7 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                 })
             }
             _ => {
-                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.deserializer));
+                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.loader));
                 Err(de::Error::custom(err_json(&self.field.name, msg)))
             }
         }
@@ -735,8 +735,8 @@ impl FieldValueVisitor<'_, '_> {
     {
         let is_float = is_json_float_string(num_str);
 
-        match &self.field.deserializer {
-            Deserializer::Int => {
+        match &self.field.loader {
+            Loader::Int => {
                 if is_float {
                     let msg = self.field.invalid_error.as_deref().unwrap_or(INT_ERROR);
                     return Err(de::Error::custom(err_json(&self.field.name, msg)));
@@ -749,7 +749,7 @@ impl FieldValueVisitor<'_, '_> {
                         de::Error::custom(err_json(&self.field.name, msg))
                     })
             }
-            Deserializer::Float => {
+            Loader::Float => {
                 num_str.parse::<f64>()
                     .map_err(|_| {
                         let msg = self.field.invalid_error.as_deref().unwrap_or(FLOAT_ERROR);
@@ -757,7 +757,7 @@ impl FieldValueVisitor<'_, '_> {
                     })
                     .and_then(|f| f.into_py_any(self.ctx.py).map_err(de::Error::custom))
             }
-            Deserializer::Decimal(data) => {
+            Loader::Decimal(data) => {
                 let cached = get_cached_types(self.ctx.py).map_err(de::Error::custom)?;
                 let decimal = cached.decimal_cls.bind(self.ctx.py).call1((num_str,))
                     .map_err(|_| {
@@ -768,30 +768,30 @@ impl FieldValueVisitor<'_, '_> {
                     .map_err(|e| de::Error::custom(err_json(&self.field.name, &e)))
             }
             _ => {
-                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.deserializer));
+                let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.loader));
                 Err(de::Error::custom(err_json(&self.field.name, msg)))
             }
         }
     }
 }
 
-pub struct PrimitiveDeserializerSeed<'a, 'py> {
+pub struct PrimitiveLoaderSeed<'a, 'py> {
     pub ctx: &'a StreamingContext<'a, 'py>,
-    pub deserializer: &'a Deserializer,
+    pub deserializer: &'a Loader,
 }
 
-impl<'de> DeserializeSeed<'de> for PrimitiveDeserializerSeed<'_, '_> {
+impl<'de> DeserializeSeed<'de> for PrimitiveLoaderSeed<'_, '_> {
     type Value = Py<PyAny>;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
         D: de::Deserializer<'de>,
     {
-        if matches!(self.deserializer, Deserializer::Any) {
+        if matches!(self.deserializer, Loader::Any) {
             let json_value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
             return json_value_to_py(self.ctx.py, &json_value).map_err(de::Error::custom);
         }
-        if matches!(self.deserializer, Deserializer::Union { .. }) {
+        if matches!(self.deserializer, Loader::Union { .. }) {
             let json_value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
             let py_value = json_value_to_py(self.ctx.py, &json_value).map_err(de::Error::custom)?;
             let dict_ctx = LoadContext {
@@ -799,7 +799,7 @@ impl<'de> DeserializeSeed<'de> for PrimitiveDeserializerSeed<'_, '_> {
                 post_loads: self.ctx.post_loads,
                 decimal_places: self.ctx.decimal_places,
             };
-            return self.deserializer.deserialize_from_dict(
+            return self.deserializer.load_from_dict(
                 py_value.bind(self.ctx.py),
                 "",
                 None,
@@ -815,7 +815,7 @@ impl<'de> DeserializeSeed<'de> for PrimitiveDeserializerSeed<'_, '_> {
 
 struct PrimitiveValueVisitor<'a, 'py> {
     ctx: &'a StreamingContext<'a, 'py>,
-    deserializer: &'a Deserializer,
+    deserializer: &'a Loader,
 }
 
 impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
@@ -851,7 +851,7 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
         E: de::Error,
     {
         match &self.deserializer {
-            Deserializer::Bool => bool_type::bool_deserializer::deserialize_from_bool(self.ctx.py, v),
+            Loader::Bool => bool_type::bool_loader::load_from_bool(self.ctx.py, v),
             _ => Err(de::Error::custom(err_json("", get_type_error(self.deserializer)))),
         }
     }
@@ -861,16 +861,16 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
         E: de::Error,
     {
         match &self.deserializer {
-            Deserializer::Int => int::int_deserializer::deserialize_from_i64(self.ctx.py, v),
-            Deserializer::Float => float::float_deserializer::deserialize_from_i64(self.ctx.py, v),
-            Deserializer::Decimal(data) => {
-                decimal::decimal_deserializer::deserialize_from_i64(
+            Loader::Int => int::int_loader::load_from_i64(self.ctx.py, v),
+            Loader::Float => float::float_loader::load_from_i64(self.ctx.py, v),
+            Loader::Decimal(data) => {
+                decimal::decimal_loader::load_from_i64(
                     self.ctx.py, v, data.decimal_places, data.decimal_rounding.as_ref(),
                     self.ctx.decimal_places, DECIMAL_NUMBER_ERROR,
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
             }
-            Deserializer::IntEnum(data) => {
-                int_enum::int_enum_deserializer::deserialize_from_i64(self.ctx.py, v, &data.values, None)
+            Loader::IntEnum(data) => {
+                int_enum::int_enum_loader::load_from_i64(self.ctx.py, v, &data.values, None)
                     .map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
             }
             _ => Err(de::Error::custom(err_json("", get_type_error(self.deserializer)))),
@@ -882,16 +882,16 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
         E: de::Error,
     {
         match &self.deserializer {
-            Deserializer::Int => int::int_deserializer::deserialize_from_u64(self.ctx.py, v),
-            Deserializer::Float => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
-            Deserializer::Decimal(data) => {
-                decimal::decimal_deserializer::deserialize_from_u64(
+            Loader::Int => int::int_loader::load_from_u64(self.ctx.py, v),
+            Loader::Float => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
+            Loader::Decimal(data) => {
+                decimal::decimal_loader::load_from_u64(
                     self.ctx.py, v, data.decimal_places, data.decimal_rounding.as_ref(),
                     self.ctx.decimal_places, DECIMAL_NUMBER_ERROR,
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
             }
-            Deserializer::IntEnum(data) => {
-                int_enum::int_enum_deserializer::deserialize_from_u64(self.ctx.py, v, &data.values, None)
+            Loader::IntEnum(data) => {
+                int_enum::int_enum_loader::load_from_u64(self.ctx.py, v, &data.values, None)
                     .map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
             }
             _ => Err(de::Error::custom(err_json("", get_type_error(self.deserializer)))),
@@ -903,9 +903,9 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
         E: de::Error,
     {
         match &self.deserializer {
-            Deserializer::Float => float::float_deserializer::deserialize_from_f64(self.ctx.py, v),
-            Deserializer::Decimal(data) => {
-                decimal::decimal_deserializer::deserialize_from_f64(
+            Loader::Float => float::float_loader::load_from_f64(self.ctx.py, v),
+            Loader::Decimal(data) => {
+                decimal::decimal_loader::load_from_f64(
                     self.ctx.py, v, data.decimal_places, data.decimal_rounding.as_ref(),
                     self.ctx.decimal_places, DECIMAL_NUMBER_ERROR,
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
@@ -919,25 +919,25 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
         E: de::Error,
     {
         match &self.deserializer {
-            Deserializer::Str { strip_whitespaces } => {
-                str_type::str_deserializer::deserialize_from_str(self.ctx.py, v, *strip_whitespaces)
+            Loader::Str { strip_whitespaces } => {
+                str_type::str_loader::load_from_str(self.ctx.py, v, *strip_whitespaces)
             }
-            Deserializer::Int => int::int_deserializer::deserialize_from_str(self.ctx.py, v, &err_json("", INT_ERROR)),
-            Deserializer::Float => float::float_deserializer::deserialize_from_str(self.ctx.py, v, &err_json("", FLOAT_ERROR), &err_json("", FLOAT_NAN_ERROR)),
-            Deserializer::Decimal(data) => {
-                decimal::decimal_deserializer::deserialize_from_str(
+            Loader::Int => int::int_loader::load_from_str(self.ctx.py, v, &err_json("", INT_ERROR)),
+            Loader::Float => float::float_loader::load_from_str(self.ctx.py, v, &err_json("", FLOAT_ERROR), &err_json("", FLOAT_NAN_ERROR)),
+            Loader::Decimal(data) => {
+                decimal::decimal_loader::load_from_str(
                     self.ctx.py, v, data.decimal_places, data.decimal_rounding.as_ref(),
                     self.ctx.decimal_places, &err_json("", DECIMAL_NUMBER_ERROR),
                 )
             }
-            Deserializer::Date => date::date_deserializer::deserialize_from_str(self.ctx.py, v, &err_json("", DATE_ERROR)),
-            Deserializer::Time => time::time_deserializer::deserialize_from_str(self.ctx.py, v, &err_json("", TIME_ERROR)),
-            Deserializer::DateTime { format } => {
-                datetime::datetime_deserializer::deserialize_from_str(self.ctx.py, v, format.as_deref(), &err_json("", DATETIME_ERROR))
+            Loader::Date => date::date_loader::load_from_str(self.ctx.py, v, &err_json("", DATE_ERROR)),
+            Loader::Time => time::time_loader::load_from_str(self.ctx.py, v, &err_json("", TIME_ERROR)),
+            Loader::DateTime { format } => {
+                datetime::datetime_loader::load_from_str(self.ctx.py, v, format.as_deref(), &err_json("", DATETIME_ERROR))
             }
-            Deserializer::Uuid => uuid::uuid_deserializer::deserialize_from_str(self.ctx.py, v, &err_json("", UUID_ERROR)),
-            Deserializer::StrEnum(data) => {
-                str_enum::str_enum_deserializer::deserialize_from_str(self.ctx.py, v, &data.values, None)
+            Loader::Uuid => uuid::uuid_loader::load_from_str(self.ctx.py, v, &err_json("", UUID_ERROR)),
+            Loader::StrEnum(data) => {
+                str_enum::str_enum_loader::load_from_str(self.ctx.py, v, &data.values, None)
                     .map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
             }
             _ => Err(de::Error::custom(err_json("", get_type_error(self.deserializer)))),
@@ -956,10 +956,10 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
         A: SeqAccess<'de>,
     {
         match &self.deserializer {
-            Deserializer::Collection(data) => {
+            Loader::Collection(data) => {
                 let mut items = Vec::with_capacity(seq.size_hint().unwrap_or(0));
                 let mut idx = 0usize;
-                while let Some(item) = seq.next_element_seed(PrimitiveDeserializerSeed {
+                while let Some(item) = seq.next_element_seed(PrimitiveLoaderSeed {
                     ctx: self.ctx,
                     deserializer: &data.item,
                 }).map_err(|e| {
@@ -989,7 +989,7 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
         const SERDE_JSON_NUMBER_TOKEN: &str = "$serde_json::private::Number";
 
         match &self.deserializer {
-            Deserializer::Int | Deserializer::Float | Deserializer::Decimal(_) => {
+            Loader::Int | Loader::Float | Loader::Decimal(_) => {
                 if let Some(key) = map.next_key::<&str>()? {
                     if key == SERDE_JSON_NUMBER_TOKEN {
                         let num_str: String = map.next_value()?;
@@ -998,11 +998,11 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
                 }
                 Err(de::Error::custom(err_json("", get_type_error(self.deserializer))))
             }
-            Deserializer::Dict(data) => {
+            Loader::Dict(data) => {
                 let py = self.ctx.py;
                 let dict = PyDict::new(py);
                 while let Some(key) = map.next_key::<&str>()? {
-                    let value = map.next_value_seed(PrimitiveDeserializerSeed {
+                    let value = map.next_value_seed(PrimitiveLoaderSeed {
                         ctx: self.ctx,
                         deserializer: &data.value,
                     }).map_err(|e| {
@@ -1015,7 +1015,7 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
                 }
                 Ok(dict.unbind().into())
             }
-            Deserializer::Nested { schema } => {
+            Loader::Nested { schema } => {
                 if schema.can_use_direct_slots {
                     DataclassDirectSlotsVisitor {
                         ctx: self.ctx,
@@ -1045,7 +1045,7 @@ impl PrimitiveValueVisitor<'_, '_> {
         let is_float = is_json_float_string(num_str);
 
         match &self.deserializer {
-            Deserializer::Int => {
+            Loader::Int => {
                 if is_float {
                     return Err(de::Error::custom(err_json("", INT_ERROR)));
                 }
@@ -1054,13 +1054,13 @@ impl PrimitiveValueVisitor<'_, '_> {
                     .map(pyo3::Bound::unbind)
                     .map_err(|_| de::Error::custom(err_json("", INT_ERROR)))
             }
-            Deserializer::Float => {
+            Loader::Float => {
                 num_str.parse::<f64>()
                     .map_err(|_| de::Error::custom(err_json("", FLOAT_ERROR)))
                     .and_then(|f| f.into_py_any(self.ctx.py).map_err(de::Error::custom))
             }
-            Deserializer::Decimal(data) => {
-                decimal::decimal_deserializer::deserialize_from_str(
+            Loader::Decimal(data) => {
+                decimal::decimal_loader::load_from_str(
                     self.ctx.py, num_str, data.decimal_places, data.decimal_rounding.as_ref(),
                     self.ctx.decimal_places, &err_json("", DECIMAL_NUMBER_ERROR),
                 )
@@ -1073,7 +1073,7 @@ impl PrimitiveValueVisitor<'_, '_> {
 pub struct DataclassVisitor<'a, 'py> {
     pub ctx: &'a StreamingContext<'a, 'py>,
     pub cls: &'a Bound<'py, PyAny>,
-    pub fields: &'a [FieldDeserializer],
+    pub fields: &'a [FieldLoader],
     pub field_lookup: &'a HashMap<String, usize>,
 }
 
@@ -1096,7 +1096,7 @@ impl<'de> Visitor<'de> for DataclassVisitor<'_, '_> {
             if let Some(&idx) = self.field_lookup.get(key) {
                 let field = &self.fields[idx];
                 seen_fields.set(idx, true);
-                let value = map.next_value_seed(FieldDeserializerSeed {
+                let value = map.next_value_seed(FieldLoaderSeed {
                     ctx: self.ctx,
                     field,
                 })?;
@@ -1121,7 +1121,7 @@ impl<'de> Visitor<'de> for DataclassVisitor<'_, '_> {
 pub struct DataclassDirectSlotsVisitor<'a, 'py> {
     pub ctx: &'a StreamingContext<'a, 'py>,
     pub cls: &'a Bound<'py, PyAny>,
-    pub fields: &'a [FieldDeserializer],
+    pub fields: &'a [FieldLoader],
     pub field_lookup: &'a HashMap<String, usize>,
 }
 
@@ -1148,7 +1148,7 @@ impl<'de> Visitor<'de> for DataclassDirectSlotsVisitor<'_, '_> {
             if let Some(&idx) = self.field_lookup.get(key) {
                 let field = &self.fields[idx];
                 seen_fields.set(idx, true);
-                let value = map.next_value_seed(FieldDeserializerSeed {
+                let value = map.next_value_seed(FieldLoaderSeed {
                     ctx: self.ctx,
                     field,
                 })?;
@@ -1189,7 +1189,7 @@ impl<'de> Visitor<'de> for DataclassDirectSlotsVisitor<'_, '_> {
 
 fn apply_post_load_and_validate_streaming<E: de::Error>(
     value: Py<PyAny>,
-    field: &FieldDeserializer,
+    field: &FieldLoader,
     ctx: &StreamingContext<'_, '_>,
 ) -> Result<Py<PyAny>, E> {
     let mut result = value;
@@ -1212,7 +1212,7 @@ fn apply_post_load_and_validate_streaming<E: de::Error>(
 }
 
 fn get_default_value_streaming<E: de::Error>(
-    field: &FieldDeserializer,
+    field: &FieldLoader,
     py: Python<'_>,
 ) -> Result<Option<Py<PyAny>>, E> {
     if let Some(ref factory) = field.default_factory {
@@ -1247,24 +1247,24 @@ fn format_item_errors_json_from_vec(py: Python, errors: &[(usize, Py<PyAny>)]) -
     serde_json::Value::Object(map).to_string()
 }
 
-fn get_type_error(deserializer: &Deserializer) -> &'static str {
+fn get_type_error(deserializer: &Loader) -> &'static str {
     use crate::field_types::helpers::{BOOL_ERROR, DICT_ERROR, NESTED_ERROR, STR_ERROR, UNION_ERROR};
     match deserializer {
-        Deserializer::Str { .. } => STR_ERROR,
-        Deserializer::Int => INT_ERROR,
-        Deserializer::Float => FLOAT_ERROR,
-        Deserializer::Bool => BOOL_ERROR,
-        Deserializer::Decimal(_) => DECIMAL_NUMBER_ERROR,
-        Deserializer::Date => DATE_ERROR,
-        Deserializer::Time => TIME_ERROR,
-        Deserializer::DateTime { .. } => DATETIME_ERROR,
-        Deserializer::Uuid => UUID_ERROR,
-        Deserializer::StrEnum(_) | Deserializer::IntEnum(_) => "Invalid enum value.",
-        Deserializer::Any => "Any",
-        Deserializer::Collection(data) => data.kind.error_msg(),
-        Deserializer::Dict(_) => DICT_ERROR,
-        Deserializer::Nested { .. } => NESTED_ERROR,
-        Deserializer::Union { .. } => UNION_ERROR,
+        Loader::Str { .. } => STR_ERROR,
+        Loader::Int => INT_ERROR,
+        Loader::Float => FLOAT_ERROR,
+        Loader::Bool => BOOL_ERROR,
+        Loader::Decimal(_) => DECIMAL_NUMBER_ERROR,
+        Loader::Date => DATE_ERROR,
+        Loader::Time => TIME_ERROR,
+        Loader::DateTime { .. } => DATETIME_ERROR,
+        Loader::Uuid => UUID_ERROR,
+        Loader::StrEnum(_) | Loader::IntEnum(_) => "Invalid enum value.",
+        Loader::Any => "Any",
+        Loader::Collection(data) => data.kind.error_msg(),
+        Loader::Dict(_) => DICT_ERROR,
+        Loader::Nested { .. } => NESTED_ERROR,
+        Loader::Union { .. } => UNION_ERROR,
     }
 }
 
@@ -1272,7 +1272,7 @@ fn get_type_error(deserializer: &Deserializer) -> &'static str {
 fn apply_decimal_quantize(
     py: Python<'_>,
     value: Py<PyAny>,
-    data: &DecimalDeserData,
+    data: &DecimalLoaderData,
     ctx_decimal_places: Option<i32>,
 ) -> Result<Py<PyAny>, String> {
     let Some(places) = data.decimal_places.resolve(ctx_decimal_places) else {

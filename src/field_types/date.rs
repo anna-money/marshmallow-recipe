@@ -5,17 +5,17 @@ use pyo3::types::{PyDate, PyDateAccess, PyString};
 use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, DATE_ERROR};
-use crate::types::SerializeContext;
+use crate::types::DumpContext;
 use crate::utils::{create_pydate_from_chrono, parse_iso_date};
 
-pub mod date_serializer {
+pub mod date_dumper {
     use super::*;
 
     #[inline]
-    pub fn serialize_to_dict<'py>(
+    pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &SerializeContext<'_, 'py>,
+        ctx: &DumpContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
         if !value.is_instance_of::<PyDate>() {
             return Err(field_error(ctx.py, field_name, DATE_ERROR));
@@ -27,7 +27,7 @@ pub mod date_serializer {
     }
 
     #[inline]
-    pub fn serialize_to_json(
+    pub fn dump_to_serde_value(
         value: &Bound<'_, PyAny>,
         field_name: &str,
     ) -> Result<Value, String> {
@@ -41,7 +41,7 @@ pub mod date_serializer {
     }
 
     #[inline]
-    pub fn serialize<S: serde::Serializer>(
+    pub fn dump<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         field_name: &str,
         serializer: S,
@@ -57,13 +57,13 @@ pub mod date_serializer {
     }
 }
 
-pub mod date_deserializer {
+pub mod date_loader {
     use super::*;
     use crate::types::LoadContext;
     use serde::de;
 
     #[inline]
-    pub fn deserialize_from_dict<'py>(
+    pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
@@ -80,7 +80,7 @@ pub mod date_deserializer {
     }
 
     #[inline]
-    pub fn deserialize_from_str<E: de::Error>(py: Python, s: &str, err_msg: &str) -> Result<Py<PyAny>, E> {
+    pub fn load_from_str<E: de::Error>(py: Python, s: &str, err_msg: &str) -> Result<Py<PyAny>, E> {
         parse_iso_date(s)
             .ok_or_else(|| de::Error::custom(err_msg))
             .and_then(|d| create_pydate_from_chrono(py, d).map_err(de::Error::custom))

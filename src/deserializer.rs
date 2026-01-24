@@ -3,16 +3,16 @@
 use pyo3::prelude::*;
 
 pub use crate::field_types::collection::CollectionKind;
-pub use crate::field_types::nested::{DataclassDeserializerSchema, FieldDeserializer};
+pub use crate::field_types::nested::{DataclassLoaderSchema, FieldLoader};
 use crate::types::{DecimalPlaces, LoadContext};
 
-pub use crate::field_types::nested::nested_deserializer::deserialize_dataclass_from_parts;
+pub use crate::field_types::nested::nested_loader::load_dataclass_from_parts;
 
-pub struct StrEnumDeserData {
+pub struct StrEnumLoaderData {
     pub values: Vec<(String, Py<PyAny>)>,
 }
 
-impl Clone for StrEnumDeserData {
+impl Clone for StrEnumLoaderData {
     fn clone(&self) -> Self {
         Python::attach(|py| Self {
             values: self.values.iter().map(|(k, v)| (k.clone(), v.clone_ref(py))).collect(),
@@ -20,11 +20,11 @@ impl Clone for StrEnumDeserData {
     }
 }
 
-pub struct IntEnumDeserData {
+pub struct IntEnumLoaderData {
     pub values: Vec<(i64, Py<PyAny>)>,
 }
 
-impl Clone for IntEnumDeserData {
+impl Clone for IntEnumLoaderData {
     fn clone(&self) -> Self {
         Python::attach(|py| Self {
             values: self.values.iter().map(|(k, v)| (*k, v.clone_ref(py))).collect(),
@@ -32,12 +32,12 @@ impl Clone for IntEnumDeserData {
     }
 }
 
-pub struct DecimalDeserData {
+pub struct DecimalLoaderData {
     pub decimal_places: DecimalPlaces,
     pub decimal_rounding: Option<Py<PyAny>>,
 }
 
-impl Clone for DecimalDeserData {
+impl Clone for DecimalLoaderData {
     fn clone(&self) -> Self {
         Python::attach(|py| Self {
             decimal_places: self.decimal_places,
@@ -46,13 +46,13 @@ impl Clone for DecimalDeserData {
     }
 }
 
-pub struct CollectionDeserData {
-    pub item: Box<Deserializer>,
+pub struct CollectionLoaderData {
+    pub item: Box<Loader>,
     pub kind: CollectionKind,
     pub item_validator: Option<Py<PyAny>>,
 }
 
-impl Clone for CollectionDeserData {
+impl Clone for CollectionLoaderData {
     fn clone(&self) -> Self {
         Python::attach(|py| Self {
             item: self.item.clone(),
@@ -62,12 +62,12 @@ impl Clone for CollectionDeserData {
     }
 }
 
-pub struct DictDeserData {
-    pub value: Box<Deserializer>,
+pub struct DictLoaderData {
+    pub value: Box<Loader>,
     pub value_validator: Option<Py<PyAny>>,
 }
 
-impl Clone for DictDeserData {
+impl Clone for DictLoaderData {
     fn clone(&self) -> Self {
         Python::attach(|py| Self {
             value: self.value.clone(),
@@ -76,7 +76,7 @@ impl Clone for DictDeserData {
     }
 }
 
-impl std::fmt::Debug for Deserializer {
+impl std::fmt::Debug for Loader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Str { strip_whitespaces } => f.debug_struct("Str").field("strip_whitespaces", strip_whitespaces).finish(),
@@ -100,27 +100,27 @@ impl std::fmt::Debug for Deserializer {
 }
 
 #[derive(Clone)]
-pub enum Deserializer {
+pub enum Loader {
     Str { strip_whitespaces: bool },
     Int,
     Float,
     Bool,
-    Decimal(Box<DecimalDeserData>),
+    Decimal(Box<DecimalLoaderData>),
     Date,
     Time,
     DateTime { format: Option<String> },
     Uuid,
-    StrEnum(Box<StrEnumDeserData>),
-    IntEnum(Box<IntEnumDeserData>),
+    StrEnum(Box<StrEnumLoaderData>),
+    IntEnum(Box<IntEnumLoaderData>),
     Any,
-    Collection(Box<CollectionDeserData>),
-    Dict(Box<DictDeserData>),
-    Nested { schema: Box<DataclassDeserializerSchema> },
+    Collection(Box<CollectionLoaderData>),
+    Dict(Box<DictLoaderData>),
+    Nested { schema: Box<DataclassLoaderSchema> },
     Union { variants: Vec<Self> },
 }
 
-impl Deserializer {
-    pub fn deserialize_from_dict<'py>(
+impl Loader {
+    pub fn load_from_dict<'py>(
         &self,
         value: &Bound<'py, PyAny>,
         field_name: &str,
@@ -131,13 +131,13 @@ impl Deserializer {
 
         match self {
             Self::Str { strip_whitespaces } => {
-                str_type::str_deserializer::deserialize_from_dict(value, field_name, invalid_error, ctx, *strip_whitespaces)
+                str_type::str_loader::load_from_dict(value, field_name, invalid_error, ctx, *strip_whitespaces)
             }
-            Self::Int => int::int_deserializer::deserialize_from_dict(value, field_name, invalid_error, ctx),
-            Self::Float => float::float_deserializer::deserialize_from_dict(value, field_name, invalid_error, ctx),
-            Self::Bool => bool_type::bool_deserializer::deserialize_from_dict(value, field_name, invalid_error, ctx),
+            Self::Int => int::int_loader::load_from_dict(value, field_name, invalid_error, ctx),
+            Self::Float => float::float_loader::load_from_dict(value, field_name, invalid_error, ctx),
+            Self::Bool => bool_type::bool_loader::load_from_dict(value, field_name, invalid_error, ctx),
             Self::Decimal(data) => {
-                decimal::decimal_deserializer::deserialize_from_dict(
+                decimal::decimal_loader::load_from_dict(
                     value,
                     field_name,
                     invalid_error,
@@ -146,21 +146,21 @@ impl Deserializer {
                     data.decimal_rounding.as_ref(),
                 )
             }
-            Self::Date => date::date_deserializer::deserialize_from_dict(value, field_name, invalid_error, ctx),
-            Self::Time => time::time_deserializer::deserialize_from_dict(value, field_name, invalid_error, ctx),
+            Self::Date => date::date_loader::load_from_dict(value, field_name, invalid_error, ctx),
+            Self::Time => time::time_loader::load_from_dict(value, field_name, invalid_error, ctx),
             Self::DateTime { format } => {
-                datetime::datetime_deserializer::deserialize_from_dict(value, field_name, invalid_error, ctx, format.as_deref())
+                datetime::datetime_loader::load_from_dict(value, field_name, invalid_error, ctx, format.as_deref())
             }
-            Self::Uuid => uuid::uuid_deserializer::deserialize_from_dict(value, field_name, invalid_error, ctx),
+            Self::Uuid => uuid::uuid_loader::load_from_dict(value, field_name, invalid_error, ctx),
             Self::StrEnum(data) => {
-                str_enum::str_enum_deserializer::deserialize_from_dict(value, field_name, ctx, &data.values)
+                str_enum::str_enum_loader::load_from_dict(value, field_name, ctx, &data.values)
             }
             Self::IntEnum(data) => {
-                int_enum::int_enum_deserializer::deserialize_from_dict(value, field_name, ctx, &data.values)
+                int_enum::int_enum_loader::load_from_dict(value, field_name, ctx, &data.values)
             }
-            Self::Any => any::any_deserializer::deserialize_from_dict(value, ctx),
+            Self::Any => any::any_loader::load_from_dict(value, ctx),
             Self::Collection(data) => {
-                collection::collection_deserializer::deserialize_from_dict(
+                collection::collection_loader::load_from_dict(
                     value,
                     field_name,
                     invalid_error,
@@ -171,7 +171,7 @@ impl Deserializer {
                 )
             }
             Self::Dict(data) => {
-                dict::dict_deserializer::deserialize_from_dict(
+                dict::dict_loader::load_from_dict(
                     value,
                     field_name,
                     invalid_error,
@@ -181,10 +181,10 @@ impl Deserializer {
                 )
             }
             Self::Nested { schema } => {
-                nested::nested_deserializer::deserialize_from_dict(value, field_name, invalid_error, ctx, schema)
+                nested::nested_loader::load_from_dict(value, field_name, invalid_error, ctx, schema)
             }
             Self::Union { variants } => {
-                union::union_deserializer::deserialize_from_dict(value, field_name, invalid_error, ctx, variants)
+                union::union_loader::load_from_dict(value, field_name, invalid_error, ctx, variants)
             }
         }
     }
