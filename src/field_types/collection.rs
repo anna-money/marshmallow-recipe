@@ -41,6 +41,30 @@ pub mod collection_dumper {
     use crate::utils::pyany_to_json_value;
 
     #[inline]
+    pub fn can_dump<'py>(
+        value: &Bound<'py, PyAny>,
+        ctx: &DumpContext<'_, 'py>,
+        kind: CollectionKind,
+        item_dumper: &Dumper,
+    ) -> bool {
+        if !kind.is_valid_type(value) {
+            return false;
+        }
+        let Ok(iter) = value.try_iter() else {
+            return false;
+        };
+        for item_result in iter {
+            let Ok(item) = item_result else {
+                return false;
+            };
+            if !item.is_none() && !item_dumper.can_dump(&item, ctx) {
+                return false;
+            }
+        }
+        true
+    }
+
+    #[inline]
     pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
@@ -89,66 +113,6 @@ pub mod collection_dumper {
             return Ok(ctx.py.None());
         }
         item_dumper.dump_to_dict(value, item_name, ctx)
-    }
-
-    #[inline]
-    pub fn dump_to_serde_value<'py>(
-        value: &Bound<'py, PyAny>,
-        field_name: &str,
-        ctx: &DumpContext<'_, 'py>,
-        kind: CollectionKind,
-        item_dumper: &Dumper,
-        item_validator: Option<&Py<PyAny>>,
-    ) -> Result<serde_json::Value, String> {
-        let err_msg = kind.error_msg();
-
-        if !kind.is_valid_type(value) {
-            return Err(json_field_error(field_name, err_msg));
-        }
-
-        let iter = value.try_iter().map_err(|e| e.to_string())?;
-
-        if let Some(validator) = item_validator {
-            let mut validated_items = Vec::new();
-            for (idx, item_result) in iter.enumerate() {
-                let item = item_result.map_err(|e| e.to_string())?;
-                if let Some(errors) = call_validator(ctx.py, validator, &item).map_err(|e| e.to_string())? {
-                    let errors_json = pyany_to_json_value(errors.bind(ctx.py));
-                    let mut inner_map = serde_json::Map::new();
-                    inner_map.insert(idx.to_string(), errors_json);
-                    let mut map = serde_json::Map::new();
-                    map.insert(field_name.to_string(), serde_json::Value::Object(inner_map));
-                    return Err(serde_json::Value::Object(map).to_string());
-                }
-                validated_items.push(item);
-            }
-            let mut result = Vec::with_capacity(validated_items.len());
-            for (idx, item) in validated_items.iter().enumerate() {
-                let dumped = dump_item_to_serde_value(item_dumper, item, &idx.to_string(), ctx)?;
-                result.push(dumped);
-            }
-            Ok(serde_json::Value::Array(result))
-        } else {
-            let mut result = Vec::new();
-            for (idx, item_result) in iter.enumerate() {
-                let item = item_result.map_err(|e| e.to_string())?;
-                let dumped = dump_item_to_serde_value(item_dumper, &item, &idx.to_string(), ctx)?;
-                result.push(dumped);
-            }
-            Ok(serde_json::Value::Array(result))
-        }
-    }
-
-    fn dump_item_to_serde_value<'py>(
-        item_dumper: &Dumper,
-        value: &Bound<'py, PyAny>,
-        item_name: &str,
-        ctx: &DumpContext<'_, 'py>,
-    ) -> Result<serde_json::Value, String> {
-        if value.is_none() {
-            return Ok(serde_json::Value::Null);
-        }
-        item_dumper.dump_to_serde_value(value, item_name, ctx)
     }
 
     struct ItemDumper<'a, 'py> {

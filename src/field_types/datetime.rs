@@ -3,7 +3,6 @@ use std::fmt::Write;
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime};
 use pyo3::prelude::*;
 use pyo3::types::{PyDateTime, PyDateAccess, PyString, PyTimeAccess, PyTzInfoAccess};
-use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, DATETIME_ERROR};
 use crate::types::DumpContext;
@@ -116,6 +115,11 @@ pub mod datetime_dumper {
     use super::*;
 
     #[inline]
+    pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
+        value.is_instance_of::<PyDateTime>()
+    }
+
+    #[inline]
     #[allow(clippy::option_if_let_else)]
     pub fn format_to_dict(
         py: Python<'_>,
@@ -141,25 +145,6 @@ pub mod datetime_dumper {
     }
 
     #[inline]
-    #[allow(clippy::option_if_let_else)]
-    pub fn format_to_serde_value(
-        dt: &DateTimeComponents,
-        datetime_format: Option<&str>,
-    ) -> Result<Value, ()> {
-        if let Some(fmt) = datetime_format {
-            let mut buf = arrayvec::ArrayString::<128>::new();
-            match format_strftime(&mut buf, dt, fmt) {
-                StrftimeResult::Ok => Ok(Value::String(buf.to_string())),
-                StrftimeResult::InvalidDatetime | StrftimeResult::BufferTooSmall => Err(()),
-            }
-        } else {
-            let mut buf = arrayvec::ArrayString::<32>::new();
-            format_iso(&mut buf, dt);
-            Ok(Value::String(buf.to_string()))
-        }
-    }
-
-    #[inline]
     pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
@@ -173,38 +158,6 @@ pub mod datetime_dumper {
         let components = extract_components(ctx.py, dt)?;
         format_to_dict(ctx.py, &components, datetime_format)
             .map_err(|_| field_error(ctx.py, field_name, DATETIME_ERROR))
-    }
-
-    #[inline]
-    pub fn dump_to_serde_value<'py>(
-        value: &Bound<'py, PyAny>,
-        field_name: &str,
-        ctx: &DumpContext<'_, 'py>,
-        datetime_format: Option<&str>,
-    ) -> Result<Value, String> {
-        if !value.is_instance_of::<PyDateTime>() {
-            return Err(json_field_error(field_name, DATETIME_ERROR));
-        }
-        let dt: &Bound<'_, PyDateTime> = value.cast().map_err(|e| e.to_string())?;
-        let offset_seconds = dt
-            .get_tzinfo()
-            .map(|tz| get_tz_offset_seconds(ctx.py, &tz, dt.as_any()))
-            .transpose()
-            .map_err(|e| e.to_string())?;
-
-        let components = DateTimeComponents {
-            year: dt.get_year(),
-            month: dt.get_month(),
-            day: dt.get_day(),
-            hour: dt.get_hour(),
-            minute: dt.get_minute(),
-            second: dt.get_second(),
-            microsecond: dt.get_microsecond(),
-            offset_seconds,
-        };
-
-        format_to_serde_value(&components, datetime_format)
-            .map_err(|()| json_field_error(field_name, DATETIME_ERROR))
     }
 
     #[inline]

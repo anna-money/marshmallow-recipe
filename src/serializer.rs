@@ -1,7 +1,6 @@
 #![allow(clippy::struct_field_names)]
 
 use pyo3::prelude::*;
-use serde_json::Value;
 
 pub use crate::field_types::collection::CollectionKind;
 pub use crate::field_types::nested::{DataclassDumperSchema, FieldDumper};
@@ -131,6 +130,33 @@ pub enum Dumper {
 }
 
 impl Dumper {
+    pub fn can_dump<'py>(
+        &self,
+        value: &Bound<'py, PyAny>,
+        ctx: &DumpContext<'_, 'py>,
+    ) -> bool {
+        use crate::field_types::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, any, collection, dict, nested, union};
+
+        match self {
+            Self::Str { .. } => str_type::str_dumper::can_dump(value),
+            Self::Int => int::int_dumper::can_dump(value),
+            Self::Float => float::float_dumper::can_dump(value),
+            Self::Bool => bool_type::bool_dumper::can_dump(value),
+            Self::Decimal(_) => decimal::decimal_dumper::can_dump(value, ctx),
+            Self::Date => date::date_dumper::can_dump(value),
+            Self::Time => time::time_dumper::can_dump(value),
+            Self::DateTime { .. } => datetime::datetime_dumper::can_dump(value),
+            Self::Uuid => uuid::uuid_dumper::can_dump(value, ctx),
+            Self::StrEnum(data) => str_enum::str_enum_dumper::can_dump(value, ctx, &data.enum_cls),
+            Self::IntEnum(data) => str_enum::int_enum_dumper::can_dump(value, ctx, &data.enum_cls),
+            Self::Any => any::any_dumper::can_dump(value),
+            Self::Collection(data) => collection::collection_dumper::can_dump(value, ctx, data.kind, &data.item),
+            Self::Dict(data) => dict::dict_dumper::can_dump(value, ctx, &data.value),
+            Self::Nested { schema } => nested::nested_dumper::can_dump(value, ctx, schema),
+            Self::Union { variants } => union::union_dumper::can_dump(value, ctx, variants),
+        }
+    }
+
     pub fn dump_to_dict<'py>(
         &self,
         value: &Bound<'py, PyAny>,
@@ -207,86 +233,6 @@ impl Dumper {
             }
             Self::Union { variants } => {
                 union::union_dumper::dump_to_dict(value, field_name, ctx, variants)
-            }
-        }
-    }
-
-    pub fn dump_to_serde_value<'py>(
-        &self,
-        value: &Bound<'py, PyAny>,
-        field_name: &str,
-        ctx: &DumpContext<'_, 'py>,
-    ) -> Result<Value, String> {
-        use crate::field_types::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, any, collection, dict, nested, union};
-
-        match self {
-            Self::Str { strip_whitespaces } => {
-                str_type::str_dumper::dump_to_serde_value(value, field_name, *strip_whitespaces)
-            }
-            Self::Int => int::int_dumper::dump_to_serde_value(value, field_name),
-            Self::Float => float::float_dumper::dump_to_serde_value(value, field_name),
-            Self::Bool => bool_type::bool_dumper::dump_to_serde_value(value, field_name),
-            Self::Decimal(data) => {
-                decimal::decimal_dumper::dump_to_serde_value(
-                    value,
-                    field_name,
-                    ctx,
-                    data.decimal_places,
-                    data.decimal_rounding.as_ref(),
-                    data.invalid_error.as_deref(),
-                )
-            }
-            Self::Date => date::date_dumper::dump_to_serde_value(value, field_name),
-            Self::Time => time::time_dumper::dump_to_serde_value(value, field_name),
-            Self::DateTime { format } => {
-                datetime::datetime_dumper::dump_to_serde_value(value, field_name, ctx, format.as_deref())
-            }
-            Self::Uuid => uuid::uuid_dumper::dump_to_serde_value(value, field_name, ctx),
-            Self::StrEnum(data) => {
-                str_enum::str_enum_dumper::dump_to_serde_value(
-                    value,
-                    field_name,
-                    ctx,
-                    &data.enum_cls,
-                    data.enum_name.as_deref(),
-                    data.enum_members_repr.as_deref(),
-                )
-            }
-            Self::IntEnum(data) => {
-                str_enum::int_enum_dumper::dump_to_serde_value(
-                    value,
-                    field_name,
-                    ctx,
-                    &data.enum_cls,
-                    data.enum_name.as_deref(),
-                    data.enum_members_repr.as_deref(),
-                )
-            }
-            Self::Any => any::any_dumper::dump_to_serde_value(value, field_name),
-            Self::Collection(data) => {
-                collection::collection_dumper::dump_to_serde_value(
-                    value,
-                    field_name,
-                    ctx,
-                    data.kind,
-                    &data.item,
-                    data.item_validator.as_ref(),
-                )
-            }
-            Self::Dict(data) => {
-                dict::dict_dumper::dump_to_serde_value(
-                    value,
-                    field_name,
-                    ctx,
-                    &data.value,
-                    data.value_validator.as_ref(),
-                )
-            }
-            Self::Nested { schema } => {
-                nested::nested_dumper::dump_to_serde_value(value, field_name, ctx, schema)
-            }
-            Self::Union { variants } => {
-                union::union_dumper::dump_to_serde_value(value, field_name, ctx, variants)
             }
         }
     }

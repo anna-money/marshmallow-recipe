@@ -2,7 +2,6 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyFloat, PyInt, PyString};
 use rust_decimal::Decimal;
 use rust_decimal::prelude::FromStr;
-use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, DECIMAL_ERROR, DECIMAL_NUMBER_ERROR};
 use crate::cache::get_cached_types;
@@ -11,6 +10,14 @@ use crate::utils::python_rounding_to_rust;
 
 pub mod decimal_dumper {
     use super::*;
+
+    #[inline]
+    pub fn can_dump<'py>(value: &Bound<'py, PyAny>, ctx: &DumpContext<'_, 'py>) -> bool {
+        let Ok(cached) = get_cached_types(ctx.py) else {
+            return false;
+        };
+        value.is_instance(cached.decimal_cls.bind(ctx.py)).unwrap_or(false)
+    }
 
     #[inline]
     pub fn dump_to_dict<'py>(
@@ -51,47 +58,6 @@ pub mod decimal_dumper {
         }
 
         Ok(PyString::new(ctx.py, decimal_str).into_any().unbind())
-    }
-
-    #[inline]
-    pub fn dump_to_serde_value<'py>(
-        value: &Bound<'py, PyAny>,
-        field_name: &str,
-        ctx: &DumpContext<'_, 'py>,
-        decimal_places: DecimalPlaces,
-        decimal_rounding: Option<&Py<PyAny>>,
-        invalid_error: Option<&str>,
-    ) -> Result<Value, String> {
-        let cached = get_cached_types(ctx.py).map_err(|e| e.to_string())?;
-        if !value.is_instance(cached.decimal_cls.bind(ctx.py)).map_err(|e| e.to_string())? {
-            return Err(json_field_error(field_name, DECIMAL_ERROR));
-        }
-        let format_result = value.call_method1("__format__", ("f",)).map_err(|e| e.to_string())?;
-        let formatted = format_result.cast::<PyString>().map_err(|e| e.to_string())?;
-        let decimal_str = formatted.to_str().map_err(|e| e.to_string())?;
-
-        let places = decimal_places.resolve(ctx.global_decimal_places);
-
-        if let Some(rounding_obj) = decimal_rounding {
-            if let Some(places) = places {
-                let strategy = python_rounding_to_rust(Some(rounding_obj), ctx.py);
-                if let Ok(mut rust_decimal) = Decimal::from_str(decimal_str) {
-                    rust_decimal = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
-                    let formatted_str = format!("{:.prec$}", rust_decimal, prec = places.cast_unsigned() as usize);
-                    return Ok(Value::String(formatted_str));
-                }
-            }
-        } else if let Some(places) = places {
-            if let Ok(rust_decimal) = Decimal::from_str(decimal_str) {
-                let normalized = rust_decimal.normalize();
-                if normalized.scale() > places.cast_unsigned() {
-                    let msg = invalid_error.unwrap_or(DECIMAL_NUMBER_ERROR);
-                    return Err(json_field_error(field_name, msg));
-                }
-            }
-        }
-
-        Ok(Value::String(decimal_str.to_string()))
     }
 
     #[inline]

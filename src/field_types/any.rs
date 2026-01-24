@@ -1,12 +1,41 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString};
-use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, ANY_ERROR};
 
 pub mod any_dumper {
     use super::*;
     use serde::ser::{SerializeMap, SerializeSeq};
+
+    #[inline]
+    pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
+        can_dump_any(value)
+    }
+
+    fn can_dump_any(value: &Bound<'_, PyAny>) -> bool {
+        if value.is_none() {
+            return true;
+        }
+        if value.is_instance_of::<PyBool>()
+            || value.is_instance_of::<PyInt>()
+            || value.is_instance_of::<PyString>()
+        {
+            return true;
+        }
+        if value.is_instance_of::<PyFloat>() {
+            if let Ok(f) = value.extract::<f64>() {
+                return !f.is_nan() && !f.is_infinite();
+            }
+            return false;
+        }
+        if let Ok(list) = value.cast::<PyList>() {
+            return list.iter().all(|item| can_dump_any(&item));
+        }
+        if let Ok(dict) = value.cast::<PyDict>() {
+            return dict.iter().all(|(k, v)| k.is_instance_of::<PyString>() && can_dump_any(&v));
+        }
+        false
+    }
 
     #[inline]
     pub fn dump_to_dict<'py>(
@@ -47,56 +76,6 @@ pub mod any_dumper {
         }
 
         Err(field_error(py, field_name, ANY_ERROR))
-    }
-
-    #[inline]
-    pub fn dump_to_serde_value(value: &Bound<'_, PyAny>, field_name: &str) -> Result<Value, String> {
-        if value.is_none() {
-            return Ok(Value::Null);
-        }
-        if value.is_instance_of::<PyBool>() {
-            let b: bool = value.extract().map_err(|e: PyErr| e.to_string())?;
-            return Ok(Value::Bool(b));
-        }
-        if value.is_instance_of::<PyInt>() {
-            if let Ok(i) = value.extract::<i64>() {
-                return Ok(Value::Number(i.into()));
-            }
-            if let Ok(u) = value.extract::<u64>() {
-                return Ok(Value::Number(u.into()));
-            }
-            let s: String = value.str().map_err(|e: PyErr| e.to_string())?.extract().map_err(|e: PyErr| e.to_string())?;
-            let num = serde_json::Number::from_string_unchecked(s);
-            return Ok(Value::Number(num));
-        }
-        if value.is_instance_of::<PyFloat>() {
-            let f: f64 = value.extract().map_err(|e: PyErr| e.to_string())?;
-            if let Some(num) = serde_json::Number::from_f64(f) {
-                return Ok(Value::Number(num));
-            }
-            return Err(json_field_error(field_name, ANY_ERROR));
-        }
-        if let Ok(py_str) = value.cast::<PyString>() {
-            let s = py_str.to_str().map_err(|e: PyErr| e.to_string())?;
-            return Ok(Value::String(s.to_string()));
-        }
-        if let Ok(list) = value.cast::<PyList>() {
-            let mut result = Vec::with_capacity(list.len());
-            for item in list.iter() {
-                result.push(dump_to_serde_value(&item, field_name)?);
-            }
-            return Ok(Value::Array(result));
-        }
-        if let Ok(dict) = value.cast::<PyDict>() {
-            let mut result = serde_json::Map::new();
-            for (k, v) in dict.iter() {
-                let key = k.cast::<PyString>().map_err(|_| json_field_error(field_name, ANY_ERROR))?
-                    .to_str().map_err(|e: PyErr| e.to_string())?;
-                result.insert(key.to_string(), dump_to_serde_value(&v, field_name)?);
-            }
-            return Ok(Value::Object(result));
-        }
-        Err(json_field_error(field_name, ANY_ERROR))
     }
 
     struct AnyDumper<'a, 'py> {

@@ -2,7 +2,6 @@ use std::fmt::Write;
 
 use pyo3::prelude::*;
 use pyo3::types::{PyString, PyTime, PyTimeAccess};
-use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, TIME_ERROR};
 use crate::types::DumpContext;
@@ -10,6 +9,11 @@ use crate::utils::{create_pytime_from_chrono, parse_iso_time};
 
 pub mod time_dumper {
     use super::*;
+
+    #[inline]
+    pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
+        value.is_instance_of::<PyTime>()
+    }
 
     #[inline]
     pub fn dump_to_dict<'py>(
@@ -28,24 +32,6 @@ pub mod time_dumper {
             write!(buf, "{:02}:{:02}:{:02}", t.get_hour(), t.get_minute(), t.get_second()).unwrap();
         }
         Ok(PyString::new(ctx.py, &buf).into_any().unbind())
-    }
-
-    #[inline]
-    pub fn dump_to_serde_value(
-        value: &Bound<'_, PyAny>,
-        field_name: &str,
-    ) -> Result<Value, String> {
-        if !value.is_instance_of::<PyTime>() {
-            return Err(json_field_error(field_name, TIME_ERROR));
-        }
-        let t: &Bound<'_, PyTime> = value.cast().map_err(|e| e.to_string())?;
-        let mut buf = arrayvec::ArrayString::<15>::new();
-        if t.get_microsecond() > 0 {
-            write!(buf, "{:02}:{:02}:{:02}.{:06}", t.get_hour(), t.get_minute(), t.get_second(), t.get_microsecond()).unwrap();
-        } else {
-            write!(buf, "{:02}:{:02}:{:02}", t.get_hour(), t.get_minute(), t.get_second()).unwrap();
-        }
-        Ok(Value::String(buf.to_string()))
     }
 
     #[inline]

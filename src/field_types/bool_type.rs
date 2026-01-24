@@ -1,12 +1,16 @@
 use pyo3::prelude::*;
 use pyo3::types::PyBool;
-use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, BOOL_ERROR};
 use crate::types::DumpContext;
 
 pub mod bool_dumper {
     use super::*;
+
+    #[inline]
+    pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
+        value.is_instance_of::<PyBool>()
+    }
 
     #[inline]
     pub fn dump_to_dict<'py>(
@@ -18,18 +22,6 @@ pub mod bool_dumper {
             return Err(field_error(ctx.py, field_name, BOOL_ERROR));
         }
         Ok(value.clone().unbind())
-    }
-
-    #[inline]
-    pub fn dump_to_serde_value(
-        value: &Bound<'_, PyAny>,
-        field_name: &str,
-    ) -> Result<Value, String> {
-        if !value.is_instance_of::<PyBool>() {
-            return Err(json_field_error(field_name, BOOL_ERROR));
-        }
-        let b: bool = value.extract().map_err(|e: PyErr| e.to_string())?;
-        Ok(Value::Bool(b))
     }
 
     #[inline]

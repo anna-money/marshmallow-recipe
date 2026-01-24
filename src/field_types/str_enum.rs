@@ -1,12 +1,16 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyInt, PyString};
-use serde_json::Value;
 
 use super::helpers::field_error;
 use crate::types::DumpContext;
 
 pub mod str_enum_dumper {
     use super::*;
+
+    #[inline]
+    pub fn can_dump<'py>(value: &Bound<'py, PyAny>, ctx: &DumpContext<'_, 'py>, enum_cls: &Py<PyAny>) -> bool {
+        value.is_instance(enum_cls.bind(ctx.py)).unwrap_or(false)
+    }
 
     #[inline]
     pub fn dump_to_dict<'py>(
@@ -25,27 +29,6 @@ pub mod str_enum_dumper {
             return Err(field_error(ctx.py, field_name, &msg));
         }
         Ok(value.cast::<PyString>()?.to_owned().into_any().unbind())
-    }
-
-    #[inline]
-    pub fn dump_to_serde_value<'py>(
-        value: &Bound<'py, PyAny>,
-        _field_name: &str,
-        ctx: &DumpContext<'_, 'py>,
-        enum_cls: &Py<PyAny>,
-        enum_name: Option<&str>,
-        enum_members_repr: Option<&str>,
-    ) -> Result<Value, String> {
-        if !value.is_instance(enum_cls.bind(ctx.py)).map_err(|e: PyErr| e.to_string())? {
-            let value_type_name: String = value.get_type().name().map_err(|e: PyErr| e.to_string())?.extract().map_err(|e: PyErr| e.to_string())?;
-            let enum_name = enum_name.unwrap_or("Enum");
-            let members_repr = enum_members_repr.unwrap_or("[]");
-            let msg = format!("Expected {enum_name} instance, got {value_type_name}. Allowed values: {members_repr}");
-            return Err(format!("[\"{msg}\"]"));
-        }
-        let s = value.cast::<PyString>().map_err(|e| e.to_string())?
-            .to_str().map_err(|e| e.to_string())?;
-        Ok(Value::String(s.to_string()))
     }
 
     #[inline]
@@ -135,6 +118,11 @@ pub mod int_enum_dumper {
     use super::*;
 
     #[inline]
+    pub fn can_dump<'py>(value: &Bound<'py, PyAny>, ctx: &DumpContext<'_, 'py>, enum_cls: &Py<PyAny>) -> bool {
+        value.is_instance(enum_cls.bind(ctx.py)).unwrap_or(false)
+    }
+
+    #[inline]
     pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
@@ -151,26 +139,6 @@ pub mod int_enum_dumper {
             return Err(field_error(ctx.py, field_name, &msg));
         }
         Ok(value.cast::<PyInt>()?.to_owned().into_any().unbind())
-    }
-
-    #[inline]
-    pub fn dump_to_serde_value<'py>(
-        value: &Bound<'py, PyAny>,
-        _field_name: &str,
-        ctx: &DumpContext<'_, 'py>,
-        enum_cls: &Py<PyAny>,
-        enum_name: Option<&str>,
-        enum_members_repr: Option<&str>,
-    ) -> Result<Value, String> {
-        if !value.is_instance(enum_cls.bind(ctx.py)).map_err(|e: PyErr| e.to_string())? {
-            let value_type_name: String = value.get_type().name().map_err(|e: PyErr| e.to_string())?.extract().map_err(|e: PyErr| e.to_string())?;
-            let enum_name = enum_name.unwrap_or("Enum");
-            let members_repr = enum_members_repr.unwrap_or("[]");
-            let msg = format!("Expected {enum_name} instance, got {value_type_name}. Allowed values: {members_repr}");
-            return Err(format!("[\"{msg}\"]"));
-        }
-        let i: i64 = value.extract().map_err(|e: PyErr| e.to_string())?;
-        Ok(Value::Number(i.into()))
     }
 
     #[inline]

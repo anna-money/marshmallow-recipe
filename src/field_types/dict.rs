@@ -11,6 +11,23 @@ pub mod dict_dumper {
     use crate::serializer::Dumper;
 
     #[inline]
+    pub fn can_dump<'py>(
+        value: &Bound<'py, PyAny>,
+        ctx: &DumpContext<'_, 'py>,
+        value_dumper: &Dumper,
+    ) -> bool {
+        let Ok(dict) = value.cast::<PyDict>() else {
+            return false;
+        };
+        for (_, v) in dict.iter() {
+            if !v.is_none() && !value_dumper.can_dump(&v, ctx) {
+                return false;
+            }
+        }
+        true
+    }
+
+    #[inline]
     pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
@@ -56,56 +73,6 @@ pub mod dict_dumper {
             return Ok(ctx.py.None());
         }
         value_dumper.dump_to_dict(value, key, ctx)
-    }
-
-    #[inline]
-    pub fn dump_to_serde_value<'py>(
-        value: &Bound<'py, PyAny>,
-        field_name: &str,
-        ctx: &DumpContext<'_, 'py>,
-        value_dumper: &Dumper,
-        value_validator: Option<&Py<PyAny>>,
-    ) -> Result<Value, String> {
-        if !value.is_instance_of::<PyDict>() {
-            return Err(json_field_error(field_name, DICT_ERROR));
-        }
-        let dict = value.cast::<PyDict>().map_err(|e| e.to_string())?;
-
-        if let Some(validator) = value_validator {
-            for (k, v) in dict.iter() {
-                let key = k.cast::<PyString>().map_err(|e| e.to_string())?
-                    .to_str().map_err(|e| e.to_string())?;
-                if let Some(errors) = call_validator(ctx.py, validator, &v).map_err(|e| e.to_string())? {
-                    let errors_json = pyany_to_json_value(errors.bind(ctx.py));
-                    let mut inner_map = serde_json::Map::new();
-                    inner_map.insert(key.to_string(), errors_json);
-                    let mut map = serde_json::Map::new();
-                    map.insert(field_name.to_string(), Value::Object(inner_map));
-                    return Err(Value::Object(map).to_string());
-                }
-            }
-        }
-
-        let mut result = serde_json::Map::new();
-        for (k, v) in dict.iter() {
-            let key = k.cast::<PyString>().map_err(|e| e.to_string())?
-                .to_str().map_err(|e| e.to_string())?;
-            let dumped = dump_item_to_serde_value(value_dumper, &v, key, ctx)?;
-            result.insert(key.to_string(), dumped);
-        }
-        Ok(Value::Object(result))
-    }
-
-    fn dump_item_to_serde_value<'py>(
-        value_dumper: &Dumper,
-        value: &Bound<'py, PyAny>,
-        key: &str,
-        ctx: &DumpContext<'_, 'py>,
-    ) -> Result<Value, String> {
-        if value.is_none() {
-            return Ok(Value::Null);
-        }
-        value_dumper.dump_to_serde_value(value, key, ctx)
     }
 
     struct ValueDumper<'a, 'py> {

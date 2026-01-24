@@ -136,6 +136,15 @@ pub mod nested_dumper {
     use super::*;
 
     #[inline]
+    pub fn can_dump<'py>(
+        value: &Bound<'py, PyAny>,
+        ctx: &DumpContext<'_, 'py>,
+        schema: &DataclassDumperSchema,
+    ) -> bool {
+        value.is_instance(schema.cls.bind(ctx.py)).unwrap_or(false)
+    }
+
+    #[inline]
     pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
@@ -146,19 +155,6 @@ pub mod nested_dumper {
             return Err(field_error(ctx.py, field_name, NESTED_ERROR));
         }
         dump_dataclass(value, &schema.fields, ctx)
-    }
-
-    #[inline]
-    pub fn dump_to_serde_value<'py>(
-        value: &Bound<'py, PyAny>,
-        field_name: &str,
-        ctx: &DumpContext<'_, 'py>,
-        schema: &DataclassDumperSchema,
-    ) -> Result<Value, String> {
-        if !value.is_instance(schema.cls.bind(ctx.py)).map_err(|e| e.to_string())? {
-            return Err(json_field_error(field_name, NESTED_ERROR));
-        }
-        dump_dataclass_to_serde_value(value, &schema.fields, ctx)
     }
 
     pub fn dump_dataclass<'py>(
@@ -204,52 +200,6 @@ pub mod nested_dumper {
         }
 
         Ok(result.into_any().unbind())
-    }
-
-    pub fn dump_dataclass_to_serde_value<'py>(
-        obj: &Bound<'py, PyAny>,
-        fields: &[FieldDumper],
-        ctx: &DumpContext<'_, 'py>,
-    ) -> Result<Value, String> {
-        let ignore_none = ctx.none_value_handling.is_none_or(|s| s == "ignore");
-
-        let cached = get_cached_types(ctx.py).map_err(|e| e.to_string())?;
-        let missing_sentinel = cached.missing_sentinel.bind(ctx.py);
-        let mut result = serde_json::Map::new();
-
-        for field in fields {
-            let py_value = match field.slot_offset {
-                Some(offset) => match unsafe { crate::slots::get_slot_value_direct(ctx.py, obj, offset) } {
-                    Some(value) => value,
-                    None => obj.getattr(field.name.as_str()).map_err(|e| e.to_string())?,
-                },
-                None => obj.getattr(field.name.as_str()).map_err(|e| e.to_string())?,
-            };
-
-            if py_value.is(missing_sentinel) || (py_value.is_none() && ignore_none) {
-                continue;
-            }
-
-            if let Some(ref validator) = field.validator {
-                if let Some(errors) = call_validator(ctx.py, validator, &py_value).map_err(|e| e.to_string())? {
-                    let errors_json = pyany_to_json_value(errors.bind(ctx.py));
-                    let mut map = serde_json::Map::new();
-                    map.insert(field.name.clone(), errors_json);
-                    return Err(Value::Object(map).to_string());
-                }
-            }
-
-            let key = field.data_key.as_ref().unwrap_or(&field.name);
-
-            let dumped_value = if py_value.is_none() {
-                Value::Null
-            } else {
-                field.dumper.dump_to_serde_value(&py_value, &field.name, ctx)?
-            };
-            result.insert(key.clone(), dumped_value);
-        }
-
-        Ok(Value::Object(result))
     }
 
     struct FieldValueDumper<'a, 'py> {

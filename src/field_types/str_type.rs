@@ -1,12 +1,16 @@
 use pyo3::prelude::*;
 use pyo3::types::PyString;
-use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, STR_ERROR};
 use crate::types::DumpContext;
 
 pub mod str_dumper {
     use super::*;
+
+    #[inline]
+    pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
+        value.cast::<PyString>().is_ok()
+    }
 
     #[inline]
     pub fn dump_to_dict<'py>(
@@ -29,23 +33,6 @@ pub mod str_dumper {
         } else {
             Ok(value.clone().unbind())
         }
-    }
-
-    #[inline]
-    pub fn dump_to_serde_value(
-        value: &Bound<'_, PyAny>,
-        field_name: &str,
-        strip_whitespaces: bool,
-    ) -> Result<Value, String> {
-        let py_str = value
-            .cast::<PyString>()
-            .map_err(|_| json_field_error(field_name, STR_ERROR))?;
-        let s = py_str.to_str().map_err(|e| e.to_string())?;
-        if strip_whitespaces {
-            Ok(Value::String(s.trim().to_string()))
-        } else {
-            Ok(Value::String(s.to_string()))
-        }   
     }
 
     #[inline]

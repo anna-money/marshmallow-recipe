@@ -1,12 +1,16 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyInt};
-use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, INT_ERROR};
 use crate::types::DumpContext;
 
 pub mod int_dumper {
     use super::*;
+
+    #[inline]
+    pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
+        value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>()
+    }
 
     #[inline]
     pub fn dump_to_dict<'py>(
@@ -18,25 +22,6 @@ pub mod int_dumper {
             return Err(field_error(ctx.py, field_name, INT_ERROR));
         }
         Ok(value.clone().unbind())
-    }
-
-    #[inline]
-    pub fn dump_to_serde_value(
-        value: &Bound<'_, PyAny>,
-        field_name: &str,
-    ) -> Result<Value, String> {
-        if !value.is_instance_of::<PyInt>() || value.is_instance_of::<PyBool>() {
-            return Err(json_field_error(field_name, INT_ERROR));
-        }
-        if let Ok(i) = value.extract::<i64>() {
-            Ok(Value::Number(i.into()))
-        } else if let Ok(u) = value.extract::<u64>() {
-            Ok(Value::Number(u.into()))
-        } else {
-            let s: String = value.str().map_err(|e: PyErr| e.to_string())?.extract().map_err(|e: PyErr| e.to_string())?;
-            let num = serde_json::Number::from_string_unchecked(s);
-            Ok(Value::Number(num))
-        }
     }
 
     #[inline]

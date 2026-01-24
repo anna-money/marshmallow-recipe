@@ -2,7 +2,6 @@ use std::fmt::Write;
 
 use pyo3::prelude::*;
 use pyo3::types::{PyDate, PyDateAccess, PyString};
-use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, DATE_ERROR};
 use crate::types::DumpContext;
@@ -10,6 +9,11 @@ use crate::utils::{create_pydate_from_chrono, parse_iso_date};
 
 pub mod date_dumper {
     use super::*;
+
+    #[inline]
+    pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
+        value.is_instance_of::<PyDate>()
+    }
 
     #[inline]
     pub fn dump_to_dict<'py>(
@@ -24,20 +28,6 @@ pub mod date_dumper {
         let mut buf = arrayvec::ArrayString::<10>::new();
         write!(buf, "{:04}-{:02}-{:02}", d.get_year(), d.get_month(), d.get_day()).unwrap();
         Ok(PyString::new(ctx.py, &buf).into_any().unbind())
-    }
-
-    #[inline]
-    pub fn dump_to_serde_value(
-        value: &Bound<'_, PyAny>,
-        field_name: &str,
-    ) -> Result<Value, String> {
-        if !value.is_instance_of::<PyDate>() {
-            return Err(json_field_error(field_name, DATE_ERROR));
-        }
-        let d: &Bound<'_, PyDate> = value.cast().map_err(|e| e.to_string())?;
-        let mut buf = arrayvec::ArrayString::<10>::new();
-        write!(buf, "{:04}-{:02}-{:02}", d.get_year(), d.get_month(), d.get_day()).unwrap();
-        Ok(Value::String(buf.to_string()))
     }
 
     #[inline]

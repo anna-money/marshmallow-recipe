@@ -1,6 +1,5 @@
 use pyo3::prelude::*;
 use pyo3::types::PyString;
-use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, UUID_ERROR};
 use crate::cache::get_cached_types;
@@ -8,6 +7,14 @@ use crate::types::DumpContext;
 
 pub mod uuid_dumper {
     use super::*;
+
+    #[inline]
+    pub fn can_dump<'py>(value: &Bound<'py, PyAny>, ctx: &DumpContext<'_, 'py>) -> bool {
+        let Ok(cached) = get_cached_types(ctx.py) else {
+            return false;
+        };
+        value.is_instance(cached.uuid_cls.bind(ctx.py)).unwrap_or(false)
+    }
 
     #[inline]
     pub fn dump_to_dict<'py>(
@@ -24,23 +31,6 @@ pub mod uuid_dumper {
         let mut buf = [0u8; uuid::fmt::Hyphenated::LENGTH];
         let s = uuid.hyphenated().encode_lower(&mut buf);
         Ok(PyString::new(ctx.py, s).into_any().unbind())
-    }
-
-    #[inline]
-    pub fn dump_to_serde_value<'py>(
-        value: &Bound<'py, PyAny>,
-        field_name: &str,
-        ctx: &DumpContext<'_, 'py>,
-    ) -> Result<Value, String> {
-        let cached = get_cached_types(ctx.py).map_err(|e| e.to_string())?;
-        if !value.is_instance(cached.uuid_cls.bind(ctx.py)).map_err(|e| e.to_string())? {
-            return Err(json_field_error(field_name, UUID_ERROR));
-        }
-        let uuid_int: u128 = value.getattr(cached.str_int.bind(ctx.py)).map_err(|e: PyErr| e.to_string())?.extract().map_err(|e: PyErr| e.to_string())?;
-        let uuid = uuid::Uuid::from_u128(uuid_int);
-        let mut buf = [0u8; uuid::fmt::Hyphenated::LENGTH];
-        let s = uuid.hyphenated().encode_lower(&mut buf);
-        Ok(Value::String(s.to_string()))
     }
 
     #[inline]

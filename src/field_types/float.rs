@@ -1,12 +1,22 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyFloat, PyInt, PyString};
-use serde_json::Value;
 
 use super::helpers::{field_error, json_field_error, FLOAT_ERROR, FLOAT_NAN_ERROR};
 use crate::types::DumpContext;
 
 pub mod float_dumper {
     use super::*;
+
+    #[inline]
+    pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
+        if value.is_instance_of::<PyFloat>() {
+            if let Ok(f) = value.extract::<f64>() {
+                return !f.is_nan() && !f.is_infinite();
+            }
+            return false;
+        }
+        value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>()
+    }
 
     #[inline]
     pub fn dump_to_dict<'py>(
@@ -24,31 +34,6 @@ pub mod float_dumper {
             }
         }
         Ok(value.clone().unbind())
-    }
-
-    #[inline]
-    pub fn dump_to_serde_value(
-        value: &Bound<'_, PyAny>,
-        field_name: &str,
-    ) -> Result<Value, String> {
-        if !value.is_instance_of::<PyFloat>() && !(value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>()) {
-            return Err(json_field_error(field_name, FLOAT_ERROR));
-        }
-        if value.is_instance_of::<PyInt>() {
-            if let Ok(i) = value.extract::<i64>() {
-                return Ok(Value::Number(serde_json::Number::from(i)));
-            }
-            if let Ok(u) = value.extract::<u64>() {
-                return Ok(Value::Number(serde_json::Number::from(u)));
-            }
-            let s: String = value.str().map_err(|e: PyErr| e.to_string())?.extract().map_err(|e: PyErr| e.to_string())?;
-            return Ok(Value::Number(serde_json::Number::from_string_unchecked(s)));
-        }
-        let f: f64 = value.extract().map_err(|e: PyErr| e.to_string())?;
-        if f.is_nan() || f.is_infinite() {
-            return Err(json_field_error(field_name, FLOAT_NAN_ERROR));
-        }
-        Ok(Value::Number(serde_json::Number::from_f64(f).expect("valid f64")))
     }
 
     #[inline]
