@@ -16,10 +16,10 @@ use smallbitvec::SmallBitVec;
 use crate::cache::get_cached_types;
 use crate::load::{LoadContext, load_root_type};
 use crate::loader::{DecimalLoaderData, Loader};
-use crate::field_types::collection::CollectionKind;
-use crate::field_types::helpers::{err_json, DATETIME_ERROR, DATE_ERROR, DECIMAL_NUMBER_ERROR, FLOAT_ERROR, FLOAT_NAN_ERROR, INT_ERROR, TIME_ERROR, UUID_ERROR};
-use crate::field_types::nested::FieldLoader;
-use crate::field_types::{int, float, bool_type, decimal, date, time, datetime, uuid, str_type, str_enum, int_enum};
+use crate::fields::collection::CollectionKind;
+use crate::fields::helpers::{err_json, DATETIME_ERROR, DATE_ERROR, DECIMAL_NUMBER_ERROR, FLOAT_ERROR, FLOAT_NAN_ERROR, INT_ERROR, TIME_ERROR, UUID_ERROR};
+use crate::fields::nested::FieldLoader;
+use crate::fields::{int, float, bool_type, decimal, date, time, datetime, uuid, str_type, str_enum, int_enum};
 use crate::slots::set_slot_value_direct;
 use crate::types::{TypeDescriptor, TypeKind};
 use crate::utils::{
@@ -431,11 +431,11 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                         return Ok(member.clone_ref(self.ctx.py));
                     }
                 }
-                let msg = crate::field_types::int_enum::int_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
+                let msg = crate::fields::int_enum::int_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             Loader::StrEnum(data) => {
-                let msg = crate::field_types::str_enum::str_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
+                let msg = crate::fields::str_enum::str_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             _ => {
@@ -466,11 +466,11 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                         }
                     }
                 }
-                let msg = crate::field_types::int_enum::int_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
+                let msg = crate::fields::int_enum::int_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             Loader::StrEnum(data) => {
-                let msg = crate::field_types::str_enum::str_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
+                let msg = crate::fields::str_enum::str_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             _ => {
@@ -587,11 +587,11 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                         return Ok(member.clone_ref(self.ctx.py));
                     }
                 }
-                let msg = crate::field_types::str_enum::str_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
+                let msg = crate::fields::str_enum::str_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             Loader::IntEnum(data) => {
-                let msg = crate::field_types::int_enum::int_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
+                let msg = crate::fields::int_enum::int_enum_loader::format_visit_error(v, &data.values, self.field.invalid_error.as_deref());
                 Err(de::Error::custom(err_json(&self.field.name, &msg)))
             }
             _ => {
@@ -1248,7 +1248,7 @@ fn format_item_errors_json_from_vec(py: Python, errors: &[(usize, Py<PyAny>)]) -
 }
 
 fn get_type_error(deserializer: &Loader) -> &'static str {
-    use crate::field_types::helpers::{BOOL_ERROR, DICT_ERROR, NESTED_ERROR, STR_ERROR, UNION_ERROR};
+    use crate::fields::helpers::{BOOL_ERROR, DICT_ERROR, NESTED_ERROR, STR_ERROR, UNION_ERROR};
     match deserializer {
         Loader::Str { .. } => STR_ERROR,
         Loader::Int => INT_ERROR,

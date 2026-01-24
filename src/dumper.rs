@@ -2,11 +2,11 @@
 
 use pyo3::prelude::*;
 
-pub use crate::field_types::collection::CollectionKind;
-pub use crate::field_types::nested::{DataclassDumperSchema, FieldDumper};
+pub use crate::fields::collection::CollectionKind;
+pub use crate::fields::nested::{DataclassDumperSchema, FieldDumper};
 use crate::types::{DecimalPlaces, DumpContext};
 
-pub use crate::field_types::nested::nested_dumper::dump_dataclass;
+pub use crate::fields::nested::nested_dumper::dump_dataclass;
 
 pub struct StrEnumData {
     pub enum_cls: Py<PyAny>,
@@ -135,7 +135,7 @@ impl Dumper {
         value: &Bound<'py, PyAny>,
         ctx: &DumpContext<'_, 'py>,
     ) -> bool {
-        use crate::field_types::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, any, collection, dict, nested, union};
+        use crate::fields::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, any, collection, dict, nested, union};
 
         match self {
             Self::Str { .. } => str_type::str_dumper::can_dump(value),
@@ -163,7 +163,7 @@ impl Dumper {
         field_name: &str,
         ctx: &DumpContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
-        use crate::field_types::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, any, collection, dict, nested, union};
+        use crate::fields::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, any, collection, dict, nested, union};
 
         match self {
             Self::Str { strip_whitespaces } => {
@@ -244,7 +244,7 @@ impl Dumper {
         ctx: &DumpContext<'_, '_>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        use crate::field_types::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, any, collection, dict, nested, union};
+        use crate::fields::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, any, collection, dict, nested, union};
 
         match self {
             Self::Str { strip_whitespaces } => {

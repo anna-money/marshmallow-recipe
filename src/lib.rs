@@ -3,7 +3,7 @@ mod encoding;
 mod slots;
 mod cache;
 mod utils;
-mod field_types;
+mod fields;
 mod load_bytes;
 mod dump_bytes;
 mod dump;

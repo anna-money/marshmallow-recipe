@@ -2,11 +2,11 @@
 
 use pyo3::prelude::*;
 
-pub use crate::field_types::collection::CollectionKind;
-pub use crate::field_types::nested::{DataclassLoaderSchema, FieldLoader};
+pub use crate::fields::collection::CollectionKind;
+pub use crate::fields::nested::{DataclassLoaderSchema, FieldLoader};
 use crate::types::{DecimalPlaces, LoadContext};
 
-pub use crate::field_types::nested::nested_loader::load_dataclass_from_parts;
+pub use crate::fields::nested::nested_loader::load_dataclass_from_parts;
 
 pub struct StrEnumLoaderData {
     pub values: Vec<(String, Py<PyAny>)>,
@@ -127,7 +127,7 @@ impl Loader {
         invalid_error: Option<&str>,
         ctx: &LoadContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
-        use crate::field_types::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, int_enum, any, collection, dict, nested, union};
+        use crate::fields::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, int_enum, any, collection, dict, nested, union};
 
         match self {
             Self::Str { strip_whitespaces } => {

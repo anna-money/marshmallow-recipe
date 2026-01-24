@@ -3,7 +3,7 @@ use pyo3::types::{PyDict, PyList, PyString};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Serialize, Serializer};
 
-use crate::field_types::nested::nested_dumper::dump_dataclass_streaming;
+use crate::fields::nested::nested_dumper::dump_dataclass_streaming;
 use crate::types::DumpContext;
 use crate::types::{TypeDescriptor, TypeKind};
 
