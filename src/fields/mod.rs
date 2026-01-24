@@ -1,9 +1,3 @@
-#![allow(clippy::wildcard_imports)]
-#![allow(clippy::nonminimal_bool)]
-#![allow(clippy::unnecessary_wraps)]
-#![allow(clippy::single_match_else)]
-#![allow(clippy::match_same_arms)]
-
 pub mod helpers;
 pub mod str_type;
 pub mod int;

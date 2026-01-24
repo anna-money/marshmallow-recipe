@@ -1,11 +1,11 @@
-use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyFloat, PyInt, PyString};
-
 use super::helpers::{field_error, json_field_error, FLOAT_ERROR, FLOAT_NAN_ERROR};
 use crate::types::DumpContext;
 
 pub mod float_dumper {
-    use super::*;
+    use pyo3::prelude::*;
+    use pyo3::types::{PyBool, PyFloat, PyInt};
+
+    use super::{field_error, json_field_error, DumpContext, FLOAT_ERROR, FLOAT_NAN_ERROR};
 
     #[inline]
     pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
@@ -19,6 +19,7 @@ pub mod float_dumper {
     }
 
     #[inline]
+    #[allow(clippy::nonminimal_bool)]
     pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
@@ -37,6 +38,7 @@ pub mod float_dumper {
     }
 
     #[inline]
+    #[allow(clippy::nonminimal_bool)]
     pub fn dump<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         field_name: &str,
@@ -68,10 +70,13 @@ pub mod float_dumper {
 }
 
 pub mod float_loader {
-    use super::*;
-    use crate::types::LoadContext;
     use pyo3::conversion::IntoPyObjectExt;
+    use pyo3::prelude::*;
+    use pyo3::types::{PyBool, PyFloat, PyInt, PyString};
     use serde::de;
+
+    use super::{field_error, FLOAT_ERROR, FLOAT_NAN_ERROR};
+    use crate::types::LoadContext;
 
     #[inline]
     pub fn load_from_dict<'py>(

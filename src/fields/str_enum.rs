@@ -1,11 +1,11 @@
-use pyo3::prelude::*;
-use pyo3::types::{PyInt, PyString};
-
 use super::helpers::field_error;
 use crate::types::DumpContext;
 
 pub mod str_enum_dumper {
-    use super::*;
+    use pyo3::prelude::*;
+    use pyo3::types::PyString;
+
+    use super::{field_error, DumpContext};
 
     #[inline]
     pub fn can_dump<'py>(value: &Bound<'py, PyAny>, ctx: &DumpContext<'_, 'py>, enum_cls: &Py<PyAny>) -> bool {
@@ -57,9 +57,11 @@ pub mod str_enum_dumper {
 }
 
 pub mod str_enum_loader {
-    use super::*;
-    use crate::types::LoadContext;
+    use pyo3::prelude::*;
     use serde::de;
+
+    use super::field_error;
+    use crate::types::LoadContext;
 
     #[inline]
     pub fn load_from_dict<'py>(
@@ -115,7 +117,10 @@ pub mod str_enum_loader {
 }
 
 pub mod int_enum_dumper {
-    use super::*;
+    use pyo3::prelude::*;
+    use pyo3::types::PyInt;
+
+    use super::{field_error, DumpContext};
 
     #[inline]
     pub fn can_dump<'py>(value: &Bound<'py, PyAny>, ctx: &DumpContext<'_, 'py>, enum_cls: &Py<PyAny>) -> bool {

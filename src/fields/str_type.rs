@@ -1,11 +1,11 @@
-use pyo3::prelude::*;
-use pyo3::types::PyString;
-
 use super::helpers::{field_error, json_field_error, STR_ERROR};
 use crate::types::DumpContext;
 
 pub mod str_dumper {
-    use super::*;
+    use pyo3::prelude::*;
+    use pyo3::types::PyString;
+
+    use super::{field_error, json_field_error, DumpContext, STR_ERROR};
 
     #[inline]
     pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
@@ -56,10 +56,13 @@ pub mod str_dumper {
 }
 
 pub mod str_loader {
-    use super::*;
-    use crate::types::LoadContext;
     use pyo3::conversion::IntoPyObjectExt;
+    use pyo3::prelude::*;
+    use pyo3::types::PyString;
     use serde::de;
+
+    use super::{field_error, STR_ERROR};
+    use crate::types::LoadContext;
 
     #[inline]
     pub fn load_from_dict<'py>(

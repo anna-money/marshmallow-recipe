@@ -1,12 +1,12 @@
-use pyo3::prelude::*;
-use pyo3::types::PyString;
-
 use super::helpers::{field_error, json_field_error, UUID_ERROR};
 use crate::cache::get_cached_types;
 use crate::types::DumpContext;
 
 pub mod uuid_dumper {
-    use super::*;
+    use pyo3::prelude::*;
+    use pyo3::types::PyString;
+
+    use super::{field_error, get_cached_types, json_field_error, DumpContext, UUID_ERROR};
 
     #[inline]
     pub fn can_dump<'py>(value: &Bound<'py, PyAny>, ctx: &DumpContext<'_, 'py>) -> bool {
@@ -55,9 +55,12 @@ pub mod uuid_dumper {
 }
 
 pub mod uuid_loader {
-    use super::*;
-    use crate::types::LoadContext;
+    use pyo3::prelude::*;
+    use pyo3::types::PyString;
     use serde::de;
+
+    use super::{field_error, get_cached_types, UUID_ERROR};
+    use crate::types::LoadContext;
 
     #[inline]
     pub fn load_from_dict<'py>(

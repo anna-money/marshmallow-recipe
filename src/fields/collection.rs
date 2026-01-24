@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use pyo3::prelude::*;
 use pyo3::types::{PyFrozenSet, PyList, PySet, PyTuple};
 
-use super::helpers::{field_error, json_field_error, LIST_ERROR, SET_ERROR, FROZENSET_ERROR, TUPLE_ERROR};
+use super::helpers::{field_error, json_field_error, FROZENSET_ERROR, LIST_ERROR, SET_ERROR, TUPLE_ERROR};
 use crate::types::DumpContext;
 use crate::utils::{call_validator, format_item_errors_dict, wrap_err_dict, wrap_err_dict_idx};
 
@@ -36,7 +34,15 @@ impl CollectionKind {
 }
 
 pub mod collection_dumper {
-    use super::*;
+    use std::collections::HashMap;
+
+    use pyo3::prelude::*;
+    use pyo3::types::PyList;
+
+    use super::{
+        call_validator, field_error, format_item_errors_dict, json_field_error, wrap_err_dict,
+        CollectionKind, DumpContext,
+    };
     use crate::dumper::Dumper;
     use crate::utils::pyany_to_json_value;
 
@@ -198,7 +204,10 @@ pub mod collection_dumper {
 }
 
 pub mod collection_loader {
-    use super::*;
+    use pyo3::prelude::*;
+    use pyo3::types::{PyFrozenSet, PyList, PySet, PyTuple};
+
+    use super::{call_validator, field_error, wrap_err_dict, wrap_err_dict_idx, CollectionKind};
     use crate::loader::Loader;
     use crate::types::LoadContext;
     use crate::utils::extract_error_value;

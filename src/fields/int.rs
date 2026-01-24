@@ -1,11 +1,11 @@
-use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyInt};
-
 use super::helpers::{field_error, json_field_error, INT_ERROR};
 use crate::types::DumpContext;
 
 pub mod int_dumper {
-    use super::*;
+    use pyo3::prelude::*;
+    use pyo3::types::{PyBool, PyInt};
+
+    use super::{field_error, json_field_error, DumpContext, INT_ERROR};
 
     #[inline]
     pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
@@ -49,10 +49,13 @@ pub mod int_dumper {
 }
 
 pub mod int_loader {
-    use super::*;
-    use crate::types::LoadContext;
     use pyo3::conversion::IntoPyObjectExt;
+    use pyo3::prelude::*;
+    use pyo3::types::{PyBool, PyInt};
     use serde::de;
+
+    use super::{field_error, INT_ERROR};
+    use crate::types::LoadContext;
 
     #[inline]
     pub fn load_from_dict<'py>(

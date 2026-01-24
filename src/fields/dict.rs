@@ -1,13 +1,13 @@
-use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyString};
-use serde_json::Value;
-
 use super::helpers::{field_error, json_field_error, DICT_ERROR};
 use crate::types::DumpContext;
 use crate::utils::{call_validator, pyany_to_json_value, wrap_err_dict};
 
 pub mod dict_dumper {
-    use super::*;
+    use pyo3::prelude::*;
+    use pyo3::types::{PyDict, PyString};
+    use serde_json::Value;
+
+    use super::{call_validator, field_error, json_field_error, pyany_to_json_value, wrap_err_dict, DumpContext, DICT_ERROR};
     use crate::dumper::Dumper;
 
     #[inline]
@@ -138,7 +138,10 @@ pub mod dict_dumper {
 }
 
 pub mod dict_loader {
-    use super::*;
+    use pyo3::prelude::*;
+    use pyo3::types::PyDict;
+
+    use super::{call_validator, field_error, wrap_err_dict, DICT_ERROR};
     use crate::loader::Loader;
     use crate::types::LoadContext;
     use crate::utils::extract_error_value;

@@ -1,14 +1,14 @@
-use std::fmt::Write;
-
-use pyo3::prelude::*;
-use pyo3::types::{PyString, PyTime, PyTimeAccess};
-
 use super::helpers::{field_error, json_field_error, TIME_ERROR};
 use crate::types::DumpContext;
 use crate::utils::{create_pytime_from_chrono, parse_iso_time};
 
 pub mod time_dumper {
-    use super::*;
+    use std::fmt::Write;
+
+    use pyo3::prelude::*;
+    use pyo3::types::{PyString, PyTime, PyTimeAccess};
+
+    use super::{field_error, json_field_error, DumpContext, TIME_ERROR};
 
     #[inline]
     pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
@@ -56,9 +56,12 @@ pub mod time_dumper {
 }
 
 pub mod time_loader {
-    use super::*;
-    use crate::types::LoadContext;
+    use pyo3::prelude::*;
+    use pyo3::types::PyString;
     use serde::de;
+
+    use super::{create_pytime_from_chrono, field_error, parse_iso_time, TIME_ERROR};
+    use crate::types::LoadContext;
 
     #[inline]
     pub fn load_from_dict<'py>(

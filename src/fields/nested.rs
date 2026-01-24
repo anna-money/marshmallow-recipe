@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyString};
-use serde_json::Value;
+use pyo3::types::PyString;
 
-use super::helpers::{field_error, json_field_error, err_dict_from_list, NESTED_ERROR};
+use super::helpers::{err_dict_from_list, field_error, json_field_error, NESTED_ERROR};
 use crate::cache::get_cached_types;
 use crate::slots::set_slot_value_direct;
 use crate::types::{DumpContext, LoadContext};
@@ -133,7 +132,14 @@ impl std::fmt::Debug for FieldLoader {
 }
 
 pub mod nested_dumper {
-    use super::*;
+    use pyo3::prelude::*;
+    use pyo3::types::PyDict;
+    use serde_json::Value;
+
+    use super::{
+        call_validator, err_dict_from_list, field_error, get_cached_types, json_field_error,
+        pyany_to_json_value, DataclassDumperSchema, DumpContext, FieldDumper, NESTED_ERROR,
+    };
 
     #[inline]
     pub fn can_dump<'py>(
@@ -286,7 +292,15 @@ pub mod nested_dumper {
 }
 
 pub mod nested_loader {
-    use super::*;
+    use std::collections::HashMap;
+
+    use pyo3::prelude::*;
+    use pyo3::types::PyDict;
+
+    use super::{
+        call_validator, extract_error_args, field_error, get_cached_types, set_slot_value_direct,
+        wrap_err_dict, DataclassLoaderSchema, FieldLoader, LoadContext, NESTED_ERROR,
+    };
     use crate::loader::Loader;
 
     #[inline]

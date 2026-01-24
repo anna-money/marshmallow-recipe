@@ -1,10 +1,10 @@
-use pyo3::prelude::*;
-
 use super::helpers::{field_error, UNION_ERROR};
 use crate::types::DumpContext;
 
 pub mod union_dumper {
-    use super::*;
+    use pyo3::prelude::*;
+
+    use super::DumpContext;
     use crate::dumper::Dumper;
 
     #[inline]
@@ -55,7 +55,9 @@ pub mod union_dumper {
 }
 
 pub mod union_loader {
-    use super::*;
+    use pyo3::prelude::*;
+
+    use super::{field_error, UNION_ERROR};
     use crate::loader::Loader;
     use crate::types::LoadContext;
 

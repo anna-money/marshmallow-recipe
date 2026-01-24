@@ -1,11 +1,11 @@
-use pyo3::prelude::*;
-use pyo3::types::PyBool;
-
 use super::helpers::{field_error, json_field_error, BOOL_ERROR};
 use crate::types::DumpContext;
 
 pub mod bool_dumper {
-    use super::*;
+    use pyo3::prelude::*;
+    use pyo3::types::PyBool;
+
+    use super::{field_error, json_field_error, DumpContext, BOOL_ERROR};
 
     #[inline]
     pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
@@ -40,10 +40,13 @@ pub mod bool_dumper {
 }
 
 pub mod bool_loader {
-    use super::*;
-    use crate::types::LoadContext;
     use pyo3::conversion::IntoPyObjectExt;
+    use pyo3::prelude::*;
+    use pyo3::types::PyBool;
     use serde::de;
+
+    use super::{field_error, BOOL_ERROR};
+    use crate::types::LoadContext;
 
     #[inline]
     pub fn load_from_dict<'py>(

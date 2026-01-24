@@ -1,15 +1,18 @@
-use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyFloat, PyInt, PyString};
-use rust_decimal::Decimal;
-use rust_decimal::prelude::FromStr;
-
 use super::helpers::{field_error, json_field_error, DECIMAL_ERROR, DECIMAL_NUMBER_ERROR};
 use crate::cache::get_cached_types;
 use crate::types::{DecimalPlaces, DumpContext};
 use crate::utils::python_rounding_to_rust;
 
 pub mod decimal_dumper {
-    use super::*;
+    use pyo3::prelude::*;
+    use pyo3::types::PyString;
+    use rust_decimal::Decimal;
+    use rust_decimal::prelude::FromStr;
+
+    use super::{
+        field_error, get_cached_types, json_field_error, python_rounding_to_rust, DecimalPlaces,
+        DumpContext, DECIMAL_ERROR, DECIMAL_NUMBER_ERROR,
+    };
 
     #[inline]
     pub fn can_dump<'py>(value: &Bound<'py, PyAny>, ctx: &DumpContext<'_, 'py>) -> bool {
@@ -105,9 +108,17 @@ pub mod decimal_dumper {
 }
 
 pub mod decimal_loader {
-    use super::*;
-    use crate::types::LoadContext;
+    use pyo3::prelude::*;
+    use pyo3::types::{PyBool, PyFloat, PyInt, PyString};
+    use rust_decimal::Decimal;
+    use rust_decimal::prelude::FromStr;
     use serde::de;
+
+    use super::{
+        field_error, get_cached_types, python_rounding_to_rust, DecimalPlaces,
+        DECIMAL_NUMBER_ERROR,
+    };
+    use crate::types::LoadContext;
 
     #[inline]
     pub fn load_from_dict<'py>(

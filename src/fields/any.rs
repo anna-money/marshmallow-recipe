@@ -1,11 +1,11 @@
-use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString};
-
 use super::helpers::{field_error, json_field_error, ANY_ERROR};
 
 pub mod any_dumper {
-    use super::*;
+    use pyo3::prelude::*;
+    use pyo3::types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString};
     use serde::ser::{SerializeMap, SerializeSeq};
+
+    use super::{field_error, json_field_error, ANY_ERROR};
 
     #[inline]
     pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
@@ -155,10 +155,12 @@ pub mod any_dumper {
 }
 
 pub mod any_loader {
-    use super::*;
+    use pyo3::prelude::*;
+
     use crate::types::LoadContext;
 
     #[inline]
+    #[allow(clippy::unnecessary_wraps)]
     pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         _ctx: &LoadContext<'_, 'py>,

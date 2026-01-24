@@ -1,11 +1,11 @@
-use pyo3::prelude::*;
-use serde::de;
-
 use super::helpers::field_error;
 use crate::types::LoadContext;
 
 pub mod int_enum_loader {
-    use super::*;
+    use pyo3::prelude::*;
+    use serde::de;
+
+    use super::{field_error, LoadContext};
 
     #[inline]
     pub fn load_from_dict<'py>(

@@ -2,7 +2,7 @@ use std::fmt::Write;
 
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime};
 use pyo3::prelude::*;
-use pyo3::types::{PyDateTime, PyDateAccess, PyString, PyTimeAccess, PyTzInfoAccess};
+use pyo3::types::{PyDateAccess, PyDateTime, PyTimeAccess, PyTzInfoAccess};
 
 use super::helpers::{field_error, json_field_error, DATETIME_ERROR};
 use crate::types::DumpContext;
@@ -112,7 +112,14 @@ fn format_strftime(
 }
 
 pub mod datetime_dumper {
-    use super::*;
+    use pyo3::prelude::*;
+    use pyo3::types::{PyDateTime, PyDateAccess, PyString, PyTimeAccess, PyTzInfoAccess};
+
+    use super::{
+        extract_components, field_error, format_iso, format_strftime, get_tz_offset_seconds,
+        json_field_error, DateTimeComponents, DumpContext, StrftimeResult, BUFFER_ERROR_MSG,
+        DATETIME_ERROR,
+    };
 
     #[inline]
     pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
@@ -207,9 +214,15 @@ pub mod datetime_dumper {
 }
 
 pub mod datetime_loader {
-    use super::*;
-    use crate::types::LoadContext;
+    use pyo3::prelude::*;
+    use pyo3::types::PyString;
     use serde::de;
+
+    use super::{
+        create_pydatetime_from_chrono, field_error, parse_datetime_with_format,
+        parse_rfc3339_datetime, DATETIME_ERROR,
+    };
+    use crate::types::LoadContext;
 
     #[inline]
     pub fn load_from_dict<'py>(
