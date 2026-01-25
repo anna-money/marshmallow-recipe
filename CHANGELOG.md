@@ -1,8 +1,3 @@
-## v0.0.73 (unreleased)
-
-* Optimize Union type matching: replace `dump_to_serde_value` with lightweight `can_dump` checks
-
-
 ## v0.0.72 (2026-01-15)
 
 * Change decimal `places` to validate precision instead of rounding (use `rounding` parameter for old behavior)
