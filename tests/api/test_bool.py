@@ -18,25 +18,27 @@ from .conftest import (
 
 
 class TestBoolDump:
-    def test_true(self, impl: Serializer) -> None:
-        obj = ValueOf[bool](value=True)
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            pytest.param(ValueOf[bool](value=True), b'{"value":true}', id="true"),
+            pytest.param(ValueOf[bool](value=False), b'{"value":false}', id="false"),
+        ],
+    )
+    def test_value(self, impl: Serializer, obj: ValueOf[bool], expected: bytes) -> None:
         result = impl.dump(ValueOf[bool], obj)
-        assert result == b'{"value":true}'
+        assert result == expected
 
-    def test_false(self, impl: Serializer) -> None:
-        obj = ValueOf[bool](value=False)
-        result = impl.dump(ValueOf[bool], obj)
-        assert result == b'{"value":false}'
-
-    def test_optional_none(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[bool](value=None)
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            pytest.param(OptionalValueOf[bool](value=None), b"{}", id="none"),
+            pytest.param(OptionalValueOf[bool](value=True), b'{"value":true}', id="value"),
+        ],
+    )
+    def test_optional(self, impl: Serializer, obj: OptionalValueOf[bool], expected: bytes) -> None:
         result = impl.dump(OptionalValueOf[bool], obj)
-        assert result == b"{}"
-
-    def test_optional_value(self, impl: Serializer) -> None:
-        obj = OptionalValueOf[bool](value=True)
-        result = impl.dump(OptionalValueOf[bool], obj)
-        assert result == b'{"value":true}'
+        assert result == expected
 
     def test_default_provided(self, impl: Serializer) -> None:
         obj = WithBoolDefault(value=False)
@@ -63,27 +65,31 @@ class TestBoolDump:
         result = impl.dump(OptionalValueOf[bool], obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
         assert result == b'{"value":true}'
 
-    def test_missing(self, impl: Serializer) -> None:
-        obj = WithBoolMissing()
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            pytest.param(WithBoolMissing(), b"{}", id="omitted"),
+            pytest.param(WithBoolMissing(value=True), b'{"value":true}', id="provided"),
+        ],
+    )
+    def test_missing(self, impl: Serializer, obj: WithBoolMissing, expected: bytes) -> None:
         result = impl.dump(WithBoolMissing, obj)
-        assert result == b"{}"
-
-    def test_missing_with_value(self, impl: Serializer) -> None:
-        obj = WithBoolMissing(value=True)
-        result = impl.dump(WithBoolMissing, obj)
-        assert result == b'{"value":true}'
+        assert result == expected
 
 
 class TestBoolLoad:
-    def test_true(self, impl: Serializer) -> None:
-        data = b'{"value":true}'
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b'{"value":true}', ValueOf[bool](value=True), id="true"),
+            pytest.param(b'{"value":false}', ValueOf[bool](value=False), id="false"),
+            pytest.param(b'{"value":0}', ValueOf[bool](value=False), id="zero"),
+            pytest.param(b'{"value":1}', ValueOf[bool](value=True), id="one"),
+        ],
+    )
+    def test_value(self, impl: Serializer, data: bytes, expected: ValueOf[bool]) -> None:
         result = impl.load(ValueOf[bool], data)
-        assert result == ValueOf[bool](value=True)
-
-    def test_false(self, impl: Serializer) -> None:
-        data = b'{"value":false}'
-        result = impl.load(ValueOf[bool], data)
-        assert result == ValueOf[bool](value=False)
+        assert result == expected
 
     def test_validation_pass(self, impl: Serializer) -> None:
         data = b'{"value":true}'
@@ -107,30 +113,28 @@ class TestBoolLoad:
             impl.load(WithBoolTwoValidators, data)
         assert exc.value.messages == {"value": ["Invalid value."]}
 
-    def test_optional_none(self, impl: Serializer) -> None:
-        data = b'{"value":null}'
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b'{"value":null}', OptionalValueOf[bool](value=None), id="none"),
+            pytest.param(b"{}", OptionalValueOf[bool](value=None), id="missing"),
+            pytest.param(b'{"value":true}', OptionalValueOf[bool](value=True), id="value"),
+        ],
+    )
+    def test_optional(self, impl: Serializer, data: bytes, expected: OptionalValueOf[bool]) -> None:
         result = impl.load(OptionalValueOf[bool], data)
-        assert result == OptionalValueOf[bool](value=None)
+        assert result == expected
 
-    def test_optional_missing(self, impl: Serializer) -> None:
-        data = b"{}"
-        result = impl.load(OptionalValueOf[bool], data)
-        assert result == OptionalValueOf[bool](value=None)
-
-    def test_optional_value(self, impl: Serializer) -> None:
-        data = b'{"value":true}'
-        result = impl.load(OptionalValueOf[bool], data)
-        assert result == OptionalValueOf[bool](value=True)
-
-    def test_default_omitted(self, impl: Serializer) -> None:
-        data = b"{}"
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b"{}", WithBoolDefault(value=True), id="omitted"),
+            pytest.param(b'{"value":false}', WithBoolDefault(value=False), id="provided"),
+        ],
+    )
+    def test_default(self, impl: Serializer, data: bytes, expected: WithBoolDefault) -> None:
         result = impl.load(WithBoolDefault, data)
-        assert result == WithBoolDefault(value=True)
-
-    def test_default_provided(self, impl: Serializer) -> None:
-        data = b'{"value":false}'
-        result = impl.load(WithBoolDefault, data)
-        assert result == WithBoolDefault(value=False)
+        assert result == expected
 
     def test_custom_required_error(self, impl: Serializer) -> None:
         data = b"{}"
@@ -150,14 +154,10 @@ class TestBoolLoad:
             impl.load(WithBoolInvalidError, data)
         assert exc.value.messages == {"value": ["Custom invalid message"]}
 
-    def test_wrong_type_string(self, impl: Serializer) -> None:
-        data = b'{"value":"not_bool"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(ValueOf[bool], data)
-        assert exc.value.messages == {"value": ["Not a valid boolean."]}
-
-    def test_wrong_type_list(self, impl: Serializer) -> None:
-        data = b'{"value":[true,false]}'
+    @pytest.mark.parametrize(
+        "data", [pytest.param(b'{"value":"not_bool"}', id="string"), pytest.param(b'{"value":[true,false]}', id="list")]
+    )
+    def test_wrong_type(self, impl: Serializer, data: bytes) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(ValueOf[bool], data)
         assert exc.value.messages == {"value": ["Not a valid boolean."]}
@@ -168,31 +168,29 @@ class TestBoolLoad:
             impl.load(ValueOf[bool], data)
         assert exc.value.messages == {"value": ["Missing data for required field."]}
 
-    def test_missing(self, impl: Serializer) -> None:
-        data = b"{}"
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b"{}", WithBoolMissing(), id="omitted"),
+            pytest.param(b'{"value":true}', WithBoolMissing(value=True), id="provided"),
+        ],
+    )
+    def test_missing(self, impl: Serializer, data: bytes, expected: WithBoolMissing) -> None:
         result = impl.load(WithBoolMissing, data)
-        assert result == WithBoolMissing()
-
-    def test_missing_with_value(self, impl: Serializer) -> None:
-        data = b'{"value":true}'
-        result = impl.load(WithBoolMissing, data)
-        assert result == WithBoolMissing(value=True)
+        assert result == expected
 
 
 class TestBoolDumpInvalidType:
     """Test that invalid types in bool fields raise ValidationError on dump."""
 
-    def test_string(self, impl: Serializer) -> None:
-        obj = ValueOf[bool](**{"value": "not a bool"})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(ValueOf[bool], obj)
-
-    def test_int(self, impl: Serializer) -> None:
-        obj = ValueOf[bool](**{"value": 1})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
-            impl.dump(ValueOf[bool], obj)
-
-    def test_list(self, impl: Serializer) -> None:
-        obj = ValueOf[bool](**{"value": []})  # type: ignore[arg-type]
+    @pytest.mark.parametrize(
+        "obj",
+        [
+            pytest.param(ValueOf[bool](**{"value": "not a bool"}), id="string"),  # type: ignore[arg-type]
+            pytest.param(ValueOf[bool](**{"value": 1}), id="int"),  # type: ignore[arg-type]
+            pytest.param(ValueOf[bool](**{"value": []}), id="list"),  # type: ignore[arg-type]
+        ],
+    )
+    def test_invalid_type(self, impl: Serializer, obj: ValueOf[bool]) -> None:
         with pytest.raises(marshmallow.ValidationError):
             impl.dump(ValueOf[bool], obj)
