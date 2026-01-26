@@ -56,10 +56,16 @@ pub mod bool_loader {
         ctx: &LoadContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
         if value.is_instance_of::<PyBool>() {
-            Ok(value.clone().unbind())
-        } else {
-            Err(field_error(ctx.py, field_name, invalid_error.unwrap_or(BOOL_ERROR)))
+            return Ok(value.clone().unbind());
         }
+        if let Ok(i) = value.extract::<i64>() {
+            return match i {
+                0 => false.into_py_any(ctx.py),
+                1 => true.into_py_any(ctx.py),
+                _ => Err(field_error(ctx.py, field_name, invalid_error.unwrap_or(BOOL_ERROR))),
+            };
+        }
+        Err(field_error(ctx.py, field_name, invalid_error.unwrap_or(BOOL_ERROR)))
     }
 
     #[inline]

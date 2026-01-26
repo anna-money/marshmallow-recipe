@@ -17,7 +17,7 @@ use crate::cache::get_cached_types;
 use crate::load::{LoadContext, load_root_type};
 use crate::loader::Loader;
 use crate::fields::collection::CollectionKind;
-use crate::fields::helpers::{err_json, DATETIME_ERROR, DATE_ERROR, DECIMAL_NUMBER_ERROR, FLOAT_ERROR, FLOAT_NAN_ERROR, INT_ERROR, TIME_ERROR, UUID_ERROR};
+use crate::fields::helpers::{err_json, BOOL_ERROR, DATETIME_ERROR, DATE_ERROR, DECIMAL_NUMBER_ERROR, FLOAT_ERROR, FLOAT_NAN_ERROR, INT_ERROR, TIME_ERROR, UUID_ERROR};
 use crate::fields::nested::FieldLoader;
 use crate::fields::{int, float, bool_type, decimal, date, time, datetime, uuid, str_type, str_enum, int_enum};
 use crate::slots::set_slot_value_direct;
@@ -419,6 +419,16 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
         match &self.field.loader {
             Loader::Int => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
             Loader::Float => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
+            Loader::Bool => {
+                match v {
+                    0 => false.into_py_any(self.ctx.py).map_err(de::Error::custom),
+                    1 => true.into_py_any(self.ctx.py).map_err(de::Error::custom),
+                    _ => {
+                        let msg = self.field.invalid_error.as_deref().unwrap_or(BOOL_ERROR);
+                        Err(de::Error::custom(err_json(&self.field.name, msg)))
+                    }
+                }
+            }
             Loader::Decimal(data) => {
                 decimal::decimal_loader::load_from_i64(
                     self.ctx.py, v, data.decimal_places, data.rounding_strategy,
@@ -452,6 +462,16 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
         match &self.field.loader {
             Loader::Int => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
             Loader::Float => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
+            Loader::Bool => {
+                match v {
+                    0 => false.into_py_any(self.ctx.py).map_err(de::Error::custom),
+                    1 => true.into_py_any(self.ctx.py).map_err(de::Error::custom),
+                    _ => {
+                        let msg = self.field.invalid_error.as_deref().unwrap_or(BOOL_ERROR);
+                        Err(de::Error::custom(err_json(&self.field.name, msg)))
+                    }
+                }
+            }
             Loader::Decimal(data) => {
                 decimal::decimal_loader::load_from_u64(
                     self.ctx.py, v, data.decimal_places, data.rounding_strategy,
@@ -858,6 +878,13 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
         match &self.deserializer {
             Loader::Int => int::int_loader::load_from_i64(self.ctx.py, v),
             Loader::Float => float::float_loader::load_from_i64(self.ctx.py, v),
+            Loader::Bool => {
+                match v {
+                    0 => bool_type::bool_loader::load_from_bool(self.ctx.py, false),
+                    1 => bool_type::bool_loader::load_from_bool(self.ctx.py, true),
+                    _ => Err(de::Error::custom(err_json("", BOOL_ERROR))),
+                }
+            }
             Loader::Decimal(data) => {
                 decimal::decimal_loader::load_from_i64(
                     self.ctx.py, v, data.decimal_places, data.rounding_strategy,
@@ -879,6 +906,13 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
         match &self.deserializer {
             Loader::Int => int::int_loader::load_from_u64(self.ctx.py, v),
             Loader::Float => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
+            Loader::Bool => {
+                match v {
+                    0 => bool_type::bool_loader::load_from_bool(self.ctx.py, false),
+                    1 => bool_type::bool_loader::load_from_bool(self.ctx.py, true),
+                    _ => Err(de::Error::custom(err_json("", BOOL_ERROR))),
+                }
+            }
             Loader::Decimal(data) => {
                 decimal::decimal_loader::load_from_u64(
                     self.ctx.py, v, data.decimal_places, data.rounding_strategy,
