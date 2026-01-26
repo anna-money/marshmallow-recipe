@@ -1,6 +1,18 @@
+use std::fmt::Write;
+
+use arrayvec::ArrayString;
+use rust_decimal::Decimal;
+
 use super::helpers::{field_error, json_field_error, DECIMAL_ERROR, DECIMAL_NUMBER_ERROR};
 use crate::cache::get_cached_types;
 use crate::types::{DecimalPlaces, DumpContext};
+
+pub type DecimalBuf = ArrayString<31>;
+
+#[inline]
+pub fn format_decimal(buf: &mut DecimalBuf, d: &Decimal) {
+    write!(buf, "{d}").expect("Decimal max 31 chars: 29 digits + sign + point");
+}
 
 pub mod decimal_dumper {
     use pyo3::prelude::*;
@@ -113,7 +125,7 @@ pub mod decimal_loader {
     use rust_decimal::prelude::FromStr;
     use serde::de;
 
-    use super::{field_error, get_cached_types, DecimalPlaces, DECIMAL_NUMBER_ERROR};
+    use super::{field_error, format_decimal, get_cached_types, DecimalBuf, DecimalPlaces, DECIMAL_NUMBER_ERROR};
     use crate::types::LoadContext;
 
     #[inline]
@@ -165,8 +177,9 @@ pub mod decimal_loader {
             rust_decimal
         };
 
-        let decimal_str = final_decimal.to_string();
-        let result = decimal_cls.call1((decimal_str,))?;
+        let mut buf = DecimalBuf::new();
+        format_decimal(&mut buf, &final_decimal);
+        let result = decimal_cls.call1((buf.as_str(),))?;
         Ok(result.unbind())
     }
 
@@ -198,9 +211,10 @@ pub mod decimal_loader {
             rust_decimal
         };
 
-        let formatted = final_decimal.to_string();
+        let mut buf = DecimalBuf::new();
+        format_decimal(&mut buf, &final_decimal);
         let cached = get_cached_types(py).map_err(de::Error::custom)?;
-        cached.decimal_cls.bind(py).call1((&formatted,))
+        cached.decimal_cls.bind(py).call1((buf.as_str(),))
             .map(pyo3::Bound::unbind)
             .map_err(de::Error::custom)
     }
@@ -231,9 +245,10 @@ pub mod decimal_loader {
             rust_decimal
         };
 
-        let formatted = final_decimal.to_string();
+        let mut buf = DecimalBuf::new();
+        format_decimal(&mut buf, &final_decimal);
         let cached = get_cached_types(py).map_err(de::Error::custom)?;
-        cached.decimal_cls.bind(py).call1((&formatted,))
+        cached.decimal_cls.bind(py).call1((buf.as_str(),))
             .map(pyo3::Bound::unbind)
             .map_err(de::Error::custom)
     }
@@ -264,9 +279,10 @@ pub mod decimal_loader {
             rust_decimal
         };
 
-        let formatted = final_decimal.to_string();
+        let mut buf = DecimalBuf::new();
+        format_decimal(&mut buf, &final_decimal);
         let cached = get_cached_types(py).map_err(de::Error::custom)?;
-        cached.decimal_cls.bind(py).call1((&formatted,))
+        cached.decimal_cls.bind(py).call1((buf.as_str(),))
             .map(pyo3::Bound::unbind)
             .map_err(de::Error::custom)
     }
@@ -297,9 +313,10 @@ pub mod decimal_loader {
             rust_decimal
         };
 
-        let formatted = final_decimal.to_string();
+        let mut buf = DecimalBuf::new();
+        format_decimal(&mut buf, &final_decimal);
         let cached = get_cached_types(py).map_err(de::Error::custom)?;
-        cached.decimal_cls.bind(py).call1((&formatted,))
+        cached.decimal_cls.bind(py).call1((buf.as_str(),))
             .map(pyo3::Bound::unbind)
             .map_err(de::Error::custom)
     }

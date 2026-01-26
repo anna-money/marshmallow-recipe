@@ -19,6 +19,7 @@ use crate::loader::Loader;
 use crate::fields::collection::CollectionKind;
 use crate::fields::helpers::{err_json, BOOL_ERROR, DATETIME_ERROR, DATE_ERROR, DECIMAL_NUMBER_ERROR, FLOAT_ERROR, FLOAT_NAN_ERROR, INT_ERROR, TIME_ERROR, UUID_ERROR};
 use crate::fields::nested::FieldLoader;
+use crate::fields::decimal::{format_decimal, DecimalBuf};
 use crate::fields::{int, float, bool_type, decimal, date, time, datetime, uuid, str_type, str_enum, int_enum};
 use crate::slots::set_slot_value_direct;
 use crate::types::{TypeDescriptor, TypeKind};
@@ -564,9 +565,10 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                     rust_decimal
                 };
 
-                let formatted = final_decimal.to_string();
+                let mut buf = DecimalBuf::new();
+                format_decimal(&mut buf, &final_decimal);
                 let cached = get_cached_types(self.ctx.py).map_err(de::Error::custom)?;
-                cached.decimal_cls.bind(self.ctx.py).call1((&formatted,))
+                cached.decimal_cls.bind(self.ctx.py).call1((buf.as_str(),))
                     .map(Bound::unbind)
                     .map_err(de::Error::custom)
             }
