@@ -295,7 +295,7 @@ pub mod nested_loader {
     use std::collections::HashMap;
 
     use pyo3::prelude::*;
-    use pyo3::types::PyDict;
+    use pyo3::types::{PyDict, PyString};
 
     use super::{
         call_validator, extract_error_args, field_error, get_cached_types, set_slot_value_direct,
@@ -367,8 +367,8 @@ pub mod nested_loader {
         let mut seen_fields = vec![false; fields.len()];
 
         for (key, value) in dict.iter() {
-            let key_str: String = key.extract()?;
-            if let Some(&idx) = field_lookup.get(&key_str) {
+            let key_str = key.cast::<PyString>()?.to_str()?;
+            if let Some(&idx) = field_lookup.get(key_str) {
                 let field = &fields[idx];
                 seen_fields[idx] = true;
                 if !field.field_init {
@@ -408,8 +408,8 @@ pub mod nested_loader {
         let mut field_values: Vec<Option<Py<PyAny>>> = (0..fields.len()).map(|_| None).collect();
 
         for (key, value) in dict.iter() {
-            let key_str: String = key.extract()?;
-            if let Some(&idx) = field_lookup.get(&key_str) {
+            let key_str = key.cast::<PyString>()?.to_str()?;
+            if let Some(&idx) = field_lookup.get(key_str) {
                 let field = &fields[idx];
                 let loaded = load_field_value(&value, field, ctx)?;
                 let validated = apply_post_load_and_validate(loaded, field, ctx)?;

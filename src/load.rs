@@ -98,13 +98,17 @@ pub fn load_root_type<'py>(
 
             let result = PyDict::new(ctx.py);
             for (k, v) in dict.iter() {
-                let key_str: String = k.extract()?;
                 match load_root_type(&v, value_descriptor, ctx) {
                     Ok(val) => result.set_item(k, val)?,
                     Err(e) => {
+                        let key_str = k
+                            .cast::<PyString>()
+                            .ok()
+                            .and_then(|s| s.to_str().ok())
+                            .unwrap_or("");
                         let inner = extract_error_args(ctx.py, &e);
                         return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                            wrap_err_dict_for_field(ctx.py, &key_str, inner),
+                            wrap_err_dict_for_field(ctx.py, key_str, inner),
                         ));
                     }
                 }
