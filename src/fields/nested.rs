@@ -296,6 +296,7 @@ pub mod nested_loader {
 
     use pyo3::prelude::*;
     use pyo3::types::{PyDict, PyString};
+    use smallbitvec::SmallBitVec;
 
     use super::{
         call_validator, extract_error_args, field_error, get_cached_types, set_slot_value_direct,
@@ -364,13 +365,13 @@ pub mod nested_loader {
         ctx: &LoadContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
         let kwargs = PyDict::new(ctx.py);
-        let mut seen_fields = vec![false; fields.len()];
+        let mut seen_fields = SmallBitVec::from_elem(fields.len(), false);
 
         for (key, value) in dict.iter() {
             let key_str = key.cast::<PyString>()?.to_str()?;
             if let Some(&idx) = field_lookup.get(key_str) {
                 let field = &fields[idx];
-                seen_fields[idx] = true;
+                seen_fields.set(idx, true);
                 if !field.field_init {
                     continue;
                 }
