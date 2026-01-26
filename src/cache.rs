@@ -9,6 +9,7 @@ use crate::types::{
     DecimalPlaces, FieldDescriptor, FieldType, SchemaDescriptor, TypeDescriptor, TypeKind, build_field_lookup,
     callback_required_dump, callback_required_dump_json, callback_required_load,
 };
+use crate::utils::python_rounding_to_rust;
 use crate::dumper::{
     Dumper, FieldDumper, DataclassDumperSchema,
     CollectionData, CollectionKind, DictData,
@@ -310,7 +311,7 @@ fn build_primitive_dumper(field_type: FieldType) -> Dumper {
         FieldType::Bool => Dumper::Bool,
         FieldType::Decimal => Dumper::Decimal(Box::new(DumpDecimalData {
             decimal_places: DecimalPlaces::NotSpecified,
-            decimal_rounding: None,
+            rounding_strategy: None,
             invalid_error: None,
         })),
         FieldType::Date => Dumper::Date,
@@ -329,7 +330,7 @@ fn build_primitive_loader(field_type: FieldType) -> Loader {
         FieldType::Bool => Loader::Bool,
         FieldType::Decimal => Loader::Decimal(Box::new(DecimalLoaderData {
             decimal_places: DecimalPlaces::NotSpecified,
-            decimal_rounding: None,
+            rounding_strategy: None,
         })),
         FieldType::Date => Loader::Date,
         FieldType::Time => Loader::Time,
@@ -545,7 +546,7 @@ fn build_dumper_from_field(py: Python<'_>, field: &FieldDescriptor) -> Dumper {
         FieldType::Bool => Dumper::Bool,
         FieldType::Decimal => Dumper::Decimal(Box::new(DumpDecimalData {
             decimal_places: field.decimal_places,
-            decimal_rounding: clone_py_opt(py, field.decimal_rounding.as_ref()),
+            rounding_strategy: field.decimal_rounding.as_ref().map(|r| python_rounding_to_rust(Some(r), py)),
             invalid_error: field.invalid_error.clone(),
         })),
         FieldType::Date => Dumper::Date,
@@ -640,7 +641,7 @@ fn build_loader_from_field(py: Python<'_>, field: &FieldDescriptor) -> Loader {
         FieldType::Bool => Loader::Bool,
         FieldType::Decimal => Loader::Decimal(Box::new(DecimalLoaderData {
             decimal_places: field.decimal_places,
-            decimal_rounding: clone_py_opt(py, field.decimal_rounding.as_ref()),
+            rounding_strategy: field.decimal_rounding.as_ref().map(|r| python_rounding_to_rust(Some(r), py)),
         })),
         FieldType::Date => Loader::Date,
         FieldType::Time => Loader::Time,

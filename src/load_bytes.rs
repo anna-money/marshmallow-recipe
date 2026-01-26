@@ -6,7 +6,7 @@ use std::fmt;
 
 use pyo3::conversion::IntoPyObjectExt;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyFrozenSet, PyList, PySet, PyString, PyTuple};
+use pyo3::types::{PyDict, PyFrozenSet, PyList, PySet, PyTuple};
 use rust_decimal::Decimal;
 use rust_decimal::prelude::FromStr;
 use serde::de::{self, DeserializeSeed, MapAccess, SeqAccess, Visitor};
@@ -15,7 +15,7 @@ use smallbitvec::SmallBitVec;
 
 use crate::cache::get_cached_types;
 use crate::load::{LoadContext, load_root_type};
-use crate::loader::{DecimalLoaderData, Loader};
+use crate::loader::Loader;
 use crate::fields::collection::CollectionKind;
 use crate::fields::helpers::{err_json, DATETIME_ERROR, DATE_ERROR, DECIMAL_NUMBER_ERROR, FLOAT_ERROR, FLOAT_NAN_ERROR, INT_ERROR, TIME_ERROR, UUID_ERROR};
 use crate::fields::nested::FieldLoader;
@@ -25,7 +25,7 @@ use crate::types::{TypeDescriptor, TypeKind};
 use crate::utils::{
     call_validator, create_pydate_from_chrono, create_pydatetime_from_chrono,
     create_pytime_from_chrono, parse_datetime_with_format, parse_iso_date, parse_iso_time,
-    parse_rfc3339_datetime, pyany_to_json_value, python_rounding_to_rust, strip_serde_locations,
+    parse_rfc3339_datetime, pyany_to_json_value, strip_serde_locations,
     try_wrap_err_json, wrap_err_dict,
 };
 
@@ -420,10 +420,10 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
             Loader::Int => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
             Loader::Float => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
             Loader::Decimal(data) => {
-                let cached = get_cached_types(self.ctx.py).map_err(de::Error::custom)?;
-                let decimal = cached.decimal_cls.bind(self.ctx.py).call1((v,)).map_err(de::Error::custom)?;
-                apply_decimal_quantize(self.ctx.py, decimal.unbind(), data, self.ctx.decimal_places)
-                    .map_err(|e| de::Error::custom(err_json(&self.field.name, &e)))
+                decimal::decimal_loader::load_from_i64(
+                    self.ctx.py, v, data.decimal_places, data.rounding_strategy,
+                    self.ctx.decimal_places, self.field.invalid_error.as_deref().unwrap_or(DECIMAL_NUMBER_ERROR),
+                ).map_err(|e: de::value::Error| de::Error::custom(err_json(&self.field.name, &e.to_string())))
             }
             Loader::IntEnum(data) => {
                 for (k, member) in &data.values {
@@ -453,10 +453,10 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
             Loader::Int => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
             Loader::Float => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
             Loader::Decimal(data) => {
-                let cached = get_cached_types(self.ctx.py).map_err(de::Error::custom)?;
-                let decimal = cached.decimal_cls.bind(self.ctx.py).call1((v,)).map_err(de::Error::custom)?;
-                apply_decimal_quantize(self.ctx.py, decimal.unbind(), data, self.ctx.decimal_places)
-                    .map_err(|e| de::Error::custom(err_json(&self.field.name, &e)))
+                decimal::decimal_loader::load_from_u64(
+                    self.ctx.py, v, data.decimal_places, data.rounding_strategy,
+                    self.ctx.decimal_places, self.field.invalid_error.as_deref().unwrap_or(DECIMAL_NUMBER_ERROR),
+                ).map_err(|e: de::value::Error| de::Error::custom(err_json(&self.field.name, &e.to_string())))
             }
             Loader::IntEnum(data) => {
                 if let Ok(v_i64) = i64::try_from(v) {
@@ -488,7 +488,7 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
             Loader::Float => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
             Loader::Decimal(data) => {
                 decimal::decimal_loader::load_from_f64(
-                    self.ctx.py, v, data.decimal_places, data.decimal_rounding.as_ref(),
+                    self.ctx.py, v, data.decimal_places, data.rounding_strategy,
                     self.ctx.decimal_places, self.field.invalid_error.as_deref().unwrap_or(DECIMAL_NUMBER_ERROR),
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json(&self.field.name, &e.to_string())))
             }
@@ -531,8 +531,7 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
 
                 let places = data.decimal_places.resolve(self.ctx.decimal_places);
                 let final_decimal = if let Some(places) = places {
-                    if data.decimal_rounding.is_some() {
-                        let strategy = python_rounding_to_rust(data.decimal_rounding.as_ref(), self.ctx.py);
+                    if let Some(strategy) = data.rounding_strategy {
                         rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy)
                     } else {
                         let normalized = rust_decimal.normalize();
@@ -758,14 +757,10 @@ impl FieldValueVisitor<'_, '_> {
                     .and_then(|f| f.into_py_any(self.ctx.py).map_err(de::Error::custom))
             }
             Loader::Decimal(data) => {
-                let cached = get_cached_types(self.ctx.py).map_err(de::Error::custom)?;
-                let decimal = cached.decimal_cls.bind(self.ctx.py).call1((num_str,))
-                    .map_err(|_| {
-                        let msg = self.field.invalid_error.as_deref().unwrap_or(DECIMAL_NUMBER_ERROR);
-                        de::Error::custom(err_json(&self.field.name, msg))
-                    })?;
-                apply_decimal_quantize(self.ctx.py, decimal.unbind(), data, self.ctx.decimal_places)
-                    .map_err(|e| de::Error::custom(err_json(&self.field.name, &e)))
+                decimal::decimal_loader::load_from_str(
+                    self.ctx.py, num_str, data.decimal_places, data.rounding_strategy,
+                    self.ctx.decimal_places, self.field.invalid_error.as_deref().unwrap_or(DECIMAL_NUMBER_ERROR),
+                ).map_err(|e: de::value::Error| de::Error::custom(err_json(&self.field.name, &e.to_string())))
             }
             _ => {
                 let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.loader));
@@ -865,7 +860,7 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
             Loader::Float => float::float_loader::load_from_i64(self.ctx.py, v),
             Loader::Decimal(data) => {
                 decimal::decimal_loader::load_from_i64(
-                    self.ctx.py, v, data.decimal_places, data.decimal_rounding.as_ref(),
+                    self.ctx.py, v, data.decimal_places, data.rounding_strategy,
                     self.ctx.decimal_places, DECIMAL_NUMBER_ERROR,
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
             }
@@ -886,7 +881,7 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
             Loader::Float => v.into_py_any(self.ctx.py).map_err(de::Error::custom),
             Loader::Decimal(data) => {
                 decimal::decimal_loader::load_from_u64(
-                    self.ctx.py, v, data.decimal_places, data.decimal_rounding.as_ref(),
+                    self.ctx.py, v, data.decimal_places, data.rounding_strategy,
                     self.ctx.decimal_places, DECIMAL_NUMBER_ERROR,
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
             }
@@ -906,7 +901,7 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
             Loader::Float => float::float_loader::load_from_f64(self.ctx.py, v),
             Loader::Decimal(data) => {
                 decimal::decimal_loader::load_from_f64(
-                    self.ctx.py, v, data.decimal_places, data.decimal_rounding.as_ref(),
+                    self.ctx.py, v, data.decimal_places, data.rounding_strategy,
                     self.ctx.decimal_places, DECIMAL_NUMBER_ERROR,
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
             }
@@ -926,7 +921,7 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
             Loader::Float => float::float_loader::load_from_str(self.ctx.py, v, &err_json("", FLOAT_ERROR), &err_json("", FLOAT_NAN_ERROR)),
             Loader::Decimal(data) => {
                 decimal::decimal_loader::load_from_str(
-                    self.ctx.py, v, data.decimal_places, data.decimal_rounding.as_ref(),
+                    self.ctx.py, v, data.decimal_places, data.rounding_strategy,
                     self.ctx.decimal_places, &err_json("", DECIMAL_NUMBER_ERROR),
                 )
             }
@@ -1061,7 +1056,7 @@ impl PrimitiveValueVisitor<'_, '_> {
             }
             Loader::Decimal(data) => {
                 decimal::decimal_loader::load_from_str(
-                    self.ctx.py, num_str, data.decimal_places, data.decimal_rounding.as_ref(),
+                    self.ctx.py, num_str, data.decimal_places, data.rounding_strategy,
                     self.ctx.decimal_places, &err_json("", DECIMAL_NUMBER_ERROR),
                 )
             }
@@ -1265,43 +1260,6 @@ fn get_type_error(deserializer: &Loader) -> &'static str {
         Loader::Dict(_) => DICT_ERROR,
         Loader::Nested { .. } => NESTED_ERROR,
         Loader::Union { .. } => UNION_ERROR,
-    }
-}
-
-
-fn apply_decimal_quantize(
-    py: Python<'_>,
-    value: Py<PyAny>,
-    data: &DecimalLoaderData,
-    ctx_decimal_places: Option<i32>,
-) -> Result<Py<PyAny>, String> {
-    let Some(places) = data.decimal_places.resolve(ctx_decimal_places) else {
-        return Ok(value);
-    };
-
-    let cached = get_cached_types(py).map_err(|e| e.to_string())?;
-    let format_result = value.bind(py).call_method1("__format__", ("f",)).map_err(|e| e.to_string())?;
-    let formatted = format_result.cast::<PyString>().map_err(|e| e.to_string())?;
-    let decimal_str = formatted.to_str().map_err(|e| e.to_string())?;
-
-    let Ok(rust_decimal) = Decimal::from_str(decimal_str) else {
-        return Ok(value);
-    };
-
-    if data.decimal_rounding.is_some() {
-        let strategy = python_rounding_to_rust(data.decimal_rounding.as_ref(), py);
-        let rounded = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
-        let formatted_str = format!("{:.prec$}", rounded, prec = places.cast_unsigned() as usize);
-        cached.decimal_cls.bind(py).call1((&formatted_str,))
-            .map(pyo3::Bound::unbind)
-            .map_err(|e| e.to_string())
-    } else {
-        let normalized = rust_decimal.normalize();
-        if normalized.scale() > places.cast_unsigned() {
-            Err(DECIMAL_NUMBER_ERROR.to_string())
-        } else {
-            Ok(value)
-        }
     }
 }
 

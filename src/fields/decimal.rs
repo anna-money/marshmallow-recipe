@@ -1,16 +1,16 @@
 use super::helpers::{field_error, json_field_error, DECIMAL_ERROR, DECIMAL_NUMBER_ERROR};
 use crate::cache::get_cached_types;
 use crate::types::{DecimalPlaces, DumpContext};
-use crate::utils::python_rounding_to_rust;
 
 pub mod decimal_dumper {
     use pyo3::prelude::*;
     use pyo3::types::PyString;
     use rust_decimal::Decimal;
+    use rust_decimal::RoundingStrategy;
     use rust_decimal::prelude::FromStr;
 
     use super::{
-        field_error, get_cached_types, json_field_error, python_rounding_to_rust, DecimalPlaces,
+        field_error, get_cached_types, json_field_error, DecimalPlaces,
         DumpContext, DECIMAL_ERROR, DECIMAL_NUMBER_ERROR,
     };
 
@@ -28,7 +28,7 @@ pub mod decimal_dumper {
         field_name: &str,
         ctx: &DumpContext<'_, 'py>,
         decimal_places: DecimalPlaces,
-        decimal_rounding: Option<&Py<PyAny>>,
+        rounding_strategy: Option<RoundingStrategy>,
         invalid_error: Option<&str>,
     ) -> PyResult<Py<PyAny>> {
         let cached = get_cached_types(ctx.py)?;
@@ -41,9 +41,8 @@ pub mod decimal_dumper {
 
         let places = decimal_places.resolve(ctx.global_decimal_places);
 
-        if let Some(rounding_obj) = decimal_rounding {
+        if let Some(strategy) = rounding_strategy {
             if let Some(places) = places {
-                let strategy = python_rounding_to_rust(Some(rounding_obj), ctx.py);
                 if let Ok(mut rust_decimal) = Decimal::from_str(decimal_str) {
                     rust_decimal = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
                     let formatted_str = format!("{:.prec$}", rust_decimal, prec = places.cast_unsigned() as usize);
@@ -69,7 +68,7 @@ pub mod decimal_dumper {
         field_name: &str,
         ctx: &DumpContext<'_, '_>,
         decimal_places: DecimalPlaces,
-        decimal_rounding: Option<&Py<PyAny>>,
+        rounding_strategy: Option<RoundingStrategy>,
         invalid_error: Option<&str>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
@@ -84,9 +83,8 @@ pub mod decimal_dumper {
 
         let places = decimal_places.resolve(ctx.global_decimal_places);
 
-        if let Some(rounding_obj) = decimal_rounding {
+        if let Some(strategy) = rounding_strategy {
             if let Some(places) = places {
-                let strategy = python_rounding_to_rust(Some(rounding_obj), ctx.py);
                 if let Ok(mut rust_decimal) = Decimal::from_str(decimal_str) {
                     rust_decimal = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
                     let formatted_str = format!("{:.prec$}", rust_decimal, prec = places.cast_unsigned() as usize);
@@ -111,13 +109,11 @@ pub mod decimal_loader {
     use pyo3::prelude::*;
     use pyo3::types::{PyBool, PyFloat, PyInt, PyString};
     use rust_decimal::Decimal;
+    use rust_decimal::RoundingStrategy;
     use rust_decimal::prelude::FromStr;
     use serde::de;
 
-    use super::{
-        field_error, get_cached_types, python_rounding_to_rust, DecimalPlaces,
-        DECIMAL_NUMBER_ERROR,
-    };
+    use super::{field_error, get_cached_types, DecimalPlaces, DECIMAL_NUMBER_ERROR};
     use crate::types::LoadContext;
 
     #[inline]
@@ -127,7 +123,7 @@ pub mod decimal_loader {
         invalid_error: Option<&str>,
         ctx: &LoadContext<'_, 'py>,
         decimal_places: DecimalPlaces,
-        decimal_rounding: Option<&Py<PyAny>>,
+        rounding_strategy: Option<RoundingStrategy>,
     ) -> PyResult<Py<PyAny>> {
         let cached = get_cached_types(ctx.py)?;
         let decimal_cls = cached.decimal_cls.bind(ctx.py);
@@ -156,8 +152,7 @@ pub mod decimal_loader {
 
         let places = decimal_places.resolve(ctx.decimal_places);
         let final_decimal = if let Some(places) = places {
-            if let Some(rounding_obj) = decimal_rounding {
-                let strategy = python_rounding_to_rust(Some(rounding_obj), ctx.py);
+            if let Some(strategy) = rounding_strategy {
                 rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy)
             } else {
                 let normalized = rust_decimal.normalize();
@@ -180,7 +175,7 @@ pub mod decimal_loader {
         py: Python,
         s: &str,
         decimal_places: DecimalPlaces,
-        decimal_rounding: Option<&Py<PyAny>>,
+        rounding_strategy: Option<RoundingStrategy>,
         ctx_decimal_places: Option<i32>,
         err_msg: &str,
     ) -> Result<Py<PyAny>, E> {
@@ -190,8 +185,7 @@ pub mod decimal_loader {
 
         let places = decimal_places.resolve(ctx_decimal_places);
         let final_decimal = if let Some(places) = places {
-            if decimal_rounding.is_some() {
-                let strategy = python_rounding_to_rust(decimal_rounding, py);
+            if let Some(strategy) = rounding_strategy {
                 rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy)
             } else {
                 let normalized = rust_decimal.normalize();
@@ -216,7 +210,7 @@ pub mod decimal_loader {
         py: Python,
         v: i64,
         decimal_places: DecimalPlaces,
-        decimal_rounding: Option<&Py<PyAny>>,
+        rounding_strategy: Option<RoundingStrategy>,
         ctx_decimal_places: Option<i32>,
         err_msg: &str,
     ) -> Result<Py<PyAny>, E> {
@@ -224,8 +218,7 @@ pub mod decimal_loader {
 
         let places = decimal_places.resolve(ctx_decimal_places);
         let final_decimal = if let Some(places) = places {
-            if decimal_rounding.is_some() {
-                let strategy = python_rounding_to_rust(decimal_rounding, py);
+            if let Some(strategy) = rounding_strategy {
                 rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy)
             } else {
                 let normalized = rust_decimal.normalize();
@@ -250,7 +243,7 @@ pub mod decimal_loader {
         py: Python,
         v: u64,
         decimal_places: DecimalPlaces,
-        decimal_rounding: Option<&Py<PyAny>>,
+        rounding_strategy: Option<RoundingStrategy>,
         ctx_decimal_places: Option<i32>,
         err_msg: &str,
     ) -> Result<Py<PyAny>, E> {
@@ -258,8 +251,7 @@ pub mod decimal_loader {
 
         let places = decimal_places.resolve(ctx_decimal_places);
         let final_decimal = if let Some(places) = places {
-            if decimal_rounding.is_some() {
-                let strategy = python_rounding_to_rust(decimal_rounding, py);
+            if let Some(strategy) = rounding_strategy {
                 rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy)
             } else {
                 let normalized = rust_decimal.normalize();
@@ -284,7 +276,7 @@ pub mod decimal_loader {
         py: Python,
         v: f64,
         decimal_places: DecimalPlaces,
-        decimal_rounding: Option<&Py<PyAny>>,
+        rounding_strategy: Option<RoundingStrategy>,
         ctx_decimal_places: Option<i32>,
         err_msg: &str,
     ) -> Result<Py<PyAny>, E> {
@@ -292,8 +284,7 @@ pub mod decimal_loader {
 
         let places = decimal_places.resolve(ctx_decimal_places);
         let final_decimal = if let Some(places) = places {
-            if decimal_rounding.is_some() {
-                let strategy = python_rounding_to_rust(decimal_rounding, py);
+            if let Some(strategy) = rounding_strategy {
                 rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy)
             } else {
                 let normalized = rust_decimal.normalize();

@@ -1,6 +1,7 @@
 #![allow(clippy::struct_field_names)]
 
 use pyo3::prelude::*;
+use rust_decimal::RoundingStrategy;
 
 pub use crate::fields::collection::CollectionKind;
 pub use crate::fields::nested::{DataclassDumperSchema, FieldDumper};
@@ -40,20 +41,11 @@ impl Clone for IntEnumData {
     }
 }
 
+#[derive(Clone)]
 pub struct DecimalData {
     pub decimal_places: DecimalPlaces,
-    pub decimal_rounding: Option<Py<PyAny>>,
+    pub rounding_strategy: Option<RoundingStrategy>,
     pub invalid_error: Option<String>,
-}
-
-impl Clone for DecimalData {
-    fn clone(&self) -> Self {
-        Python::attach(|py| Self {
-            decimal_places: self.decimal_places,
-            decimal_rounding: self.decimal_rounding.as_ref().map(|r| r.clone_ref(py)),
-            invalid_error: self.invalid_error.clone(),
-        })
-    }
 }
 
 pub struct CollectionData {
@@ -178,7 +170,7 @@ impl Dumper {
                     field_name,
                     ctx,
                     data.decimal_places,
-                    data.decimal_rounding.as_ref(),
+                    data.rounding_strategy,
                     data.invalid_error.as_deref(),
                 )
             }
@@ -259,7 +251,7 @@ impl Dumper {
                     field_name,
                     ctx,
                     data.decimal_places,
-                    data.decimal_rounding.as_ref(),
+                    data.rounding_strategy,
                     data.invalid_error.as_deref(),
                     serializer,
                 )
