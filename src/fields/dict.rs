@@ -49,8 +49,8 @@ pub mod dict_dumper {
                     err_dict.bind(ctx.py).cast::<PyDict>()?.set_item(&k, err)?;
                 }
             }
-            let key_str: String = k.extract()?;
-            let dumped = dump_item(value_dumper, &v, &key_str, ctx)?;
+            let key_str = k.cast::<PyString>()?.to_str()?;
+            let dumped = dump_item(value_dumper, &v, key_str, ctx)?;
             result.set_item(k, dumped)?;
         }
 
@@ -78,7 +78,7 @@ pub mod dict_dumper {
     struct ValueDumper<'a, 'py> {
         value: &'a Bound<'py, PyAny>,
         inner: &'a Dumper,
-        key: String,
+        key: &'a str,
         ctx: &'a DumpContext<'a, 'py>,
     }
 
@@ -87,7 +87,7 @@ pub mod dict_dumper {
             if self.value.is_none() {
                 return serializer.serialize_none();
             }
-            self.inner.dump(self.value, &self.key, self.ctx, serializer)
+            self.inner.dump(self.value, self.key, self.ctx, serializer)
         }
     }
 
@@ -129,7 +129,7 @@ pub mod dict_dumper {
             map.serialize_entry(key, &ValueDumper {
                 value: &v,
                 inner: value_dumper,
-                key: key.to_string(),
+                key,
                 ctx,
             })?;
         }
@@ -139,7 +139,7 @@ pub mod dict_dumper {
 
 pub mod dict_loader {
     use pyo3::prelude::*;
-    use pyo3::types::PyDict;
+    use pyo3::types::{PyDict, PyString};
 
     use super::{call_validator, field_error, wrap_err_dict, DICT_ERROR};
     use crate::loader::Loader;
@@ -162,7 +162,7 @@ pub mod dict_loader {
         let result = PyDict::new(ctx.py);
 
         for (k, v) in dict.iter() {
-            let key_str: String = k.extract()?;
+            let key_str = k.cast::<PyString>()?.to_str()?;
             let val = if v.is_none() {
                 ctx.py.None()
             } else {
@@ -170,7 +170,7 @@ pub mod dict_loader {
                     Ok(val) => val,
                     Err(e) => {
                         let inner = extract_error_value(ctx.py, &e);
-                        let wrapped = wrap_err_dict(ctx.py, &key_str, inner);
+                        let wrapped = wrap_err_dict(ctx.py, key_str, inner);
                         return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                             wrap_err_dict(ctx.py, field_name, wrapped),
                         ));
@@ -180,7 +180,7 @@ pub mod dict_loader {
             if let Some(validator) = value_validator {
                 if let Some(errors) = call_validator(ctx.py, validator, val.bind(ctx.py))? {
                     let wrapped_inner = wrap_err_dict(ctx.py, "value", errors);
-                    let wrapped = wrap_err_dict(ctx.py, &key_str, wrapped_inner);
+                    let wrapped = wrap_err_dict(ctx.py, key_str, wrapped_inner);
                     return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                         wrap_err_dict(ctx.py, field_name, wrapped),
                     ));
