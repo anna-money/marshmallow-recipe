@@ -11,7 +11,7 @@ pub mod int_enum_loader {
     pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
         values: &[(i64, Py<PyAny>)],
     ) -> PyResult<Py<PyAny>> {
         let i: i64 = value.extract().map_err(|_| {

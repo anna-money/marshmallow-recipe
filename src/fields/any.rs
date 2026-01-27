@@ -163,7 +163,7 @@ pub mod any_loader {
     #[allow(clippy::unnecessary_wraps)]
     pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
-        _ctx: &LoadContext<'_, 'py>,
+        _ctx: &LoadContext<'py>,
     ) -> PyResult<Py<PyAny>> {
         Ok(value.clone().unbind())
     }

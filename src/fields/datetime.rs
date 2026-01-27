@@ -229,7 +229,7 @@ pub mod datetime_loader {
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
         datetime_format: Option<&str>,
     ) -> PyResult<Py<PyAny>> {
         let datetime_err = || field_error(ctx.py, field_name, invalid_error.unwrap_or(DATETIME_ERROR));

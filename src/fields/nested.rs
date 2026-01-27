@@ -95,6 +95,7 @@ pub struct FieldLoader {
     pub none_error: Option<String>,
     pub invalid_error: Option<String>,
     pub field_init: bool,
+    pub post_load: Option<Py<PyAny>>,
     pub validator: Option<Py<PyAny>>,
     pub item_validator: Option<Py<PyAny>>,
     pub value_validator: Option<Py<PyAny>>,
@@ -115,6 +116,7 @@ impl Clone for FieldLoader {
             none_error: self.none_error.clone(),
             invalid_error: self.invalid_error.clone(),
             field_init: self.field_init,
+            post_load: self.post_load.as_ref().map(|v| v.clone_ref(py)),
             validator: self.validator.as_ref().map(|v| v.clone_ref(py)),
             item_validator: self.item_validator.as_ref().map(|v| v.clone_ref(py)),
             value_validator: self.value_validator.as_ref().map(|v| v.clone_ref(py)),
@@ -309,7 +311,7 @@ pub mod nested_loader {
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
         schema: &DataclassLoaderSchema,
     ) -> PyResult<Py<PyAny>> {
         if !value.is_instance_of::<PyDict>() {
@@ -326,7 +328,7 @@ pub mod nested_loader {
     pub fn load_dataclass<'py>(
         value: &Bound<'py, PyAny>,
         schema: &DataclassLoaderSchema,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
     ) -> PyResult<Py<PyAny>> {
         let dict = value.cast::<PyDict>().map_err(|_| {
             PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected a dict for dataclass")
@@ -345,7 +347,7 @@ pub mod nested_loader {
         fields: &[FieldLoader],
         field_lookup: &HashMap<String, usize>,
         can_use_direct_slots: bool,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
     ) -> PyResult<Py<PyAny>> {
         let dict = value.cast::<PyDict>().map_err(|_| {
             PyErr::new::<pyo3::exceptions::PyValueError, _>("Expected a dict for dataclass")
@@ -362,7 +364,7 @@ pub mod nested_loader {
         cls: &Bound<'py, PyAny>,
         fields: &[FieldLoader],
         field_lookup: &HashMap<String, usize>,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
     ) -> PyResult<Py<PyAny>> {
         let kwargs = PyDict::new(ctx.py);
         let mut seen_fields = SmallBitVec::from_elem(fields.len(), false);
@@ -400,7 +402,7 @@ pub mod nested_loader {
         cls: &Bound<'py, PyAny>,
         fields: &[FieldLoader],
         field_lookup: &HashMap<String, usize>,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
     ) -> PyResult<Py<PyAny>> {
         let cached_types = get_cached_types(ctx.py)?;
         let object_type = cached_types.object_cls.bind(ctx.py);
@@ -443,7 +445,7 @@ pub mod nested_loader {
     pub fn load_field_value<'py>(
         value: &Bound<'py, PyAny>,
         field: &FieldLoader,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
     ) -> PyResult<Py<PyAny>> {
         if matches!(field.loader, Loader::Any) {
             return Ok(value.clone().unbind());
@@ -460,7 +462,7 @@ pub mod nested_loader {
         field.loader.load_from_dict(value, &field.name, field.invalid_error.as_deref(), ctx)
     }
 
-    fn get_default_value(field: &FieldLoader, ctx: &LoadContext<'_, '_>) -> PyResult<Option<Py<PyAny>>> {
+    fn get_default_value(field: &FieldLoader, ctx: &LoadContext<'_>) -> PyResult<Option<Py<PyAny>>> {
         if let Some(ref factory) = field.default_factory {
             return Ok(Some(factory.call0(ctx.py)?));
         }
@@ -473,16 +475,12 @@ pub mod nested_loader {
     fn apply_post_load_and_validate(
         value: Py<PyAny>,
         field: &FieldLoader,
-        ctx: &LoadContext<'_, '_>,
+        ctx: &LoadContext<'_>,
     ) -> PyResult<Py<PyAny>> {
         let mut result = value;
 
-        if let Some(pl) = ctx.post_loads {
-            if let Ok(Some(post_load_fn)) = pl.get_item(&field.name) {
-                if !post_load_fn.is_none() {
-                    result = post_load_fn.call1((result,))?.unbind();
-                }
-            }
+        if let Some(ref post_load_fn) = field.post_load {
+            result = post_load_fn.call1(ctx.py, (result,))?;
         }
 
         if let Some(ref validator) = field.validator {

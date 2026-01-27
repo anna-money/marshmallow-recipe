@@ -68,7 +68,7 @@ pub mod time_loader {
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
     ) -> PyResult<Py<PyAny>> {
         let time_err = || field_error(ctx.py, field_name, invalid_error.unwrap_or(TIME_ERROR));
         let s = value.cast::<PyString>().map_err(|_| time_err())?;

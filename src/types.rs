@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyString};
+use pyo3::types::PyString;
 use pyo3::Borrowed;
 
 use crate::loader::{Loader, FieldLoader};
@@ -13,10 +13,15 @@ pub struct DumpContext<'a, 'py> {
     pub global_decimal_places: Option<i32>,
 }
 
-pub struct LoadContext<'a, 'py> {
+pub struct LoadContext<'py> {
     pub py: Python<'py>,
-    pub post_loads: Option<&'a Bound<'py, PyDict>>,
     pub decimal_places: Option<i32>,
+}
+
+impl<'py> LoadContext<'py> {
+    pub const fn new(py: Python<'py>, decimal_places: Option<i32>) -> Self {
+        Self { py, decimal_places }
+    }
 }
 
 pub type DumpFn = for<'a, 'py> fn(
@@ -31,10 +36,10 @@ pub type DumpJsonFn = for<'a, 'py> fn(
     ctx: &DumpContext<'a, 'py>,
 ) -> Result<serde_json::Value, String>;
 
-pub type LoadFn = for<'a, 'py> fn(
+pub type LoadFn = for<'py> fn(
     value: &Bound<'py, PyAny>,
     field: &FieldDescriptor,
-    ctx: &LoadContext<'a, 'py>,
+    ctx: &LoadContext<'py>,
 ) -> PyResult<Py<PyAny>>;
 
 
@@ -57,7 +62,7 @@ pub fn callback_required_dump_json<'py>(
 pub fn callback_required_load<'py>(
     _value: &Bound<'py, PyAny>,
     _field: &FieldDescriptor,
-    _ctx: &LoadContext<'_, 'py>,
+    _ctx: &LoadContext<'py>,
 ) -> PyResult<Py<PyAny>> {
     Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Load callback not configured"))
 }
@@ -175,6 +180,7 @@ pub struct FieldDescriptor {
     pub none_error: Option<String>,
     pub invalid_error: Option<String>,
     pub field_init: bool,
+    pub post_load: Option<Py<PyAny>>,
     pub validator: Option<Py<PyAny>>,
     pub item_validator: Option<Py<PyAny>>,
     pub value_validator: Option<Py<PyAny>>,
@@ -225,6 +231,7 @@ impl Clone for FieldDescriptor {
             none_error: self.none_error.clone(),
             invalid_error: self.invalid_error.clone(),
             field_init: self.field_init,
+            post_load: self.post_load.as_ref().map(|v| v.clone_ref(py)),
             validator: self.validator.as_ref().map(|v| v.clone_ref(py)),
             item_validator: self.item_validator.as_ref().map(|v| v.clone_ref(py)),
             value_validator: self.value_validator.as_ref().map(|v| v.clone_ref(py)),
@@ -301,6 +308,7 @@ impl FromPyObject<'_, '_> for FieldDescriptor {
             none_error,
             invalid_error,
             field_init,
+            post_load: None,
             validator: None,
             item_validator: None,
             value_validator: None,

@@ -118,7 +118,7 @@ impl Loader {
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
     ) -> PyResult<Py<PyAny>> {
         use crate::fields::{str_type, int, float, bool_type, decimal, date, time, datetime, uuid, str_enum, int_enum, any, collection, dict, nested, union};
 

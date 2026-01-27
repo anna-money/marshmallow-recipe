@@ -62,7 +62,7 @@ pub mod int_loader {
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
     ) -> PyResult<Py<PyAny>> {
         if value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>() {
             Ok(value.clone().unbind())

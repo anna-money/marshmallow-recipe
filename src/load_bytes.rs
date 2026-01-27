@@ -30,9 +30,8 @@ use crate::utils::{
     try_wrap_err_json, wrap_err_dict,
 };
 
-pub struct BytesLoadContext<'a, 'py> {
+pub struct BytesLoadContext<'py> {
     pub py: Python<'py>,
-    pub post_loads: Option<&'a Bound<'py, PyDict>>,
     pub decimal_places: Option<i32>,
 }
 
@@ -109,7 +108,7 @@ fn json_error_to_py(py: Python, value: &serde_json::Value) -> PyResult<Py<PyAny>
 }
 
 pub struct TypeDescriptorSeed<'a, 'py> {
-    pub ctx: &'a BytesLoadContext<'a, 'py>,
+    pub ctx: &'a BytesLoadContext<'py>,
     pub descriptor: &'a TypeDescriptor,
 }
 
@@ -191,11 +190,7 @@ impl<'de> DeserializeSeed<'de> for TypeDescriptorSeed<'_, '_> {
                 })?;
                 let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
                 let py_value = json_value_to_py(self.ctx.py, &value).map_err(de::Error::custom)?;
-                let dict_ctx = LoadContext {
-                    py: self.ctx.py,
-                    post_loads: self.ctx.post_loads,
-                    decimal_places: self.ctx.decimal_places,
-                };
+                let dict_ctx = LoadContext::new(self.ctx.py, self.ctx.decimal_places);
                 for variant in variants {
                     if let Ok(result) = load_root_type(py_value.bind(self.ctx.py), variant, &dict_ctx) {
                         return Ok(result);
@@ -208,7 +203,7 @@ impl<'de> DeserializeSeed<'de> for TypeDescriptorSeed<'_, '_> {
 }
 
 struct TopLevelCollectionVisitor<'a, 'py> {
-    ctx: &'a BytesLoadContext<'a, 'py>,
+    ctx: &'a BytesLoadContext<'py>,
     item_descriptor: &'a TypeDescriptor,
     kind: CollectionKind,
 }
@@ -255,7 +250,7 @@ impl<'de> Visitor<'de> for TopLevelCollectionVisitor<'_, '_> {
 }
 
 struct TopLevelDictVisitor<'a, 'py> {
-    ctx: &'a BytesLoadContext<'a, 'py>,
+    ctx: &'a BytesLoadContext<'py>,
     value_descriptor: &'a TypeDescriptor,
 }
 
@@ -289,7 +284,7 @@ impl<'de> Visitor<'de> for TopLevelDictVisitor<'_, '_> {
 }
 
 struct OptionalVisitor<'a, 'py> {
-    ctx: &'a BytesLoadContext<'a, 'py>,
+    ctx: &'a BytesLoadContext<'py>,
     inner_descriptor: Option<&'a TypeDescriptor>,
 }
 
@@ -326,7 +321,7 @@ impl<'de> Visitor<'de> for OptionalVisitor<'_, '_> {
 }
 
 pub struct FieldLoaderSeed<'a, 'py> {
-    pub ctx: &'a BytesLoadContext<'a, 'py>,
+    pub ctx: &'a BytesLoadContext<'py>,
     pub field: &'a FieldLoader,
 }
 
@@ -344,11 +339,7 @@ impl<'de> DeserializeSeed<'de> for FieldLoaderSeed<'_, '_> {
         if matches!(self.field.loader, Loader::Union { .. }) {
             let json_value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
             let py_value = json_value_to_py(self.ctx.py, &json_value).map_err(de::Error::custom)?;
-            let dict_ctx = crate::types::LoadContext {
-                py: self.ctx.py,
-                post_loads: self.ctx.post_loads,
-                decimal_places: self.ctx.decimal_places,
-            };
+            let dict_ctx = crate::types::LoadContext::new(self.ctx.py, self.ctx.decimal_places);
             return self.field.loader.load_from_dict(
                 py_value.bind(self.ctx.py),
                 &self.field.name,
@@ -364,7 +355,7 @@ impl<'de> DeserializeSeed<'de> for FieldLoaderSeed<'_, '_> {
 }
 
 struct FieldValueVisitor<'a, 'py> {
-    ctx: &'a BytesLoadContext<'a, 'py>,
+    ctx: &'a BytesLoadContext<'py>,
     field: &'a FieldLoader,
 }
 
@@ -793,7 +784,7 @@ impl FieldValueVisitor<'_, '_> {
 }
 
 pub struct PrimitiveLoaderSeed<'a, 'py> {
-    pub ctx: &'a BytesLoadContext<'a, 'py>,
+    pub ctx: &'a BytesLoadContext<'py>,
     pub deserializer: &'a Loader,
 }
 
@@ -811,11 +802,7 @@ impl<'de> DeserializeSeed<'de> for PrimitiveLoaderSeed<'_, '_> {
         if matches!(self.deserializer, Loader::Union { .. }) {
             let json_value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
             let py_value = json_value_to_py(self.ctx.py, &json_value).map_err(de::Error::custom)?;
-            let dict_ctx = LoadContext {
-                py: self.ctx.py,
-                post_loads: self.ctx.post_loads,
-                decimal_places: self.ctx.decimal_places,
-            };
+            let dict_ctx = LoadContext::new(self.ctx.py, self.ctx.decimal_places);
             return self.deserializer.load_from_dict(
                 py_value.bind(self.ctx.py),
                 "",
@@ -831,7 +818,7 @@ impl<'de> DeserializeSeed<'de> for PrimitiveLoaderSeed<'_, '_> {
 }
 
 struct PrimitiveValueVisitor<'a, 'py> {
-    ctx: &'a BytesLoadContext<'a, 'py>,
+    ctx: &'a BytesLoadContext<'py>,
     deserializer: &'a Loader,
 }
 
@@ -1102,7 +1089,7 @@ impl PrimitiveValueVisitor<'_, '_> {
 }
 
 pub struct DataclassVisitor<'a, 'py> {
-    pub ctx: &'a BytesLoadContext<'a, 'py>,
+    pub ctx: &'a BytesLoadContext<'py>,
     pub cls: &'a Bound<'py, PyAny>,
     pub fields: &'a [FieldLoader],
     pub field_lookup: &'a HashMap<String, usize>,
@@ -1150,7 +1137,7 @@ impl<'de> Visitor<'de> for DataclassVisitor<'_, '_> {
 }
 
 pub struct DataclassDirectSlotsVisitor<'a, 'py> {
-    pub ctx: &'a BytesLoadContext<'a, 'py>,
+    pub ctx: &'a BytesLoadContext<'py>,
     pub cls: &'a Bound<'py, PyAny>,
     pub fields: &'a [FieldLoader],
     pub field_lookup: &'a HashMap<String, usize>,
@@ -1221,16 +1208,12 @@ impl<'de> Visitor<'de> for DataclassDirectSlotsVisitor<'_, '_> {
 fn apply_post_load_and_validate_bytes<E: de::Error>(
     value: Py<PyAny>,
     field: &FieldLoader,
-    ctx: &BytesLoadContext<'_, '_>,
+    ctx: &BytesLoadContext<'_>,
 ) -> Result<Py<PyAny>, E> {
     let mut result = value;
 
-    if let Some(pl) = ctx.post_loads {
-        if let Ok(Some(post_load_fn)) = pl.get_item(&field.name) {
-            if !post_load_fn.is_none() {
-                result = post_load_fn.call1((result,)).map_err(de::Error::custom)?.unbind();
-            }
-        }
+    if let Some(ref post_load_fn) = field.post_load {
+        result = post_load_fn.call1(ctx.py, (result,)).map_err(de::Error::custom)?;
     }
 
     if let Some(ref validator) = field.validator {
@@ -1299,14 +1282,13 @@ fn get_type_error(deserializer: &Loader) -> &'static str {
     }
 }
 
-pub fn load_from_bytes<'py>(
-    py: Python<'py>,
+pub fn load_from_bytes(
+    py: Python<'_>,
     json_bytes: &[u8],
     descriptor: &TypeDescriptor,
-    post_loads: Option<&Bound<'py, PyDict>>,
     decimal_places: Option<i32>,
 ) -> PyResult<Py<PyAny>> {
-    let ctx = BytesLoadContext { py, post_loads, decimal_places };
+    let ctx = BytesLoadContext { py, decimal_places };
     let mut deserializer = serde_json::Deserializer::from_slice(json_bytes);
     TypeDescriptorSeed { ctx: &ctx, descriptor }
         .deserialize(&mut deserializer)

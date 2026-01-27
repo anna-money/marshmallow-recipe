@@ -83,7 +83,7 @@ pub mod float_loader {
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
     ) -> PyResult<Py<PyAny>> {
         if value.is_instance_of::<PyFloat>() {
             let f: f64 = value.extract()?;

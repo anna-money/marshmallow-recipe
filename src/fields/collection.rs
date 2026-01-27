@@ -217,7 +217,7 @@ pub mod collection_loader {
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
         kind: CollectionKind,
         item_loader: &Loader,
         item_validator: Option<&Py<PyAny>>,
@@ -273,7 +273,7 @@ pub mod collection_loader {
     fn load_item<'py>(
         item_loader: &Loader,
         value: &Bound<'py, PyAny>,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
     ) -> PyResult<Py<PyAny>> {
         if value.is_none() {
             return Ok(ctx.py.None());

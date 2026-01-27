@@ -151,7 +151,7 @@ pub mod dict_loader {
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
         value_loader: &Loader,
         value_validator: Option<&Py<PyAny>>,
     ) -> PyResult<Py<PyAny>> {

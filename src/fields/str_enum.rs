@@ -67,7 +67,7 @@ pub mod str_enum_loader {
     pub fn load_from_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
         values: &[(String, Py<PyAny>)],
     ) -> PyResult<Py<PyAny>> {
         let s: &str = value.extract().map_err(|_| {

@@ -133,7 +133,7 @@ pub mod decimal_loader {
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
         decimal_places: DecimalPlaces,
         rounding_strategy: Option<RoundingStrategy>,
     ) -> PyResult<Py<PyAny>> {

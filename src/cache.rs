@@ -468,6 +468,7 @@ pub fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescripto
     let invalid_error: Option<String> = raw.get_item("invalid_error")?.and_then(|v| v.extract().ok());
     let field_init: bool = raw.get_item("field_init")?.and_then(|v| v.extract().ok()).unwrap_or(true);
 
+    let post_load: Option<Py<PyAny>> = extract_optional_py(raw, "post_load")?;
     let validator: Option<Py<PyAny>> = extract_optional_py(raw, "validator")?;
     let item_validator: Option<Py<PyAny>> = extract_optional_py(raw, "item_validator")?;
     let value_validator: Option<Py<PyAny>> = extract_optional_py(raw, "value_validator")?;
@@ -501,6 +502,7 @@ pub fn build_field_from_dict(raw: &Bound<'_, PyDict>) -> PyResult<FieldDescripto
         none_error,
         invalid_error,
         field_init,
+        post_load,
         validator,
         item_validator,
         value_validator,
@@ -721,6 +723,7 @@ fn build_field_loader(py: Python<'_>, field: &FieldDescriptor) -> FieldLoader {
         none_error: field.none_error.clone(),
         invalid_error: field.invalid_error.clone(),
         field_init: field.field_init,
+        post_load: clone_py_opt(py, field.post_load.as_ref()),
         validator: clone_py_opt(py, field.validator.as_ref()),
         item_validator: clone_py_opt(py, field.item_validator.as_ref()),
         value_validator: clone_py_opt(py, field.value_validator.as_ref()),

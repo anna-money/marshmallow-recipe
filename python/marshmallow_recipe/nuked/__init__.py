@@ -9,13 +9,13 @@ from ..hooks import get_pre_loads
 from ..options import NoneValueHandling
 from ..utils import validate_decimal_places
 from ._descriptor import TypeDescriptor, build_type_descriptor
-from ._schema import descriptor_to_dict, extract_post_loads
+from ._schema import descriptor_to_dict
 
 __all__ = ("dump", "dump_to_bytes", "load", "load_from_bytes")
 
 _schema_id_counter: int = 0
 _schema_id_map: dict[tuple[type, Callable[[str], str] | None], int] = {}
-_schema_cache: dict[int, tuple[dict | None, TypeDescriptor]] = {}
+_schema_cache: dict[int, TypeDescriptor] = {}
 
 
 def _get_schema_id(cls: type, naming_case: Callable[[str], str] | None) -> int:
@@ -46,8 +46,7 @@ def _ensure_registered(cls: type, naming_case: Callable[[str], str] | None) -> i
     if schema_id not in _schema_cache:
         descriptor = build_type_descriptor(cls, naming_case)
         raw_schema = descriptor_to_dict(descriptor)
-        post_loads = extract_post_loads(descriptor)
-        _schema_cache[schema_id] = (post_loads, descriptor)
+        _schema_cache[schema_id] = descriptor
         nuked.register(schema_id, raw_schema)
 
     return schema_id
@@ -64,9 +63,8 @@ def dump_to_bytes[T](
 ) -> bytes:
     validate_decimal_places(decimal_places)
     schema_id = _ensure_registered(cls, naming_case)
-    _, descriptor = _schema_cache[schema_id]
+    descriptor = _schema_cache[schema_id]
 
-    # Use descriptor default if runtime param not provided
     effective_none_handling = none_value_handling or descriptor.none_value_handling or NoneValueHandling.IGNORE
 
     try:
@@ -85,9 +83,8 @@ def load_from_bytes[T](
 ) -> T:
     validate_decimal_places(decimal_places)
     schema_id = _ensure_registered(cls, naming_case)
-    post_loads, _ = _schema_cache[schema_id]
     try:
-        return nuked.load_from_bytes(schema_id, data, post_loads, decimal_places, encoding)  # type: ignore[return-value]
+        return nuked.load_from_bytes(schema_id, data, decimal_places, encoding)  # type: ignore[return-value]
     except ValueError as e:
         raise _convert_rust_error_to_validation_error(e)
 
@@ -102,9 +99,8 @@ def dump[T](
 ) -> typing.Any:
     validate_decimal_places(decimal_places)
     schema_id = _ensure_registered(cls, naming_case)
-    _, descriptor = _schema_cache[schema_id]
+    descriptor = _schema_cache[schema_id]
 
-    # Use descriptor default if runtime param not provided
     effective_none_handling = none_value_handling or descriptor.none_value_handling or NoneValueHandling.IGNORE
 
     try:
@@ -122,12 +118,11 @@ def load[T](
 ) -> T:
     validate_decimal_places(decimal_places)
     schema_id = _ensure_registered(cls, naming_case)
-    post_loads, _ = _schema_cache[schema_id]
 
     for pre_load in get_pre_loads(cls):
         data = pre_load(data)
 
     try:
-        return nuked.load(schema_id, data, post_loads, decimal_places)  # type: ignore[return-value]
+        return nuked.load(schema_id, data, decimal_places)  # type: ignore[return-value]
     except ValueError as e:
         raise _convert_rust_error_to_validation_error(e)

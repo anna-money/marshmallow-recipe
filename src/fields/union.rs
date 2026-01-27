@@ -66,7 +66,7 @@ pub mod union_loader {
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
         variants: &[Loader],
     ) -> PyResult<Py<PyAny>> {
         for variant in variants {

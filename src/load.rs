@@ -18,7 +18,7 @@ fn wrap_err_dict_for_field(py: Python, field_name: &str, inner: Py<PyAny>) -> Py
 fn load_iterable_items<'py>(
     value: &Bound<'py, PyAny>,
     item_descriptor: &TypeDescriptor,
-    ctx: &LoadContext<'_, 'py>,
+    ctx: &LoadContext<'py>,
 ) -> PyResult<Bound<'py, PyList>> {
     let len_hint = value.len().unwrap_or(0);
     let mut items: Vec<Py<PyAny>> = Vec::with_capacity(len_hint);
@@ -41,7 +41,7 @@ fn load_iterable_items<'py>(
 pub fn load_root_type<'py>(
     value: &Bound<'py, PyAny>,
     descriptor: &TypeDescriptor,
-    ctx: &LoadContext<'_, 'py>,
+    ctx: &LoadContext<'py>,
 ) -> PyResult<Py<PyAny>> {
     match descriptor.type_kind {
         TypeKind::Dataclass => {
@@ -173,10 +173,9 @@ pub fn load<'py>(
     py: Python<'py>,
     value: &Bound<'py, PyAny>,
     descriptor: &TypeDescriptor,
-    post_loads: Option<&Bound<'py, PyDict>>,
     decimal_places: Option<i32>,
 ) -> PyResult<Py<PyAny>> {
-    let ctx = LoadContext { py, post_loads, decimal_places };
+    let ctx = LoadContext::new(py, decimal_places);
 
     load_root_type(value, descriptor, &ctx)
 }

@@ -67,7 +67,7 @@ pub mod uuid_loader {
         value: &Bound<'py, PyAny>,
         field_name: &str,
         invalid_error: Option<&str>,
-        ctx: &LoadContext<'_, 'py>,
+        ctx: &LoadContext<'py>,
     ) -> PyResult<Py<PyAny>> {
         let cached = get_cached_types(ctx.py)?;
         let uuid_cls = cached.uuid_cls.bind(ctx.py);

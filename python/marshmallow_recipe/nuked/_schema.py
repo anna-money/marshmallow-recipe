@@ -1,5 +1,4 @@
 import dataclasses
-from collections.abc import Callable
 from typing import Any
 
 from ..missing import MISSING
@@ -123,6 +122,9 @@ def field_to_dict(field: Any, visited_schemas: set[type] | None = None) -> dict:
     if field.invalid_error is not None:
         result["invalid_error"] = field.invalid_error
 
+    if hasattr(field, "post_load") and field.post_load is not None:
+        result["post_load"] = field.post_load
+
     if field.validators:
         result["validator"] = build_combined_validator(field.validators)
 
@@ -133,14 +135,3 @@ def field_to_dict(field: Any, visited_schemas: set[type] | None = None) -> dict:
         result["value_validator"] = build_combined_validator(field.value_schema.validators)
 
     return result
-
-
-def extract_post_loads(descriptor: TypeDescriptor) -> dict | None:
-    post_loads: dict[str, Callable] = {}
-
-    if descriptor.fields:
-        for field in descriptor.fields:
-            if hasattr(field, "post_load") and field.post_load is not None:
-                post_loads[field.name] = field.post_load
-
-    return post_loads if post_loads else None
