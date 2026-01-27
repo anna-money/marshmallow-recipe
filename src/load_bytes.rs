@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 use pyo3::conversion::IntoPyObjectExt;
+use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyFrozenSet, PyList, PySet, PyTuple};
 use rust_decimal::Decimal;
@@ -1157,7 +1158,7 @@ impl<'de> Visitor<'de> for DataclassDirectSlotsVisitor<'_, '_> {
         let py = self.ctx.py;
         let cached_types = get_cached_types(py).map_err(de::Error::custom)?;
         let object_type = cached_types.object_cls.bind(py);
-        let instance = object_type.call_method1(cached_types.str_new.bind(py), (self.cls,))
+        let instance = object_type.call_method1(intern!(py, "__new__"), (self.cls,))
             .map_err(de::Error::custom)?;
 
         let mut seen_fields = SmallBitVec::from_elem(self.fields.len(), false);

@@ -3,6 +3,7 @@ use crate::cache::get_cached_types;
 use crate::types::DumpContext;
 
 pub mod uuid_dumper {
+    use pyo3::intern;
     use pyo3::prelude::*;
     use pyo3::types::PyString;
 
@@ -26,7 +27,7 @@ pub mod uuid_dumper {
         if !value.is_instance(cached.uuid_cls.bind(ctx.py))? {
             return Err(field_error(ctx.py, field_name, UUID_ERROR));
         }
-        let uuid_int: u128 = value.getattr(cached.str_int.bind(ctx.py))?.extract()?;
+        let uuid_int: u128 = value.getattr(intern!(ctx.py, "int"))?.extract()?;
         let uuid = uuid::Uuid::from_u128(uuid_int);
         let mut buf = [0u8; uuid::fmt::Hyphenated::LENGTH];
         let s = uuid.hyphenated().encode_lower(&mut buf);
@@ -45,7 +46,7 @@ pub mod uuid_dumper {
         if !value.is_instance(cached.uuid_cls.bind(ctx.py)).map_err(|e| S::Error::custom(e.to_string()))? {
             return Err(S::Error::custom(json_field_error(field_name, UUID_ERROR)));
         }
-        let uuid_int: u128 = value.getattr(cached.str_int.bind(ctx.py)).map_err(|e| S::Error::custom(e.to_string()))?
+        let uuid_int: u128 = value.getattr(intern!(ctx.py, "int")).map_err(|e| S::Error::custom(e.to_string()))?
             .extract().map_err(|e: PyErr| S::Error::custom(e.to_string()))?;
         let uuid = uuid::Uuid::from_u128(uuid_int);
         let mut buf = [0u8; uuid::fmt::Hyphenated::LENGTH];

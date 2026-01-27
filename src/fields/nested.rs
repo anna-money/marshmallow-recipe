@@ -296,6 +296,7 @@ pub mod nested_dumper {
 pub mod nested_loader {
     use std::collections::HashMap;
 
+    use pyo3::intern;
     use pyo3::prelude::*;
     use pyo3::types::{PyDict, PyString};
     use smallbitvec::SmallBitVec;
@@ -406,7 +407,7 @@ pub mod nested_loader {
     ) -> PyResult<Py<PyAny>> {
         let cached_types = get_cached_types(ctx.py)?;
         let object_type = cached_types.object_cls.bind(ctx.py);
-        let instance = object_type.call_method1(cached_types.str_new.bind(ctx.py), (cls,))?;
+        let instance = object_type.call_method1(intern!(ctx.py, "__new__"), (cls,))?;
 
         let mut field_values: Vec<Option<Py<PyAny>>> = (0..fields.len()).map(|_| None).collect();
 

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Datelike, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use once_cell::sync::Lazy;
+use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::{PyDate, PyDateTime, PyDelta, PyDeltaAccess, PyDict, PyList, PyTzInfo};
 use regex::Regex;
@@ -165,7 +166,7 @@ pub fn get_tz_offset_seconds(py: Python, tz: &Bound<'_, PyTzInfo>, reference: &B
     if tz.is(cached.utc_tz.bind(py)) {
         return Ok(0);
     }
-    let offset = tz.call_method1(cached.str_utcoffset.bind(py), (reference,))?;
+    let offset = tz.call_method1(intern!(py, "utcoffset"), (reference,))?;
     Ok(offset.cast::<PyDelta>().map_or(0, |delta| delta.get_days() * 86400 + delta.get_seconds()))
 }
 

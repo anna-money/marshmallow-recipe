@@ -15,6 +15,7 @@ pub fn format_decimal(buf: &mut DecimalBuf, d: &Decimal) {
 }
 
 pub mod decimal_dumper {
+    use pyo3::intern;
     use pyo3::prelude::*;
     use pyo3::types::PyString;
     use rust_decimal::Decimal;
@@ -47,7 +48,7 @@ pub mod decimal_dumper {
         if !value.is_instance(cached.decimal_cls.bind(ctx.py))? {
             return Err(field_error(ctx.py, field_name, DECIMAL_ERROR));
         }
-        let format_result = value.call_method1("__format__", ("f",))?;
+        let format_result = value.call_method1(intern!(ctx.py, "__format__"), ("f",))?;
         let formatted = format_result.cast::<PyString>()?;
         let decimal_str = formatted.to_str()?;
 
@@ -89,7 +90,7 @@ pub mod decimal_dumper {
         if !value.is_instance(cached.decimal_cls.bind(ctx.py)).map_err(|e| S::Error::custom(e.to_string()))? {
             return Err(S::Error::custom(json_field_error(field_name, DECIMAL_ERROR)));
         }
-        let format_result = value.call_method1("__format__", ("f",)).map_err(|e| S::Error::custom(e.to_string()))?;
+        let format_result = value.call_method1(intern!(ctx.py, "__format__"), ("f",)).map_err(|e| S::Error::custom(e.to_string()))?;
         let formatted = format_result.cast::<PyString>().map_err(|e| S::Error::custom(e.to_string()))?;
         let decimal_str = formatted.to_str().map_err(|e| S::Error::custom(e.to_string()))?;
 

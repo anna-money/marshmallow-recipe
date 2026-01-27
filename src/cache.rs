@@ -31,9 +31,6 @@ pub struct CachedPyTypes {
     pub timezone_cls: Py<PyAny>,
     pub utc_tz: Py<PyAny>,
     pub object_cls: Py<PyAny>,
-    pub str_new: Py<PyString>,
-    pub str_int: Py<PyString>,
-    pub str_utcoffset: Py<PyString>,
     pub missing_sentinel: Py<PyAny>,
     pub timezones: Vec<Py<PyAny>>,
 }
@@ -103,9 +100,6 @@ pub fn get_cached_types(py: Python) -> PyResult<&'static CachedPyTypes> {
             timezone_cls: timezone_cls.unbind(),
             utc_tz: datetime_mod.getattr("UTC")?.unbind(),
             object_cls: builtins.getattr("object")?.unbind(),
-            str_new: PyString::intern(py, "__new__").unbind(),
-            str_int: PyString::intern(py, "int").unbind(),
-            str_utcoffset: PyString::intern(py, "utcoffset").unbind(),
             missing_sentinel: mr_missing_mod.getattr("MISSING")?.unbind(),
             timezones,
         })
