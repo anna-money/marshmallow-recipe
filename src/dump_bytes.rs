@@ -3,7 +3,7 @@ use pyo3::types::{PyDict, PyList, PyString};
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Serialize, Serializer};
 
-use crate::fields::nested::nested_dumper::dump_dataclass_streaming;
+use crate::fields::nested::nested_dumper::dump_dataclass_to_serializer;
 use crate::types::DumpContext;
 use crate::types::{TypeDescriptor, TypeKind};
 
@@ -24,7 +24,7 @@ impl Serialize for RootTypeDumper<'_, '_> {
                 let dumper_fields = self.descriptor.dumper_fields.as_ref().ok_or_else(|| {
                     serde::ser::Error::custom("Missing dumper_fields for dataclass")
                 })?;
-                dump_dataclass_streaming(self.value, dumper_fields, self.ctx, serializer)
+                dump_dataclass_to_serializer(self.value, dumper_fields, self.ctx, serializer)
             }
             TypeKind::Primitive => {
                 if self.value.is_none() {

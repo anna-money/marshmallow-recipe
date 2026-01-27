@@ -233,10 +233,10 @@ pub mod nested_dumper {
         if !value.is_instance(schema.cls.bind(ctx.py)).map_err(|e| S::Error::custom(e.to_string()))? {
             return Err(S::Error::custom(json_field_error(field_name, NESTED_ERROR)));
         }
-        dump_dataclass_streaming(value, &schema.fields, ctx, serializer)
+        dump_dataclass_to_serializer(value, &schema.fields, ctx, serializer)
     }
 
-    pub fn dump_dataclass_streaming<S: serde::Serializer>(
+    pub fn dump_dataclass_to_serializer<S: serde::Serializer>(
         obj: &Bound<'_, PyAny>,
         fields: &[FieldDumper],
         ctx: &DumpContext<'_, '_>,

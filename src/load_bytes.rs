@@ -30,7 +30,7 @@ use crate::utils::{
     try_wrap_err_json, wrap_err_dict,
 };
 
-pub struct StreamingContext<'a, 'py> {
+pub struct BytesLoadContext<'a, 'py> {
     pub py: Python<'py>,
     pub post_loads: Option<&'a Bound<'py, PyDict>>,
     pub decimal_places: Option<i32>,
@@ -109,7 +109,7 @@ fn json_error_to_py(py: Python, value: &serde_json::Value) -> PyResult<Py<PyAny>
 }
 
 pub struct TypeDescriptorSeed<'a, 'py> {
-    pub ctx: &'a StreamingContext<'a, 'py>,
+    pub ctx: &'a BytesLoadContext<'a, 'py>,
     pub descriptor: &'a TypeDescriptor,
 }
 
@@ -208,7 +208,7 @@ impl<'de> DeserializeSeed<'de> for TypeDescriptorSeed<'_, '_> {
 }
 
 struct TopLevelCollectionVisitor<'a, 'py> {
-    ctx: &'a StreamingContext<'a, 'py>,
+    ctx: &'a BytesLoadContext<'a, 'py>,
     item_descriptor: &'a TypeDescriptor,
     kind: CollectionKind,
 }
@@ -255,7 +255,7 @@ impl<'de> Visitor<'de> for TopLevelCollectionVisitor<'_, '_> {
 }
 
 struct TopLevelDictVisitor<'a, 'py> {
-    ctx: &'a StreamingContext<'a, 'py>,
+    ctx: &'a BytesLoadContext<'a, 'py>,
     value_descriptor: &'a TypeDescriptor,
 }
 
@@ -289,7 +289,7 @@ impl<'de> Visitor<'de> for TopLevelDictVisitor<'_, '_> {
 }
 
 struct OptionalVisitor<'a, 'py> {
-    ctx: &'a StreamingContext<'a, 'py>,
+    ctx: &'a BytesLoadContext<'a, 'py>,
     inner_descriptor: Option<&'a TypeDescriptor>,
 }
 
@@ -326,7 +326,7 @@ impl<'de> Visitor<'de> for OptionalVisitor<'_, '_> {
 }
 
 pub struct FieldLoaderSeed<'a, 'py> {
-    pub ctx: &'a StreamingContext<'a, 'py>,
+    pub ctx: &'a BytesLoadContext<'a, 'py>,
     pub field: &'a FieldLoader,
 }
 
@@ -364,7 +364,7 @@ impl<'de> DeserializeSeed<'de> for FieldLoaderSeed<'_, '_> {
 }
 
 struct FieldValueVisitor<'a, 'py> {
-    ctx: &'a StreamingContext<'a, 'py>,
+    ctx: &'a BytesLoadContext<'a, 'py>,
     field: &'a FieldLoader,
 }
 
@@ -793,7 +793,7 @@ impl FieldValueVisitor<'_, '_> {
 }
 
 pub struct PrimitiveLoaderSeed<'a, 'py> {
-    pub ctx: &'a StreamingContext<'a, 'py>,
+    pub ctx: &'a BytesLoadContext<'a, 'py>,
     pub deserializer: &'a Loader,
 }
 
@@ -831,7 +831,7 @@ impl<'de> DeserializeSeed<'de> for PrimitiveLoaderSeed<'_, '_> {
 }
 
 struct PrimitiveValueVisitor<'a, 'py> {
-    ctx: &'a StreamingContext<'a, 'py>,
+    ctx: &'a BytesLoadContext<'a, 'py>,
     deserializer: &'a Loader,
 }
 
@@ -1102,7 +1102,7 @@ impl PrimitiveValueVisitor<'_, '_> {
 }
 
 pub struct DataclassVisitor<'a, 'py> {
-    pub ctx: &'a StreamingContext<'a, 'py>,
+    pub ctx: &'a BytesLoadContext<'a, 'py>,
     pub cls: &'a Bound<'py, PyAny>,
     pub fields: &'a [FieldLoader],
     pub field_lookup: &'a HashMap<String, usize>,
@@ -1131,7 +1131,7 @@ impl<'de> Visitor<'de> for DataclassVisitor<'_, '_> {
                     ctx: self.ctx,
                     field,
                 })?;
-                let validated = apply_post_load_and_validate_streaming(value, field, self.ctx)?;
+                let validated = apply_post_load_and_validate_bytes(value, field, self.ctx)?;
                 kwargs.set_item(field.name_interned.bind(py), validated).map_err(de::Error::custom)?;
             } else {
                 let _ = map.next_value::<serde::de::IgnoredAny>()?;
@@ -1150,7 +1150,7 @@ impl<'de> Visitor<'de> for DataclassVisitor<'_, '_> {
 }
 
 pub struct DataclassDirectSlotsVisitor<'a, 'py> {
-    pub ctx: &'a StreamingContext<'a, 'py>,
+    pub ctx: &'a BytesLoadContext<'a, 'py>,
     pub cls: &'a Bound<'py, PyAny>,
     pub fields: &'a [FieldLoader],
     pub field_lookup: &'a HashMap<String, usize>,
@@ -1183,7 +1183,7 @@ impl<'de> Visitor<'de> for DataclassDirectSlotsVisitor<'_, '_> {
                     ctx: self.ctx,
                     field,
                 })?;
-                let validated = apply_post_load_and_validate_streaming(value, field, self.ctx)?;
+                let validated = apply_post_load_and_validate_bytes(value, field, self.ctx)?;
 
                 if let Some(offset) = field.slot_offset {
                     unsafe {
@@ -1199,7 +1199,7 @@ impl<'de> Visitor<'de> for DataclassDirectSlotsVisitor<'_, '_> {
 
         for (idx, field) in self.fields.iter().enumerate() {
             if !seen_fields[idx] {
-                let Some(py_value) = get_default_value_streaming(field, py)? else {
+                let Some(py_value) = get_default_value_bytes(field, py)? else {
                     let msg = field.required_error.as_deref().unwrap_or("Missing data for required field.");
                     return Err(de::Error::custom(err_json(&field.name, msg)));
                 };
@@ -1218,10 +1218,10 @@ impl<'de> Visitor<'de> for DataclassDirectSlotsVisitor<'_, '_> {
     }
 }
 
-fn apply_post_load_and_validate_streaming<E: de::Error>(
+fn apply_post_load_and_validate_bytes<E: de::Error>(
     value: Py<PyAny>,
     field: &FieldLoader,
-    ctx: &StreamingContext<'_, '_>,
+    ctx: &BytesLoadContext<'_, '_>,
 ) -> Result<Py<PyAny>, E> {
     let mut result = value;
 
@@ -1242,7 +1242,7 @@ fn apply_post_load_and_validate_streaming<E: de::Error>(
     Ok(result)
 }
 
-fn get_default_value_streaming<E: de::Error>(
+fn get_default_value_bytes<E: de::Error>(
     field: &FieldLoader,
     py: Python<'_>,
 ) -> Result<Option<Py<PyAny>>, E> {
@@ -1306,7 +1306,7 @@ pub fn load_from_bytes<'py>(
     post_loads: Option<&Bound<'py, PyDict>>,
     decimal_places: Option<i32>,
 ) -> PyResult<Py<PyAny>> {
-    let ctx = StreamingContext { py, post_loads, decimal_places };
+    let ctx = BytesLoadContext { py, post_loads, decimal_places };
     let mut deserializer = serde_json::Deserializer::from_slice(json_bytes);
     TypeDescriptorSeed { ctx: &ctx, descriptor }
         .deserialize(&mut deserializer)
