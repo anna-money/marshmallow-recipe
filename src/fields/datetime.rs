@@ -1,5 +1,6 @@
 use std::fmt::Write;
 
+use arrayvec::ArrayString;
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime};
 use pyo3::prelude::*;
 use pyo3::types::{PyDateAccess, PyDateTime, PyTimeAccess, PyTzInfoAccess};
@@ -7,6 +8,9 @@ use pyo3::types::{PyDateAccess, PyDateTime, PyTimeAccess, PyTzInfoAccess};
 use super::helpers::{field_error, json_field_error, DATETIME_ERROR};
 use crate::types::DumpContext;
 use crate::utils::{create_pydatetime_from_chrono, get_tz_offset_seconds, parse_datetime_with_format, parse_rfc3339_datetime};
+
+pub type DateTimeIsoBuf = ArrayString<32>;
+pub type DateTimeStrftimeBuf = ArrayString<128>;
 
 pub struct DateTimeComponents {
     pub year: i32,
@@ -47,30 +51,31 @@ pub fn extract_components(py: Python, dt: &Bound<'_, PyDateTime>) -> PyResult<Da
 }
 
 #[inline]
-fn format_iso(buf: &mut arrayvec::ArrayString<32>, dt: &DateTimeComponents) {
+fn format_iso(buf: &mut DateTimeIsoBuf, dt: &DateTimeComponents) {
     if dt.microsecond > 0 {
         write!(
             buf,
             "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:06}",
             dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, dt.microsecond
-        ).unwrap();
+        ).expect("DateTime ISO max 32 chars: YYYY-MM-DDTHH:MM:SS.ffffff+HH:MM");
     } else {
         write!(
             buf,
             "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
             dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second
-        ).unwrap();
+        ).expect("DateTime ISO max 32 chars: YYYY-MM-DDTHH:MM:SS.ffffff+HH:MM");
     }
     write_tz_offset(buf, dt.offset_seconds.unwrap_or(0));
 }
 
 #[inline]
-fn write_tz_offset(buf: &mut arrayvec::ArrayString<32>, offset_secs: i32) {
+fn write_tz_offset(buf: &mut DateTimeIsoBuf, offset_secs: i32) {
     let sign = if offset_secs >= 0 { '+' } else { '-' };
     let abs_secs = offset_secs.abs();
     let hours = abs_secs / 3600;
     let minutes = (abs_secs % 3600) / 60;
-    write!(buf, "{sign}{hours:02}:{minutes:02}").unwrap();
+    write!(buf, "{sign}{hours:02}:{minutes:02}")
+        .expect("DateTime ISO max 32 chars: YYYY-MM-DDTHH:MM:SS.ffffff+HH:MM");
 }
 
 fn python_to_chrono_format(fmt: &str) -> String {
@@ -79,7 +84,7 @@ fn python_to_chrono_format(fmt: &str) -> String {
 
 #[inline]
 fn format_strftime(
-    buf: &mut arrayvec::ArrayString<128>,
+    buf: &mut DateTimeStrftimeBuf,
     dt: &DateTimeComponents,
     fmt: &str,
 ) -> StrftimeResult {
@@ -117,8 +122,8 @@ pub mod datetime_dumper {
 
     use super::{
         extract_components, field_error, format_iso, format_strftime, get_tz_offset_seconds,
-        json_field_error, DateTimeComponents, DumpContext, StrftimeResult, BUFFER_ERROR_MSG,
-        DATETIME_ERROR,
+        json_field_error, DateTimeComponents, DateTimeIsoBuf, DateTimeStrftimeBuf, DumpContext,
+        StrftimeResult, BUFFER_ERROR_MSG, DATETIME_ERROR,
     };
 
     #[inline]
@@ -134,12 +139,12 @@ pub mod datetime_dumper {
     ) -> PyResult<Py<PyAny>> {
         datetime_format.map_or_else(
             || {
-                let mut buf = arrayvec::ArrayString::<32>::new();
+                let mut buf = DateTimeIsoBuf::new();
                 format_iso(&mut buf, dt);
                 Ok(PyString::new(py, &buf).into_any().unbind())
             },
             |fmt| {
-                let mut buf = arrayvec::ArrayString::<128>::new();
+                let mut buf = DateTimeStrftimeBuf::new();
                 match format_strftime(&mut buf, dt, fmt) {
                     StrftimeResult::Ok => Ok(PyString::new(py, &buf).into_any().unbind()),
                     StrftimeResult::InvalidDatetime => {
@@ -200,13 +205,13 @@ pub mod datetime_dumper {
         };
 
         if let Some(fmt) = datetime_format {
-            let mut buf = arrayvec::ArrayString::<128>::new();
+            let mut buf = DateTimeStrftimeBuf::new();
             match format_strftime(&mut buf, &components, fmt) {
                 StrftimeResult::Ok => serializer.serialize_str(&buf),
                 _ => Err(S::Error::custom(json_field_error(field_name, DATETIME_ERROR))),
             }
         } else {
-            let mut buf = arrayvec::ArrayString::<32>::new();
+            let mut buf = DateTimeIsoBuf::new();
             format_iso(&mut buf, &components);
             serializer.serialize_str(&buf)
         }

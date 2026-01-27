@@ -5,10 +5,13 @@ use crate::utils::{create_pydate_from_chrono, parse_iso_date};
 pub mod date_dumper {
     use std::fmt::Write;
 
+    use arrayvec::ArrayString;
     use pyo3::prelude::*;
     use pyo3::types::{PyDate, PyDateAccess, PyString};
 
     use super::{field_error, json_field_error, DumpContext, DATE_ERROR};
+
+    pub type DateBuf = ArrayString<10>;
 
     #[inline]
     pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
@@ -25,8 +28,9 @@ pub mod date_dumper {
             return Err(field_error(ctx.py, field_name, DATE_ERROR));
         }
         let d: &Bound<'_, PyDate> = value.cast()?;
-        let mut buf = arrayvec::ArrayString::<10>::new();
-        write!(buf, "{:04}-{:02}-{:02}", d.get_year(), d.get_month(), d.get_day()).unwrap();
+        let mut buf = DateBuf::new();
+        write!(buf, "{:04}-{:02}-{:02}", d.get_year(), d.get_month(), d.get_day())
+            .expect("Date max 10 chars: YYYY-MM-DD");
         Ok(PyString::new(ctx.py, &buf).into_any().unbind())
     }
 
@@ -41,8 +45,9 @@ pub mod date_dumper {
             return Err(S::Error::custom(json_field_error(field_name, DATE_ERROR)));
         }
         let d: &Bound<'_, PyDate> = value.cast().map_err(|e| S::Error::custom(e.to_string()))?;
-        let mut buf = arrayvec::ArrayString::<10>::new();
-        write!(buf, "{:04}-{:02}-{:02}", d.get_year(), d.get_month(), d.get_day()).unwrap();
+        let mut buf = DateBuf::new();
+        write!(buf, "{:04}-{:02}-{:02}", d.get_year(), d.get_month(), d.get_day())
+            .expect("Date max 10 chars: YYYY-MM-DD");
         serializer.serialize_str(&buf)
     }
 }

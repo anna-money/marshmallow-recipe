@@ -5,10 +5,13 @@ use crate::utils::{create_pytime_from_chrono, parse_iso_time};
 pub mod time_dumper {
     use std::fmt::Write;
 
+    use arrayvec::ArrayString;
     use pyo3::prelude::*;
     use pyo3::types::{PyString, PyTime, PyTimeAccess};
 
     use super::{field_error, json_field_error, DumpContext, TIME_ERROR};
+
+    pub type TimeBuf = ArrayString<15>;
 
     #[inline]
     pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
@@ -25,11 +28,13 @@ pub mod time_dumper {
             return Err(field_error(ctx.py, field_name, TIME_ERROR));
         }
         let t: &Bound<'_, PyTime> = value.cast()?;
-        let mut buf = arrayvec::ArrayString::<15>::new();
+        let mut buf = TimeBuf::new();
         if t.get_microsecond() > 0 {
-            write!(buf, "{:02}:{:02}:{:02}.{:06}", t.get_hour(), t.get_minute(), t.get_second(), t.get_microsecond()).unwrap();
+            write!(buf, "{:02}:{:02}:{:02}.{:06}", t.get_hour(), t.get_minute(), t.get_second(), t.get_microsecond())
+                .expect("Time max 15 chars: HH:MM:SS.ffffff");
         } else {
-            write!(buf, "{:02}:{:02}:{:02}", t.get_hour(), t.get_minute(), t.get_second()).unwrap();
+            write!(buf, "{:02}:{:02}:{:02}", t.get_hour(), t.get_minute(), t.get_second())
+                .expect("Time max 15 chars: HH:MM:SS.ffffff");
         }
         Ok(PyString::new(ctx.py, &buf).into_any().unbind())
     }
@@ -45,11 +50,13 @@ pub mod time_dumper {
             return Err(S::Error::custom(json_field_error(field_name, TIME_ERROR)));
         }
         let t: &Bound<'_, PyTime> = value.cast().map_err(|e| S::Error::custom(e.to_string()))?;
-        let mut buf = arrayvec::ArrayString::<15>::new();
+        let mut buf = TimeBuf::new();
         if t.get_microsecond() > 0 {
-            write!(buf, "{:02}:{:02}:{:02}.{:06}", t.get_hour(), t.get_minute(), t.get_second(), t.get_microsecond()).unwrap();
+            write!(buf, "{:02}:{:02}:{:02}.{:06}", t.get_hour(), t.get_minute(), t.get_second(), t.get_microsecond())
+                .expect("Time max 15 chars: HH:MM:SS.ffffff");
         } else {
-            write!(buf, "{:02}:{:02}:{:02}", t.get_hour(), t.get_minute(), t.get_second()).unwrap();
+            write!(buf, "{:02}:{:02}:{:02}", t.get_hour(), t.get_minute(), t.get_second())
+                .expect("Time max 15 chars: HH:MM:SS.ffffff");
         }
         serializer.serialize_str(&buf)
     }
