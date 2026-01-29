@@ -213,11 +213,8 @@ def __convert_field_to_json_schema(
         schema["type"] = "string"
         schema["format"] = "uuid"
     elif field_type is decimal.Decimal:
-        as_string = metadata.get("as_string", True)
-        if as_string:
-            schema["type"] = "string"
-        else:
-            schema["type"] = "number"
+        # Decimals are always serialized as strings
+        schema["type"] = "string"
     else:
         origin = get_origin(field_type)
         if origin is not None:
