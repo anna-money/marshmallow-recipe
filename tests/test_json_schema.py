@@ -460,21 +460,19 @@ def test_enum_types() -> None:
 
 
 def test_decimal_types() -> None:
-    """Test decimal types with as_string and as_number representations"""
+    """Test decimal types are always serialized as strings"""
 
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class Product:
         name: str
-        price_str: Annotated[decimal.Decimal, mr.decimal_meta(as_string=True)]
-        price_num: Annotated[decimal.Decimal, mr.decimal_meta(as_string=False)]
-        price_default: decimal.Decimal
+        price: decimal.Decimal
+        price_with_places: Annotated[decimal.Decimal, mr.decimal_meta(places=2)]
 
     schema = mr.json_schema(Product)
 
-    assert schema["properties"]["price_str"] == {"type": "string"}
-    assert schema["properties"]["price_num"] == {"type": "number"}
-    # Default should be string (as_string=True by default)
-    assert schema["properties"]["price_default"] == {"type": "string"}
+    # All decimals are serialized as strings
+    assert schema["properties"]["price"] == {"type": "string"}
+    assert schema["properties"]["price_with_places"] == {"type": "string"}
 
 
 def test_set_and_frozenset_types() -> None:

@@ -65,7 +65,6 @@ def metadata(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
-    description: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -80,8 +79,6 @@ def metadata(
         values.update(none_error=none_error)
     if invalid_error is not None:
         values.update(invalid_error=invalid_error)
-    if description is not None:
-        values.update(description=description)
     return Metadata(values)
 
 
@@ -95,7 +92,6 @@ def str_metadata(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
-    description: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -114,8 +110,6 @@ def str_metadata(
         values.update(none_error=none_error)
     if invalid_error is not None:
         values.update(invalid_error=invalid_error)
-    if description is not None:
-        values.update(description=description)
     return Metadata(values)
 
 
@@ -129,7 +123,6 @@ def decimal_metadata(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
-    description: str | None = None,
 ) -> Metadata:
     validate_decimal_places(places)
     validate_decimal_rounding(rounding)
@@ -150,8 +143,6 @@ def decimal_metadata(
         values.update(none_error=none_error)
     if invalid_error is not None:
         values.update(invalid_error=invalid_error)
-    if description is not None:
-        values.update(description=description)
     return Metadata(values)
 
 
@@ -164,7 +155,6 @@ def datetime_metadata(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
-    description: str | None = None,
 ) -> Metadata:
     validate_datetime_format(format)
     values = dict[str, Any]()
@@ -182,8 +172,6 @@ def datetime_metadata(
         values.update(none_error=none_error)
     if invalid_error is not None:
         values.update(invalid_error=invalid_error)
-    if description is not None:
-        values.update(description=description)
     return Metadata(values)
 
 
@@ -195,7 +183,6 @@ def time_metadata(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
-    description: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -210,8 +197,6 @@ def time_metadata(
         values.update(none_error=none_error)
     if invalid_error is not None:
         values.update(invalid_error=invalid_error)
-    if description is not None:
-        values.update(description=description)
     return Metadata(values)
 
 
@@ -225,7 +210,6 @@ def list_metadata(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
-    description: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -244,8 +228,6 @@ def list_metadata(
         values.update(none_error=none_error)
     if invalid_error is not None:
         values.update(invalid_error=invalid_error)
-    if description is not None:
-        values.update(description=description)
     return Metadata(values)
 
 
@@ -259,7 +241,6 @@ def set_metadata(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
-    description: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -278,8 +259,6 @@ def set_metadata(
         values.update(none_error=none_error)
     if invalid_error is not None:
         values.update(invalid_error=invalid_error)
-    if description is not None:
-        values.update(description=description)
     return Metadata(values)
 
 
@@ -293,7 +272,6 @@ def tuple_metadata(
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
-    description: str | None = None,
 ) -> Metadata:
     values = dict[str, Any]()
     if name is not MISSING:
@@ -312,8 +290,6 @@ def tuple_metadata(
         values.update(none_error=none_error)
     if invalid_error is not None:
         values.update(invalid_error=invalid_error)
-    if description is not None:
-        values.update(description=description)
     return Metadata(values)
 
 
