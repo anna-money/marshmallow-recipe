@@ -593,6 +593,72 @@ class TestDecimalNoPlaces:
         result = impl.load(WithDecimalNoPlaces, data, decimal_places=2)
         assert result == WithDecimalNoPlaces(value=decimal.Decimal("123.456789"))
 
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            (
+                WithDecimalNoPlaces(value=decimal.Decimal("79228162514264337593543950335")),
+                b'{"value":"79228162514264337593543950335"}',
+            ),
+            (
+                WithDecimalNoPlaces(value=decimal.Decimal("-79228162514264337593543950335")),
+                b'{"value":"-79228162514264337593543950335"}',
+            ),
+            (
+                WithDecimalNoPlaces(value=decimal.Decimal("0.0000000000000000000000000001")),
+                b'{"value":"0.0000000000000000000000000001"}',
+            ),
+            (
+                WithDecimalNoPlaces(value=decimal.Decimal("-0.0000000000000000000000000001")),
+                b'{"value":"-0.0000000000000000000000000001"}',
+            ),
+            (
+                WithDecimalNoPlaces(value=decimal.Decimal("7.9228162514264337593543950335")),
+                b'{"value":"7.9228162514264337593543950335"}',
+            ),
+            (
+                WithDecimalNoPlaces(value=decimal.Decimal("-7.9228162514264337593543950335")),
+                b'{"value":"-7.9228162514264337593543950335"}',
+            ),
+        ],
+    )
+    def test_dump_boundary_values(self, impl: Serializer, obj: WithDecimalNoPlaces, expected: bytes) -> None:
+        result = impl.dump(WithDecimalNoPlaces, obj)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            (
+                b'{"value":"79228162514264337593543950335"}',
+                WithDecimalNoPlaces(value=decimal.Decimal("79228162514264337593543950335")),
+            ),
+            (
+                b'{"value":"-79228162514264337593543950335"}',
+                WithDecimalNoPlaces(value=decimal.Decimal("-79228162514264337593543950335")),
+            ),
+            (
+                b'{"value":"0.0000000000000000000000000001"}',
+                WithDecimalNoPlaces(value=decimal.Decimal("0.0000000000000000000000000001")),
+            ),
+            (
+                b'{"value":"-0.0000000000000000000000000001"}',
+                WithDecimalNoPlaces(value=decimal.Decimal("-0.0000000000000000000000000001")),
+            ),
+            (
+                b'{"value":"7.9228162514264337593543950335"}',
+                WithDecimalNoPlaces(value=decimal.Decimal("7.9228162514264337593543950335")),
+            ),
+            (
+                b'{"value":"-7.9228162514264337593543950335"}',
+                WithDecimalNoPlaces(value=decimal.Decimal("-7.9228162514264337593543950335")),
+            ),
+        ],
+    )
+    def test_load_boundary_values(self, impl: Serializer, data: bytes, expected: WithDecimalNoPlaces) -> None:
+        result = impl.load(WithDecimalNoPlaces, data)
+        assert result == expected
+
 
 class TestDecimalPlacesValidation:
     def test_dump_negative_raises(self, impl: Serializer) -> None:
