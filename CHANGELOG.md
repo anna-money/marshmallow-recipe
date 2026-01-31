@@ -1,6 +1,7 @@
 ## v0.0.73 (unreleased)
 
 * `ROUND_05UP` is no longer supported
+* [Add tests for special datetime format values (iso, timestamp)](https://github.com/anna-money/marshmallow-recipe/pull/243)
 
 
 ## v0.0.72 (2026-01-15)
