@@ -29,3 +29,17 @@ def validate_decimal_rounding(value: str | None) -> None:
             f"Unsupported rounding mode: {value!r}. "
             f"Supported modes: {', '.join(sorted(SUPPORTED_DECIMAL_ROUNDING_MODES))}"
         )
+
+
+SUPPORTED_DATETIME_FORMATS: frozenset[str] = frozenset({"iso", "timestamp"})
+
+
+def validate_datetime_format(value: str | None) -> None:
+    if value is None:
+        return
+    if value in SUPPORTED_DATETIME_FORMATS:
+        return
+    if "%" not in value:
+        raise ValueError(
+            f"Invalid datetime format: {value!r}. " f"Use 'iso', 'timestamp', or a strftime pattern containing '%'"
+        )

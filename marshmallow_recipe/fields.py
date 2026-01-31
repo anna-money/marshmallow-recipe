@@ -968,7 +968,7 @@ def union_field(
     )
 
 
-DateTimeField: type[m.fields.DateTime]
+DateTimeField: type[m.fields.Field]
 DateField: type[m.fields.Date]
 DecimalField: type[m.fields.Decimal]
 EnumField: type[m.fields.Field]
@@ -1141,13 +1141,13 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     class DateTimeFieldV3(m.fields.DateTime):
         SERIALIZATION_FUNCS = {  # noqa: RUF012
-            **m.fields.DateTime.SERIALIZATION_FUNCS,  # type: ignore
-            **{"iso": datetime.datetime.isoformat, "iso8601": datetime.datetime.isoformat},
+            "iso": datetime.datetime.isoformat,
+            "timestamp": m.fields.DateTime.SERIALIZATION_FUNCS["timestamp"],  # type: ignore
         }
 
         DESERIALIZATION_FUNCS = {  # noqa: RUF012
-            **m.fields.DateTime.DESERIALIZATION_FUNCS,  # type: ignore
-            **{"iso": datetime.datetime.fromisoformat, "iso8601": datetime.datetime.fromisoformat},
+            "iso": datetime.datetime.fromisoformat,
+            "timestamp": m.fields.DateTime.DESERIALIZATION_FUNCS["timestamp"],  # type: ignore
         }
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
@@ -1511,34 +1511,77 @@ else:
 
     DecimalField = DecimalFieldV2
 
-    class DateTimeFieldV2(m.fields.DateTime):
+    class DateTimeFieldV2(m.fields.Field):
         @staticmethod
-        def __isoformat(v: datetime.datetime, *, localtime: bool = False, **kwargs: Any) -> str:  # type: ignore
-            assert not localtime
-            assert not kwargs
+        def __iso_serialize(v: datetime.datetime) -> str:  # type: ignore
             return datetime.datetime.isoformat(v)
 
+        @staticmethod
+        def __timestamp_serialize(v: datetime.datetime) -> float:  # type: ignore
+            return v.timestamp()
+
+        @staticmethod
+        def __timestamp_deserialize(value: Any) -> datetime.datetime:
+            if not isinstance(value, float | int):
+                raise TypeError("argument must be number")
+
+            return datetime.datetime.fromtimestamp(value, tz=datetime.UTC)
+
         DATEFORMAT_SERIALIZATION_FUNCS = {  # noqa: RUF012
-            **m.fields.DateTime.DATEFORMAT_SERIALIZATION_FUNCS,  # type: ignore
-            **{"iso": __isoformat, "iso8601": __isoformat},
+            "iso": __iso_serialize,
+            "timestamp": __timestamp_serialize,
         }
 
         DATEFORMAT_DESERIALIZATION_FUNCS = {  # noqa: RUF012
-            **m.fields.DateTime.DATEFORMAT_DESERIALIZATION_FUNCS,  # type: ignore
-            **{"iso": datetime.datetime.fromisoformat, "iso8601": datetime.datetime.fromisoformat},
+            "iso": datetime.datetime.fromisoformat,
+            "timestamp": __timestamp_deserialize,
         }
+
+        localtime = False
+        default_error_messages = {  # noqa: RUF012
+            "invalid": "Not a valid datetime.",
+            "format": '"{input}" cannot be formatted as a datetime.',
+        }
+
+        def __init__(self, format: str | None = None, **kwargs: Any):
+            super().__init__(**kwargs)
+            self.format = format or "iso"
+
+        def _add_to_schema(self, field_name: str, schema: Any) -> None:
+            super()._add_to_schema(field_name, schema)  # type: ignore[misc]
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
             if value is None:
                 return None
-
             if value.tzinfo is None:
                 value = value.replace(tzinfo=datetime.UTC)
-
-            return super()._serialize(value, attr, obj, **kwargs)
+            format_func = self.DATEFORMAT_SERIALIZATION_FUNCS.get(self.format, None)
+            if format_func:
+                try:
+                    return format_func(value)
+                except (AttributeError, ValueError):
+                    self.fail("format", input=value)
+            else:
+                try:
+                    return value.strftime(self.format)
+                except (AttributeError, ValueError):
+                    self.fail("format", input=value)
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **_: Any) -> Any:
-            result = super()._deserialize(value, attr, data)
+            if value is None:
+                raise self.fail("invalid")
+            func = self.DATEFORMAT_DESERIALIZATION_FUNCS.get(self.format)
+            if func:
+                try:
+                    result = func(value)
+                except (TypeError, AttributeError, ValueError):
+                    raise self.fail("invalid")
+            else:
+                try:
+                    result = datetime.datetime.strptime(value, self.format)
+                except (TypeError, AttributeError, ValueError):
+                    raise self.fail("invalid")
+
             if result.tzinfo is None:
                 return result.replace(tzinfo=datetime.UTC)
             if result.tzinfo == datetime.UTC:
