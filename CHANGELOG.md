@@ -1,6 +1,6 @@
 ## v0.0.73 (unreleased)
 
-* **Breaking:** `ROUND_05UP` rounding mode is no longer supported for decimal fields - raises `ValueError` at configuration time
+* `ROUND_05UP` is no longer supported
 
 
 ## v0.0.72 (2026-01-15)
