@@ -1,3 +1,8 @@
+## v0.0.73 (unreleased)
+
+* `ROUND_05UP` is no longer supported
+
+
 ## v0.0.72 (2026-01-15)
 
 * Change decimal `places` to validate precision instead of rounding (use `rounding` parameter for old behavior)

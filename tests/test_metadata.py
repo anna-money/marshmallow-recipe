@@ -1,5 +1,3 @@
-import pytest
-
 import marshmallow_recipe as mr
 
 
@@ -25,8 +23,3 @@ def test_metadata_not_equal() -> None:
 
     assert hash(metadata1) != hash(metadata2)
     assert metadata1 != metadata2
-
-
-def test_decimal_metadata_negative_places_raises() -> None:
-    with pytest.raises(ValueError, match="decimal_places must be None or a non-negative integer"):
-        mr.decimal_metadata(places=-1)

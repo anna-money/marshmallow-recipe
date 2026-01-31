@@ -593,6 +593,72 @@ class TestDecimalNoPlaces:
         result = impl.load(WithDecimalNoPlaces, data, decimal_places=2)
         assert result == WithDecimalNoPlaces(value=decimal.Decimal("123.456789"))
 
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            (
+                WithDecimalNoPlaces(value=decimal.Decimal("79228162514264337593543950335")),
+                b'{"value":"79228162514264337593543950335"}',
+            ),
+            (
+                WithDecimalNoPlaces(value=decimal.Decimal("-79228162514264337593543950335")),
+                b'{"value":"-79228162514264337593543950335"}',
+            ),
+            (
+                WithDecimalNoPlaces(value=decimal.Decimal("0.0000000000000000000000000001")),
+                b'{"value":"0.0000000000000000000000000001"}',
+            ),
+            (
+                WithDecimalNoPlaces(value=decimal.Decimal("-0.0000000000000000000000000001")),
+                b'{"value":"-0.0000000000000000000000000001"}',
+            ),
+            (
+                WithDecimalNoPlaces(value=decimal.Decimal("7.9228162514264337593543950335")),
+                b'{"value":"7.9228162514264337593543950335"}',
+            ),
+            (
+                WithDecimalNoPlaces(value=decimal.Decimal("-7.9228162514264337593543950335")),
+                b'{"value":"-7.9228162514264337593543950335"}',
+            ),
+        ],
+    )
+    def test_dump_boundary_values(self, impl: Serializer, obj: WithDecimalNoPlaces, expected: bytes) -> None:
+        result = impl.dump(WithDecimalNoPlaces, obj)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            (
+                b'{"value":"79228162514264337593543950335"}',
+                WithDecimalNoPlaces(value=decimal.Decimal("79228162514264337593543950335")),
+            ),
+            (
+                b'{"value":"-79228162514264337593543950335"}',
+                WithDecimalNoPlaces(value=decimal.Decimal("-79228162514264337593543950335")),
+            ),
+            (
+                b'{"value":"0.0000000000000000000000000001"}',
+                WithDecimalNoPlaces(value=decimal.Decimal("0.0000000000000000000000000001")),
+            ),
+            (
+                b'{"value":"-0.0000000000000000000000000001"}',
+                WithDecimalNoPlaces(value=decimal.Decimal("-0.0000000000000000000000000001")),
+            ),
+            (
+                b'{"value":"7.9228162514264337593543950335"}',
+                WithDecimalNoPlaces(value=decimal.Decimal("7.9228162514264337593543950335")),
+            ),
+            (
+                b'{"value":"-7.9228162514264337593543950335"}',
+                WithDecimalNoPlaces(value=decimal.Decimal("-7.9228162514264337593543950335")),
+            ),
+        ],
+    )
+    def test_load_boundary_values(self, impl: Serializer, data: bytes, expected: WithDecimalNoPlaces) -> None:
+        result = impl.load(WithDecimalNoPlaces, data)
+        assert result == expected
+
 
 class TestDecimalPlacesValidation:
     def test_dump_negative_raises(self, impl: Serializer) -> None:
@@ -636,3 +702,32 @@ class TestDecimalPlacesValidation:
     def test_load_valid(self, impl: Serializer, data: bytes, expected: WithDecimal) -> None:
         result = impl.load(WithDecimal, data)
         assert result == expected
+
+
+class TestDecimalMetadata:
+    @pytest.mark.parametrize(
+        "rounding",
+        [
+            decimal.ROUND_UP,
+            decimal.ROUND_DOWN,
+            decimal.ROUND_CEILING,
+            decimal.ROUND_FLOOR,
+            decimal.ROUND_HALF_UP,
+            decimal.ROUND_HALF_DOWN,
+            decimal.ROUND_HALF_EVEN,
+        ],
+    )
+    def test_supported_rounding_mode_accepted(self, rounding: str) -> None:
+        mr.decimal_meta(rounding=rounding)
+
+    def test_unsupported_rounding_mode_raises(self) -> None:
+        with pytest.raises(ValueError, match="Unsupported rounding mode"):
+            mr.decimal_meta(rounding=decimal.ROUND_05UP)
+
+    @pytest.mark.parametrize("places", [0, 1, 2, 5, 10])
+    def test_valid_places_accepted(self, places: int) -> None:
+        mr.decimal_meta(places=places)
+
+    def test_negative_places_raises(self) -> None:
+        with pytest.raises(ValueError, match="decimal_places must be None or a non-negative integer"):
+            mr.decimal_meta(places=-1)
