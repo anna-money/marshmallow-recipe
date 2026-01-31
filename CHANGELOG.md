@@ -1,3 +1,8 @@
+## v0.0.73 (unreleased)
+
+* **Breaking:** `ROUND_05UP` rounding mode is no longer supported for decimal fields - raises `ValueError` at configuration time
+
+
 ## v0.0.72 (2026-01-15)
 
 * Change decimal `places` to validate precision instead of rounding (use `rounding` parameter for old behavior)

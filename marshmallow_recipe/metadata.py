@@ -2,7 +2,7 @@ import collections.abc
 from typing import Any, TypeGuard, final
 
 from .missing import MISSING
-from .utils import validate_decimal_places
+from .utils import validate_decimal_places, validate_decimal_rounding
 from .validation import ValidationFunc
 
 
@@ -113,6 +113,7 @@ def decimal_metadata(
     description: str | None = None,
 ) -> Metadata:
     validate_decimal_places(places)
+    validate_decimal_rounding(rounding)
     values = dict[str, Any]()
     if name is not MISSING:
         values.update(name=name)

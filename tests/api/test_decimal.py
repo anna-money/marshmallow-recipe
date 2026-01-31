@@ -636,3 +636,9 @@ class TestDecimalPlacesValidation:
     def test_load_valid(self, impl: Serializer, data: bytes, expected: WithDecimal) -> None:
         result = impl.load(WithDecimal, data)
         assert result == expected
+
+
+class TestDecimalRoundingValidation:
+    def test_unsupported_rounding_mode_raises(self) -> None:
+        with pytest.raises(ValueError, match="Unsupported rounding mode"):
+            mr.decimal_meta(rounding=decimal.ROUND_05UP)
