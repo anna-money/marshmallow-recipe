@@ -1518,14 +1518,28 @@ else:
             assert not kwargs
             return datetime.datetime.isoformat(v)
 
+        @staticmethod
+        def __timestamp(v: datetime.datetime, *, localtime: bool = False, **kwargs: Any) -> float:  # type: ignore
+            assert not localtime
+            assert not kwargs
+            return v.timestamp()
+
+        @staticmethod
+        def __timestamp_deserialize(value: str) -> datetime.datetime:
+            return datetime.datetime.fromtimestamp(float(value), tz=datetime.UTC)
+
         DATEFORMAT_SERIALIZATION_FUNCS = {  # noqa: RUF012
             **m.fields.DateTime.DATEFORMAT_SERIALIZATION_FUNCS,  # type: ignore
-            **{"iso": __isoformat, "iso8601": __isoformat},
+            **{"iso": __isoformat, "iso8601": __isoformat, "timestamp": __timestamp},
         }
 
         DATEFORMAT_DESERIALIZATION_FUNCS = {  # noqa: RUF012
             **m.fields.DateTime.DATEFORMAT_DESERIALIZATION_FUNCS,  # type: ignore
-            **{"iso": datetime.datetime.fromisoformat, "iso8601": datetime.datetime.fromisoformat},
+            **{
+                "iso": datetime.datetime.fromisoformat,
+                "iso8601": datetime.datetime.fromisoformat,
+                "timestamp": __timestamp_deserialize,
+            },
         }
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
