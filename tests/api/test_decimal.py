@@ -638,7 +638,22 @@ class TestDecimalPlacesValidation:
         assert result == expected
 
 
-class TestDecimalRoundingValidation:
+class TestDecimalMetadata:
+    @pytest.mark.parametrize(
+        "rounding",
+        [
+            decimal.ROUND_UP,
+            decimal.ROUND_DOWN,
+            decimal.ROUND_CEILING,
+            decimal.ROUND_FLOOR,
+            decimal.ROUND_HALF_UP,
+            decimal.ROUND_HALF_DOWN,
+            decimal.ROUND_HALF_EVEN,
+        ],
+    )
+    def test_supported_rounding_mode_accepted(self, rounding: str) -> None:
+        mr.decimal_meta(rounding=rounding)
+
     def test_unsupported_rounding_mode_raises(self) -> None:
         with pytest.raises(ValueError, match="Unsupported rounding mode"):
             mr.decimal_meta(rounding=decimal.ROUND_05UP)
