@@ -579,6 +579,16 @@ class WithDateTimeFormatDateOnly:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDateTimeFormatIso:
+    created_at: datetime.datetime = dataclasses.field(metadata=mr.datetime_meta(format="iso"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDateTimeFormatTimestamp:
+    created_at: datetime.datetime = dataclasses.field(metadata=mr.datetime_meta(format="timestamp"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithCustomRequiredError:
     name: str = dataclasses.field(metadata=mr.str_meta(required_error="Custom required message"))
 

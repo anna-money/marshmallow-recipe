@@ -14,10 +14,12 @@ from .conftest import (
     WithDateTimeCustomFormatTimezone,
     WithDateTimeFormatDateOnly,
     WithDateTimeFormatHumanReadable,
+    WithDateTimeFormatIso,
     WithDateTimeFormatIsoMicroseconds,
     WithDateTimeFormatIsoMicrosecondsZ,
     WithDateTimeFormatIsoNoTz,
     WithDateTimeFormatIsoZ,
+    WithDateTimeFormatTimestamp,
     WithDatetimeInvalidError,
     WithDatetimeMissing,
     WithDatetimeNoneError,
@@ -274,6 +276,60 @@ class TestDatetimeDump:
         result = impl.dump(WithDateTimeFormatDateOnly, obj)
         assert result == expected
 
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            (
+                WithDateTimeFormatIso(created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=datetime.UTC)),
+                b'{"created_at":"2024-06-15T14:30:45+00:00"}',
+            ),
+            (
+                WithDateTimeFormatIso(
+                    created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, 123456, tzinfo=datetime.UTC)
+                ),
+                b'{"created_at":"2024-06-15T14:30:45.123456+00:00"}',
+            ),
+            pytest.param(
+                WithDateTimeFormatIso(
+                    created_at=datetime.datetime(
+                        2024, 6, 15, 14, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=3))
+                    )
+                ),
+                b'{"created_at":"2024-06-15T14:30:45+03:00"}',
+                id="timezone_offset",
+            ),
+        ],
+    )
+    def test_format_iso(self, impl: Serializer, obj: WithDateTimeFormatIso, expected: bytes) -> None:
+        result = impl.dump(WithDateTimeFormatIso, obj)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            (
+                WithDateTimeFormatTimestamp(created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=datetime.UTC)),
+                b'{"created_at":1718461845.0}',
+            ),
+            (
+                WithDateTimeFormatTimestamp(created_at=datetime.datetime(1970, 1, 1, 0, 0, 0, tzinfo=datetime.UTC)),
+                b'{"created_at":0.0}',
+            ),
+            pytest.param(
+                WithDateTimeFormatTimestamp(
+                    created_at=datetime.datetime(
+                        2024, 6, 15, 14, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=3))
+                    )
+                ),
+                b'{"created_at":1718451045.0}',
+                id="timezone_offset",
+            ),
+        ],
+    )
+    def test_format_timestamp(self, impl: Serializer, obj: WithDateTimeFormatTimestamp, expected: bytes) -> None:
+        result = impl.dump(WithDateTimeFormatTimestamp, obj)
+        assert result == expected
+
 
 class TestDatetimeLoad:
     @pytest.mark.parametrize(
@@ -516,3 +572,52 @@ class TestDatetimeLoad:
         assert result == WithDateTimeFormatDateOnly(
             created_at=datetime.datetime(2024, 1, 15, 0, 0, 0, tzinfo=datetime.UTC)
         )
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            (
+                b'{"created_at":"2024-06-15T14:30:45+00:00"}',
+                WithDateTimeFormatIso(created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=datetime.UTC)),
+            ),
+            (
+                b'{"created_at":"2024-06-15T14:30:45.123456+00:00"}',
+                WithDateTimeFormatIso(
+                    created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, 123456, tzinfo=datetime.UTC)
+                ),
+            ),
+            pytest.param(
+                b'{"created_at":"2024-06-15T14:30:45+03:00"}',
+                WithDateTimeFormatIso(
+                    created_at=datetime.datetime(
+                        2024, 6, 15, 14, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=3))
+                    )
+                ),
+                id="timezone_offset",
+            ),
+        ],
+    )
+    def test_format_iso(self, impl: Serializer, data: bytes, expected: WithDateTimeFormatIso) -> None:
+        result = impl.load(WithDateTimeFormatIso, data)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            (
+                b'{"created_at":1718461845}',
+                WithDateTimeFormatTimestamp(created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=datetime.UTC)),
+            ),
+            (
+                b'{"created_at":1718461845.0}',
+                WithDateTimeFormatTimestamp(created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=datetime.UTC)),
+            ),
+            (
+                b'{"created_at":0}',
+                WithDateTimeFormatTimestamp(created_at=datetime.datetime(1970, 1, 1, 0, 0, 0, tzinfo=datetime.UTC)),
+            ),
+        ],
+    )
+    def test_format_timestamp(self, impl: Serializer, data: bytes, expected: WithDateTimeFormatTimestamp) -> None:
+        result = impl.load(WithDateTimeFormatTimestamp, data)
+        assert result == expected
