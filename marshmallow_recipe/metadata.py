@@ -2,7 +2,7 @@ import collections.abc
 from typing import Any, TypeGuard, final
 
 from .missing import MISSING
-from .utils import validate_decimal_places, validate_decimal_rounding
+from .utils import validate_datetime_format, validate_decimal_places, validate_decimal_rounding
 from .validation import ValidationFunc
 
 
@@ -144,6 +144,7 @@ def datetime_metadata(
     invalid_error: str | None = None,
     description: str | None = None,
 ) -> Metadata:
+    validate_datetime_format(format)
     values = dict[str, Any]()
     if name is not MISSING:
         values.update(name=name)

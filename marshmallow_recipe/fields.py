@@ -1142,13 +1142,11 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     class DateTimeFieldV3(m.fields.DateTime):
         SERIALIZATION_FUNCS = {  # noqa: RUF012
             "iso": datetime.datetime.isoformat,
-            "iso8601": datetime.datetime.isoformat,
             "timestamp": m.fields.DateTime.SERIALIZATION_FUNCS["timestamp"],  # type: ignore
         }
 
         DESERIALIZATION_FUNCS = {  # noqa: RUF012
             "iso": datetime.datetime.fromisoformat,
-            "iso8601": datetime.datetime.fromisoformat,
             "timestamp": m.fields.DateTime.DESERIALIZATION_FUNCS["timestamp"],  # type: ignore
         }
 
@@ -1531,13 +1529,11 @@ else:
 
         DATEFORMAT_SERIALIZATION_FUNCS = {  # noqa: RUF012
             "iso": __iso_serialize,
-            "iso8601": __iso_serialize,
             "timestamp": __timestamp_serialize,
         }
 
         DATEFORMAT_DESERIALIZATION_FUNCS = {  # noqa: RUF012
             "iso": datetime.datetime.fromisoformat,
-            "iso8601": datetime.datetime.fromisoformat,
             "timestamp": __timestamp_deserialize,
         }
 

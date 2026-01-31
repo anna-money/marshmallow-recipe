@@ -621,3 +621,16 @@ class TestDatetimeLoad:
     def test_format_timestamp(self, impl: Serializer, data: bytes, expected: WithDateTimeFormatTimestamp) -> None:
         result = impl.load(WithDateTimeFormatTimestamp, data)
         assert result == expected
+
+
+class TestDatetimeFormatValidation:
+    @pytest.mark.parametrize(
+        "format", [None, "iso", "timestamp", "%Y-%m-%d", "%Y/%m/%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f"]
+    )
+    def test_valid_formats(self, format: str | None) -> None:
+        mr.datetime_meta(format=format)
+
+    @pytest.mark.parametrize("format", ["invalid", "ISO", "Timestamp", "unix", "rfc"])
+    def test_invalid_formats(self, format: str) -> None:
+        with pytest.raises(ValueError, match="Invalid datetime format"):
+            mr.datetime_meta(format=format)
