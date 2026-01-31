@@ -19,6 +19,7 @@ use crate::load::{LoadContext, load_root_type};
 use crate::loader::Loader;
 use crate::fields::collection::CollectionKind;
 use crate::fields::helpers::{err_json, BOOL_ERROR, DATETIME_ERROR, DATE_ERROR, DECIMAL_NUMBER_ERROR, FLOAT_ERROR, FLOAT_NAN_ERROR, INT_ERROR, TIME_ERROR, UUID_ERROR};
+use crate::fields::datetime::{FORMAT_ISO, FORMAT_TIMESTAMP};
 use crate::fields::nested::FieldLoader;
 use crate::fields::decimal::{format_decimal, DecimalBuf};
 use crate::fields::{int, float, bool_type, decimal, date, time, datetime, uuid, str_type, str_enum, int_enum};
@@ -428,6 +429,11 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                     self.ctx.decimal_places, self.field.invalid_error.as_deref().unwrap_or(DECIMAL_NUMBER_ERROR),
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json(&self.field.name, &e.to_string())))
             }
+            Loader::DateTime { format } if format.as_deref() == Some(FORMAT_TIMESTAMP) => {
+                let err_msg = err_json(&self.field.name, self.field.invalid_error.as_deref().unwrap_or(DATETIME_ERROR));
+                #[allow(clippy::cast_precision_loss)]
+                datetime::datetime_loader::load_from_timestamp(self.ctx.py, v as f64, &err_msg)
+            }
             Loader::IntEnum(data) => {
                 for (k, member) in &data.values {
                     if *k == v {
@@ -471,6 +477,11 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                     self.ctx.decimal_places, self.field.invalid_error.as_deref().unwrap_or(DECIMAL_NUMBER_ERROR),
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json(&self.field.name, &e.to_string())))
             }
+            Loader::DateTime { format } if format.as_deref() == Some(FORMAT_TIMESTAMP) => {
+                let err_msg = err_json(&self.field.name, self.field.invalid_error.as_deref().unwrap_or(DATETIME_ERROR));
+                #[allow(clippy::cast_precision_loss)]
+                datetime::datetime_loader::load_from_timestamp(self.ctx.py, v as f64, &err_msg)
+            }
             Loader::IntEnum(data) => {
                 if let Ok(v_i64) = i64::try_from(v) {
                     for (k, member) in &data.values {
@@ -504,6 +515,10 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                     self.ctx.py, v, data.decimal_places, data.rounding_strategy,
                     self.ctx.decimal_places, self.field.invalid_error.as_deref().unwrap_or(DECIMAL_NUMBER_ERROR),
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json(&self.field.name, &e.to_string())))
+            }
+            Loader::DateTime { format } if format.as_deref() == Some(FORMAT_TIMESTAMP) => {
+                let err_msg = err_json(&self.field.name, self.field.invalid_error.as_deref().unwrap_or(DATETIME_ERROR));
+                datetime::datetime_loader::load_from_timestamp(self.ctx.py, v, &err_msg)
             }
             _ => {
                 let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.loader));
@@ -578,15 +593,20 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
             }
             Loader::DateTime { format } => {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(DATETIME_ERROR).to_string();
-                if let Some(ref fmt) = format {
-                    if let Some(dt) = parse_datetime_with_format(v, fmt) {
-                        return create_pydatetime_from_chrono(self.ctx.py, dt).map_err(de::Error::custom);
-                    }
+                let format_str = format.as_deref();
+                if format_str.is_none() || format_str == Some(FORMAT_ISO) {
+                    return parse_rfc3339_datetime(v)
+                        .ok_or_else(|| de::Error::custom(err_json(&self.field.name, &err_msg())))
+                        .and_then(|dt| create_pydatetime_from_chrono(self.ctx.py, dt).map_err(de::Error::custom));
+                }
+                if format_str == Some(FORMAT_TIMESTAMP) {
                     return Err(de::Error::custom(err_json(&self.field.name, &err_msg())));
                 }
-                parse_rfc3339_datetime(v)
-                    .ok_or_else(|| de::Error::custom(err_json(&self.field.name, &err_msg())))
-                    .and_then(|dt| create_pydatetime_from_chrono(self.ctx.py, dt).map_err(de::Error::custom))
+                let fmt = format_str.expect("format must be Some for strptime");
+                if let Some(dt) = parse_datetime_with_format(v, fmt) {
+                    return create_pydatetime_from_chrono(self.ctx.py, dt).map_err(de::Error::custom);
+                }
+                Err(de::Error::custom(err_json(&self.field.name, &err_msg())))
             }
             Loader::Uuid => {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(UUID_ERROR).to_string();
@@ -684,6 +704,18 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                     }
                 }
                 let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.loader));
+                Err(de::Error::custom(err_json(&self.field.name, msg)))
+            }
+            Loader::DateTime { format } if format.as_deref() == Some(FORMAT_TIMESTAMP) => {
+                if let Some(key) = map.next_key::<&str>()? {
+                    if key == SERDE_JSON_NUMBER_TOKEN {
+                        let num_str: String = map.next_value()?;
+                        let err_msg = err_json(&self.field.name, self.field.invalid_error.as_deref().unwrap_or(DATETIME_ERROR));
+                        let timestamp: f64 = num_str.parse().map_err(|_| de::Error::custom(&err_msg))?;
+                        return datetime::datetime_loader::load_from_timestamp(self.ctx.py, timestamp, &err_msg);
+                    }
+                }
+                let msg = self.field.invalid_error.as_deref().unwrap_or(DATETIME_ERROR);
                 Err(de::Error::custom(err_json(&self.field.name, msg)))
             }
             Loader::Dict(data) => {
@@ -881,6 +913,10 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
                     self.ctx.decimal_places, DECIMAL_NUMBER_ERROR,
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
             }
+            Loader::DateTime { format } if format.as_deref() == Some(FORMAT_TIMESTAMP) => {
+                #[allow(clippy::cast_precision_loss)]
+                datetime::datetime_loader::load_from_timestamp(self.ctx.py, v as f64, &err_json("", DATETIME_ERROR))
+            }
             Loader::IntEnum(data) => {
                 int_enum::int_enum_loader::load_from_i64(self.ctx.py, v, &data.values, None)
                     .map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
@@ -909,6 +945,10 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
                     self.ctx.decimal_places, DECIMAL_NUMBER_ERROR,
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
             }
+            Loader::DateTime { format } if format.as_deref() == Some(FORMAT_TIMESTAMP) => {
+                #[allow(clippy::cast_precision_loss)]
+                datetime::datetime_loader::load_from_timestamp(self.ctx.py, v as f64, &err_json("", DATETIME_ERROR))
+            }
             Loader::IntEnum(data) => {
                 int_enum::int_enum_loader::load_from_u64(self.ctx.py, v, &data.values, None)
                     .map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
@@ -928,6 +968,9 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
                     self.ctx.py, v, data.decimal_places, data.rounding_strategy,
                     self.ctx.decimal_places, DECIMAL_NUMBER_ERROR,
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
+            }
+            Loader::DateTime { format } if format.as_deref() == Some(FORMAT_TIMESTAMP) => {
+                datetime::datetime_loader::load_from_timestamp(self.ctx.py, v, &err_json("", DATETIME_ERROR))
             }
             _ => Err(de::Error::custom(err_json("", get_type_error(self.deserializer)))),
         }
@@ -952,7 +995,11 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
             Loader::Date => date::date_loader::load_from_str(self.ctx.py, v, &err_json("", DATE_ERROR)),
             Loader::Time => time::time_loader::load_from_str(self.ctx.py, v, &err_json("", TIME_ERROR)),
             Loader::DateTime { format } => {
-                datetime::datetime_loader::load_from_str(self.ctx.py, v, format.as_deref(), &err_json("", DATETIME_ERROR))
+                let format_str = format.as_deref();
+                if format_str == Some(FORMAT_TIMESTAMP) {
+                    return Err(de::Error::custom(err_json("", DATETIME_ERROR)));
+                }
+                datetime::datetime_loader::load_from_str(self.ctx.py, v, format_str, &err_json("", DATETIME_ERROR))
             }
             Loader::Uuid => uuid::uuid_loader::load_from_str(self.ctx.py, v, &err_json("", UUID_ERROR)),
             Loader::StrEnum(data) => {
@@ -1016,6 +1063,17 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
                     }
                 }
                 Err(de::Error::custom(err_json("", get_type_error(self.deserializer))))
+            }
+            Loader::DateTime { format } if format.as_deref() == Some(FORMAT_TIMESTAMP) => {
+                if let Some(key) = map.next_key::<&str>()? {
+                    if key == SERDE_JSON_NUMBER_TOKEN {
+                        let num_str: String = map.next_value()?;
+                        let err_msg = err_json("", DATETIME_ERROR);
+                        let timestamp: f64 = num_str.parse().map_err(|_| de::Error::custom(&err_msg))?;
+                        return datetime::datetime_loader::load_from_timestamp(self.ctx.py, timestamp, &err_msg);
+                    }
+                }
+                Err(de::Error::custom(err_json("", DATETIME_ERROR)))
             }
             Loader::Dict(data) => {
                 let py = self.ctx.py;
