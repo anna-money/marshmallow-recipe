@@ -657,3 +657,11 @@ class TestDecimalMetadata:
     def test_unsupported_rounding_mode_raises(self) -> None:
         with pytest.raises(ValueError, match="Unsupported rounding mode"):
             mr.decimal_meta(rounding=decimal.ROUND_05UP)
+
+    @pytest.mark.parametrize("places", [0, 1, 2, 5, 10])
+    def test_valid_places_accepted(self, places: int) -> None:
+        mr.decimal_meta(places=places)
+
+    def test_negative_places_raises(self) -> None:
+        with pytest.raises(ValueError, match="decimal_places must be None or a non-negative integer"):
+            mr.decimal_meta(places=-1)
