@@ -2,14 +2,11 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime};
 use once_cell::sync::Lazy;
-use pyo3::intern;
 use pyo3::prelude::*;
-use pyo3::types::{PyDelta, PyDeltaAccess, PyDict, PyList, PyTzInfo};
+use pyo3::types::{PyDict, PyList};
 use regex::Regex;
 use rust_decimal::RoundingStrategy;
 use serde_json::Value;
-
-use crate::cache::get_cached_types;
 
 static SERDE_LOCATION_SUFFIX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r" at line \d+ column \d+").unwrap());
@@ -125,16 +122,6 @@ pub fn parse_datetime_with_format(s: &str, fmt: &str) -> Option<DateTime<FixedOf
     NaiveDate::parse_from_str(s, &chrono_fmt)
         .ok()
         .map(|d| d.and_hms_opt(0, 0, 0).unwrap().and_utc().fixed_offset())
-}
-
-#[inline]
-pub fn get_tz_offset_seconds(py: Python, tz: &Bound<'_, PyTzInfo>, reference: &Bound<'_, PyAny>) -> PyResult<i32> {
-    let cached = get_cached_types(py)?;
-    if tz.is(cached.utc_tz.bind(py)) {
-        return Ok(0);
-    }
-    let offset = tz.call_method1(intern!(py, "utcoffset"), (reference,))?;
-    Ok(offset.cast::<PyDelta>().map_or(0, |delta| delta.get_days() * 86400 + delta.get_seconds()))
 }
 
 #[inline]

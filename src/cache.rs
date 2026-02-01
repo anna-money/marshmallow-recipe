@@ -26,7 +26,6 @@ pub static SCHEMA_CACHE: Lazy<RwLock<HashMap<u64, TypeDescriptor>>> =
 pub struct CachedPyTypes {
     pub int_cls: Py<PyAny>,
     pub decimal_cls: Py<PyAny>,
-    pub utc_tz: Py<PyAny>,
     pub object_cls: Py<PyAny>,
     pub missing_sentinel: Py<PyAny>,
 }
@@ -36,14 +35,12 @@ static CACHED_PY_TYPES: OnceCell<CachedPyTypes> = OnceCell::new();
 pub fn get_cached_types(py: Python) -> PyResult<&'static CachedPyTypes> {
     CACHED_PY_TYPES.get_or_try_init(|| {
         let decimal_mod = py.import("decimal")?;
-        let datetime_mod = py.import("datetime")?;
         let builtins = py.import("builtins")?;
         let mr_missing_mod = py.import("marshmallow_recipe.missing")?;
 
         Ok(CachedPyTypes {
             int_cls: builtins.getattr("int")?.unbind(),
             decimal_cls: decimal_mod.getattr("Decimal")?.unbind(),
-            utc_tz: datetime_mod.getattr("UTC")?.unbind(),
             object_cls: builtins.getattr("object")?.unbind(),
             missing_sentinel: mr_missing_mod.getattr("MISSING")?.unbind(),
         })
