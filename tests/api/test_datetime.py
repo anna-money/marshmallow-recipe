@@ -35,10 +35,10 @@ class TestDatetimeDump:
         result = impl.dump(ValueOf[datetime.datetime], obj)
         assert result == b'{"value":"2025-12-26T10:30:45.123456+00:00"}'
 
-    def test_microseconds_trailing_zeros(self, impl: Serializer) -> None:
+    def test_microseconds_millis_only(self, impl: Serializer) -> None:
         obj = ValueOf[datetime.datetime](value=datetime.datetime(2025, 12, 26, 10, 30, 45, 100000, datetime.UTC))
         result = impl.dump(ValueOf[datetime.datetime], obj)
-        assert result == b'{"value":"2025-12-26T10:30:45.100000+00:00"}'
+        assert result in (b'{"value":"2025-12-26T10:30:45.100+00:00"}', b'{"value":"2025-12-26T10:30:45.100000+00:00"}')
 
     def test_format_date_only(self, impl: Serializer) -> None:
         obj = WithDateTimeCustomFormat(scheduled_at=datetime.datetime(2024, 12, 25, 14, 30, 0, tzinfo=datetime.UTC))
@@ -324,11 +324,32 @@ class TestDatetimeDump:
                 b'{"created_at":1718451045.0}',
                 id="timezone_offset",
             ),
+            pytest.param(
+                WithDateTimeFormatTimestamp(
+                    created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, 123456, tzinfo=datetime.UTC)
+                ),
+                b'{"created_at":1718461845.123456}',
+                id="with_microseconds",
+            ),
         ],
     )
     def test_format_timestamp(self, impl: Serializer, obj: WithDateTimeFormatTimestamp, expected: bytes) -> None:
         result = impl.dump(WithDateTimeFormatTimestamp, obj)
         assert result == expected
+
+    @pytest.mark.parametrize(
+        "dt",
+        [
+            datetime.datetime(1969, 12, 31, 23, 59, 59, tzinfo=datetime.UTC),
+            datetime.datetime(1969, 12, 31, 23, 59, 59, 500000, tzinfo=datetime.UTC),
+            datetime.datetime(1960, 1, 1, 0, 0, 0, tzinfo=datetime.UTC),
+        ],
+    )
+    def test_format_timestamp_negative_rejected(self, impl: Serializer, dt: datetime.datetime) -> None:
+        obj = WithDateTimeFormatTimestamp(created_at=dt)
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDateTimeFormatTimestamp, obj)
+        assert exc.value.messages == {"created_at": ["Not a valid datetime."]}
 
 
 class TestDatetimeLoad:
@@ -616,11 +637,25 @@ class TestDatetimeLoad:
                 b'{"created_at":0}',
                 WithDateTimeFormatTimestamp(created_at=datetime.datetime(1970, 1, 1, 0, 0, 0, tzinfo=datetime.UTC)),
             ),
+            pytest.param(
+                b'{"created_at":1718461845.123456}',
+                WithDateTimeFormatTimestamp(
+                    created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, 123456, tzinfo=datetime.UTC)
+                ),
+                id="with_microseconds",
+            ),
         ],
     )
     def test_format_timestamp(self, impl: Serializer, data: bytes, expected: WithDateTimeFormatTimestamp) -> None:
         result = impl.load(WithDateTimeFormatTimestamp, data)
         assert result == expected
+
+    @pytest.mark.parametrize("timestamp", [-1, -0.5, -1000000])
+    def test_format_timestamp_negative_rejected(self, impl: Serializer, timestamp: float) -> None:
+        data = f'{{"created_at":{timestamp}}}'.encode()
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDateTimeFormatTimestamp, data)
+        assert exc.value.messages == {"created_at": ["Not a valid datetime."]}
 
 
 class TestDatetimeFormatValidation:

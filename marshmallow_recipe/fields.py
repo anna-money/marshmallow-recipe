@@ -1524,6 +1524,8 @@ else:
         def __timestamp_deserialize(value: Any) -> datetime.datetime:
             if not isinstance(value, float | int):
                 raise TypeError("argument must be number")
+            if value < 0:
+                raise ValueError("Not a valid POSIX timestamp")
 
             return datetime.datetime.fromtimestamp(value, tz=datetime.UTC)
 
