@@ -138,7 +138,7 @@ impl Dumper {
             Self::Date => date::date_dumper::can_dump(value),
             Self::Time => time::time_dumper::can_dump(value),
             Self::DateTime { .. } => datetime::datetime_dumper::can_dump(value),
-            Self::Uuid => uuid::uuid_dumper::can_dump(value, ctx),
+            Self::Uuid => uuid::uuid_dumper::can_dump(value),
             Self::StrEnum(data) => str_enum::str_enum_dumper::can_dump(value, ctx, &data.enum_cls),
             Self::IntEnum(data) => str_enum::int_enum_dumper::can_dump(value, ctx, &data.enum_cls),
             Self::Any => any::any_dumper::can_dump(value),
@@ -261,7 +261,7 @@ impl Dumper {
             Self::DateTime { format } => {
                 datetime::datetime_dumper::dump(value, field_name, ctx, format.as_deref(), serializer)
             }
-            Self::Uuid => uuid::uuid_dumper::dump(value, field_name, ctx, serializer),
+            Self::Uuid => uuid::uuid_dumper::dump(value, field_name, serializer),
             Self::StrEnum(data) => {
                 str_enum::str_enum_dumper::dump(
                     value,

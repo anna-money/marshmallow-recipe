@@ -1,5 +1,4 @@
 use once_cell::sync::{Lazy, OnceCell};
-use pyo3::ffi;
 use pyo3::prelude::*;
 use pyo3::types::{PyDelta, PyDict, PyList, PyString, PyTuple};
 use std::collections::HashMap;
@@ -27,7 +26,6 @@ pub static SCHEMA_CACHE: Lazy<RwLock<HashMap<u64, TypeDescriptor>>> =
 pub struct CachedPyTypes {
     pub int_cls: Py<PyAny>,
     pub decimal_cls: Py<PyAny>,
-    pub uuid_cls: Py<PyAny>,
     pub timezone_cls: Py<PyAny>,
     pub utc_tz: Py<PyAny>,
     pub object_cls: Py<PyAny>,
@@ -36,20 +34,6 @@ pub struct CachedPyTypes {
 }
 
 impl CachedPyTypes {
-    pub fn create_uuid_fast(&self, py: Python, uuid_int: u128) -> PyResult<Py<PyAny>> {
-        let int_obj = uuid_int.into_pyobject(py)?;
-        let none = unsafe { ffi::Py_None() };
-        let args: [*mut ffi::PyObject; 5] = [none, none, none, none, int_obj.as_ptr()];
-        let result = unsafe {
-            ffi::PyObject_Vectorcall(self.uuid_cls.as_ptr(), args.as_ptr(), 5, std::ptr::null_mut())
-        };
-        if result.is_null() {
-            Err(PyErr::fetch(py))
-        } else {
-            Ok(unsafe { Py::from_owned_ptr(py, result) })
-        }
-    }
-
     pub fn get_timezone(&self, py: Python, offset_seconds: i32) -> PyResult<Py<PyAny>> {
         if offset_seconds == 0 {
             return Ok(self.utc_tz.clone_ref(py));
@@ -85,7 +69,6 @@ static CACHED_PY_TYPES: OnceCell<CachedPyTypes> = OnceCell::new();
 pub fn get_cached_types(py: Python) -> PyResult<&'static CachedPyTypes> {
     CACHED_PY_TYPES.get_or_try_init(|| {
         let decimal_mod = py.import("decimal")?;
-        let uuid_mod = py.import("uuid")?;
         let datetime_mod = py.import("datetime")?;
         let builtins = py.import("builtins")?;
         let mr_missing_mod = py.import("marshmallow_recipe.missing")?;
@@ -96,7 +79,6 @@ pub fn get_cached_types(py: Python) -> PyResult<&'static CachedPyTypes> {
         Ok(CachedPyTypes {
             int_cls: builtins.getattr("int")?.unbind(),
             decimal_cls: decimal_mod.getattr("Decimal")?.unbind(),
-            uuid_cls: uuid_mod.getattr("UUID")?.unbind(),
             timezone_cls: timezone_cls.unbind(),
             utc_tz: datetime_mod.getattr("UTC")?.unbind(),
             object_cls: builtins.getattr("object")?.unbind(),

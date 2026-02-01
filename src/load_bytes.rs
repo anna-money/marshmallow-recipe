@@ -527,6 +527,7 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
     where
         E: de::Error,
@@ -610,9 +611,11 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
             }
             Loader::Uuid => {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(UUID_ERROR).to_string();
-                let cached = get_cached_types(self.ctx.py).map_err(de::Error::custom)?;
                 let parsed_uuid = ::uuid::Uuid::parse_str(v).map_err(|_| de::Error::custom(err_json(&self.field.name, &err_msg())))?;
-                cached.create_uuid_fast(self.ctx.py, parsed_uuid.as_u128()).map_err(de::Error::custom)
+                parsed_uuid
+                    .into_pyobject(self.ctx.py)
+                    .map(|b| b.into_any().unbind())
+                    .map_err(de::Error::custom)
             }
             Loader::StrEnum(data) => {
                 for (k, member) in &data.values {
