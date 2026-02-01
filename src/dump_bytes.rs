@@ -4,8 +4,7 @@ use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Serialize, Serializer};
 
 use crate::fields::nested::nested_dumper::dump_dataclass_to_serializer;
-use crate::types::DumpContext;
-use crate::types::{TypeDescriptor, TypeKind};
+use crate::types::{DumpContext, TypeDescriptor, TypeKind};
 
 pub struct RootTypeDumper<'a, 'py> {
     pub value: &'a Bound<'py, PyAny>,
@@ -153,6 +152,6 @@ pub fn dump_to_bytes<'py>(
         ctx: &ctx,
     };
 
-    serde_json::to_vec(&dumper)
+    crate::json_ascii::to_vec(&dumper)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))
 }

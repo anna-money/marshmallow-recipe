@@ -42,6 +42,7 @@ class Serializer(abc.ABC):
         naming_case: mr.NamingCase | None = None,
         none_value_handling: mr.NoneValueHandling | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> bytes:
         raise NotImplementedError
 
@@ -62,6 +63,7 @@ class Serializer(abc.ABC):
         data: bytes,
         naming_case: mr.NamingCase | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> T:
         raise NotImplementedError
 
@@ -93,6 +95,7 @@ class MarshmallowSerializer(Serializer):
         naming_case: mr.NamingCase | None = None,
         none_value_handling: mr.NoneValueHandling | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> bytes:
         result = mr.dump(
             schema_class,
@@ -101,7 +104,7 @@ class MarshmallowSerializer(Serializer):
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
         )
-        return json.dumps(result, separators=(",", ":")).encode()
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def dump_many[T](
         self,
@@ -126,8 +129,11 @@ class MarshmallowSerializer(Serializer):
         data: bytes,
         naming_case: mr.NamingCase | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> T:
-        return mr.load(schema_class, json.loads(data), naming_case=naming_case, decimal_places=decimal_places)
+        return mr.load(
+            schema_class, json.loads(data.decode(encoding)), naming_case=naming_case, decimal_places=decimal_places
+        )
 
     def load_many[T](
         self,
@@ -161,6 +167,7 @@ class NukedBytesSerializer(Serializer):
         naming_case: mr.NamingCase | None = None,
         none_value_handling: mr.NoneValueHandling | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> bytes:
         return mr.nuked.dump_to_bytes(
             schema_class,
@@ -168,6 +175,7 @@ class NukedBytesSerializer(Serializer):
             naming_case=naming_case,
             none_value_handling=none_value_handling,
             decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
+            encoding=encoding,
         )
 
     def load[T](
@@ -176,12 +184,14 @@ class NukedBytesSerializer(Serializer):
         data: bytes,
         naming_case: mr.NamingCase | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> T:
         return mr.nuked.load_from_bytes(
             schema_class,
             data,
             naming_case=naming_case,
             decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
+            encoding=encoding,
         )
 
 
@@ -203,6 +213,7 @@ class NukedSerializer(Serializer):
         naming_case: mr.NamingCase | None = None,
         none_value_handling: mr.NoneValueHandling | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> bytes:
         result = mr.nuked.dump(
             schema_class,
@@ -211,7 +222,7 @@ class NukedSerializer(Serializer):
             none_value_handling=none_value_handling,
             decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
         )
-        return json.dumps(result, separators=(",", ":")).encode()
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def load[T](
         self,
@@ -219,10 +230,11 @@ class NukedSerializer(Serializer):
         data: bytes,
         naming_case: mr.NamingCase | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> T:
         return mr.nuked.load(
             schema_class,
-            json.loads(data),
+            json.loads(data.decode(encoding)),
             naming_case=naming_case,
             decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
         )
