@@ -1,5 +1,3 @@
-use std::fmt::Write;
-
 use arrayvec::ArrayString;
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, SecondsFormat, TimeZone, Utc};
 use pyo3::prelude::*;
@@ -69,27 +67,9 @@ fn components_to_chrono(dt: &DateTimeComponents) -> Option<DateTime<FixedOffset>
 
 #[inline]
 fn format_iso(buf: &mut DateTimeIsoBuf, dt: &DateTimeComponents) {
-    if let Some(chrono_dt) = components_to_chrono(dt) {
-        let formatted = chrono_dt.to_rfc3339_opts(SecondsFormat::AutoSi, false);
-        buf.push_str(&formatted);
-    } else {
-        write!(
-            buf,
-            "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
-            dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second
-        ).expect("DateTime ISO max 32 chars");
-        write_tz_offset(buf, dt.offset_seconds.unwrap_or(0));
-    }
-}
-
-#[inline]
-fn write_tz_offset(buf: &mut DateTimeIsoBuf, offset_secs: i32) {
-    let sign = if offset_secs >= 0 { '+' } else { '-' };
-    let abs_secs = offset_secs.abs();
-    let hours = abs_secs / 3600;
-    let minutes = (abs_secs % 3600) / 60;
-    write!(buf, "{sign}{hours:02}:{minutes:02}")
-        .expect("DateTime ISO max 32 chars");
+    let chrono_dt = components_to_chrono(dt).expect("DateTimeComponents from Python datetime is always valid");
+    let formatted = chrono_dt.to_rfc3339_opts(SecondsFormat::AutoSi, false);
+    buf.push_str(&formatted);
 }
 
 #[inline]
