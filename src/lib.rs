@@ -1,16 +1,17 @@
-mod types;
-mod encoding;
-mod slots;
-mod cache;
-mod utils;
-mod fields;
-mod load_bytes;
-mod dump_bytes;
-mod dump;
-mod load;
 mod api;
+mod cache;
+mod dump;
+mod dump_bytes;
 mod dumper;
+mod encoding;
+mod fields;
+mod json_ascii;
+mod load;
+mod load_bytes;
 mod loader;
+mod slots;
+mod types;
+mod utils;
 
 use pyo3::prelude::*;
 

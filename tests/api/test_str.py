@@ -251,3 +251,17 @@ class TestStrLoad:
         data = b'{"value":"hello"}'
         result = impl.load(WithStrMissing, data)
         assert result == WithStrMissing(value="hello")
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b'{"value":"\\u0041"}', "A", id="ascii"),
+            pytest.param(b'{"value":"\\u0410"}', "А", id="cyrillic"),  # noqa: RUF001
+            pytest.param(b'{"value":"\\u4e2d"}', "中", id="chinese"),
+            pytest.param(b'{"value":"\\ud83d\\ude00"}', "😀", id="emoji_surrogate_pair"),
+            pytest.param(b'{"value":"Hello \\u0041\\u0042\\u0043"}', "Hello ABC", id="mixed"),
+        ],
+    )
+    def test_unicode_escape(self, impl: Serializer, data: bytes, expected: str) -> None:
+        result = impl.load(ValueOf[str], data)
+        assert result == ValueOf[str](value=expected)
