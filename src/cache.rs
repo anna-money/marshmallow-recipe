@@ -1,6 +1,6 @@
 use once_cell::sync::{Lazy, OnceCell};
 use pyo3::prelude::*;
-use pyo3::types::{PyDelta, PyDict, PyList, PyString, PyTuple};
+use pyo3::types::{PyDict, PyList, PyString, PyTuple};
 use std::collections::HashMap;
 use std::sync::RwLock;
 
@@ -26,42 +26,9 @@ pub static SCHEMA_CACHE: Lazy<RwLock<HashMap<u64, TypeDescriptor>>> =
 pub struct CachedPyTypes {
     pub int_cls: Py<PyAny>,
     pub decimal_cls: Py<PyAny>,
-    pub timezone_cls: Py<PyAny>,
     pub utc_tz: Py<PyAny>,
     pub object_cls: Py<PyAny>,
     pub missing_sentinel: Py<PyAny>,
-    pub timezones: Vec<Py<PyAny>>,
-}
-
-impl CachedPyTypes {
-    pub fn get_timezone(&self, py: Python, offset_seconds: i32) -> PyResult<Py<PyAny>> {
-        if offset_seconds == 0 {
-            return Ok(self.utc_tz.clone_ref(py));
-        }
-
-        if offset_seconds % 1800 == 0 {
-            let half_hours = offset_seconds / 1800 + 24;
-            if let Some(index) = usize::try_from(half_hours).ok().filter(|&i| i < 53) {
-                if let Some(tz) = self.timezones.get(index) {
-                    return Ok(tz.clone_ref(py));
-                }
-            }
-        }
-
-        let py_delta = PyDelta::new(py, 0, offset_seconds, 0, true)?;
-        self.timezone_cls.bind(py).call1((py_delta,)).map(Bound::unbind)
-    }
-}
-
-fn build_timezone_cache(py: Python, timezone_cls: &Bound<'_, PyAny>) -> PyResult<Vec<Py<PyAny>>> {
-    let mut cache = Vec::with_capacity(53);
-    for half_hours in -24..=28 {
-        let offset = half_hours * 1800;
-        let py_delta = PyDelta::new(py, 0, offset, 0, true)?;
-        let tz = timezone_cls.call1((py_delta,))?.unbind();
-        cache.push(tz);
-    }
-    Ok(cache)
 }
 
 static CACHED_PY_TYPES: OnceCell<CachedPyTypes> = OnceCell::new();
@@ -73,17 +40,12 @@ pub fn get_cached_types(py: Python) -> PyResult<&'static CachedPyTypes> {
         let builtins = py.import("builtins")?;
         let mr_missing_mod = py.import("marshmallow_recipe.missing")?;
 
-        let timezone_cls = datetime_mod.getattr("timezone")?;
-        let timezones = build_timezone_cache(py, &timezone_cls)?;
-
         Ok(CachedPyTypes {
             int_cls: builtins.getattr("int")?.unbind(),
             decimal_cls: decimal_mod.getattr("Decimal")?.unbind(),
-            timezone_cls: timezone_cls.unbind(),
             utc_tz: datetime_mod.getattr("UTC")?.unbind(),
             object_cls: builtins.getattr("object")?.unbind(),
             missing_sentinel: mr_missing_mod.getattr("MISSING")?.unbind(),
-            timezones,
         })
     })
 }

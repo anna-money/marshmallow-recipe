@@ -1,6 +1,6 @@
 use super::helpers::{field_error, json_field_error, TIME_ERROR};
 use crate::types::DumpContext;
-use crate::utils::{create_pytime_from_chrono, parse_iso_time};
+use crate::utils::parse_iso_time;
 
 pub mod time_dumper {
     use std::fmt::Write;
@@ -63,11 +63,12 @@ pub mod time_dumper {
 }
 
 pub mod time_loader {
+    use pyo3::conversion::IntoPyObjectExt;
     use pyo3::prelude::*;
     use pyo3::types::PyString;
     use serde::de;
 
-    use super::{create_pytime_from_chrono, field_error, parse_iso_time, TIME_ERROR};
+    use super::{field_error, parse_iso_time, TIME_ERROR};
     use crate::types::LoadContext;
 
     #[inline]
@@ -81,7 +82,7 @@ pub mod time_loader {
         let s = value.cast::<PyString>().map_err(|_| time_err())?;
         let s_str = s.to_str()?;
         if let Some(t) = parse_iso_time(s_str) {
-            return create_pytime_from_chrono(ctx.py, t)
+            return t.into_py_any(ctx.py)
                 .map_err(|e| field_error(ctx.py, field_name, &e.to_string()));
         }
         Err(time_err())
@@ -91,6 +92,6 @@ pub mod time_loader {
     pub fn load_from_str<E: de::Error>(py: Python, s: &str, err_msg: &str) -> Result<Py<PyAny>, E> {
         parse_iso_time(s)
             .ok_or_else(|| de::Error::custom(err_msg))
-            .and_then(|t| create_pytime_from_chrono(py, t).map_err(de::Error::custom))
+            .and_then(|t| t.into_py_any(py).map_err(de::Error::custom))
     }
 }

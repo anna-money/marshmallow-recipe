@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use chrono::{DateTime, Datelike, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime};
 use once_cell::sync::Lazy;
 use pyo3::intern;
 use pyo3::prelude::*;
-use pyo3::types::{PyDate, PyDateTime, PyDelta, PyDeltaAccess, PyDict, PyList, PyTzInfo};
+use pyo3::types::{PyDelta, PyDeltaAccess, PyDict, PyList, PyTzInfo};
 use regex::Regex;
 use rust_decimal::RoundingStrategy;
 use serde_json::Value;
@@ -106,7 +106,7 @@ pub fn parse_rfc3339_datetime(s: &str) -> Option<DateTime<FixedOffset>> {
     DateTime::parse_from_rfc3339(s).ok()
 }
 
-fn python_to_chrono_format(fmt: &str) -> String {
+pub fn python_to_chrono_format(fmt: &str) -> String {
     fmt.replace(".%f", "%.6f").replace("%f", "%6f")
 }
 
@@ -125,39 +125,6 @@ pub fn parse_datetime_with_format(s: &str, fmt: &str) -> Option<DateTime<FixedOf
     NaiveDate::parse_from_str(s, &chrono_fmt)
         .ok()
         .map(|d| d.and_hms_opt(0, 0, 0).unwrap().and_utc().fixed_offset())
-}
-
-#[inline]
-#[allow(clippy::cast_possible_truncation)]
-pub fn create_pydatetime_from_chrono(py: Python, dt: DateTime<FixedOffset>) -> PyResult<Py<PyAny>> {
-    let offset_seconds = dt.offset().local_minus_utc();
-    let cached = get_cached_types(py)?;
-    let py_tz: Bound<'_, PyTzInfo> = cached.get_timezone(py, offset_seconds)?.bind(py).clone().cast_into()?;
-
-    PyDateTime::new(
-        py,
-        dt.year(),
-        dt.month() as u8,
-        dt.day() as u8,
-        dt.hour() as u8,
-        dt.minute() as u8,
-        dt.second() as u8,
-        dt.nanosecond() / 1000,
-        Some(&py_tz),
-    )
-    .map(|dt| dt.into_any().unbind())
-}
-
-#[inline]
-#[allow(clippy::cast_possible_truncation)]
-pub fn create_pydate_from_chrono(py: Python, d: NaiveDate) -> PyResult<Py<PyAny>> {
-    PyDate::new(py, d.year(), d.month() as u8, d.day() as u8).map(|d| d.into_any().unbind())
-}
-
-#[inline]
-#[allow(clippy::cast_possible_truncation)]
-pub fn create_pytime_from_chrono(py: Python, t: NaiveTime) -> PyResult<Py<PyAny>> {
-    pyo3::types::PyTime::new(py, t.hour() as u8, t.minute() as u8, t.second() as u8, t.nanosecond() / 1000, None).map(|t| t.into_any().unbind())
 }
 
 #[inline]

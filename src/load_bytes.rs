@@ -26,8 +26,7 @@ use crate::fields::{int, float, bool_type, decimal, date, time, datetime, uuid, 
 use crate::slots::set_slot_value_direct;
 use crate::types::{TypeDescriptor, TypeKind};
 use crate::utils::{
-    call_validator, create_pydate_from_chrono, create_pydatetime_from_chrono,
-    create_pytime_from_chrono, parse_datetime_with_format, parse_iso_date, parse_iso_time,
+    call_validator, parse_datetime_with_format, parse_iso_date, parse_iso_time,
     parse_rfc3339_datetime, pyany_to_json_value, strip_serde_locations,
     try_wrap_err_json, wrap_err_dict,
 };
@@ -584,13 +583,13 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(DATE_ERROR).to_string();
                 parse_iso_date(v)
                     .ok_or_else(|| de::Error::custom(err_json(&self.field.name, &err_msg())))
-                    .and_then(|d| create_pydate_from_chrono(self.ctx.py, d).map_err(de::Error::custom))
+                    .and_then(|d| d.into_py_any(self.ctx.py).map_err(de::Error::custom))
             }
             Loader::Time => {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(TIME_ERROR).to_string();
                 parse_iso_time(v)
                     .ok_or_else(|| de::Error::custom(err_json(&self.field.name, &err_msg())))
-                    .and_then(|t| create_pytime_from_chrono(self.ctx.py, t).map_err(de::Error::custom))
+                    .and_then(|t| t.into_py_any(self.ctx.py).map_err(de::Error::custom))
             }
             Loader::DateTime { format } => {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(DATETIME_ERROR).to_string();
@@ -598,14 +597,14 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                 if format_str.is_none() || format_str == Some(FORMAT_ISO) {
                     return parse_rfc3339_datetime(v)
                         .ok_or_else(|| de::Error::custom(err_json(&self.field.name, &err_msg())))
-                        .and_then(|dt| create_pydatetime_from_chrono(self.ctx.py, dt).map_err(de::Error::custom));
+                        .and_then(|dt| dt.into_py_any(self.ctx.py).map_err(de::Error::custom));
                 }
                 if format_str == Some(FORMAT_TIMESTAMP) {
                     return Err(de::Error::custom(err_json(&self.field.name, &err_msg())));
                 }
                 let fmt = format_str.expect("format must be Some for strptime");
                 if let Some(dt) = parse_datetime_with_format(v, fmt) {
-                    return create_pydatetime_from_chrono(self.ctx.py, dt).map_err(de::Error::custom);
+                    return dt.into_py_any(self.ctx.py).map_err(de::Error::custom);
                 }
                 Err(de::Error::custom(err_json(&self.field.name, &err_msg())))
             }

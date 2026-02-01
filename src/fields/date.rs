@@ -1,6 +1,6 @@
 use super::helpers::{field_error, json_field_error, DATE_ERROR};
 use crate::types::DumpContext;
-use crate::utils::{create_pydate_from_chrono, parse_iso_date};
+use crate::utils::parse_iso_date;
 
 pub mod date_dumper {
     use std::fmt::Write;
@@ -53,11 +53,12 @@ pub mod date_dumper {
 }
 
 pub mod date_loader {
+    use pyo3::conversion::IntoPyObjectExt;
     use pyo3::prelude::*;
     use pyo3::types::PyString;
     use serde::de;
 
-    use super::{create_pydate_from_chrono, field_error, parse_iso_date, DATE_ERROR};
+    use super::{field_error, parse_iso_date, DATE_ERROR};
     use crate::types::LoadContext;
 
     #[inline]
@@ -71,7 +72,7 @@ pub mod date_loader {
         let s = value.cast::<PyString>().map_err(|_| date_err())?;
         let s_str = s.to_str()?;
         if let Some(d) = parse_iso_date(s_str) {
-            return create_pydate_from_chrono(ctx.py, d)
+            return d.into_py_any(ctx.py)
                 .map_err(|e| field_error(ctx.py, field_name, &e.to_string()));
         }
         Err(date_err())
@@ -81,6 +82,6 @@ pub mod date_loader {
     pub fn load_from_str<E: de::Error>(py: Python, s: &str, err_msg: &str) -> Result<Py<PyAny>, E> {
         parse_iso_date(s)
             .ok_or_else(|| de::Error::custom(err_msg))
-            .and_then(|d| create_pydate_from_chrono(py, d).map_err(de::Error::custom))
+            .and_then(|d| d.into_py_any(py).map_err(de::Error::custom))
     }
 }
