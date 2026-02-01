@@ -125,6 +125,20 @@ class TestStrDump:
         with pytest.raises(marshmallow.ValidationError):
             impl.dump(ValueOf[str], obj)
 
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            pytest.param(
+                ValueOf[str](value="Привет"), b'{"value":"\\u041f\\u0440\\u0438\\u0432\\u0435\\u0442"}', id="cyrillic"
+            ),
+            pytest.param(ValueOf[str](value="👋"), b'{"value":"\\ud83d\\udc4b"}', id="emoji"),
+            pytest.param(ValueOf[str](value="你好"), b'{"value":"\\u4f60\\u597d"}', id="chinese"),
+            pytest.param(ValueOf[str](value="hello"), b'{"value":"hello"}', id="ascii"),
+        ],
+    )
+    def test_non_ascii_escaped(self, impl: Serializer, obj: ValueOf[str], expected: bytes) -> None:
+        assert impl.dump(ValueOf[str], obj) == expected
+
 
 class TestStrLoad:
     def test_non_empty(self, impl: Serializer) -> None:
