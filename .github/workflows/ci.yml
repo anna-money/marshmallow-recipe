@@ -105,7 +105,7 @@ jobs:
           path: dist
       - run: uv sync --no-install-project
       - run: uv pip install marshmallow-recipe --find-links dist --no-index --no-deps
-      - run: uv run python -c "import marshmallow_recipe"
+      - run: uv run --no-sync python -c "import marshmallow_recipe"
   sdist:
     runs-on: ubuntu-latest
     steps:
