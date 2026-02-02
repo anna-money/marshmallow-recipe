@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime};
 use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
@@ -87,39 +87,21 @@ pub fn pyany_to_json_value(obj: &Bound<'_, PyAny>) -> Value {
     Value::String(obj.to_string())
 }
 
-#[inline]
-pub fn parse_iso_date(s: &str) -> Option<NaiveDate> {
-    NaiveDate::parse_from_str(s, "%Y-%m-%d").ok()
-}
-
-#[inline]
-pub fn parse_iso_time(s: &str) -> Option<NaiveTime> {
-    NaiveTime::parse_from_str(s, "%H:%M:%S").ok()
-        .or_else(|| NaiveTime::parse_from_str(s, "%H:%M:%S%.f").ok())
-}
-
-#[inline]
-pub fn parse_rfc3339_datetime(s: &str) -> Option<DateTime<FixedOffset>> {
-    DateTime::parse_from_rfc3339(s).ok()
-}
-
 pub fn python_to_chrono_format(fmt: &str) -> String {
     fmt.replace(".%f", "%.6f").replace("%f", "%6f")
 }
 
 #[inline]
-pub fn parse_datetime_with_format(s: &str, fmt: &str) -> Option<DateTime<FixedOffset>> {
-    let chrono_fmt = python_to_chrono_format(fmt);
-
-    if let Ok(dt) = DateTime::parse_from_str(s, &chrono_fmt) {
+pub fn parse_datetime_with_format(s: &str, chrono_fmt: &str) -> Option<DateTime<FixedOffset>> {
+    if let Ok(dt) = DateTime::parse_from_str(s, chrono_fmt) {
         return Some(dt);
     }
 
-    if let Ok(naive) = NaiveDateTime::parse_from_str(s, &chrono_fmt) {
+    if let Ok(naive) = NaiveDateTime::parse_from_str(s, chrono_fmt) {
         return Some(naive.and_utc().fixed_offset());
     }
 
-    NaiveDate::parse_from_str(s, &chrono_fmt)
+    NaiveDate::parse_from_str(s, chrono_fmt)
         .ok()
         .map(|d| d.and_hms_opt(0, 0, 0).unwrap().and_utc().fixed_offset())
 }

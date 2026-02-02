@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 use std::fmt;
 
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveTime};
 use pyo3::conversion::IntoPyObjectExt;
 use pyo3::intern;
 use pyo3::prelude::*;
@@ -18,16 +19,15 @@ use crate::cache::get_cached_types;
 use crate::load::{LoadContext, load_root_type};
 use crate::loader::Loader;
 use crate::fields::collection::CollectionKind;
+use crate::fields::datetime::DateTimeFormat;
 use crate::fields::helpers::{err_json, BOOL_ERROR, DATETIME_ERROR, DATE_ERROR, DECIMAL_NUMBER_ERROR, FLOAT_ERROR, FLOAT_NAN_ERROR, INT_ERROR, TIME_ERROR, UUID_ERROR};
-use crate::fields::datetime::{FORMAT_ISO, FORMAT_TIMESTAMP};
 use crate::fields::nested::FieldLoader;
 use crate::fields::decimal::{format_decimal, DecimalBuf};
 use crate::fields::{int, float, bool_type, decimal, date, time, datetime, uuid, str_type, str_enum, int_enum};
 use crate::slots::set_slot_value_direct;
 use crate::types::{TypeDescriptor, TypeKind};
 use crate::utils::{
-    call_validator, parse_datetime_with_format, parse_iso_date, parse_iso_time,
-    parse_rfc3339_datetime, pyany_to_json_value, strip_serde_locations,
+    call_validator, parse_datetime_with_format, pyany_to_json_value, strip_serde_locations,
     try_wrap_err_json, wrap_err_dict,
 };
 
@@ -428,7 +428,7 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                     self.ctx.decimal_places, self.field.invalid_error.as_deref().unwrap_or(DECIMAL_NUMBER_ERROR),
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json(&self.field.name, &e.to_string())))
             }
-            Loader::DateTime { format } if format.as_deref() == Some(FORMAT_TIMESTAMP) => {
+            Loader::DateTime { format: DateTimeFormat::Timestamp } => {
                 let err_msg = err_json(&self.field.name, self.field.invalid_error.as_deref().unwrap_or(DATETIME_ERROR));
                 #[allow(clippy::cast_precision_loss)]
                 datetime::datetime_loader::load_from_timestamp(self.ctx.py, v as f64, &err_msg)
@@ -476,7 +476,7 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                     self.ctx.decimal_places, self.field.invalid_error.as_deref().unwrap_or(DECIMAL_NUMBER_ERROR),
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json(&self.field.name, &e.to_string())))
             }
-            Loader::DateTime { format } if format.as_deref() == Some(FORMAT_TIMESTAMP) => {
+            Loader::DateTime { format: DateTimeFormat::Timestamp } => {
                 let err_msg = err_json(&self.field.name, self.field.invalid_error.as_deref().unwrap_or(DATETIME_ERROR));
                 #[allow(clippy::cast_precision_loss)]
                 datetime::datetime_loader::load_from_timestamp(self.ctx.py, v as f64, &err_msg)
@@ -515,7 +515,7 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                     self.ctx.decimal_places, self.field.invalid_error.as_deref().unwrap_or(DECIMAL_NUMBER_ERROR),
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json(&self.field.name, &e.to_string())))
             }
-            Loader::DateTime { format } if format.as_deref() == Some(FORMAT_TIMESTAMP) => {
+            Loader::DateTime { format: DateTimeFormat::Timestamp } => {
                 let err_msg = err_json(&self.field.name, self.field.invalid_error.as_deref().unwrap_or(DATETIME_ERROR));
                 datetime::datetime_loader::load_from_timestamp(self.ctx.py, v, &err_msg)
             }
@@ -581,32 +581,34 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
             }
             Loader::Date => {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(DATE_ERROR).to_string();
-                parse_iso_date(v)
-                    .ok_or_else(|| de::Error::custom(err_json(&self.field.name, &err_msg())))
+                v.parse::<NaiveDate>()
+                    .map_err(|_| de::Error::custom(err_json(&self.field.name, &err_msg())))
                     .and_then(|d| d.into_py_any(self.ctx.py).map_err(de::Error::custom))
             }
             Loader::Time => {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(TIME_ERROR).to_string();
-                parse_iso_time(v)
-                    .ok_or_else(|| de::Error::custom(err_json(&self.field.name, &err_msg())))
+                v.parse::<NaiveTime>()
+                    .map_err(|_| de::Error::custom(err_json(&self.field.name, &err_msg())))
                     .and_then(|t| t.into_py_any(self.ctx.py).map_err(de::Error::custom))
             }
             Loader::DateTime { format } => {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(DATETIME_ERROR).to_string();
-                let format_str = format.as_deref();
-                if format_str.is_none() || format_str == Some(FORMAT_ISO) {
-                    return parse_rfc3339_datetime(v)
-                        .ok_or_else(|| de::Error::custom(err_json(&self.field.name, &err_msg())))
-                        .and_then(|dt| dt.into_py_any(self.ctx.py).map_err(de::Error::custom));
+                match format {
+                    DateTimeFormat::Iso => {
+                        DateTime::<FixedOffset>::parse_from_rfc3339(v)
+                            .map_err(|_| de::Error::custom(err_json(&self.field.name, &err_msg())))
+                            .and_then(|dt| dt.into_py_any(self.ctx.py).map_err(de::Error::custom))
+                    }
+                    DateTimeFormat::Timestamp => {
+                        Err(de::Error::custom(err_json(&self.field.name, &err_msg())))
+                    }
+                    DateTimeFormat::Strftime(chrono_fmt) => {
+                        if let Some(dt) = parse_datetime_with_format(v, chrono_fmt) {
+                            return dt.into_py_any(self.ctx.py).map_err(de::Error::custom);
+                        }
+                        Err(de::Error::custom(err_json(&self.field.name, &err_msg())))
+                    }
                 }
-                if format_str == Some(FORMAT_TIMESTAMP) {
-                    return Err(de::Error::custom(err_json(&self.field.name, &err_msg())));
-                }
-                let fmt = format_str.expect("format must be Some for strptime");
-                if let Some(dt) = parse_datetime_with_format(v, fmt) {
-                    return dt.into_py_any(self.ctx.py).map_err(de::Error::custom);
-                }
-                Err(de::Error::custom(err_json(&self.field.name, &err_msg())))
             }
             Loader::Uuid => {
                 let err_msg = || self.field.invalid_error.as_deref().unwrap_or(UUID_ERROR).to_string();
@@ -708,7 +710,7 @@ impl<'de> Visitor<'de> for FieldValueVisitor<'_, '_> {
                 let msg = self.field.invalid_error.as_deref().unwrap_or_else(|| get_type_error(&self.field.loader));
                 Err(de::Error::custom(err_json(&self.field.name, msg)))
             }
-            Loader::DateTime { format } if format.as_deref() == Some(FORMAT_TIMESTAMP) => {
+            Loader::DateTime { format: DateTimeFormat::Timestamp } => {
                 if let Some(key) = map.next_key::<&str>()? {
                     if key == SERDE_JSON_NUMBER_TOKEN {
                         let num_str: String = map.next_value()?;
@@ -915,7 +917,7 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
                     self.ctx.decimal_places, DECIMAL_NUMBER_ERROR,
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
             }
-            Loader::DateTime { format } if format.as_deref() == Some(FORMAT_TIMESTAMP) => {
+            Loader::DateTime { format: DateTimeFormat::Timestamp } => {
                 #[allow(clippy::cast_precision_loss)]
                 datetime::datetime_loader::load_from_timestamp(self.ctx.py, v as f64, &err_json("", DATETIME_ERROR))
             }
@@ -947,7 +949,7 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
                     self.ctx.decimal_places, DECIMAL_NUMBER_ERROR,
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
             }
-            Loader::DateTime { format } if format.as_deref() == Some(FORMAT_TIMESTAMP) => {
+            Loader::DateTime { format: DateTimeFormat::Timestamp } => {
                 #[allow(clippy::cast_precision_loss)]
                 datetime::datetime_loader::load_from_timestamp(self.ctx.py, v as f64, &err_json("", DATETIME_ERROR))
             }
@@ -971,7 +973,7 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
                     self.ctx.decimal_places, DECIMAL_NUMBER_ERROR,
                 ).map_err(|e: de::value::Error| de::Error::custom(err_json("", &e.to_string())))
             }
-            Loader::DateTime { format } if format.as_deref() == Some(FORMAT_TIMESTAMP) => {
+            Loader::DateTime { format: DateTimeFormat::Timestamp } => {
                 datetime::datetime_loader::load_from_timestamp(self.ctx.py, v, &err_json("", DATETIME_ERROR))
             }
             _ => Err(de::Error::custom(err_json("", get_type_error(self.deserializer)))),
@@ -997,11 +999,7 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
             Loader::Date => date::date_loader::load_from_str(self.ctx.py, v, &err_json("", DATE_ERROR)),
             Loader::Time => time::time_loader::load_from_str(self.ctx.py, v, &err_json("", TIME_ERROR)),
             Loader::DateTime { format } => {
-                let format_str = format.as_deref();
-                if format_str == Some(FORMAT_TIMESTAMP) {
-                    return Err(de::Error::custom(err_json("", DATETIME_ERROR)));
-                }
-                datetime::datetime_loader::load_from_str(self.ctx.py, v, format_str, &err_json("", DATETIME_ERROR))
+                datetime::datetime_loader::load_from_str(self.ctx.py, v, format, &err_json("", DATETIME_ERROR))
             }
             Loader::Uuid => uuid::uuid_loader::load_from_str(self.ctx.py, v, &err_json("", UUID_ERROR)),
             Loader::StrEnum(data) => {
@@ -1066,7 +1064,7 @@ impl<'de> Visitor<'de> for PrimitiveValueVisitor<'_, '_> {
                 }
                 Err(de::Error::custom(err_json("", get_type_error(self.deserializer))))
             }
-            Loader::DateTime { format } if format.as_deref() == Some(FORMAT_TIMESTAMP) => {
+            Loader::DateTime { format: DateTimeFormat::Timestamp } => {
                 if let Some(key) = map.next_key::<&str>()? {
                     if key == SERDE_JSON_NUMBER_TOKEN {
                         let num_str: String = map.next_value()?;

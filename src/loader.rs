@@ -4,6 +4,7 @@ use pyo3::prelude::*;
 use rust_decimal::RoundingStrategy;
 
 pub use crate::fields::collection::CollectionKind;
+pub use crate::fields::datetime::DateTimeFormat;
 pub use crate::fields::nested::{DataclassLoaderSchema, FieldLoader};
 use crate::types::{DecimalPlaces, LoadContext};
 
@@ -101,7 +102,7 @@ pub enum Loader {
     Decimal(Box<DecimalLoaderData>),
     Date,
     Time,
-    DateTime { format: Option<String> },
+    DateTime { format: DateTimeFormat },
     Uuid,
     StrEnum(Box<StrEnumLoaderData>),
     IntEnum(Box<IntEnumLoaderData>),
@@ -142,7 +143,7 @@ impl Loader {
             Self::Date => date::date_loader::load_from_dict(value, field_name, invalid_error, ctx),
             Self::Time => time::time_loader::load_from_dict(value, field_name, invalid_error, ctx),
             Self::DateTime { format } => {
-                datetime::datetime_loader::load_from_dict(value, field_name, invalid_error, ctx, format.as_deref())
+                datetime::datetime_loader::load_from_dict(value, field_name, invalid_error, ctx, format)
             }
             Self::Uuid => uuid::uuid_loader::load_from_dict(value, field_name, invalid_error, ctx),
             Self::StrEnum(data) => {

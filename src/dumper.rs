@@ -4,6 +4,7 @@ use pyo3::prelude::*;
 use rust_decimal::RoundingStrategy;
 
 pub use crate::fields::collection::CollectionKind;
+pub use crate::fields::datetime::DateTimeFormat;
 pub use crate::fields::nested::{DataclassDumperSchema, FieldDumper};
 use crate::types::{DecimalPlaces, DumpContext};
 
@@ -110,7 +111,7 @@ pub enum Dumper {
     Decimal(Box<DecimalData>),
     Date,
     Time,
-    DateTime { format: Option<String> },
+    DateTime { format: DateTimeFormat },
     Uuid,
     StrEnum(Box<StrEnumData>),
     IntEnum(Box<IntEnumData>),
@@ -177,7 +178,7 @@ impl Dumper {
             Self::Date => date::date_dumper::dump_to_dict(value, field_name, ctx),
             Self::Time => time::time_dumper::dump_to_dict(value, field_name, ctx),
             Self::DateTime { format } => {
-                datetime::datetime_dumper::dump_to_dict(value, field_name, ctx, format.as_deref())
+                datetime::datetime_dumper::dump_to_dict(value, field_name, ctx, format)
             }
             Self::Uuid => uuid::uuid_dumper::dump_to_dict(value, field_name, ctx),
             Self::StrEnum(data) => {
@@ -259,7 +260,7 @@ impl Dumper {
             Self::Date => date::date_dumper::dump(value, field_name, serializer),
             Self::Time => time::time_dumper::dump(value, field_name, serializer),
             Self::DateTime { format } => {
-                datetime::datetime_dumper::dump(value, field_name, ctx, format.as_deref(), serializer)
+                datetime::datetime_dumper::dump(value, field_name, ctx, format, serializer)
             }
             Self::Uuid => uuid::uuid_dumper::dump(value, field_name, serializer),
             Self::StrEnum(data) => {

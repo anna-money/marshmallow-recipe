@@ -11,9 +11,10 @@ use crate::types::{
 use crate::utils::python_rounding_to_rust;
 use crate::dumper::{
     Dumper, FieldDumper, DataclassDumperSchema,
-    CollectionData, CollectionKind, DictData,
+    CollectionData, CollectionKind, DateTimeFormat, DictData,
     StrEnumData, IntEnumData, DecimalData as DumpDecimalData,
 };
+use crate::fields::datetime::parse_datetime_format;
 use crate::loader::{
     Loader, FieldLoader, DataclassLoaderSchema,
     CollectionLoaderData, DictLoaderData,
@@ -251,7 +252,7 @@ fn build_primitive_dumper(field_type: FieldType) -> Dumper {
         })),
         FieldType::Date => Dumper::Date,
         FieldType::Time => Dumper::Time,
-        FieldType::DateTime => Dumper::DateTime { format: None },
+        FieldType::DateTime => Dumper::DateTime { format: DateTimeFormat::Iso },
         FieldType::Uuid => Dumper::Uuid,
         _ => Dumper::Any,
     }
@@ -269,7 +270,7 @@ fn build_primitive_loader(field_type: FieldType) -> Loader {
         })),
         FieldType::Date => Loader::Date,
         FieldType::Time => Loader::Time,
-        FieldType::DateTime => Loader::DateTime { format: None },
+        FieldType::DateTime => Loader::DateTime { format: DateTimeFormat::Iso },
         FieldType::Uuid => Loader::Uuid,
         _ => Loader::Any,
     }
@@ -488,7 +489,7 @@ fn build_dumper_from_field(py: Python<'_>, field: &FieldDescriptor) -> Dumper {
         })),
         FieldType::Date => Dumper::Date,
         FieldType::Time => Dumper::Time,
-        FieldType::DateTime => Dumper::DateTime { format: field.datetime_format.clone() },
+        FieldType::DateTime => Dumper::DateTime { format: parse_datetime_format(field.datetime_format.as_deref()) },
         FieldType::Uuid => Dumper::Uuid,
         FieldType::StrEnum => Dumper::StrEnum(Box::new(StrEnumData {
             enum_cls: field.enum_cls.as_ref().expect("enum_cls required for StrEnum").clone_ref(py),
@@ -582,7 +583,7 @@ fn build_loader_from_field(py: Python<'_>, field: &FieldDescriptor) -> Loader {
         })),
         FieldType::Date => Loader::Date,
         FieldType::Time => Loader::Time,
-        FieldType::DateTime => Loader::DateTime { format: field.datetime_format.clone() },
+        FieldType::DateTime => Loader::DateTime { format: parse_datetime_format(field.datetime_format.as_deref()) },
         FieldType::Uuid => Loader::Uuid,
         FieldType::StrEnum => Loader::StrEnum(Box::new(StrEnumLoaderData {
             values: clone_py_vec(py, field.str_enum_values.as_ref().expect("str_enum_values required for StrEnum")),

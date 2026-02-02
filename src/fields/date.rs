@@ -1,17 +1,19 @@
+use chrono::NaiveDate;
+use pyo3::conversion::IntoPyObjectExt;
+use pyo3::types::{PyDate, PyString};
+use serde::de;
+use serde::ser::Error as SerError;
+use serde::Serialize;
+
 use super::helpers::{field_error, json_field_error, DATE_ERROR};
-use crate::types::DumpContext;
-use crate::utils::parse_iso_date;
+use crate::types::{DumpContext, LoadContext};
 
 pub mod date_dumper {
-    use std::fmt::Write;
-
-    use arrayvec::ArrayString;
+    use super::{
+        field_error, json_field_error, DumpContext, NaiveDate, PyDate, PyString, SerError,
+        Serialize, DATE_ERROR,
+    };
     use pyo3::prelude::*;
-    use pyo3::types::{PyDate, PyDateAccess, PyString};
-
-    use super::{field_error, json_field_error, DumpContext, DATE_ERROR};
-
-    pub type DateBuf = ArrayString<10>;
 
     #[inline]
     pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
@@ -24,14 +26,8 @@ pub mod date_dumper {
         field_name: &str,
         ctx: &DumpContext<'_, 'py>,
     ) -> PyResult<Py<PyAny>> {
-        if !value.is_instance_of::<PyDate>() {
-            return Err(field_error(ctx.py, field_name, DATE_ERROR));
-        }
-        let d: &Bound<'_, PyDate> = value.cast()?;
-        let mut buf = DateBuf::new();
-        write!(buf, "{:04}-{:02}-{:02}", d.get_year(), d.get_month(), d.get_day())
-            .expect("Date max 10 chars: YYYY-MM-DD");
-        Ok(PyString::new(ctx.py, &buf).into_any().unbind())
+        let d = value.extract::<NaiveDate>().map_err(|_| field_error(ctx.py, field_name, DATE_ERROR))?;
+        Ok(PyString::new(ctx.py, &d.to_string()).into_any().unbind())
     }
 
     #[inline]
@@ -40,26 +36,14 @@ pub mod date_dumper {
         field_name: &str,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        use serde::ser::Error;
-        if !value.is_instance_of::<PyDate>() {
-            return Err(S::Error::custom(json_field_error(field_name, DATE_ERROR)));
-        }
-        let d: &Bound<'_, PyDate> = value.cast().map_err(|e| S::Error::custom(e.to_string()))?;
-        let mut buf = DateBuf::new();
-        write!(buf, "{:04}-{:02}-{:02}", d.get_year(), d.get_month(), d.get_day())
-            .expect("Date max 10 chars: YYYY-MM-DD");
-        serializer.serialize_str(&buf)
+        let d = value.extract::<NaiveDate>().map_err(|_| S::Error::custom(json_field_error(field_name, DATE_ERROR)))?;
+        d.serialize(serializer)
     }
 }
 
 pub mod date_loader {
-    use pyo3::conversion::IntoPyObjectExt;
+    use super::{de, field_error, IntoPyObjectExt, LoadContext, NaiveDate, PyString, DATE_ERROR};
     use pyo3::prelude::*;
-    use pyo3::types::PyString;
-    use serde::de;
-
-    use super::{field_error, parse_iso_date, DATE_ERROR};
-    use crate::types::LoadContext;
 
     #[inline]
     pub fn load_from_dict<'py>(
@@ -71,7 +55,7 @@ pub mod date_loader {
         let date_err = || field_error(ctx.py, field_name, invalid_error.unwrap_or(DATE_ERROR));
         let s = value.cast::<PyString>().map_err(|_| date_err())?;
         let s_str = s.to_str()?;
-        if let Some(d) = parse_iso_date(s_str) {
+        if let Ok(d) = s_str.parse::<NaiveDate>() {
             return d.into_py_any(ctx.py)
                 .map_err(|e| field_error(ctx.py, field_name, &e.to_string()));
         }
@@ -80,8 +64,8 @@ pub mod date_loader {
 
     #[inline]
     pub fn load_from_str<E: de::Error>(py: Python, s: &str, err_msg: &str) -> Result<Py<PyAny>, E> {
-        parse_iso_date(s)
-            .ok_or_else(|| de::Error::custom(err_msg))
+        s.parse::<NaiveDate>()
+            .map_err(|_| de::Error::custom(err_msg))
             .and_then(|d| d.into_py_any(py).map_err(de::Error::custom))
     }
 }
