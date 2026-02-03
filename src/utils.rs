@@ -1,14 +1,14 @@
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime};
-use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use regex::Regex;
 use serde_json::Value;
 
-static SERDE_LOCATION_SUFFIX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r" at line \d+ column \d+").unwrap());
+static SERDE_LOCATION_SUFFIX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r" at line \d+ column \d+").unwrap());
 
 pub fn strip_serde_locations(s: &str) -> String {
     SERDE_LOCATION_SUFFIX.replace_all(s, "").into_owned()
