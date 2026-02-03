@@ -4,10 +4,9 @@ use pyo3::prelude::*;
 use pyo3::types::PyString;
 
 use super::helpers::{err_dict_from_list, field_error, json_field_error, NESTED_ERROR};
-use crate::cache::get_cached_types;
 use crate::slots::set_slot_value_direct;
 use crate::types::{DumpContext, LoadContext};
-use crate::utils::{call_validator, extract_error_args, pyany_to_json_value, wrap_err_dict};
+use crate::utils::{call_validator, extract_error_args, get_missing_sentinel, get_object_cls, pyany_to_json_value, wrap_err_dict};
 
 pub struct DataclassDumperSchema {
     pub cls: Py<PyAny>,
@@ -139,7 +138,7 @@ pub mod nested_dumper {
     use serde_json::Value;
 
     use super::{
-        call_validator, err_dict_from_list, field_error, get_cached_types, json_field_error,
+        call_validator, err_dict_from_list, field_error, get_missing_sentinel, json_field_error,
         pyany_to_json_value, DataclassDumperSchema, DumpContext, FieldDumper, NESTED_ERROR,
     };
 
@@ -172,8 +171,7 @@ pub mod nested_dumper {
     ) -> PyResult<Py<PyAny>> {
         let ignore_none = ctx.none_value_handling.is_none_or(|s| s == "ignore");
 
-        let cached = get_cached_types(ctx.py)?;
-        let missing_sentinel = cached.missing_sentinel.bind(ctx.py);
+        let missing_sentinel = get_missing_sentinel(ctx.py)?;
         let result = PyDict::new(ctx.py);
 
         for field in fields {
@@ -248,8 +246,7 @@ pub mod nested_dumper {
 
         let ignore_none = ctx.none_value_handling.is_none_or(|s| s == "ignore");
 
-        let cached = get_cached_types(ctx.py).map_err(|e| S::Error::custom(e.to_string()))?;
-        let missing_sentinel = cached.missing_sentinel.bind(ctx.py);
+        let missing_sentinel = get_missing_sentinel(ctx.py).map_err(|e| S::Error::custom(e.to_string()))?;
 
         let mut map = serializer.serialize_map(None)?;
 
@@ -302,7 +299,7 @@ pub mod nested_loader {
     use smallbitvec::SmallBitVec;
 
     use super::{
-        call_validator, extract_error_args, field_error, get_cached_types, set_slot_value_direct,
+        call_validator, extract_error_args, field_error, get_object_cls, set_slot_value_direct,
         wrap_err_dict, DataclassLoaderSchema, FieldLoader, LoadContext, NESTED_ERROR,
     };
     use crate::loader::Loader;
@@ -405,8 +402,7 @@ pub mod nested_loader {
         field_lookup: &HashMap<String, usize>,
         ctx: &LoadContext<'py>,
     ) -> PyResult<Py<PyAny>> {
-        let cached_types = get_cached_types(ctx.py)?;
-        let object_type = cached_types.object_cls.bind(ctx.py);
+        let object_type = get_object_cls(ctx.py)?;
         let instance = object_type.call_method1(intern!(ctx.py, "__new__"), (cls,))?;
 
         let mut field_values: Vec<Option<Py<PyAny>>> = (0..fields.len()).map(|_| None).collect();

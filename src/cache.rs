@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::{LazyLock, RwLock};
 
 use pyo3::prelude::*;
-use pyo3::sync::PyOnceLock;
 use pyo3::types::{PyDict, PyList, PyString, PyTuple};
 
 use crate::types::{
@@ -23,27 +22,6 @@ use crate::loader::{
 
 pub static SCHEMA_CACHE: LazyLock<RwLock<HashMap<u64, TypeDescriptor>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
-
-pub struct CachedPyTypes {
-    pub int_cls: Py<PyAny>,
-    pub object_cls: Py<PyAny>,
-    pub missing_sentinel: Py<PyAny>,
-}
-
-static CACHED_PY_TYPES: PyOnceLock<CachedPyTypes> = PyOnceLock::new();
-
-pub fn get_cached_types(py: Python<'_>) -> PyResult<&CachedPyTypes> {
-    CACHED_PY_TYPES.get_or_try_init(py, || {
-        let builtins = py.import("builtins")?;
-        let mr_missing_mod = py.import("marshmallow_recipe.missing")?;
-
-        Ok(CachedPyTypes {
-            int_cls: builtins.getattr("int")?.unbind(),
-            object_cls: builtins.getattr("object")?.unbind(),
-            missing_sentinel: mr_missing_mod.getattr("MISSING")?.unbind(),
-        })
-    })
-}
 
 #[pyfunction]
 #[pyo3(signature = (schema_id, raw_schema))]

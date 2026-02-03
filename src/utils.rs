@@ -3,7 +3,8 @@ use std::sync::LazyLock;
 
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime};
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
+use pyo3::sync::PyOnceLock;
+use pyo3::types::{PyDict, PyList, PyType};
 use regex::Regex;
 use serde_json::Value;
 
@@ -109,4 +110,24 @@ pub fn parse_datetime_with_format(s: &str, chrono_fmt: &str) -> Option<DateTime<
 pub fn call_validator(py: Python, validator: &Py<PyAny>, value: &Bound<'_, PyAny>) -> PyResult<Option<Py<PyAny>>> {
     let result = validator.bind(py).call1((value,))?;
     Ok((!result.is_none()).then(|| result.unbind()))
+}
+
+pub fn get_int_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
+    static INT_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    INT_CLS.import(py, "builtins", "int")
+}
+
+pub fn get_object_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
+    static OBJECT_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    OBJECT_CLS.import(py, "builtins", "object")
+}
+
+pub fn get_missing_sentinel(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>> {
+    static MISSING_SENTINEL: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+    MISSING_SENTINEL
+        .get_or_try_init(py, || {
+            let mod_ = py.import("marshmallow_recipe.missing")?;
+            mod_.getattr("MISSING").map(Bound::unbind)
+        })
+        .map(|v| v.bind(py))
 }

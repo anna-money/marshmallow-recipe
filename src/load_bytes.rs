@@ -13,7 +13,6 @@ use serde::de::{self, DeserializeSeed, MapAccess, SeqAccess, Visitor};
 use serde_json::Value;
 use smallbitvec::SmallBitVec;
 
-use crate::cache::get_cached_types;
 use crate::load::{LoadContext, load_root_type};
 use crate::loader::Loader;
 use crate::fields::collection::CollectionKind;
@@ -24,8 +23,8 @@ use crate::fields::{int, float, bool_type, decimal, date, time, datetime, uuid, 
 use crate::slots::set_slot_value_direct;
 use crate::types::{TypeDescriptor, TypeKind};
 use crate::utils::{
-    call_validator, parse_datetime_with_format, pyany_to_json_value, strip_serde_locations,
-    try_wrap_err_json, wrap_err_dict,
+    call_validator, get_int_cls, get_object_cls, parse_datetime_with_format, pyany_to_json_value,
+    strip_serde_locations, try_wrap_err_json, wrap_err_dict,
 };
 
 pub struct BytesLoadContext<'py> {
@@ -55,8 +54,7 @@ pub fn json_value_to_py(py: Python, value: &serde_json::Value) -> PyResult<Py<Py
                 })?;
                 Ok(f.into_pyobject(py)?.into_any().unbind())
             } else {
-                let cached = get_cached_types(py)?;
-                cached.int_cls.bind(py).call1((&s,)).map(pyo3::Bound::unbind)
+                get_int_cls(py)?.call1((&s,)).map(pyo3::Bound::unbind)
             }
         }
         serde_json::Value::String(s) => Ok(s.as_str().into_pyobject(py)?.into_any().unbind()),
@@ -766,8 +764,9 @@ impl FieldValueVisitor<'_, '_> {
                     let msg = self.field.invalid_error.as_deref().unwrap_or(INT_ERROR);
                     return Err(de::Error::custom(err_json(&self.field.name, msg)));
                 }
-                let cached = get_cached_types(self.ctx.py).map_err(de::Error::custom)?;
-                cached.int_cls.bind(self.ctx.py).call1((num_str,))
+                get_int_cls(self.ctx.py)
+                    .map_err(de::Error::custom)?
+                    .call1((num_str,))
                     .map(pyo3::Bound::unbind)
                     .map_err(|_| {
                         let msg = self.field.invalid_error.as_deref().unwrap_or(INT_ERROR);
@@ -1102,8 +1101,9 @@ impl PrimitiveValueVisitor<'_, '_> {
                 if is_float {
                     return Err(de::Error::custom(err_json("", INT_ERROR)));
                 }
-                let cached = get_cached_types(self.ctx.py).map_err(de::Error::custom)?;
-                cached.int_cls.bind(self.ctx.py).call1((num_str,))
+                get_int_cls(self.ctx.py)
+                    .map_err(de::Error::custom)?
+                    .call1((num_str,))
                     .map(pyo3::Bound::unbind)
                     .map_err(|_| de::Error::custom(err_json("", INT_ERROR)))
             }
@@ -1190,8 +1190,7 @@ impl<'de> Visitor<'de> for DataclassDirectSlotsVisitor<'_, '_> {
         A: MapAccess<'de>,
     {
         let py = self.ctx.py;
-        let cached_types = get_cached_types(py).map_err(de::Error::custom)?;
-        let object_type = cached_types.object_cls.bind(py);
+        let object_type = get_object_cls(py).map_err(de::Error::custom)?;
         let instance = object_type.call_method1(intern!(py, "__new__"), (self.cls,))
             .map_err(de::Error::custom)?;
 
