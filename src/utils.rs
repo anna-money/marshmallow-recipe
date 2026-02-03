@@ -5,7 +5,6 @@ use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use regex::Regex;
-use rust_decimal::RoundingStrategy;
 use serde_json::Value;
 
 static SERDE_LOCATION_SUFFIX: Lazy<Regex> =
@@ -110,20 +109,4 @@ pub fn parse_datetime_with_format(s: &str, chrono_fmt: &str) -> Option<DateTime<
 pub fn call_validator(py: Python, validator: &Py<PyAny>, value: &Bound<'_, PyAny>) -> PyResult<Option<Py<PyAny>>> {
     let result = validator.bind(py).call1((value,))?;
     Ok((!result.is_none()).then(|| result.unbind()))
-}
-
-#[inline]
-pub fn python_rounding_to_rust(rounding: Option<&Py<PyAny>>, py: Python) -> RoundingStrategy {
-    rounding
-        .and_then(|r| r.bind(py).extract::<&str>().ok())
-        .map_or(RoundingStrategy::MidpointNearestEven, |s| match s {
-            "ROUND_UP" => RoundingStrategy::AwayFromZero,
-            "ROUND_DOWN" => RoundingStrategy::ToZero,
-            "ROUND_CEILING" => RoundingStrategy::ToPositiveInfinity,
-            "ROUND_FLOOR" => RoundingStrategy::ToNegativeInfinity,
-            "ROUND_HALF_UP" => RoundingStrategy::MidpointAwayFromZero,
-            "ROUND_HALF_DOWN" => RoundingStrategy::MidpointTowardZero,
-            "ROUND_05UP" => panic!("ROUND_05UP is not supported in nuked implementation"),
-            _ => RoundingStrategy::MidpointNearestEven,
-        })
 }

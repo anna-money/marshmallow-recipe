@@ -1,7 +1,6 @@
 #![allow(clippy::struct_field_names)]
 
 use pyo3::prelude::*;
-use rust_decimal::RoundingStrategy;
 
 pub use crate::fields::collection::CollectionKind;
 pub use crate::fields::datetime::DateTimeFormat;
@@ -42,11 +41,20 @@ impl Clone for IntEnumData {
     }
 }
 
-#[derive(Clone)]
 pub struct DecimalData {
     pub decimal_places: DecimalPlaces,
-    pub rounding_strategy: Option<RoundingStrategy>,
+    pub rounding: Option<Py<PyAny>>,
     pub invalid_error: Option<String>,
+}
+
+impl Clone for DecimalData {
+    fn clone(&self) -> Self {
+        Python::attach(|py| Self {
+            decimal_places: self.decimal_places,
+            rounding: self.rounding.as_ref().map(|r| r.clone_ref(py)),
+            invalid_error: self.invalid_error.clone(),
+        })
+    }
 }
 
 pub struct CollectionData {
@@ -135,7 +143,7 @@ impl Dumper {
             Self::Int => int::int_dumper::can_dump(value),
             Self::Float => float::float_dumper::can_dump(value),
             Self::Bool => bool_type::bool_dumper::can_dump(value),
-            Self::Decimal(_) => decimal::decimal_dumper::can_dump(value, ctx),
+            Self::Decimal(_) => decimal::decimal_dumper::can_dump(value),
             Self::Date => date::date_dumper::can_dump(value),
             Self::Time => time::time_dumper::can_dump(value),
             Self::DateTime { .. } => datetime::datetime_dumper::can_dump(value),
@@ -171,7 +179,7 @@ impl Dumper {
                     field_name,
                     ctx,
                     data.decimal_places,
-                    data.rounding_strategy,
+                    data.rounding.as_ref(),
                     data.invalid_error.as_deref(),
                 )
             }
@@ -252,7 +260,7 @@ impl Dumper {
                     field_name,
                     ctx,
                     data.decimal_places,
-                    data.rounding_strategy,
+                    data.rounding.as_ref(),
                     data.invalid_error.as_deref(),
                     serializer,
                 )

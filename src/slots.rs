@@ -31,10 +31,7 @@ pub unsafe fn get_slot_value_direct<'py>(
     }
     let slot_ptr = (obj_ptr as *const u8).offset(offset).cast::<*mut pyo3::ffi::PyObject>();
     let py_obj_ptr = *slot_ptr;
-    if py_obj_ptr.is_null() {
-        return None;
-    }
-    Some(Py::<PyAny>::from_borrowed_ptr(py, py_obj_ptr).into_bound(py))
+    Bound::from_borrowed_ptr_or_opt(py, py_obj_ptr)
 }
 
 #[inline]

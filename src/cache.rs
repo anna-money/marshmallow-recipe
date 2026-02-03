@@ -8,7 +8,6 @@ use crate::types::{
     DecimalPlaces, FieldDescriptor, FieldType, SchemaDescriptor, TypeDescriptor, TypeKind, build_field_lookup,
     callback_required_dump, callback_required_dump_json, callback_required_load,
 };
-use crate::utils::python_rounding_to_rust;
 use crate::dumper::{
     Dumper, FieldDumper, DataclassDumperSchema,
     CollectionData, CollectionKind, DateTimeFormat, DictData,
@@ -26,7 +25,6 @@ pub static SCHEMA_CACHE: Lazy<RwLock<HashMap<u64, TypeDescriptor>>> =
 
 pub struct CachedPyTypes {
     pub int_cls: Py<PyAny>,
-    pub decimal_cls: Py<PyAny>,
     pub object_cls: Py<PyAny>,
     pub missing_sentinel: Py<PyAny>,
 }
@@ -35,13 +33,11 @@ static CACHED_PY_TYPES: OnceCell<CachedPyTypes> = OnceCell::new();
 
 pub fn get_cached_types(py: Python) -> PyResult<&'static CachedPyTypes> {
     CACHED_PY_TYPES.get_or_try_init(|| {
-        let decimal_mod = py.import("decimal")?;
         let builtins = py.import("builtins")?;
         let mr_missing_mod = py.import("marshmallow_recipe.missing")?;
 
         Ok(CachedPyTypes {
             int_cls: builtins.getattr("int")?.unbind(),
-            decimal_cls: decimal_mod.getattr("Decimal")?.unbind(),
             object_cls: builtins.getattr("object")?.unbind(),
             missing_sentinel: mr_missing_mod.getattr("MISSING")?.unbind(),
         })
@@ -247,7 +243,7 @@ fn build_primitive_dumper(field_type: FieldType) -> Dumper {
         FieldType::Bool => Dumper::Bool,
         FieldType::Decimal => Dumper::Decimal(Box::new(DumpDecimalData {
             decimal_places: DecimalPlaces::NotSpecified,
-            rounding_strategy: None,
+            rounding: None,
             invalid_error: None,
         })),
         FieldType::Date => Dumper::Date,
@@ -266,7 +262,7 @@ fn build_primitive_loader(field_type: FieldType) -> Loader {
         FieldType::Bool => Loader::Bool,
         FieldType::Decimal => Loader::Decimal(Box::new(DecimalLoaderData {
             decimal_places: DecimalPlaces::NotSpecified,
-            rounding_strategy: None,
+            rounding: None,
         })),
         FieldType::Date => Loader::Date,
         FieldType::Time => Loader::Time,
@@ -484,7 +480,7 @@ fn build_dumper_from_field(py: Python<'_>, field: &FieldDescriptor) -> Dumper {
         FieldType::Bool => Dumper::Bool,
         FieldType::Decimal => Dumper::Decimal(Box::new(DumpDecimalData {
             decimal_places: field.decimal_places,
-            rounding_strategy: field.decimal_rounding.as_ref().map(|r| python_rounding_to_rust(Some(r), py)),
+            rounding: field.decimal_rounding.as_ref().map(|r| r.clone_ref(py)),
             invalid_error: field.invalid_error.clone(),
         })),
         FieldType::Date => Dumper::Date,
@@ -579,7 +575,7 @@ fn build_loader_from_field(py: Python<'_>, field: &FieldDescriptor) -> Loader {
         FieldType::Bool => Loader::Bool,
         FieldType::Decimal => Loader::Decimal(Box::new(DecimalLoaderData {
             decimal_places: field.decimal_places,
-            rounding_strategy: field.decimal_rounding.as_ref().map(|r| python_rounding_to_rust(Some(r), py)),
+            rounding: field.decimal_rounding.as_ref().map(|r| r.clone_ref(py)),
         })),
         FieldType::Date => Loader::Date,
         FieldType::Time => Loader::Time,

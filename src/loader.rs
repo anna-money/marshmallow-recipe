@@ -1,7 +1,6 @@
 #![allow(clippy::struct_field_names)]
 
 use pyo3::prelude::*;
-use rust_decimal::RoundingStrategy;
 
 pub use crate::fields::collection::CollectionKind;
 pub use crate::fields::datetime::DateTimeFormat;
@@ -34,10 +33,18 @@ impl Clone for IntEnumLoaderData {
     }
 }
 
-#[derive(Clone, Copy)]
 pub struct DecimalLoaderData {
     pub decimal_places: DecimalPlaces,
-    pub rounding_strategy: Option<RoundingStrategy>,
+    pub rounding: Option<Py<PyAny>>,
+}
+
+impl Clone for DecimalLoaderData {
+    fn clone(&self) -> Self {
+        Python::attach(|py| Self {
+            decimal_places: self.decimal_places,
+            rounding: self.rounding.as_ref().map(|r| r.clone_ref(py)),
+        })
+    }
 }
 
 pub struct CollectionLoaderData {
@@ -137,7 +144,7 @@ impl Loader {
                     invalid_error,
                     ctx,
                     data.decimal_places,
-                    data.rounding_strategy,
+                    data.rounding.as_ref(),
                 )
             }
             Self::Date => date::date_loader::load_from_dict(value, field_name, invalid_error, ctx),

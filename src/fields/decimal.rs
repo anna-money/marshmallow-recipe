@@ -1,133 +1,169 @@
-use std::fmt::Write;
-
-use arrayvec::ArrayString;
-use rust_decimal::Decimal;
+use pyo3::intern;
+use pyo3::prelude::*;
+use pyo3::sync::PyOnceLock;
+use pyo3::types::PyType;
 
 use super::helpers::{field_error, json_field_error, DECIMAL_ERROR, DECIMAL_NUMBER_ERROR};
-use crate::cache::get_cached_types;
-use crate::types::{DecimalPlaces, DumpContext};
+use crate::types::DecimalPlaces;
 
-pub type DecimalBuf = ArrayString<31>;
+fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
+    static DECIMAL_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    DECIMAL_CLS.import(py, "decimal", "Decimal")
+}
 
-#[inline]
-pub fn format_decimal(buf: &mut DecimalBuf, d: &Decimal) {
-    write!(buf, "{d}").expect("Decimal max 31 chars: 29 digits + sign + point");
+fn get_quantize_exp(py: Python<'_>, places: u32) -> PyResult<Bound<'_, PyAny>> {
+    const MAX_CACHED_PLACES: usize = 16;
+
+    static QUANTIZE_EXP_CACHE: [PyOnceLock<Py<PyAny>>; MAX_CACHED_PLACES] =
+        [const { PyOnceLock::new() }; MAX_CACHED_PLACES];
+
+    let idx = places as usize;
+    if idx < MAX_CACHED_PLACES {
+        QUANTIZE_EXP_CACHE[idx]
+            .get_or_try_init(py, || {
+                let exp_str = format!("0.{}", "0".repeat(places as usize));
+                get_decimal_cls(py)?.call1((&exp_str,)).map(Bound::unbind)
+            })
+            .map(|v| v.bind(py).clone())
+    } else {
+        let exp_str = format!("0.{}", "0".repeat(places as usize));
+        get_decimal_cls(py)?.call1((&exp_str,))
+    }
+}
+
+fn get_decimal_scale(value: &Bound<'_, PyAny>) -> PyResult<u32> {
+    let normalized = value.call_method0(intern!(value.py(), "normalize"))?;
+    let as_tuple = normalized.call_method0(intern!(value.py(), "as_tuple"))?;
+    let exponent: i32 = as_tuple.getattr(intern!(value.py(), "exponent"))?.extract()?;
+    Ok(if exponent < 0 { (-exponent).cast_unsigned() } else { 0 })
+}
+
+fn quantize_decimal<'py>(
+    value: &Bound<'py, PyAny>,
+    places: u32,
+    rounding: &Py<PyAny>,
+) -> PyResult<Bound<'py, PyAny>> {
+    let py = value.py();
+    let exp = get_quantize_exp(py, places)?;
+    value.call_method1(intern!(py, "quantize"), (&exp, rounding.bind(py)))
+}
+
+fn apply_rounding_or_validate<'py>(
+    value: &Bound<'py, PyAny>,
+    places: Option<i32>,
+    rounding: Option<&Py<PyAny>>,
+) -> PyResult<Bound<'py, PyAny>> {
+    let Some(places) = places else {
+        return Ok(value.clone());
+    };
+
+    if let Some(rounding) = rounding {
+        quantize_decimal(value, places.cast_unsigned(), rounding)
+    } else {
+        let scale = get_decimal_scale(value)?;
+        if scale > places.cast_unsigned() {
+            return Err(pyo3::exceptions::PyValueError::new_err("scale exceeded"));
+        }
+        Ok(value.clone())
+    }
 }
 
 pub mod decimal_dumper {
     use pyo3::intern;
     use pyo3::prelude::*;
     use pyo3::types::PyString;
-    use rust_decimal::Decimal;
-    use rust_decimal::RoundingStrategy;
-    use rust_decimal::prelude::FromStr;
 
     use super::{
-        field_error, get_cached_types, json_field_error, DecimalPlaces,
-        DumpContext, DECIMAL_ERROR, DECIMAL_NUMBER_ERROR,
+        apply_rounding_or_validate, field_error, get_decimal_cls, json_field_error, DecimalPlaces,
+        DECIMAL_ERROR, DECIMAL_NUMBER_ERROR,
     };
 
     #[inline]
-    pub fn can_dump<'py>(value: &Bound<'py, PyAny>, ctx: &DumpContext<'_, 'py>) -> bool {
-        let Ok(cached) = get_cached_types(ctx.py) else {
+    fn format_decimal_fixed_point<'py>(value: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyString>> {
+        let format_result = value.call_method1(intern!(value.py(), "__format__"), ("f",))?;
+        Ok(format_result.cast_into()?)
+    }
+
+    #[inline]
+    pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
+        let Ok(decimal_cls) = get_decimal_cls(value.py()) else {
             return false;
         };
-        value.is_instance(cached.decimal_cls.bind(ctx.py)).unwrap_or(false)
+        value.is_instance(decimal_cls).unwrap_or(false)
     }
 
     #[inline]
     pub fn dump_to_dict<'py>(
         value: &Bound<'py, PyAny>,
         field_name: &str,
-        ctx: &DumpContext<'_, 'py>,
+        ctx: &crate::types::DumpContext<'_, 'py>,
         decimal_places: DecimalPlaces,
-        rounding_strategy: Option<RoundingStrategy>,
+        rounding: Option<&Py<PyAny>>,
         invalid_error: Option<&str>,
     ) -> PyResult<Py<PyAny>> {
-        let cached = get_cached_types(ctx.py)?;
-        if !value.is_instance(cached.decimal_cls.bind(ctx.py))? {
+        let decimal_cls = get_decimal_cls(ctx.py)?;
+        if !value.is_instance(decimal_cls)? {
             return Err(field_error(ctx.py, field_name, DECIMAL_ERROR));
         }
-        let format_result = value.call_method1(intern!(ctx.py, "__format__"), ("f",))?;
-        let formatted = format_result.cast::<PyString>()?;
-        let decimal_str = formatted.to_str()?;
 
         let places = decimal_places.resolve(ctx.global_decimal_places);
-
-        if let Some(strategy) = rounding_strategy {
-            if let Some(places) = places {
-                if let Ok(mut rust_decimal) = Decimal::from_str(decimal_str) {
-                    rust_decimal = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
-                    let formatted_str = format!("{:.prec$}", rust_decimal, prec = places.cast_unsigned() as usize);
-                    return Ok(PyString::new(ctx.py, &formatted_str).into_any().unbind());
-                }
-            }
-        } else if let Some(places) = places {
-            if let Ok(rust_decimal) = Decimal::from_str(decimal_str) {
-                let normalized = rust_decimal.normalize();
-                if normalized.scale() > places.cast_unsigned() {
-                    let msg = invalid_error.unwrap_or(DECIMAL_NUMBER_ERROR);
-                    return Err(field_error(ctx.py, field_name, msg));
-                }
-            }
-        }
-
-        Ok(PyString::new(ctx.py, decimal_str).into_any().unbind())
+        let decimal = apply_rounding_or_validate(value, places, rounding)
+            .map_err(|_| field_error(ctx.py, field_name, invalid_error.unwrap_or(DECIMAL_NUMBER_ERROR)))?;
+        let decimal_str = format_decimal_fixed_point(&decimal)
+            .map_err(|_| field_error(ctx.py, field_name, invalid_error.unwrap_or(DECIMAL_NUMBER_ERROR)))?;
+        Ok(decimal_str.into_any().unbind())
     }
 
     #[inline]
     pub fn dump<S: serde::Serializer>(
         value: &Bound<'_, PyAny>,
         field_name: &str,
-        ctx: &DumpContext<'_, '_>,
+        ctx: &crate::types::DumpContext<'_, '_>,
         decimal_places: DecimalPlaces,
-        rounding_strategy: Option<RoundingStrategy>,
+        rounding: Option<&Py<PyAny>>,
         invalid_error: Option<&str>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
         use serde::ser::Error;
-        let cached = get_cached_types(ctx.py).map_err(|e| S::Error::custom(e.to_string()))?;
-        if !value.is_instance(cached.decimal_cls.bind(ctx.py)).map_err(|e| S::Error::custom(e.to_string()))? {
+
+        let decimal_cls = get_decimal_cls(ctx.py).map_err(|e| S::Error::custom(e.to_string()))?;
+        if !value.is_instance(decimal_cls).map_err(|e| S::Error::custom(e.to_string()))? {
             return Err(S::Error::custom(json_field_error(field_name, DECIMAL_ERROR)));
         }
-        let format_result = value.call_method1(intern!(ctx.py, "__format__"), ("f",)).map_err(|e| S::Error::custom(e.to_string()))?;
-        let formatted = format_result.cast::<PyString>().map_err(|e| S::Error::custom(e.to_string()))?;
-        let decimal_str = formatted.to_str().map_err(|e| S::Error::custom(e.to_string()))?;
 
         let places = decimal_places.resolve(ctx.global_decimal_places);
-
-        if let Some(strategy) = rounding_strategy {
-            if let Some(places) = places {
-                if let Ok(mut rust_decimal) = Decimal::from_str(decimal_str) {
-                    rust_decimal = rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy);
-                    let formatted_str = format!("{:.prec$}", rust_decimal, prec = places.cast_unsigned() as usize);
-                    return serializer.serialize_str(&formatted_str);
-                }
-            }
-        } else if let Some(places) = places {
-            if let Ok(rust_decimal) = Decimal::from_str(decimal_str) {
-                let normalized = rust_decimal.normalize();
-                if normalized.scale() > places.cast_unsigned() {
-                    let msg = invalid_error.unwrap_or(DECIMAL_NUMBER_ERROR);
-                    return Err(S::Error::custom(json_field_error(field_name, msg)));
-                }
-            }
-        }
-
-        serializer.serialize_str(decimal_str)
+        let decimal = apply_rounding_or_validate(value, places, rounding)
+            .map_err(|_| S::Error::custom(json_field_error(field_name, invalid_error.unwrap_or(DECIMAL_NUMBER_ERROR))))?;
+        let decimal_str = format_decimal_fixed_point(&decimal)
+            .map_err(|_| S::Error::custom(json_field_error(field_name, invalid_error.unwrap_or(DECIMAL_NUMBER_ERROR))))?;
+        let decimal_str_ref = decimal_str.to_str().map_err(|e| S::Error::custom(e.to_string()))?;
+        serializer.serialize_str(decimal_str_ref)
     }
 }
 
 pub mod decimal_loader {
     use pyo3::prelude::*;
     use pyo3::types::{PyBool, PyFloat, PyInt, PyString};
-    use rust_decimal::Decimal;
-    use rust_decimal::RoundingStrategy;
-    use rust_decimal::prelude::FromStr;
     use serde::de;
 
-    use super::{field_error, format_decimal, get_cached_types, DecimalBuf, DecimalPlaces, DECIMAL_NUMBER_ERROR};
+    use super::{
+        apply_rounding_or_validate, field_error, get_decimal_cls, DecimalPlaces,
+        DECIMAL_NUMBER_ERROR,
+    };
     use crate::types::LoadContext;
+
+    fn create_decimal_from_value<'py>(
+        py: Python<'py>,
+        value: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let decimal_cls = get_decimal_cls(py)?;
+        if value.is_instance_of::<PyFloat>() {
+            let str_repr = value.str()?;
+            decimal_cls.call1((str_repr,))
+        } else {
+            decimal_cls.call1((value,))
+        }
+    }
 
     #[inline]
     pub fn load_from_dict<'py>(
@@ -136,52 +172,25 @@ pub mod decimal_loader {
         invalid_error: Option<&str>,
         ctx: &LoadContext<'py>,
         decimal_places: DecimalPlaces,
-        rounding_strategy: Option<RoundingStrategy>,
+        rounding: Option<&Py<PyAny>>,
     ) -> PyResult<Py<PyAny>> {
-        let cached = get_cached_types(ctx.py)?;
-        let decimal_cls = cached.decimal_cls.bind(ctx.py);
         let number_err = || field_error(ctx.py, field_name, invalid_error.unwrap_or(DECIMAL_NUMBER_ERROR));
 
-        let rust_decimal = if let Ok(s) = value.cast::<PyString>() {
-            let s_str = s.to_str()?;
-            Decimal::from_str(s_str)
-                .or_else(|_| Decimal::from_scientific(s_str))
-                .map_err(|_| number_err())?
+        let py_decimal = if let Ok(s) = value.cast::<PyString>() {
+            let decimal_cls = get_decimal_cls(ctx.py)?;
+            decimal_cls.call1((s,)).map_err(|_| number_err())?
         } else if value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>() {
-            if let Ok(i) = value.extract::<i64>() {
-                Decimal::from(i)
-            } else if let Ok(u) = value.extract::<u64>() {
-                Decimal::from(u)
-            } else {
-                let s: String = value.str()?.extract()?;
-                Decimal::from_str(&s).map_err(|_| number_err())?
-            }
+            create_decimal_from_value(ctx.py, value).map_err(|_| number_err())?
         } else if value.is_instance_of::<PyFloat>() {
-            let f: f64 = value.extract()?;
-            Decimal::try_from(f).map_err(|_| number_err())?
+            create_decimal_from_value(ctx.py, value).map_err(|_| number_err())?
         } else {
             return Err(number_err());
         };
 
         let places = decimal_places.resolve(ctx.decimal_places);
-        let final_decimal = if let Some(places) = places {
-            if let Some(strategy) = rounding_strategy {
-                rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy)
-            } else {
-                let normalized = rust_decimal.normalize();
-                if normalized.scale() > places.cast_unsigned() {
-                    return Err(field_error(ctx.py, field_name, invalid_error.unwrap_or(DECIMAL_NUMBER_ERROR)));
-                }
-                rust_decimal
-            }
-        } else {
-            rust_decimal
-        };
-
-        let mut buf = DecimalBuf::new();
-        format_decimal(&mut buf, &final_decimal);
-        let result = decimal_cls.call1((buf.as_str(),))?;
-        Ok(result.unbind())
+        let final_decimal = apply_rounding_or_validate(&py_decimal, places, rounding)
+            .map_err(|_| number_err())?;
+        Ok(final_decimal.unbind())
     }
 
     #[inline]
@@ -189,35 +198,18 @@ pub mod decimal_loader {
         py: Python,
         s: &str,
         decimal_places: DecimalPlaces,
-        rounding_strategy: Option<RoundingStrategy>,
+        rounding: Option<&Py<PyAny>>,
         ctx_decimal_places: Option<i32>,
         err_msg: &str,
     ) -> Result<Py<PyAny>, E> {
-        let rust_decimal = Decimal::from_str(s)
-            .or_else(|_| Decimal::from_scientific(s))
-            .map_err(|_| de::Error::custom(err_msg))?;
+        let decimal_cls = get_decimal_cls(py).map_err(de::Error::custom)?;
+        let py_decimal = decimal_cls.call1((s,)).map_err(|_| de::Error::custom(err_msg))?;
 
         let places = decimal_places.resolve(ctx_decimal_places);
-        let final_decimal = if let Some(places) = places {
-            if let Some(strategy) = rounding_strategy {
-                rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy)
-            } else {
-                let normalized = rust_decimal.normalize();
-                if normalized.scale() > places.cast_unsigned() {
-                    return Err(de::Error::custom(err_msg));
-                }
-                rust_decimal
-            }
-        } else {
-            rust_decimal
-        };
+        let final_decimal = apply_rounding_or_validate(&py_decimal, places, rounding)
+            .map_err(|_| de::Error::custom(err_msg))?;
 
-        let mut buf = DecimalBuf::new();
-        format_decimal(&mut buf, &final_decimal);
-        let cached = get_cached_types(py).map_err(de::Error::custom)?;
-        cached.decimal_cls.bind(py).call1((buf.as_str(),))
-            .map(pyo3::Bound::unbind)
-            .map_err(de::Error::custom)
+        Ok(final_decimal.unbind())
     }
 
     #[inline]
@@ -225,33 +217,18 @@ pub mod decimal_loader {
         py: Python,
         v: i64,
         decimal_places: DecimalPlaces,
-        rounding_strategy: Option<RoundingStrategy>,
+        rounding: Option<&Py<PyAny>>,
         ctx_decimal_places: Option<i32>,
         err_msg: &str,
     ) -> Result<Py<PyAny>, E> {
-        let rust_decimal = Decimal::from(v);
+        let decimal_cls = get_decimal_cls(py).map_err(de::Error::custom)?;
+        let py_decimal = decimal_cls.call1((v,)).map_err(de::Error::custom)?;
 
         let places = decimal_places.resolve(ctx_decimal_places);
-        let final_decimal = if let Some(places) = places {
-            if let Some(strategy) = rounding_strategy {
-                rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy)
-            } else {
-                let normalized = rust_decimal.normalize();
-                if normalized.scale() > places.cast_unsigned() {
-                    return Err(de::Error::custom(err_msg));
-                }
-                rust_decimal
-            }
-        } else {
-            rust_decimal
-        };
+        let final_decimal = apply_rounding_or_validate(&py_decimal, places, rounding)
+            .map_err(|_| de::Error::custom(err_msg))?;
 
-        let mut buf = DecimalBuf::new();
-        format_decimal(&mut buf, &final_decimal);
-        let cached = get_cached_types(py).map_err(de::Error::custom)?;
-        cached.decimal_cls.bind(py).call1((buf.as_str(),))
-            .map(pyo3::Bound::unbind)
-            .map_err(de::Error::custom)
+        Ok(final_decimal.unbind())
     }
 
     #[inline]
@@ -259,33 +236,18 @@ pub mod decimal_loader {
         py: Python,
         v: u64,
         decimal_places: DecimalPlaces,
-        rounding_strategy: Option<RoundingStrategy>,
+        rounding: Option<&Py<PyAny>>,
         ctx_decimal_places: Option<i32>,
         err_msg: &str,
     ) -> Result<Py<PyAny>, E> {
-        let rust_decimal = Decimal::from(v);
+        let decimal_cls = get_decimal_cls(py).map_err(de::Error::custom)?;
+        let py_decimal = decimal_cls.call1((v,)).map_err(de::Error::custom)?;
 
         let places = decimal_places.resolve(ctx_decimal_places);
-        let final_decimal = if let Some(places) = places {
-            if let Some(strategy) = rounding_strategy {
-                rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy)
-            } else {
-                let normalized = rust_decimal.normalize();
-                if normalized.scale() > places.cast_unsigned() {
-                    return Err(de::Error::custom(err_msg));
-                }
-                rust_decimal
-            }
-        } else {
-            rust_decimal
-        };
+        let final_decimal = apply_rounding_or_validate(&py_decimal, places, rounding)
+            .map_err(|_| de::Error::custom(err_msg))?;
 
-        let mut buf = DecimalBuf::new();
-        format_decimal(&mut buf, &final_decimal);
-        let cached = get_cached_types(py).map_err(de::Error::custom)?;
-        cached.decimal_cls.bind(py).call1((buf.as_str(),))
-            .map(pyo3::Bound::unbind)
-            .map_err(de::Error::custom)
+        Ok(final_decimal.unbind())
     }
 
     #[inline]
@@ -293,32 +255,18 @@ pub mod decimal_loader {
         py: Python,
         v: f64,
         decimal_places: DecimalPlaces,
-        rounding_strategy: Option<RoundingStrategy>,
+        rounding: Option<&Py<PyAny>>,
         ctx_decimal_places: Option<i32>,
         err_msg: &str,
     ) -> Result<Py<PyAny>, E> {
-        let rust_decimal = Decimal::try_from(v).map_err(|_| de::Error::custom(err_msg))?;
+        let decimal_cls = get_decimal_cls(py).map_err(de::Error::custom)?;
+        let v_str = v.to_string();
+        let py_decimal = decimal_cls.call1((&v_str,)).map_err(|_| de::Error::custom(err_msg))?;
 
         let places = decimal_places.resolve(ctx_decimal_places);
-        let final_decimal = if let Some(places) = places {
-            if let Some(strategy) = rounding_strategy {
-                rust_decimal.round_dp_with_strategy(places.cast_unsigned(), strategy)
-            } else {
-                let normalized = rust_decimal.normalize();
-                if normalized.scale() > places.cast_unsigned() {
-                    return Err(de::Error::custom(err_msg));
-                }
-                rust_decimal
-            }
-        } else {
-            rust_decimal
-        };
+        let final_decimal = apply_rounding_or_validate(&py_decimal, places, rounding)
+            .map_err(|_| de::Error::custom(err_msg))?;
 
-        let mut buf = DecimalBuf::new();
-        format_decimal(&mut buf, &final_decimal);
-        let cached = get_cached_types(py).map_err(de::Error::custom)?;
-        cached.decimal_cls.bind(py).call1((buf.as_str(),))
-            .map(pyo3::Bound::unbind)
-            .map_err(de::Error::custom)
+        Ok(final_decimal.unbind())
     }
 }
