@@ -9,9 +9,8 @@ from collections.abc import Mapping, Sequence
 from typing import Annotated, Any, NewType
 
 import marshmallow
-import pytest
-
 import marshmallow_recipe as mr
+import pytest
 
 
 class Serializer(abc.ABC):
@@ -1271,3 +1270,13 @@ class WithNestedDefault:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithListStripWhitespace:
     items: list[Annotated[str, mr.str_meta(strip_whitespaces=True)]]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Inner:
+    x: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithUnionDictDataclass:
+    value: dict[str, Inner] | str

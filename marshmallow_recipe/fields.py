@@ -1802,9 +1802,6 @@ else:
             if errors:
                 raise m.ValidationError(errors, data=result)
 
-            if errors:
-                raise m.ValidationError(errors)
-
             return result
 
     DictField = TypedDict
