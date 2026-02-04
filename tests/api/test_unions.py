@@ -1,6 +1,11 @@
+import marshmallow
+import pytest
+
 from .conftest import (
+    Inner,
     Serializer,
     WithUnion,
+    WithUnionDictDataclass,
     WithUnionDictStr,
     WithUnionFloatInt,
     WithUnionIntFloat,
@@ -206,3 +211,31 @@ class TestUnionLoad:
         data = b'{"value":"hello"}'
         result = impl.load(WithUnionMissing, data)
         assert result == WithUnionMissing(value="hello")
+
+
+class TestUnionErrors:
+    def test_dict_variant_with_invalid_nested_value(self, impl: Serializer) -> None:
+        data = b'{"value": {"key": {"x": "not_int"}}}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithUnionDictDataclass, data)
+        assert exc.value.messages == {
+            "value": [{"key": {"value": {"x": ["Not a valid integer."]}}}, ["Not a valid string."]]
+        }
+
+    def test_dict_variant_with_missing_nested_field(self, impl: Serializer) -> None:
+        data = b'{"value": {"key": {}}}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithUnionDictDataclass, data)
+        assert exc.value.messages == {
+            "value": [{"key": {"value": {"x": ["Missing data for required field."]}}}, ["Not a valid string."]]
+        }
+
+    def test_valid_dict_variant(self, impl: Serializer) -> None:
+        data = b'{"value": {"key": {"x": 42}}}'
+        result = impl.load(WithUnionDictDataclass, data)
+        assert result == WithUnionDictDataclass(value={"key": Inner(x=42)})
+
+    def test_valid_str_variant(self, impl: Serializer) -> None:
+        data = b'{"value": "hello"}'
+        result = impl.load(WithUnionDictDataclass, data)
+        assert result == WithUnionDictDataclass(value="hello")

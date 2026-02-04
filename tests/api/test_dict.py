@@ -6,9 +6,8 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 import marshmallow
-import pytest
-
 import marshmallow_recipe as mr
+import pytest
 
 from .conftest import (
     Address,
@@ -176,6 +175,21 @@ class TestDictDump:
         ],
     )
     def test_invalid_type(self, impl: Serializer, obj: DictOf[str, int]) -> None:
+        with pytest.raises(marshmallow.ValidationError):
+            impl.dump(DictOf[str, int], obj)
+
+    def test_value_wrong_type(self, impl: Serializer) -> None:
+        obj = DictOf[str, int](**{"data": {"a": "not_int"}})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError):
+            impl.dump(DictOf[str, int], obj)
+
+    def test_nested_value_wrong_type(self, impl: Serializer) -> None:
+        obj = DictOf[str, Address](**{"data": {"home": "not_an_address"}})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError):
+            impl.dump(DictOf[str, Address], obj)
+
+    def test_multiple_value_errors(self, impl: Serializer) -> None:
+        obj = DictOf[str, int](**{"data": {"a": "not_int", "b": "also_not_int"}})  # type: ignore[arg-type]
         with pytest.raises(marshmallow.ValidationError):
             impl.dump(DictOf[str, int], obj)
 
@@ -368,3 +382,17 @@ class TestDictLoad:
     def test_missing(self, impl: Serializer, data: bytes, expected: WithDictMissing) -> None:
         result = impl.load(WithDictMissing, data)
         assert result == expected
+
+    def test_nested_value_wrong_type(self, impl: Serializer) -> None:
+        data = b'{"data":{"home":"not_a_dict"}}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(DictOf[str, Address], data)
+        assert exc.value.messages == {"data": {"home": {"value": {"_schema": ["Invalid input type."]}}}}
+
+    def test_multiple_value_errors(self, impl: Serializer) -> None:
+        data = b'{"data":{"a":"not_int","b":"also_not_int"}}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(DictOf[str, int], data)
+        assert exc.value.messages == {
+            "data": {"a": {"value": ["Not a valid integer."]}, "b": {"value": ["Not a valid integer."]}}
+        }
