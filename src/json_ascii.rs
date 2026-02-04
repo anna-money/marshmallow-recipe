@@ -8,15 +8,24 @@ impl serde_json::ser::Formatter for AsciiFormatter {
     where
         W: ?Sized + Write,
     {
-        for ch in fragment.chars() {
-            if ch.is_ascii() {
-                write!(writer, "{ch}")?;
-            } else {
+        let mut start = 0;
+
+        for (i, ch) in fragment.char_indices() {
+            if !ch.is_ascii() {
+                if start < i {
+                    writer.write_all(&fragment.as_bytes()[start..i])?;
+                }
                 for code_unit in ch.encode_utf16(&mut [0; 2]) {
                     write!(writer, "\\u{code_unit:04x}")?;
                 }
+                start = i + ch.len_utf8();
             }
         }
+
+        if start < fragment.len() {
+            writer.write_all(&fragment.as_bytes()[start..])?;
+        }
+
         Ok(())
     }
 }

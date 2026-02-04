@@ -1,75 +1,86 @@
-use super::helpers::{field_error, json_field_error, BOOL_ERROR};
-use crate::types::DumpContext;
+use pyo3::conversion::IntoPyObjectExt;
+use pyo3::prelude::*;
+use pyo3::types::{PyBool, PyInt};
 
-pub mod bool_dumper {
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+use crate::error::{DumpError, LoadError};
 
-    use super::{field_error, json_field_error, DumpContext, BOOL_ERROR};
+const BOOL_ERROR: &str = "Not a valid boolean.";
 
-    #[inline]
-    pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
-        value.is_instance_of::<PyBool>()
+pub fn load(
+    py: Python<'_>,
+    value: &serde_json::Value,
+    invalid_error: Option<&str>,
+) -> Result<Py<PyAny>, LoadError> {
+    let err_msg = invalid_error.unwrap_or(BOOL_ERROR);
+
+    if let Some(b) = value.as_bool() {
+        return b
+            .into_py_any(py)
+            .map_err(|e| LoadError::simple(&e.to_string()));
+    }
+    if let Some(i) = value.as_i64() {
+        return match i {
+            0 => false
+                .into_py_any(py)
+                .map_err(|e| LoadError::simple(&e.to_string())),
+            1 => true
+                .into_py_any(py)
+                .map_err(|e| LoadError::simple(&e.to_string())),
+            _ => Err(LoadError::simple(err_msg)),
+        };
+    }
+    if let Some(u) = value.as_u64() {
+        return match u {
+            0 => false
+                .into_py_any(py)
+                .map_err(|e| LoadError::simple(&e.to_string())),
+            1 => true
+                .into_py_any(py)
+                .map_err(|e| LoadError::simple(&e.to_string())),
+            _ => Err(LoadError::simple(err_msg)),
+        };
     }
 
-    #[inline]
-    pub fn dump_to_dict<'py>(
-        value: &Bound<'py, PyAny>,
-        field_name: &str,
-        ctx: &DumpContext<'_, 'py>,
-    ) -> PyResult<Py<PyAny>> {
-        if !value.is_instance_of::<PyBool>() {
-            return Err(field_error(ctx.py, field_name, BOOL_ERROR));
-        }
-        Ok(value.clone().unbind())
-    }
-
-    #[inline]
-    pub fn dump<S: serde::Serializer>(
-        value: &Bound<'_, PyAny>,
-        field_name: &str,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        use serde::ser::Error;
-        if !value.is_instance_of::<PyBool>() {
-            return Err(S::Error::custom(json_field_error(field_name, BOOL_ERROR)));
-        }
-        let b: bool = value.extract().map_err(|e: PyErr| S::Error::custom(e.to_string()))?;
-        serializer.serialize_bool(b)
-    }
+    Err(LoadError::simple(err_msg))
 }
 
-pub mod bool_loader {
-    use pyo3::conversion::IntoPyObjectExt;
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
-    use serde::de;
+pub fn load_from_py(
+    value: &Bound<'_, PyAny>,
+    invalid_error: Option<&str>,
+) -> Result<Py<PyAny>, LoadError> {
+    let err_msg = invalid_error.unwrap_or(BOOL_ERROR);
+    let py = value.py();
 
-    use super::{field_error, BOOL_ERROR};
-    use crate::types::LoadContext;
-
-    #[inline]
-    pub fn load_from_dict<'py>(
-        value: &Bound<'py, PyAny>,
-        field_name: &str,
-        invalid_error: Option<&str>,
-        ctx: &LoadContext<'py>,
-    ) -> PyResult<Py<PyAny>> {
-        if value.is_instance_of::<PyBool>() {
-            return Ok(value.clone().unbind());
-        }
-        if let Ok(i) = value.extract::<i64>() {
-            return match i {
-                0 => false.into_py_any(ctx.py),
-                1 => true.into_py_any(ctx.py),
-                _ => Err(field_error(ctx.py, field_name, invalid_error.unwrap_or(BOOL_ERROR))),
-            };
-        }
-        Err(field_error(ctx.py, field_name, invalid_error.unwrap_or(BOOL_ERROR)))
+    if value.is_instance_of::<PyBool>() {
+        return Ok(value.clone().unbind());
+    }
+    if value.is_instance_of::<PyInt>() {
+        let i: i64 = value.extract().map_err(|_| LoadError::simple(err_msg))?;
+        return match i {
+            0 => false
+                .into_py_any(py)
+                .map_err(|e| LoadError::simple(&e.to_string())),
+            1 => true
+                .into_py_any(py)
+                .map_err(|e| LoadError::simple(&e.to_string())),
+            _ => Err(LoadError::simple(err_msg)),
+        };
     }
 
-    #[inline]
-    pub fn load_from_bool<E: de::Error>(py: Python, v: bool) -> Result<Py<PyAny>, E> {
-        v.into_py_any(py).map_err(de::Error::custom)
+    Err(LoadError::simple(err_msg))
+}
+
+pub fn dump(value: &Bound<'_, PyAny>) -> Result<serde_json::Value, DumpError> {
+    let b: bool = value
+        .extract()
+        .map_err(|_| DumpError::simple(BOOL_ERROR))?;
+
+    Ok(serde_json::Value::Bool(b))
+}
+
+pub fn dump_to_py(value: &Bound<'_, PyAny>) -> Result<Py<PyAny>, DumpError> {
+    if !value.is_instance_of::<PyBool>() {
+        return Err(DumpError::simple(BOOL_ERROR));
     }
+    Ok(value.clone().unbind())
 }

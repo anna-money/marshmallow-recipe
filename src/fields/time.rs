@@ -1,71 +1,66 @@
 use chrono::NaiveTime;
 use pyo3::conversion::IntoPyObjectExt;
+use pyo3::prelude::*;
 use pyo3::types::{PyString, PyTime};
-use serde::de;
-use serde::ser::Error as SerError;
-use serde::Serialize;
 
-use super::helpers::{field_error, json_field_error, TIME_ERROR};
-use crate::types::{DumpContext, LoadContext};
+use crate::error::{DumpError, LoadError};
+use crate::utils::display_to_py;
 
-pub mod time_dumper {
-    use super::{
-        field_error, json_field_error, DumpContext, NaiveTime, PyString, PyTime, SerError,
-        Serialize, TIME_ERROR,
-    };
-    use pyo3::prelude::*;
+const TIME_ERROR: &str = "Not a valid time.";
 
-    #[inline]
-    pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
-        value.is_instance_of::<PyTime>()
+pub fn load(
+    py: Python<'_>,
+    value: &serde_json::Value,
+    invalid_error: Option<&str>,
+) -> Result<Py<PyAny>, LoadError> {
+    let err_msg = invalid_error.unwrap_or(TIME_ERROR);
+
+    if let Some(s) = value.as_str() {
+        return s
+            .parse::<NaiveTime>()
+            .map_err(|_| LoadError::simple(err_msg))
+            .and_then(|t| {
+                t.into_py_any(py)
+                    .map_err(|e| LoadError::simple(&e.to_string()))
+            });
     }
 
-    #[inline]
-    pub fn dump_to_dict<'py>(
-        value: &Bound<'py, PyAny>,
-        field_name: &str,
-        ctx: &DumpContext<'_, 'py>,
-    ) -> PyResult<Py<PyAny>> {
-        let t = value.extract::<NaiveTime>().map_err(|_| field_error(ctx.py, field_name, TIME_ERROR))?;
-        Ok(PyString::new(ctx.py, &t.to_string()).into_any().unbind())
-    }
-
-    #[inline]
-    pub fn dump<S: serde::Serializer>(
-        value: &Bound<'_, PyAny>,
-        field_name: &str,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        let t = value.extract::<NaiveTime>().map_err(|_| S::Error::custom(json_field_error(field_name, TIME_ERROR)))?;
-        t.serialize(serializer)
-    }
+    Err(LoadError::simple(err_msg))
 }
 
-pub mod time_loader {
-    use super::{de, field_error, IntoPyObjectExt, LoadContext, NaiveTime, PyString, TIME_ERROR};
-    use pyo3::prelude::*;
+pub fn load_from_py(
+    value: &Bound<'_, PyAny>,
+    invalid_error: Option<&str>,
+) -> Result<Py<PyAny>, LoadError> {
+    let err_msg = invalid_error.unwrap_or(TIME_ERROR);
 
-    #[inline]
-    pub fn load_from_dict<'py>(
-        value: &Bound<'py, PyAny>,
-        field_name: &str,
-        invalid_error: Option<&str>,
-        ctx: &LoadContext<'py>,
-    ) -> PyResult<Py<PyAny>> {
-        let time_err = || field_error(ctx.py, field_name, invalid_error.unwrap_or(TIME_ERROR));
-        let s = value.cast::<PyString>().map_err(|_| time_err())?;
-        let s_str = s.to_str()?;
-        if let Ok(t) = s_str.parse::<NaiveTime>() {
-            return t.into_py_any(ctx.py)
-                .map_err(|e| field_error(ctx.py, field_name, &e.to_string()));
+    if value.is_instance_of::<PyTime>() {
+        return Ok(value.clone().unbind());
+    }
+    if let Ok(py_str) = value.cast::<PyString>() {
+        if let Ok(s) = py_str.to_str() {
+            if let Ok(time) = s.parse::<NaiveTime>() {
+                return time
+                    .into_py_any(value.py())
+                    .map_err(|e| LoadError::simple(&e.to_string()));
+            }
         }
-        Err(time_err())
     }
 
-    #[inline]
-    pub fn load_from_str<E: de::Error>(py: Python, s: &str, err_msg: &str) -> Result<Py<PyAny>, E> {
-        s.parse::<NaiveTime>()
-            .map_err(|_| de::Error::custom(err_msg))
-            .and_then(|t| t.into_py_any(py).map_err(de::Error::custom))
-    }
+    Err(LoadError::simple(err_msg))
+}
+
+pub fn dump(value: &Bound<'_, PyAny>) -> Result<serde_json::Value, DumpError> {
+    let time: NaiveTime = value
+        .extract()
+        .map_err(|_| DumpError::simple(TIME_ERROR))?;
+
+    Ok(serde_json::Value::String(time.to_string()))
+}
+
+pub fn dump_to_py(value: &Bound<'_, PyAny>) -> Result<Py<PyAny>, DumpError> {
+    let time: NaiveTime = value
+        .extract()
+        .map_err(|_| DumpError::simple(TIME_ERROR))?;
+    Ok(display_to_py::<16, _>(value.py(), &time))
 }

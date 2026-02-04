@@ -34,3 +34,4 @@
 - All PRs **must be** reflected in CHANGELOG.md
 - **When adding new features**: MUST update `examples/` with usage examples and update `context7.json` rules 
 - Use Makefile or uv run where possible
+- Tests in tests/api/**.py have TestXxxDump and TestXxxLoad classes, add tests to these classes as appropriate

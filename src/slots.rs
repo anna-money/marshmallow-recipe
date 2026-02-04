@@ -40,7 +40,7 @@ pub unsafe fn set_slot_value_direct(
     obj: &Bound<'_, PyAny>,
     offset: isize,
     value: Py<PyAny>,
-) {
+) -> bool {
     debug_assert!(
         offset.cast_unsigned().is_multiple_of(std::mem::align_of::<*mut pyo3::ffi::PyObject>()),
         "slot offset {offset} is not properly aligned"
@@ -48,7 +48,7 @@ pub unsafe fn set_slot_value_direct(
 
     let obj_ptr = obj.as_ptr();
     if obj_ptr.is_null() {
-        return;
+        return false;
     }
     let slot_ptr = obj_ptr.cast::<u8>().offset(offset).cast::<*mut pyo3::ffi::PyObject>();
     let old_ptr = *slot_ptr;
@@ -57,4 +57,5 @@ pub unsafe fn set_slot_value_direct(
     if !old_ptr.is_null() {
         pyo3::ffi::Py_DECREF(old_ptr);
     }
+    true
 }

@@ -1,16 +1,13 @@
-mod api;
-mod cache;
-mod dump;
-mod dump_bytes;
-mod dumper;
+mod builder;
+mod container;
+mod container_dump;
+mod container_load;
 mod encoding;
+mod error;
+mod error_convert;
 mod fields;
 mod json_ascii;
-mod load;
-mod load_bytes;
-mod loader;
 mod slots;
-mod types;
 mod utils;
 
 use pyo3::prelude::*;
@@ -70,11 +67,11 @@ fn get_alloc_stats() -> (usize, usize, usize, usize) {
 
 #[pymodule]
 fn _nuked(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(cache::register, m)?)?;
-    m.add_function(wrap_pyfunction!(api::load, m)?)?;
-    m.add_function(wrap_pyfunction!(api::dump, m)?)?;
-    m.add_function(wrap_pyfunction!(api::load_from_bytes, m)?)?;
-    m.add_function(wrap_pyfunction!(api::dump_to_bytes, m)?)?;
+    m.add_class::<builder::ContainerBuilder>()?;
+    m.add_class::<builder::FieldHandle>()?;
+    m.add_class::<builder::DataclassHandle>()?;
+    m.add_class::<builder::TypeHandle>()?;
+    m.add_class::<builder::Container>()?;
     #[cfg(feature = "alloc-stats")]
     {
         m.add_function(wrap_pyfunction!(reset_alloc_stats, m)?)?;

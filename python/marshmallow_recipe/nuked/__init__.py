@@ -1,30 +1,27 @@
+import dataclasses
 import json
 import typing
 from collections.abc import Callable
 
 import marshmallow
 
-from .. import _nuked as nuked  # type: ignore[attr-defined]
 from ..hooks import get_pre_loads
 from ..options import NoneValueHandling
 from ..utils import validate_decimal_places
-from ._descriptor import TypeDescriptor, build_type_descriptor
-from ._schema import descriptor_to_dict
+from ._container import build_container, get_dataclass_info
 
 __all__ = ("dump", "dump_to_bytes", "load", "load_from_bytes")
 
-_schema_id_counter: int = 0
-_schema_id_map: dict[tuple[type, Callable[[str], str] | None], int] = {}
-_schema_cache: dict[int, TypeDescriptor] = {}
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class _ContainerKey:
+    cls: type
+    naming_case: Callable[[str], str] | None
+    none_value_handling: NoneValueHandling
+    decimal_places: int | None
 
 
-def _get_schema_id(cls: type, naming_case: Callable[[str], str] | None) -> int:
-    global _schema_id_counter
-    key = (cls, naming_case)
-    if key not in _schema_id_map:
-        _schema_id_map[key] = _schema_id_counter
-        _schema_id_counter += 1
-    return _schema_id_map[key]
+_container_cache: dict[_ContainerKey, typing.Any] = {}
 
 
 def _convert_rust_error_to_validation_error(e: ValueError) -> marshmallow.ValidationError:
@@ -40,16 +37,21 @@ def _convert_rust_error_to_validation_error(e: ValueError) -> marshmallow.Valida
     raise e
 
 
-def _ensure_registered(cls: type, naming_case: Callable[[str], str] | None) -> int:
-    schema_id = _get_schema_id(cls, naming_case)
+def _get_container(
+    cls: type,
+    naming_case: Callable[[str], str] | None,
+    none_value_handling: NoneValueHandling,
+    decimal_places: int | None,
+) -> typing.Any:
+    key = _ContainerKey(
+        cls=cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
+    )
 
-    if schema_id not in _schema_cache:
-        descriptor = build_type_descriptor(cls, naming_case)
-        raw_schema = descriptor_to_dict(descriptor)
-        _schema_cache[schema_id] = descriptor
-        nuked.register(schema_id, raw_schema)
+    if key not in _container_cache:
+        container = build_container(cls, naming_case, none_value_handling, decimal_places)
+        _container_cache[key] = container
 
-    return schema_id
+    return _container_cache[key]
 
 
 def dump_to_bytes[T](
@@ -62,13 +64,16 @@ def dump_to_bytes[T](
     encoding: str = "utf-8",
 ) -> bytes:
     validate_decimal_places(decimal_places)
-    schema_id = _ensure_registered(cls, naming_case)
-    descriptor = _schema_cache[schema_id]
+    info = get_dataclass_info(cls, naming_case)
+    effective_none_handling = (
+        none_value_handling or (info.none_value_handling if info else None) or NoneValueHandling.IGNORE
+    )
+    effective_decimal_places = decimal_places if decimal_places is not None else (info.decimal_places if info else None)
 
-    effective_none_handling = none_value_handling or descriptor.none_value_handling or NoneValueHandling.IGNORE
+    container = _get_container(cls, naming_case, effective_none_handling, effective_decimal_places)
 
     try:
-        return nuked.dump_to_bytes(schema_id, data, effective_none_handling.value, decimal_places, encoding)
+        return container.dump_to_bytes(data, encoding)
     except ValueError as e:
         raise _convert_rust_error_to_validation_error(e)
 
@@ -82,9 +87,12 @@ def load_from_bytes[T](
     encoding: str = "utf-8",
 ) -> T:
     validate_decimal_places(decimal_places)
-    schema_id = _ensure_registered(cls, naming_case)
+    info = get_dataclass_info(cls, naming_case)
+    effective_decimal_places = decimal_places if decimal_places is not None else (info.decimal_places if info else None)
+
+    container = _get_container(cls, naming_case, NoneValueHandling.IGNORE, effective_decimal_places)
     try:
-        return nuked.load_from_bytes(schema_id, data, decimal_places, encoding)  # type: ignore[return-value]
+        return container.load_from_bytes(data, encoding)  # type: ignore[return-value]
     except ValueError as e:
         raise _convert_rust_error_to_validation_error(e)
 
@@ -98,13 +106,16 @@ def dump[T](
     decimal_places: int | None = None,
 ) -> typing.Any:
     validate_decimal_places(decimal_places)
-    schema_id = _ensure_registered(cls, naming_case)
-    descriptor = _schema_cache[schema_id]
+    info = get_dataclass_info(cls, naming_case)
+    effective_none_handling = (
+        none_value_handling or (info.none_value_handling if info else None) or NoneValueHandling.IGNORE
+    )
+    effective_decimal_places = decimal_places if decimal_places is not None else (info.decimal_places if info else None)
 
-    effective_none_handling = none_value_handling or descriptor.none_value_handling or NoneValueHandling.IGNORE
+    container = _get_container(cls, naming_case, effective_none_handling, effective_decimal_places)
 
     try:
-        return nuked.dump(schema_id, data, effective_none_handling.value, decimal_places)
+        return container.dump(data)
     except ValueError as e:
         raise _convert_rust_error_to_validation_error(e)
 
@@ -117,12 +128,16 @@ def load[T](
     decimal_places: int | None = None,
 ) -> T:
     validate_decimal_places(decimal_places)
-    schema_id = _ensure_registered(cls, naming_case)
+    info = get_dataclass_info(cls, naming_case)
+    effective_decimal_places = decimal_places if decimal_places is not None else (info.decimal_places if info else None)
 
-    for pre_load in get_pre_loads(cls):
-        data = pre_load(data)
+    container = _get_container(cls, naming_case, NoneValueHandling.IGNORE, effective_decimal_places)
+
+    if info is not None:
+        for pre_load in get_pre_loads(info.cls):
+            data = pre_load(data)
 
     try:
-        return nuked.load(schema_id, data, decimal_places)  # type: ignore[return-value]
+        return container.load(data)  # type: ignore[return-value]
     except ValueError as e:
         raise _convert_rust_error_to_validation_error(e)

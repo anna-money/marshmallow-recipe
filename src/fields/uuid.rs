@@ -1,82 +1,70 @@
-use super::helpers::{field_error, json_field_error, UUID_ERROR};
+use pyo3::prelude::*;
+use pyo3::types::PyString;
 
-pub mod uuid_dumper {
-    use pyo3::prelude::*;
-    use pyo3::types::PyString;
-    use serde::ser::Error;
+use crate::error::{DumpError, LoadError};
+use crate::utils::display_to_py;
 
-    use super::{field_error, json_field_error, UUID_ERROR};
-    use crate::types::DumpContext;
+const UUID_ERROR: &str = "Not a valid UUID.";
 
-    #[inline]
-    pub fn can_dump(value: &Bound<'_, PyAny>) -> bool {
-        value.extract::<uuid::Uuid>().is_ok()
+pub fn load(
+    py: Python<'_>,
+    value: &serde_json::Value,
+    invalid_error: Option<&str>,
+) -> Result<Py<PyAny>, LoadError> {
+    let err_msg = invalid_error.unwrap_or(UUID_ERROR);
+
+    if let Some(s) = value.as_str() {
+        return ::uuid::Uuid::parse_str(s)
+            .map_err(|_| LoadError::simple(err_msg))
+            .and_then(|u| {
+                u.into_pyobject(py)
+                    .map(|b| b.into_any().unbind())
+                    .map_err(|e| LoadError::simple(&e.to_string()))
+            });
     }
 
-    #[inline]
-    pub fn dump_to_dict<'py>(
-        value: &Bound<'py, PyAny>,
-        field_name: &str,
-        ctx: &DumpContext<'_, 'py>,
-    ) -> PyResult<Py<PyAny>> {
-        let uuid: uuid::Uuid = value
-            .extract()
-            .map_err(|_| field_error(ctx.py, field_name, UUID_ERROR))?;
-        let mut buf = [0u8; uuid::fmt::Hyphenated::LENGTH];
-        let s = uuid.hyphenated().encode_lower(&mut buf);
-        Ok(PyString::new(ctx.py, s).into_any().unbind())
-    }
-
-    #[inline]
-    pub fn dump<S: serde::Serializer>(
-        value: &Bound<'_, PyAny>,
-        field_name: &str,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        use serde::Serialize;
-        let uuid: uuid::Uuid = value
-            .extract()
-            .map_err(|_| S::Error::custom(json_field_error(field_name, UUID_ERROR)))?;
-        uuid.serialize(serializer)
-    }
+    Err(LoadError::simple(err_msg))
 }
 
-pub mod uuid_loader {
-    use pyo3::prelude::*;
-    use pyo3::types::PyString;
-    use serde::de;
+pub fn load_from_py(
+    value: &Bound<'_, PyAny>,
+    invalid_error: Option<&str>,
+) -> Result<Py<PyAny>, LoadError> {
+    let err_msg = invalid_error.unwrap_or(UUID_ERROR);
+    let py = value.py();
 
-    use super::{field_error, UUID_ERROR};
-    use crate::types::LoadContext;
-
-    #[inline]
-    pub fn load_from_dict<'py>(
-        value: &Bound<'py, PyAny>,
-        field_name: &str,
-        invalid_error: Option<&str>,
-        ctx: &LoadContext<'py>,
-    ) -> PyResult<Py<PyAny>> {
-        if let Ok(uuid) = value.extract::<uuid::Uuid>() {
-            return uuid
-                .into_pyobject(ctx.py)
-                .map(|b| b.into_any().unbind())
-                .map_err(|e| field_error(ctx.py, field_name, &e.to_string()));
+    if let Ok(uuid) = value.extract::<::uuid::Uuid>() {
+        return uuid
+            .into_pyobject(py)
+            .map(|b| b.into_any().unbind())
+            .map_err(|e| LoadError::simple(&e.to_string()));
+    }
+    if let Ok(py_str) = value.cast::<PyString>() {
+        if let Ok(s) = py_str.to_str() {
+            return ::uuid::Uuid::parse_str(s)
+                .map_err(|_| LoadError::simple(err_msg))
+                .and_then(|u| {
+                    u.into_pyobject(py)
+                        .map(|b| b.into_any().unbind())
+                        .map_err(|e| LoadError::simple(&e.to_string()))
+                });
         }
-
-        let uuid_err = || field_error(ctx.py, field_name, invalid_error.unwrap_or(UUID_ERROR));
-        let s = value.cast::<PyString>().map_err(|_| uuid_err())?;
-        let s_str = s.to_str()?;
-        let uuid = uuid::Uuid::parse_str(s_str).map_err(|_| uuid_err())?;
-        uuid.into_pyobject(ctx.py)
-            .map(|b| b.into_any().unbind())
-            .map_err(|e| field_error(ctx.py, field_name, &e.to_string()))
     }
 
-    #[inline]
-    pub fn load_from_str<E: de::Error>(py: Python, s: &str, err_msg: &str) -> Result<Py<PyAny>, E> {
-        let uuid = uuid::Uuid::parse_str(s).map_err(|_| de::Error::custom(err_msg))?;
-        uuid.into_pyobject(py)
-            .map(|b| b.into_any().unbind())
-            .map_err(de::Error::custom)
-    }
+    Err(LoadError::simple(err_msg))
+}
+
+pub fn dump(value: &Bound<'_, PyAny>) -> Result<serde_json::Value, DumpError> {
+    let uuid: ::uuid::Uuid = value
+        .extract()
+        .map_err(|_| DumpError::simple(UUID_ERROR))?;
+
+    Ok(serde_json::Value::String(uuid.to_string()))
+}
+
+pub fn dump_to_py(value: &Bound<'_, PyAny>) -> Result<Py<PyAny>, DumpError> {
+    let uuid: ::uuid::Uuid = value
+        .extract()
+        .map_err(|_| DumpError::simple(UUID_ERROR))?;
+    Ok(display_to_py::<36, _>(value.py(), &uuid))
 }
