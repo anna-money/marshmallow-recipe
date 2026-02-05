@@ -169,10 +169,6 @@ def nuked_dump() -> bytes:
     return json.dumps(mr.nuked.dump(TransactionData, TRANSACTION), separators=(",", ":")).encode()
 
 
-def nuked_dump_to_bytes() -> bytes:
-    return mr.nuked.dump_to_bytes(TransactionData, TRANSACTION)
-
-
 DATA = marshmallow_dump()
 DATA_DICT = json.loads(DATA)
 
@@ -224,10 +220,6 @@ def nuked_dump_many() -> bytes:
     return json.dumps(mr.nuked.dump(list[TransactionData], TRANSACTIONS), separators=(",", ":")).encode()
 
 
-def nuked_dump_to_bytes_many() -> bytes:
-    return mr.nuked.dump_to_bytes(list[TransactionData], TRANSACTIONS)
-
-
 DATA_MANY = marshmallow_dump_many()
 
 
@@ -239,20 +231,12 @@ def nuked_load_many() -> list[TransactionData]:
     return mr.nuked.load(list[TransactionData], json.loads(DATA_MANY))
 
 
-def nuked_load_from_bytes_many() -> list[TransactionData]:
-    return mr.nuked.load_from_bytes(list[TransactionData], DATA_MANY)
-
-
 def marshmallow_dump_many_1000() -> bytes:
     return json.dumps(mr.dump_many(TransactionData, TRANSACTIONS_1000), separators=(",", ":")).encode()
 
 
 def nuked_dump_many_1000() -> bytes:
     return json.dumps(mr.nuked.dump(list[TransactionData], TRANSACTIONS_1000), separators=(",", ":")).encode()
-
-
-def nuked_dump_to_bytes_many_1000() -> bytes:
-    return mr.nuked.dump_to_bytes(list[TransactionData], TRANSACTIONS_1000)
 
 
 DATA_MANY_1000 = marshmallow_dump_many_1000()
@@ -266,10 +250,6 @@ def nuked_load_many_1000() -> list[TransactionData]:
     return mr.nuked.load(list[TransactionData], json.loads(DATA_MANY_1000))
 
 
-def nuked_load_from_bytes_many_1000() -> list[TransactionData]:
-    return mr.nuked.load_from_bytes(list[TransactionData], DATA_MANY_1000)
-
-
 def marshmallow_load() -> TransactionData:
     return mr.load(TransactionData, json.loads(DATA))
 
@@ -278,17 +258,13 @@ def nuked_load() -> TransactionData:
     return mr.nuked.load(TransactionData, json.loads(DATA))
 
 
-def nuked_load_from_bytes() -> TransactionData:
-    return mr.nuked.load_from_bytes(TransactionData, DATA)
-
-
 # Datetime-specific benchmark functions
-def nuked_dump_datetime_utc() -> bytes:
-    return mr.nuked.dump_to_bytes(DatetimeOnlyUTC, DATETIME_UTC)
+def nuked_dump_datetime_utc() -> dict:
+    return mr.nuked.dump(DatetimeOnlyUTC, DATETIME_UTC)
 
 
-def nuked_dump_datetime_non_utc() -> bytes:
-    return mr.nuked.dump_to_bytes(DatetimeOnlyNonUTC, DATETIME_NON_UTC)
+def nuked_dump_datetime_non_utc() -> dict:
+    return mr.nuked.dump(DatetimeOnlyNonUTC, DATETIME_NON_UTC)
 
 
 DATETIME_UTC_DATA = nuked_dump_datetime_utc()
@@ -296,11 +272,11 @@ DATETIME_NON_UTC_DATA = nuked_dump_datetime_non_utc()
 
 
 def nuked_load_datetime_utc() -> DatetimeOnlyUTC:
-    return mr.nuked.load_from_bytes(DatetimeOnlyUTC, DATETIME_UTC_DATA)
+    return mr.nuked.load(DatetimeOnlyUTC, DATETIME_UTC_DATA)
 
 
 def nuked_load_datetime_non_utc() -> DatetimeOnlyNonUTC:
-    return mr.nuked.load_from_bytes(DatetimeOnlyNonUTC, DATETIME_NON_UTC_DATA)
+    return mr.nuked.load(DatetimeOnlyNonUTC, DATETIME_NON_UTC_DATA)
 
 
 TRANSACTION_VALIDATED = TransactionDataValidated(
@@ -366,10 +342,6 @@ def nuked_dump_validated() -> bytes:
     return json.dumps(mr.nuked.dump(TransactionDataValidated, TRANSACTION_VALIDATED), separators=(",", ":")).encode()
 
 
-def nuked_dump_to_bytes_validated() -> bytes:
-    return mr.nuked.dump_to_bytes(TransactionDataValidated, TRANSACTION_VALIDATED)
-
-
 DATA_VALIDATED = marshmallow_dump_validated()
 
 
@@ -379,10 +351,6 @@ def marshmallow_load_validated() -> TransactionDataValidated:
 
 def nuked_load_validated() -> TransactionDataValidated:
     return mr.nuked.load(TransactionDataValidated, json.loads(DATA_VALIDATED))
-
-
-def nuked_load_from_bytes_validated() -> TransactionDataValidated:
-    return mr.nuked.load_from_bytes(TransactionDataValidated, DATA_VALIDATED)
 
 
 def marshmallow_dump_many_validated() -> bytes:
@@ -395,10 +363,6 @@ def nuked_dump_many_validated() -> bytes:
     ).encode()
 
 
-def nuked_dump_to_bytes_many_validated() -> bytes:
-    return mr.nuked.dump_to_bytes(list[TransactionDataValidated], TRANSACTIONS_VALIDATED)
-
-
 DATA_MANY_VALIDATED = marshmallow_dump_many_validated()
 
 
@@ -408,10 +372,6 @@ def marshmallow_load_many_validated() -> list[TransactionDataValidated]:
 
 def nuked_load_many_validated() -> list[TransactionDataValidated]:
     return mr.nuked.load(list[TransactionDataValidated], json.loads(DATA_MANY_VALIDATED))
-
-
-def nuked_load_from_bytes_many_validated() -> list[TransactionDataValidated]:
-    return mr.nuked.load_from_bytes(list[TransactionDataValidated], DATA_MANY_VALIDATED)
 
 
 def marshmallow_dump_many_1000_validated() -> bytes:
@@ -426,10 +386,6 @@ def nuked_dump_many_1000_validated() -> bytes:
     ).encode()
 
 
-def nuked_dump_to_bytes_many_1000_validated() -> bytes:
-    return mr.nuked.dump_to_bytes(list[TransactionDataValidated], TRANSACTIONS_VALIDATED_1000)
-
-
 DATA_MANY_1000_VALIDATED = marshmallow_dump_many_1000_validated()
 
 
@@ -441,54 +397,38 @@ def nuked_load_many_1000_validated() -> list[TransactionDataValidated]:
     return mr.nuked.load(list[TransactionDataValidated], json.loads(DATA_MANY_1000_VALIDATED))
 
 
-def nuked_load_from_bytes_many_1000_validated() -> list[TransactionDataValidated]:
-    return mr.nuked.load_from_bytes(list[TransactionDataValidated], DATA_MANY_1000_VALIDATED)
-
-
 if __name__ == "__main__":
     runner = pyperf.Runner()
     # Single item
     runner.bench_func("marshmallow_dump", marshmallow_dump)
     runner.bench_func("nuked_dump", nuked_dump)
-    runner.bench_func("nuked_dump_to_bytes", nuked_dump_to_bytes)
     runner.bench_func("marshmallow_load", marshmallow_load)
     runner.bench_func("nuked_load", nuked_load)
-    runner.bench_func("nuked_load_from_bytes", nuked_load_from_bytes)
     # 100 items
     runner.bench_func("marshmallow_dump_many", marshmallow_dump_many)
     runner.bench_func("nuked_dump_many", nuked_dump_many)
-    runner.bench_func("nuked_dump_to_bytes_many", nuked_dump_to_bytes_many)
     runner.bench_func("marshmallow_load_many", marshmallow_load_many)
     runner.bench_func("nuked_load_many", nuked_load_many)
-    runner.bench_func("nuked_load_from_bytes_many", nuked_load_from_bytes_many)
     # 1000 items
     runner.bench_func("marshmallow_dump_many_1000", marshmallow_dump_many_1000)
     runner.bench_func("nuked_dump_many_1000", nuked_dump_many_1000)
-    runner.bench_func("nuked_dump_to_bytes_many_1000", nuked_dump_to_bytes_many_1000)
     runner.bench_func("marshmallow_load_many_1000", marshmallow_load_many_1000)
     runner.bench_func("nuked_load_many_1000", nuked_load_many_1000)
-    runner.bench_func("nuked_load_from_bytes_many_1000", nuked_load_from_bytes_many_1000)
     # Single item validated
     runner.bench_func("marshmallow_dump_validated", marshmallow_dump_validated)
     runner.bench_func("nuked_dump_validated", nuked_dump_validated)
-    runner.bench_func("nuked_dump_to_bytes_validated", nuked_dump_to_bytes_validated)
     runner.bench_func("marshmallow_load_validated", marshmallow_load_validated)
     runner.bench_func("nuked_load_validated", nuked_load_validated)
-    runner.bench_func("nuked_load_from_bytes_validated", nuked_load_from_bytes_validated)
     # 100 items validated
     runner.bench_func("marshmallow_dump_many_validated", marshmallow_dump_many_validated)
     runner.bench_func("nuked_dump_many_validated", nuked_dump_many_validated)
-    runner.bench_func("nuked_dump_to_bytes_many_validated", nuked_dump_to_bytes_many_validated)
     runner.bench_func("marshmallow_load_many_validated", marshmallow_load_many_validated)
     runner.bench_func("nuked_load_many_validated", nuked_load_many_validated)
-    runner.bench_func("nuked_load_from_bytes_many_validated", nuked_load_from_bytes_many_validated)
     # 1000 items validated
     runner.bench_func("marshmallow_dump_many_1000_validated", marshmallow_dump_many_1000_validated)
     runner.bench_func("nuked_dump_many_1000_validated", nuked_dump_many_1000_validated)
-    runner.bench_func("nuked_dump_to_bytes_many_1000_validated", nuked_dump_to_bytes_many_1000_validated)
     runner.bench_func("marshmallow_load_many_1000_validated", marshmallow_load_many_1000_validated)
     runner.bench_func("nuked_load_many_1000_validated", nuked_load_many_1000_validated)
-    runner.bench_func("nuked_load_from_bytes_many_1000_validated", nuked_load_from_bytes_many_1000_validated)
     # Datetime-specific (UTC vs non-UTC)
     runner.bench_func("nuked_dump_datetime_utc", nuked_dump_datetime_utc)
     runner.bench_func("nuked_dump_datetime_non_utc", nuked_dump_datetime_non_utc)
