@@ -1259,6 +1259,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             if value is None:
                 return None
+            if isinstance(value, bool):
+                raise m.ValidationError(self.error.format(input=value, choices=self.choices))
             if isinstance(value, self.enum_type):
                 return value
             enum_value = super()._deserialize(value, attr, data)
@@ -1522,7 +1524,7 @@ else:
 
         @staticmethod
         def __timestamp_deserialize(value: Any) -> datetime.datetime:
-            if not isinstance(value, float | int):
+            if isinstance(value, bool) or not isinstance(value, float | int):
                 raise TypeError("argument must be number")
             if value < 0:
                 raise ValueError("Not a valid POSIX timestamp")
@@ -1684,6 +1686,8 @@ else:
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             if value is None:
                 return None
+            if isinstance(value, bool):
+                raise m.ValidationError(self.error.format(input=value, choices=self.choices))
             if isinstance(value, self.enum_type):
                 return value
             enum_value = super()._deserialize(value, attr, data)
