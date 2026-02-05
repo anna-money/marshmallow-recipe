@@ -2,6 +2,7 @@
 
 * [`ROUND_05UP` is no longer supported](https://github.com/anna-money/marshmallow-recipe/pull/242)
 * [Support timestamp format for datetime](https://github.com/anna-money/marshmallow-recipe/pull/243)
+* Reject bool values in timestamp datetime and int enum deserialization
 
 
 ## v0.0.72 (2026-01-15)
