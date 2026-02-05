@@ -1,7 +1,7 @@
 use chrono::{DateTime, FixedOffset, NaiveDateTime};
 use pyo3::conversion::IntoPyObjectExt;
 use pyo3::prelude::*;
-use pyo3::types::{PyDateTime, PyFloat, PyInt, PyString};
+use pyo3::types::{PyBool, PyDateTime, PyFloat, PyInt, PyString};
 
 use crate::error::{DumpError, LoadError};
 use crate::utils::display_to_py;
@@ -62,7 +62,9 @@ pub fn load_from_py(
             }
         }
         DateTimeFormat::Timestamp => {
-            if value.is_instance_of::<PyFloat>() || value.is_instance_of::<PyInt>() {
+            if value.is_instance_of::<PyFloat>()
+                || (value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>())
+            {
                 let f: f64 = value.extract().map_err(|_| LoadError::simple(err_msg))?;
                 return load_from_timestamp(py, f, err_msg);
             }

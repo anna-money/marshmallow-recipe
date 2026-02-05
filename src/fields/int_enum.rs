@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::PyInt;
+use pyo3::types::{PyBool, PyInt};
 
 use crate::container::{IntEnumDumperData, IntEnumLoaderData};
 use crate::error::{DumpError, LoadError};
@@ -10,11 +10,9 @@ pub fn load_from_py(
 ) -> Result<Py<PyAny>, LoadError> {
     let py = value.py();
 
-    if value.is_instance_of::<PyInt>()
-        && let Ok(i) = value.extract::<i64>()
-    {
+    if value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>() {
         for (k, member) in &data.values {
-            if *k == i {
+            if value.eq(k.bind(py)).unwrap_or(false) {
                 return Ok(member.clone_ref(py));
             }
         }
@@ -23,7 +21,11 @@ pub fn load_from_py(
     let value_str = value
         .str()
         .map_or_else(|_| "?".to_string(), |s| s.to_string());
-    let valid_values: Vec<String> = data.values.iter().map(|(k, _)| k.to_string()).collect();
+    let valid_values: Vec<String> = data
+        .values
+        .iter()
+        .map(|(k, _)| k.bind(py).str().map_or_else(|_| "?".to_string(), |s| s.to_string()))
+        .collect();
     let err_msg = format!(
         "Not a valid choice: '{}'. Allowed values: [{}]",
         value_str,

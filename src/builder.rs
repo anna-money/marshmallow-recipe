@@ -468,11 +468,11 @@ impl ContainerBuilder {
         let kwargs = get_kwargs(py, kwargs);
         let common = build_field_common(optional, &kwargs)?;
 
-        let values: Vec<(i64, Py<PyAny>)> = enum_values
+        let values: Vec<(Py<PyAny>, Py<PyAny>)> = enum_values
             .iter()
             .map(|item| {
                 let tuple: &Bound<'_, PyTuple> = item.cast()?;
-                let key: i64 = tuple.get_item(0)?.extract()?;
+                let key: Py<PyAny> = tuple.get_item(0)?.extract()?;
                 let member: Py<PyAny> = tuple.get_item(1)?.extract()?;
                 Ok((key, member))
             })

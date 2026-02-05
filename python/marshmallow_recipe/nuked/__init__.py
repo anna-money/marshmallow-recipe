@@ -1,4 +1,3 @@
-
 import ctypes
 import dataclasses
 import datetime
@@ -596,11 +595,7 @@ class _BuildContext:
             )
 
         if issubclass(field_type, int):
-            enum_values = []
-            for m in field_type:
-                if not (-(2**63) <= m.value < 2**63):
-                    raise NotImplementedError(f"IntEnum value {m.value} for {m} is outside i64 range [-2^63, 2^63)")
-                enum_values.append((m.value, m))
+            enum_values = [(m.value, m) for m in field_type]
             return self.__builder.int_enum_field(
                 name, optional, field_type, enum_values, enum_name, enum_members_repr, **kwargs
             )
