@@ -3,6 +3,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyInt, PyString};
 
 use crate::error::{DumpError, LoadError};
+use crate::utils::get_int_cls;
 
 const INT_ERROR: &str = "Not a valid integer.";
 
@@ -20,12 +21,17 @@ pub fn load_from_py(
         return Ok(value.clone().unbind());
     }
     if let Ok(py_str) = value.cast::<PyString>()
-        && let Ok(s) = py_str.to_str()
-        && let Ok(i) = s.parse::<i64>()
     {
-        return i
-            .into_py_any(py)
-            .map_err(|e| LoadError::simple(&e.to_string()));
+        if let Ok(s) = py_str.to_str() && let Ok(i) = s.parse::<i128>() {
+            return i
+                .into_py_any(py)
+                .map_err(|e| LoadError::simple(&e.to_string()));
+        }
+
+        let int_cls = get_int_cls(py).map_err(|e| LoadError::simple(&e.to_string()))?;
+        return int_cls.call1((py_str,))
+            .map(Bound::unbind)
+            .map_err(|_| LoadError::simple(err_msg))
     }
 
     Err(LoadError::simple(err_msg))

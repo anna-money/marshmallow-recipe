@@ -50,7 +50,10 @@ pub fn get_object_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     OBJECT_CLS.import(py, "builtins", "object")
 }
 
-
+pub fn get_int_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
+    static INT_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    INT_CLS.import(py, "builtins", "int")
+}
 pub fn get_missing_sentinel(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>> {
     static MISSING_SENTINEL: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
     MISSING_SENTINEL
