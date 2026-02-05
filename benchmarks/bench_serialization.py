@@ -8,7 +8,6 @@ import dataclasses
 import datetime
 import decimal
 import enum
-import json
 import uuid
 from typing import Annotated
 
@@ -161,16 +160,15 @@ TRANSACTION = TransactionData(
 )
 
 
-def marshmallow_dump() -> bytes:
-    return json.dumps(mr.dump(TransactionData, TRANSACTION), separators=(",", ":")).encode()
+def marshmallow_dump() -> dict:
+    return mr.dump(TransactionData, TRANSACTION)
 
 
-def nuked_dump() -> bytes:
-    return json.dumps(mr.nuked.dump(TransactionData, TRANSACTION), separators=(",", ":")).encode()
+def nuked_dump() -> dict:
+    return mr.nuked.dump(TransactionData, TRANSACTION)
 
 
-DATA = marshmallow_dump()
-DATA_DICT = json.loads(DATA)
+DATA_DICT = marshmallow_dump()
 
 # List of 100 transactions
 TRANSACTIONS = [
@@ -212,50 +210,50 @@ TRANSACTIONS_1000 = [
 ]
 
 
-def marshmallow_dump_many() -> bytes:
-    return json.dumps(mr.dump_many(TransactionData, TRANSACTIONS), separators=(",", ":")).encode()
+def marshmallow_dump_many() -> list[dict]:
+    return mr.dump_many(TransactionData, TRANSACTIONS)
 
 
-def nuked_dump_many() -> bytes:
-    return json.dumps(mr.nuked.dump(list[TransactionData], TRANSACTIONS), separators=(",", ":")).encode()
+def nuked_dump_many() -> list[dict]:
+    return mr.nuked.dump(list[TransactionData], TRANSACTIONS)
 
 
-DATA_MANY = marshmallow_dump_many()
+DATA_MANY_DICT = marshmallow_dump_many()
 
 
 def marshmallow_load_many() -> list[TransactionData]:
-    return mr.load_many(TransactionData, json.loads(DATA_MANY))
+    return mr.load_many(TransactionData, DATA_MANY_DICT)
 
 
 def nuked_load_many() -> list[TransactionData]:
-    return mr.nuked.load(list[TransactionData], json.loads(DATA_MANY))
+    return mr.nuked.load(list[TransactionData], DATA_MANY_DICT)
 
 
-def marshmallow_dump_many_1000() -> bytes:
-    return json.dumps(mr.dump_many(TransactionData, TRANSACTIONS_1000), separators=(",", ":")).encode()
+def marshmallow_dump_many_1000() -> list[dict]:
+    return mr.dump_many(TransactionData, TRANSACTIONS_1000)
 
 
-def nuked_dump_many_1000() -> bytes:
-    return json.dumps(mr.nuked.dump(list[TransactionData], TRANSACTIONS_1000), separators=(",", ":")).encode()
+def nuked_dump_many_1000() -> list[dict]:
+    return mr.nuked.dump(list[TransactionData], TRANSACTIONS_1000)
 
 
-DATA_MANY_1000 = marshmallow_dump_many_1000()
+DATA_MANY_1000_DICT = marshmallow_dump_many_1000()
 
 
 def marshmallow_load_many_1000() -> list[TransactionData]:
-    return mr.load_many(TransactionData, json.loads(DATA_MANY_1000))
+    return mr.load_many(TransactionData, DATA_MANY_1000_DICT)
 
 
 def nuked_load_many_1000() -> list[TransactionData]:
-    return mr.nuked.load(list[TransactionData], json.loads(DATA_MANY_1000))
+    return mr.nuked.load(list[TransactionData], DATA_MANY_1000_DICT)
 
 
 def marshmallow_load() -> TransactionData:
-    return mr.load(TransactionData, json.loads(DATA))
+    return mr.load(TransactionData, DATA_DICT)
 
 
 def nuked_load() -> TransactionData:
-    return mr.nuked.load(TransactionData, json.loads(DATA))
+    return mr.nuked.load(TransactionData, DATA_DICT)
 
 
 # Datetime-specific benchmark functions
@@ -334,67 +332,61 @@ TRANSACTIONS_VALIDATED_1000 = [
 ]
 
 
-def marshmallow_dump_validated() -> bytes:
-    return json.dumps(mr.dump(TransactionDataValidated, TRANSACTION_VALIDATED), separators=(",", ":")).encode()
+def marshmallow_dump_validated() -> dict:
+    return mr.dump(TransactionDataValidated, TRANSACTION_VALIDATED)
 
 
-def nuked_dump_validated() -> bytes:
-    return json.dumps(mr.nuked.dump(TransactionDataValidated, TRANSACTION_VALIDATED), separators=(",", ":")).encode()
+def nuked_dump_validated() -> dict:
+    return mr.nuked.dump(TransactionDataValidated, TRANSACTION_VALIDATED)
 
 
-DATA_VALIDATED = marshmallow_dump_validated()
+DATA_VALIDATED_DICT = marshmallow_dump_validated()
 
 
 def marshmallow_load_validated() -> TransactionDataValidated:
-    return mr.load(TransactionDataValidated, json.loads(DATA_VALIDATED))
+    return mr.load(TransactionDataValidated, DATA_VALIDATED_DICT)
 
 
 def nuked_load_validated() -> TransactionDataValidated:
-    return mr.nuked.load(TransactionDataValidated, json.loads(DATA_VALIDATED))
+    return mr.nuked.load(TransactionDataValidated, DATA_VALIDATED_DICT)
 
 
-def marshmallow_dump_many_validated() -> bytes:
-    return json.dumps(mr.dump_many(TransactionDataValidated, TRANSACTIONS_VALIDATED), separators=(",", ":")).encode()
+def marshmallow_dump_many_validated() -> list[dict]:
+    return mr.dump_many(TransactionDataValidated, TRANSACTIONS_VALIDATED)
 
 
-def nuked_dump_many_validated() -> bytes:
-    return json.dumps(
-        mr.nuked.dump(list[TransactionDataValidated], TRANSACTIONS_VALIDATED), separators=(",", ":")
-    ).encode()
+def nuked_dump_many_validated() -> list[dict]:
+    return mr.nuked.dump(list[TransactionDataValidated], TRANSACTIONS_VALIDATED)
 
 
-DATA_MANY_VALIDATED = marshmallow_dump_many_validated()
+DATA_MANY_VALIDATED_DICT = marshmallow_dump_many_validated()
 
 
 def marshmallow_load_many_validated() -> list[TransactionDataValidated]:
-    return mr.load_many(TransactionDataValidated, json.loads(DATA_MANY_VALIDATED))
+    return mr.load_many(TransactionDataValidated, DATA_MANY_VALIDATED_DICT)
 
 
 def nuked_load_many_validated() -> list[TransactionDataValidated]:
-    return mr.nuked.load(list[TransactionDataValidated], json.loads(DATA_MANY_VALIDATED))
+    return mr.nuked.load(list[TransactionDataValidated], DATA_MANY_VALIDATED_DICT)
 
 
-def marshmallow_dump_many_1000_validated() -> bytes:
-    return json.dumps(
-        mr.dump_many(TransactionDataValidated, TRANSACTIONS_VALIDATED_1000), separators=(",", ":")
-    ).encode()
+def marshmallow_dump_many_1000_validated() -> list[dict]:
+    return mr.dump_many(TransactionDataValidated, TRANSACTIONS_VALIDATED_1000)
 
 
-def nuked_dump_many_1000_validated() -> bytes:
-    return json.dumps(
-        mr.nuked.dump(list[TransactionDataValidated], TRANSACTIONS_VALIDATED_1000), separators=(",", ":")
-    ).encode()
+def nuked_dump_many_1000_validated() -> list[dict]:
+    return mr.nuked.dump(list[TransactionDataValidated], TRANSACTIONS_VALIDATED_1000)
 
 
-DATA_MANY_1000_VALIDATED = marshmallow_dump_many_1000_validated()
+DATA_MANY_1000_VALIDATED_DICT = marshmallow_dump_many_1000_validated()
 
 
 def marshmallow_load_many_1000_validated() -> list[TransactionDataValidated]:
-    return mr.load_many(TransactionDataValidated, json.loads(DATA_MANY_1000_VALIDATED))
+    return mr.load_many(TransactionDataValidated, DATA_MANY_1000_VALIDATED_DICT)
 
 
 def nuked_load_many_1000_validated() -> list[TransactionDataValidated]:
-    return mr.nuked.load(list[TransactionDataValidated], json.loads(DATA_MANY_1000_VALIDATED))
+    return mr.nuked.load(list[TransactionDataValidated], DATA_MANY_1000_VALIDATED_DICT)
 
 
 if __name__ == "__main__":
