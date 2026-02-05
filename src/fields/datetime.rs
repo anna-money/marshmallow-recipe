@@ -1,4 +1,4 @@
-use chrono::{DateTime, FixedOffset, NaiveDateTime, SecondsFormat};
+use chrono::{DateTime, FixedOffset, NaiveDateTime};
 use pyo3::conversion::IntoPyObjectExt;
 use pyo3::prelude::*;
 use pyo3::types::{PyDateTime, PyFloat, PyInt, PyString};
@@ -36,60 +36,6 @@ pub fn parse_datetime_format(format: Option<&str>) -> DateTimeFormat {
     }
 }
 
-#[allow(clippy::cast_precision_loss)]
-pub fn load(
-    py: Python<'_>,
-    value: &serde_json::Value,
-    format: &DateTimeFormat,
-    invalid_error: Option<&str>,
-) -> Result<Py<PyAny>, LoadError> {
-    let err_msg = invalid_error.unwrap_or(DATETIME_ERROR);
-
-    match format {
-        DateTimeFormat::Iso => {
-            if let Some(s) = value.as_str() {
-                return DateTime::<FixedOffset>::parse_from_rfc3339(s)
-                    .map_err(|_| LoadError::simple(err_msg))
-                    .and_then(|dt| {
-                        dt.into_py_any(py)
-                            .map_err(|e| LoadError::simple(&e.to_string()))
-                    });
-            }
-        }
-        DateTimeFormat::Timestamp => {
-            if let Some(f) = value.as_f64() {
-                return datetime_loader::load_from_timestamp::<serde::de::value::Error>(
-                    py, f, err_msg,
-                )
-                .map_err(|e| LoadError::simple(&e.to_string()));
-            }
-            if let Some(i) = value.as_i64() {
-                return datetime_loader::load_from_timestamp::<serde::de::value::Error>(
-                    py, i as f64, err_msg,
-                )
-                .map_err(|e| LoadError::simple(&e.to_string()));
-            }
-            if let Some(u) = value.as_u64() {
-                return datetime_loader::load_from_timestamp::<serde::de::value::Error>(
-                    py, u as f64, err_msg,
-                )
-                .map_err(|e| LoadError::simple(&e.to_string()));
-            }
-        }
-        DateTimeFormat::Strftime(chrono_fmt) => {
-            if let Some(s) = value.as_str() {
-                if let Some(dt) = parse_datetime_with_format(s, chrono_fmt) {
-                    return dt
-                        .into_py_any(py)
-                        .map_err(|e| LoadError::simple(&e.to_string()));
-                }
-            }
-        }
-    }
-
-    Err(LoadError::simple(err_msg))
-}
-
 pub fn load_from_py(
     value: &Bound<'_, PyAny>,
     format: &DateTimeFormat,
@@ -104,63 +50,36 @@ pub fn load_from_py(
 
     match format {
         DateTimeFormat::Iso => {
-            if let Ok(py_str) = value.cast::<PyString>() {
-                if let Ok(s) = py_str.to_str() {
-                    return DateTime::<FixedOffset>::parse_from_rfc3339(s)
-                        .map_err(|_| LoadError::simple(err_msg))
-                        .and_then(|dt| {
-                            dt.into_py_any(py)
-                                .map_err(|e| LoadError::simple(&e.to_string()))
-                        });
-                }
+            if let Ok(py_str) = value.cast::<PyString>()
+                && let Ok(s) = py_str.to_str()
+            {
+                return DateTime::<FixedOffset>::parse_from_rfc3339(s)
+                    .map_err(|_| LoadError::simple(err_msg))
+                    .and_then(|dt| {
+                        dt.into_py_any(py)
+                            .map_err(|e| LoadError::simple(&e.to_string()))
+                    });
             }
         }
         DateTimeFormat::Timestamp => {
             if value.is_instance_of::<PyFloat>() || value.is_instance_of::<PyInt>() {
                 let f: f64 = value.extract().map_err(|_| LoadError::simple(err_msg))?;
-                return datetime_loader::load_from_timestamp::<serde::de::value::Error>(
-                    py, f, err_msg,
-                )
-                .map_err(|e| LoadError::simple(&e.to_string()));
+                return load_from_timestamp(py, f, err_msg);
             }
         }
         DateTimeFormat::Strftime(chrono_fmt) => {
-            if let Ok(py_str) = value.cast::<PyString>() {
-                if let Ok(s) = py_str.to_str() {
-                    if let Some(dt) = parse_datetime_with_format(s, chrono_fmt) {
-                        return dt
-                            .into_py_any(py)
-                            .map_err(|e| LoadError::simple(&e.to_string()));
-                    }
-                }
+            if let Ok(py_str) = value.cast::<PyString>()
+                && let Ok(s) = py_str.to_str()
+                && let Some(dt) = parse_datetime_with_format(s, chrono_fmt)
+            {
+                return dt
+                    .into_py_any(py)
+                    .map_err(|e| LoadError::simple(&e.to_string()));
             }
         }
     }
 
     Err(LoadError::simple(err_msg))
-}
-
-pub fn dump(
-    value: &Bound<'_, PyAny>,
-    format: &DateTimeFormat,
-) -> Result<serde_json::Value, DumpError> {
-    let dt = extract_datetime(value).map_err(|_| DumpError::simple(DATETIME_ERROR))?;
-
-    match format {
-        DateTimeFormat::Iso => {
-            let formatted = dt.to_rfc3339_opts(SecondsFormat::AutoSi, false);
-            Ok(serde_json::Value::String(formatted))
-        }
-        DateTimeFormat::Timestamp => {
-            let ts = datetime_to_timestamp(&dt).ok_or_else(|| DumpError::simple(DATETIME_ERROR))?;
-            Ok(serde_json::Number::from_f64(ts)
-                .map_or(serde_json::Value::Null, serde_json::Value::Number))
-        }
-        DateTimeFormat::Strftime(chrono_fmt) => {
-            let formatted = dt.format(chrono_fmt).to_string();
-            Ok(serde_json::Value::String(formatted))
-        }
-    }
 }
 
 pub fn dump_to_py(
@@ -202,19 +121,12 @@ fn datetime_to_timestamp(dt: &DateTime<FixedOffset>) -> Option<f64> {
     Some(micros as f64 / 1_000_000.0)
 }
 
-pub mod datetime_loader {
-    use super::{timestamp_to_datetime, IntoPyObjectExt};
-    use pyo3::prelude::*;
-    use serde::de;
-
-    #[inline]
-    pub fn load_from_timestamp<E: de::Error>(
-        py: Python,
-        timestamp: f64,
-        err_msg: &str,
-    ) -> Result<Py<PyAny>, E> {
-        timestamp_to_datetime(timestamp)
-            .ok_or_else(|| de::Error::custom(err_msg))
-            .and_then(|dt| dt.into_py_any(py).map_err(de::Error::custom))
-    }
+fn load_from_timestamp(
+    py: Python,
+    timestamp: f64,
+    err_msg: &str,
+) -> Result<Py<PyAny>, LoadError> {
+    timestamp_to_datetime(timestamp)
+        .ok_or_else(|| LoadError::simple(err_msg))
+        .and_then(|dt| dt.into_py_any(py).map_err(|e| LoadError::simple(&e.to_string())))
 }

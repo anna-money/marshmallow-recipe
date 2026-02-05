@@ -27,92 +27,75 @@ impl SerializationError {
         Self::Messages(msgs)
     }
 
-    pub fn to_json(&self) -> serde_json::Value {
+    pub fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         match self {
-            Self::Simple(msg) => serde_json::json!([msg]),
-            Self::Messages(msgs) => serde_json::json!(msgs),
+            Self::Simple(msg) => {
+                let list = PyList::new(py, [msg.as_str()])?;
+                Ok(list.into_any().unbind())
+            }
+            Self::Messages(msgs) => {
+                let list = PyList::new(py, msgs.iter().map(String::as_str))?;
+                Ok(list.into_any().unbind())
+            }
             Self::Nested { field, inner } => {
-                let inner_json = inner.to_json();
+                let inner_val = inner.to_py_value(py)?;
                 if field.is_empty() {
-                    inner_json
+                    Ok(inner_val)
                 } else {
-                    serde_json::json!({ field: inner_json })
+                    let dict = PyDict::new(py);
+                    dict.set_item(field.as_str(), inner_val)?;
+                    Ok(dict.into_any().unbind())
                 }
             }
             Self::Multiple(map) => {
-                let mut result = serde_json::Map::new();
+                let dict = PyDict::new(py);
                 for (k, v) in map {
-                    result.insert(k.clone(), v.to_json());
+                    dict.set_item(k.as_str(), v.to_py_value(py)?)?;
                 }
-                serde_json::Value::Object(result)
+                Ok(dict.into_any().unbind())
             }
             Self::IndexMultiple(map) => {
-                let mut result = serde_json::Map::new();
+                let dict = PyDict::new(py);
                 for (idx, v) in map {
-                    result.insert(idx.to_string(), v.to_json());
+                    let key = (*idx).into_py_any(py)?;
+                    dict.set_item(key, v.to_py_value(py)?)?;
                 }
-                serde_json::Value::Object(result)
+                Ok(dict.into_any().unbind())
             }
             Self::ArrayWrapped(inner) => {
-                serde_json::json!([inner.to_json()])
+                let inner_val = inner.to_py_value(py)?;
+                let list = PyList::new(py, [inner_val])?;
+                Ok(list.into_any().unbind())
             }
             Self::Array(items) => {
-                serde_json::json!(items.iter().map(Self::to_json).collect::<Vec<_>>())
+                let mut py_items = Vec::with_capacity(items.len());
+                for item in items {
+                    py_items.push(item.to_py_value(py)?);
+                }
+                let list = PyList::new(py, py_items)?;
+                Ok(list.into_any().unbind())
             }
         }
     }
 
     pub fn to_py_err(&self, py: Python<'_>) -> PyErr {
-        let json_value = self.to_json();
-        if let Ok(py_val) = json_to_py_error(py, &json_value) {
+        if let Ok(py_val) = self.to_py_value(py) {
             return PyErr::new::<pyo3::exceptions::PyValueError, _>(py_val);
         }
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(json_value.to_string())
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{self:?}"))
     }
 }
 
-pub fn json_to_py_error(py: Python<'_>, value: &serde_json::Value) -> PyResult<Py<PyAny>> {
-    match value {
-        serde_json::Value::Object(obj) => {
-            let dict = PyDict::new(py);
-            for (k, v) in obj {
-                let key: Py<PyAny> = if !k.is_empty() && k.chars().all(|c| c.is_ascii_digit()) {
-                    k.parse::<i64>()
-                        .map_err(|_| {
-                            pyo3::exceptions::PyValueError::new_err(format!(
-                                "Index {k} is too large"
-                            ))
-                        })?
-                        .into_pyobject(py)?
-                        .into_any()
-                        .unbind()
-                } else {
-                    k.as_str().into_pyobject(py)?.into_any().unbind()
-                };
-                dict.set_item(key, json_to_py_error(py, v)?)?;
-            }
-            Ok(dict.into_any().unbind())
-        }
-        serde_json::Value::Array(arr) => {
-            let list = PyList::empty(py);
-            for item in arr {
-                list.append(json_to_py_error(py, item)?)?;
-            }
-            Ok(list.into_any().unbind())
-        }
-        serde_json::Value::String(s) => Ok(s.as_str().into_pyobject(py)?.into_any().unbind()),
-        serde_json::Value::Null => Ok(py.None()),
-        serde_json::Value::Bool(b) => Ok((*b).into_py_any(py)?),
-        serde_json::Value::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                Ok(i.into_pyobject(py)?.into_any().unbind())
-            } else if let Some(u) = n.as_u64() {
-                Ok(u.into_pyobject(py)?.into_any().unbind())
-            } else if let Some(f) = n.as_f64() {
-                Ok(f.into_pyobject(py)?.into_any().unbind())
-            } else {
-                Ok(py.None())
-            }
+impl std::fmt::Debug for SerializationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Simple(msg) => write!(f, "Simple({msg})"),
+            Self::Messages(msgs) => write!(f, "Messages({msgs:?})"),
+            Self::Nested { field, inner } => write!(f, "Nested({field}: {inner:?})"),
+            Self::Multiple(map) => write!(f, "Multiple({map:?})"),
+            Self::IndexMultiple(map) => write!(f, "IndexMultiple({map:?})"),
+            Self::ArrayWrapped(inner) => write!(f, "ArrayWrapped({inner:?})"),
+            Self::Array(items) => write!(f, "Array({items:?})"),
         }
     }
 }

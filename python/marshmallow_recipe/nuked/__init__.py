@@ -10,7 +10,7 @@ from ..options import NoneValueHandling
 from ..utils import validate_decimal_places
 from ._container import build_container, get_dataclass_info
 
-__all__ = ("dump", "dump_to_bytes", "load", "load_from_bytes")
+__all__ = ("dump", "load")
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -52,49 +52,6 @@ def _get_container(
         _container_cache[key] = container
 
     return _container_cache[key]
-
-
-def dump_to_bytes[T](
-    cls: type[T],
-    data: T,
-    *,
-    naming_case: typing.Callable[[str], str] | None = None,
-    none_value_handling: NoneValueHandling | None = None,
-    decimal_places: int | None = None,
-    encoding: str = "utf-8",
-) -> bytes:
-    validate_decimal_places(decimal_places)
-    info = get_dataclass_info(cls, naming_case)
-    effective_none_handling = (
-        none_value_handling or (info.none_value_handling if info else None) or NoneValueHandling.IGNORE
-    )
-    effective_decimal_places = decimal_places if decimal_places is not None else (info.decimal_places if info else None)
-
-    container = _get_container(cls, naming_case, effective_none_handling, effective_decimal_places)
-
-    try:
-        return container.dump_to_bytes(data, encoding)
-    except ValueError as e:
-        raise _convert_rust_error_to_validation_error(e)
-
-
-def load_from_bytes[T](
-    cls: type[T],
-    data: bytes,
-    *,
-    naming_case: typing.Callable[[str], str] | None = None,
-    decimal_places: int | None = None,
-    encoding: str = "utf-8",
-) -> T:
-    validate_decimal_places(decimal_places)
-    info = get_dataclass_info(cls, naming_case)
-    effective_decimal_places = decimal_places if decimal_places is not None else (info.decimal_places if info else None)
-
-    container = _get_container(cls, naming_case, NoneValueHandling.IGNORE, effective_decimal_places)
-    try:
-        return container.load_from_bytes(data, encoding)  # type: ignore[return-value]
-    except ValueError as e:
-        raise _convert_rust_error_to_validation_error(e)
 
 
 def dump[T](

@@ -29,9 +29,11 @@ pub unsafe fn get_slot_value_direct<'py>(
     if obj_ptr.is_null() {
         return None;
     }
-    let slot_ptr = (obj_ptr as *const u8).offset(offset).cast::<*mut pyo3::ffi::PyObject>();
-    let py_obj_ptr = *slot_ptr;
-    Bound::from_borrowed_ptr_or_opt(py, py_obj_ptr)
+    unsafe {
+        let slot_ptr = (obj_ptr as *const u8).offset(offset).cast::<*mut pyo3::ffi::PyObject>();
+        let py_obj_ptr = *slot_ptr;
+        Bound::from_borrowed_ptr_or_opt(py, py_obj_ptr)
+    }
 }
 
 #[inline]
@@ -50,12 +52,14 @@ pub unsafe fn set_slot_value_direct(
     if obj_ptr.is_null() {
         return false;
     }
-    let slot_ptr = obj_ptr.cast::<u8>().offset(offset).cast::<*mut pyo3::ffi::PyObject>();
-    let old_ptr = *slot_ptr;
-    let new_ptr = value.into_ptr();
-    *slot_ptr = new_ptr;
-    if !old_ptr.is_null() {
-        pyo3::ffi::Py_DECREF(old_ptr);
+    unsafe {
+        let slot_ptr = obj_ptr.cast::<u8>().offset(offset).cast::<*mut pyo3::ffi::PyObject>();
+        let old_ptr = *slot_ptr;
+        let new_ptr = value.into_ptr();
+        *slot_ptr = new_ptr;
+        if !old_ptr.is_null() {
+            pyo3::ffi::Py_DECREF(old_ptr);
+        }
     }
     true
 }

@@ -145,56 +145,6 @@ class MarshmallowSerializer(Serializer):
         return mr.load_many(schema_class, json.loads(data), naming_case=naming_case, decimal_places=decimal_places)
 
 
-class NukedBytesSerializer(Serializer):
-    __slots__ = ()
-
-    @property
-    def supports_pre_load(self) -> bool:
-        return False
-
-    @property
-    def supports_special_float_validation(self) -> bool:
-        return False
-
-    @property
-    def supports_cyclic(self) -> bool:
-        return False
-
-    def dump[T](
-        self,
-        schema_class: type[T],
-        obj: T,
-        naming_case: mr.NamingCase | None = None,
-        none_value_handling: mr.NoneValueHandling | None = None,
-        decimal_places: int | None = mr.MISSING,
-        encoding: str = "utf-8",
-    ) -> bytes:
-        return mr.nuked.dump_to_bytes(
-            schema_class,
-            obj,
-            naming_case=naming_case,
-            none_value_handling=none_value_handling,
-            decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
-            encoding=encoding,
-        )
-
-    def load[T](
-        self,
-        schema_class: type[T],
-        data: bytes,
-        naming_case: mr.NamingCase | None = None,
-        decimal_places: int | None = mr.MISSING,
-        encoding: str = "utf-8",
-    ) -> T:
-        return mr.nuked.load_from_bytes(
-            schema_class,
-            data,
-            naming_case=naming_case,
-            decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
-            encoding=encoding,
-        )
-
-
 class NukedSerializer(Serializer):
     __slots__ = ()
 
@@ -240,10 +190,7 @@ class NukedSerializer(Serializer):
         )
 
 
-@pytest.fixture(
-    params=[MarshmallowSerializer(), NukedBytesSerializer(), NukedSerializer()],
-    ids=["marshmallow", "nuked_bytes", "nuked"],
-)
+@pytest.fixture(params=[MarshmallowSerializer(), NukedSerializer()], ids=["marshmallow", "nuked"])
 def impl(request: pytest.FixtureRequest) -> Serializer:
     return request.param
 

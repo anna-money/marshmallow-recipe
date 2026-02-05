@@ -4,8 +4,7 @@ use arrayvec::ArrayString;
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
-use pyo3::types::{PyDict, PyList, PyString, PyType};
-use serde_json::Value;
+use pyo3::types::{PyString, PyType};
 
 pub fn display_to_py<const N: usize, T: Display>(py: Python<'_>, value: &T) -> Py<PyAny> {
     let mut buf = ArrayString::<N>::new();
@@ -18,25 +17,6 @@ pub fn extract_error_args(py: Python, e: &PyErr) -> Py<PyAny> {
         .getattr("args")
         .and_then(|args| args.get_item(0))
         .map_or_else(|_| e.value(py).clone().into_any().unbind(), |v| v.clone().unbind())
-}
-
-pub fn pyany_to_json_value(obj: &Bound<'_, PyAny>) -> Value {
-    if let Ok(s) = obj.extract::<String>() {
-        return Value::String(s);
-    }
-    if let Ok(list) = obj.cast::<PyList>() {
-        let items: Vec<Value> = list.iter().map(|item| pyany_to_json_value(&item)).collect();
-        return Value::Array(items);
-    }
-    if let Ok(dict) = obj.cast::<PyDict>() {
-        let mut map = serde_json::Map::new();
-        for (key, value) in dict.iter() {
-            let key_str = key.extract::<String>().unwrap_or_else(|_| key.to_string());
-            map.insert(key_str, pyany_to_json_value(&value));
-        }
-        return Value::Object(map);
-    }
-    Value::String(obj.to_string())
 }
 
 pub fn python_to_chrono_format(fmt: &str) -> String {
@@ -70,12 +50,6 @@ pub fn get_object_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     OBJECT_CLS.import(py, "builtins", "object")
 }
 
-pub fn get_int_type(py: Python<'_>) -> &Bound<'_, PyType> {
-    static INT_TYPE: PyOnceLock<Py<PyType>> = PyOnceLock::new();
-    INT_TYPE
-        .get_or_init(py, || py.get_type::<pyo3::types::PyInt>().unbind())
-        .bind(py)
-}
 
 pub fn get_missing_sentinel(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>> {
     static MISSING_SENTINEL: PyOnceLock<Py<PyAny>> = PyOnceLock::new();

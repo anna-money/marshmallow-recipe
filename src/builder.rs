@@ -1,14 +1,11 @@
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyList, PyString, PyTuple};
+use pyo3::types::{PyList, PyString, PyTuple};
 
 use crate::container::{
     DataclassContainer, DataclassField, FieldCommon,
     FieldContainer, IntEnumDumperData, IntEnumLoaderData, PrimitiveContainer,
     StrEnumDumperData, StrEnumLoaderData, TypeContainer,
 };
-use crate::container_dump::dump_to_bytes_with_container;
-use crate::container_load::load_from_bytes_with_container;
-use crate::encoding::{decode_to_utf8_bytes, encode_from_utf8_bytes};
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::parse_datetime_format;
 
@@ -44,29 +41,6 @@ impl Container {
         self.inner
             .dump_to_py(obj)
             .map_err(|e| e.to_py_err(py))
-    }
-
-    #[pyo3(signature = (json_bytes, encoding="utf-8"))]
-    fn load_from_bytes(
-        &self,
-        py: Python<'_>,
-        json_bytes: &[u8],
-        encoding: &str,
-    ) -> PyResult<Py<PyAny>> {
-        let utf8_bytes = decode_to_utf8_bytes(py, json_bytes, encoding)?;
-        load_from_bytes_with_container(py, &utf8_bytes, &self.inner)
-    }
-
-    #[pyo3(signature = (obj, encoding="utf-8"))]
-    fn dump_to_bytes(
-        &self,
-        py: Python<'_>,
-        obj: &Bound<'_, PyAny>,
-        encoding: &str,
-    ) -> PyResult<Py<PyBytes>> {
-        let json_bytes = dump_to_bytes_with_container(py, obj, &self.inner)?;
-        let output_bytes = encode_from_utf8_bytes(py, &json_bytes, encoding)?;
-        Ok(PyBytes::new(py, &output_bytes).unbind())
     }
 }
 
@@ -135,28 +109,28 @@ fn extract_optional_py(kwargs: &Bound<'_, PyAny>, key: &str) -> Option<Py<PyAny>
 }
 
 fn extract_optional_string(kwargs: &Bound<'_, PyAny>, key: &str) -> PyResult<Option<String>> {
-    if let Ok(value) = kwargs.get_item(key) {
-        if !value.is_none() {
-            return Ok(Some(value.extract()?));
-        }
+    if let Ok(value) = kwargs.get_item(key)
+        && !value.is_none()
+    {
+        return Ok(Some(value.extract()?));
     }
     Ok(None)
 }
 
 fn extract_bool(kwargs: &Bound<'_, PyAny>, key: &str, default: bool) -> PyResult<bool> {
-    if let Ok(value) = kwargs.get_item(key) {
-        if !value.is_none() {
-            return value.extract();
-        }
+    if let Ok(value) = kwargs.get_item(key)
+        && !value.is_none()
+    {
+        return value.extract();
     }
     Ok(default)
 }
 
 fn extract_optional_isize(kwargs: &Bound<'_, PyAny>, key: &str) -> PyResult<Option<isize>> {
-    if let Ok(value) = kwargs.get_item(key) {
-        if !value.is_none() {
-            return Ok(Some(value.extract()?));
-        }
+    if let Ok(value) = kwargs.get_item(key)
+        && !value.is_none()
+    {
+        return Ok(Some(value.extract()?));
     }
     Ok(None)
 }

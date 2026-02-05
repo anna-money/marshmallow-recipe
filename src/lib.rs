@@ -2,11 +2,9 @@ mod builder;
 mod container;
 mod container_dump;
 mod container_load;
-mod encoding;
 mod error;
 mod error_convert;
 mod fields;
-mod json_ascii;
 mod slots;
 mod utils;
 

@@ -1,68 +1,65 @@
 use std::collections::HashMap;
 
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyString};
+use pyo3::types::{PyDict, PyList, PyString};
 
 use crate::container::FieldContainer;
 use crate::error::{DumpError, LoadError};
-use crate::error_convert::{pyerrors_to_dump_error, pyerrors_to_load_error};
+use crate::error_convert::pyerrors_to_dump_error;
 use crate::utils::call_validator;
 
 const DICT_ERROR: &str = "Not a valid dict.";
 
-pub fn load(
-    py: Python<'_>,
-    value: &serde_json::Value,
-    value_schema: &FieldContainer,
-    value_validator: Option<&Py<PyAny>>,
-    invalid_error: Option<&str>,
-) -> Result<Py<PyAny>, LoadError> {
-    let err_msg = invalid_error.unwrap_or(DICT_ERROR);
-
-    let obj = value
-        .as_object()
-        .ok_or_else(|| LoadError::simple(err_msg))?;
-
-    let dict = PyDict::new(py);
-    let mut errors: Option<HashMap<String, LoadError>> = None;
-
-    for (key, v) in obj {
-        if v.is_null() {
-            let _ = dict.set_item(key.as_str(), py.None());
-            continue;
+fn pyerrors_to_load_error(py: Python<'_>, errors: &Py<PyAny>) -> LoadError {
+    fn pyany_to_load_error(value: &Bound<'_, PyAny>) -> LoadError {
+        if let Ok(s) = value.extract::<String>() {
+            return LoadError::simple(&s);
         }
-        match value_schema.load(py, v) {
-            Ok(py_val) => {
-                if let Some(validator) = value_validator {
-                    if let Ok(Some(err_list)) =
-                        call_validator(py, validator, py_val.bind(py))
-                    {
-                        errors.get_or_insert_with(HashMap::new).insert(
-                            key.clone(),
-                            pyerrors_to_load_error(py, &err_list),
-                        );
-                        continue;
-                    }
-                }
-                let _ = dict.set_item(key.as_str(), py_val);
+        if let Ok(list) = value.cast::<PyList>() {
+            if list.is_empty() {
+                return LoadError::messages(vec![]);
             }
-            Err(e) => {
-                let wrapped = LoadError::Nested {
-                    field: "value".to_string(),
-                    inner: Box::new(e),
-                };
-                errors
-                    .get_or_insert_with(HashMap::new)
-                    .insert(key.clone(), wrapped);
+            let all_strings = list.iter().all(|item| item.extract::<String>().is_ok());
+            if all_strings {
+                let msgs: Vec<String> = list
+                    .iter()
+                    .filter_map(|v| v.extract::<String>().ok())
+                    .collect();
+                return LoadError::messages(msgs);
             }
+            if list.len() == 1
+                && let Ok(item) = list.get_item(0)
+            {
+                return pyany_to_load_error(&item);
+            }
+            let mut index_map = HashMap::with_capacity(list.len());
+            for (idx, item) in list.iter().enumerate() {
+                index_map.insert(idx, pyany_to_load_error(&item));
+            }
+            return LoadError::IndexMultiple(index_map);
+        }
+        if let Ok(dict) = value.cast::<PyDict>() {
+            let mut map = HashMap::with_capacity(dict.len());
+            for (k, v) in dict.iter() {
+                let key = k.extract::<String>().unwrap_or_else(|_| k.to_string());
+                map.insert(key, pyany_to_load_error(&v));
+            }
+            return LoadError::Multiple(map);
+        }
+        LoadError::simple(&value.to_string())
+    }
+
+    fn maybe_wrap_nested_error(e: LoadError) -> LoadError {
+        match &e {
+            LoadError::Multiple(_) | LoadError::Nested { .. } | LoadError::IndexMultiple(_) => {
+                LoadError::ArrayWrapped(Box::new(e))
+            }
+            _ => e,
         }
     }
 
-    if let Some(errors) = errors {
-        return Err(LoadError::Multiple(errors));
-    }
-
-    Ok(dict.into_any().unbind())
+    let error = pyany_to_load_error(errors.bind(py));
+    maybe_wrap_nested_error(error)
 }
 
 pub fn load_from_py(
@@ -94,16 +91,15 @@ pub fn load_from_py(
         }
         match value_schema.load_from_py(&v) {
             Ok(py_val) => {
-                if let Some(validator) = value_validator {
-                    if let Ok(Some(err_list)) =
+                if let Some(validator) = value_validator
+                    && let Ok(Some(err_list)) =
                         call_validator(py, validator, py_val.bind(py))
-                    {
-                        errors.get_or_insert_with(HashMap::new).insert(
-                            key_str.to_string(),
-                            pyerrors_to_load_error(py, &err_list),
-                        );
-                        continue;
-                    }
+                {
+                    errors.get_or_insert_with(HashMap::new).insert(
+                        key_str.to_string(),
+                        pyerrors_to_load_error(py, &err_list),
+                    );
+                    continue;
                 }
                 let _ = result.set_item(k, py_val);
             }
@@ -124,59 +120,6 @@ pub fn load_from_py(
     }
 
     Ok(result.into_any().unbind())
-}
-
-pub fn dump(
-    value: &Bound<'_, PyAny>,
-    value_schema: &FieldContainer,
-    value_validator: Option<&Py<PyAny>>,
-) -> Result<serde_json::Value, DumpError> {
-    let py = value.py();
-
-    let dict = value
-        .cast::<PyDict>()
-        .map_err(|_| DumpError::simple(DICT_ERROR))?;
-
-    let mut map = serde_json::Map::with_capacity(dict.len());
-    let mut errors: Option<HashMap<String, DumpError>> = None;
-
-    for (k, v) in dict.iter() {
-        let key = k
-            .cast::<PyString>()
-            .map_err(|_| DumpError::simple("Dict key must be a string"))?
-            .to_str()
-            .map_err(|e| DumpError::simple(&e.to_string()))?;
-
-        if let Some(validator) = value_validator {
-            if let Ok(Some(err_list)) = call_validator(py, validator, &v) {
-                errors
-                    .get_or_insert_with(HashMap::new)
-                    .insert(key.to_string(), pyerrors_to_dump_error(py, &err_list));
-                continue;
-            }
-        }
-
-        match value_schema.dump(&v) {
-            Ok(dumped) => {
-                map.insert(key.to_string(), dumped);
-            }
-            Err(e) => {
-                let wrapped = DumpError::Nested {
-                    field: "value".to_string(),
-                    inner: Box::new(e),
-                };
-                errors
-                    .get_or_insert_with(HashMap::new)
-                    .insert(key.to_string(), wrapped);
-            }
-        }
-    }
-
-    if let Some(errors) = errors {
-        return Err(DumpError::Multiple(errors));
-    }
-
-    Ok(serde_json::Value::Object(map))
 }
 
 pub fn dump_to_py(
@@ -200,13 +143,13 @@ pub fn dump_to_py(
             .to_str()
             .map_err(|e| DumpError::simple(&e.to_string()))?;
 
-        if let Some(validator) = value_validator {
-            if let Ok(Some(err_list)) = call_validator(py, validator, &v) {
-                errors
-                    .get_or_insert_with(HashMap::new)
-                    .insert(key_str.to_string(), pyerrors_to_dump_error(py, &err_list));
-                continue;
-            }
+        if let Some(validator) = value_validator
+            && let Ok(Some(err_list)) = call_validator(py, validator, &v)
+        {
+            errors
+                .get_or_insert_with(HashMap::new)
+                .insert(key_str.to_string(), pyerrors_to_dump_error(py, &err_list));
+            continue;
         }
 
         match value_schema.dump_to_py(&v) {
