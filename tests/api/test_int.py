@@ -1,7 +1,6 @@
 import marshmallow
-import pytest
-
 import marshmallow_recipe as mr
+import pytest
 
 from .conftest import (
     DictOf,
@@ -25,22 +24,35 @@ from .conftest import (
 
 class TestIntDump:
     @pytest.mark.parametrize(
-        ("obj", "expected"),
+        "value",
         [
-            (ValueOf[int](value=42), b'{"value":42}'),
-            (ValueOf[int](value=-100), b'{"value":-100}'),
-            (ValueOf[int](value=0), b'{"value":0}'),
-            (ValueOf[int](value=9999999999), b'{"value":9999999999}'),
-            (ValueOf[int](value=9223372036854775808), b'{"value":9223372036854775808}'),
-            (ValueOf[int](value=18446744073709551616), b'{"value":18446744073709551616}'),
-            (ValueOf[int](value=2**100), f'{{"value":{2**100}}}'.encode()),
-            (ValueOf[int](value=-9223372036854775809), b'{"value":-9223372036854775809}'),
-            (ValueOf[int](value=-(2**100)), f'{{"value":{-(2**100)}}}'.encode()),
+            pytest.param(0, id="zero"),
+            pytest.param(42, id="positive"),
+            pytest.param(-100, id="negative"),
+            pytest.param(-(2**31) - 1, id="i32_min-1"),
+            pytest.param(-(2**31), id="i32_min"),
+            pytest.param(2**31 - 1, id="i32_max"),
+            pytest.param(2**31, id="i32_max+1"),
+            pytest.param(2**32 - 1, id="u32_max"),
+            pytest.param(2**32, id="u32_max+1"),
+            pytest.param(-(2**63) - 1, id="i64_min-1"),
+            pytest.param(-(2**63), id="i64_min"),
+            pytest.param(2**63 - 1, id="i64_max"),
+            pytest.param(2**63, id="i64_max+1"),
+            pytest.param(2**64 - 1, id="u64_max"),
+            pytest.param(2**64, id="u64_max+1"),
+            pytest.param(-(2**127) - 1, id="i128_min-1"),
+            pytest.param(-(2**127), id="i128_min"),
+            pytest.param(2**127 - 1, id="i128_max"),
+            pytest.param(2**127, id="i128_max+1"),
+            pytest.param(2**128 - 1, id="u128_max"),
+            pytest.param(2**128, id="u128_max+1"),
         ],
     )
-    def test_value(self, impl: Serializer, obj: ValueOf[int], expected: bytes) -> None:
+    def test_value(self, impl: Serializer, value: int) -> None:
+        obj = ValueOf[int](value=value)
         result = impl.dump(ValueOf[int], obj)
-        assert result == expected
+        assert result == f'{{"value":{value}}}'.encode()
 
     @pytest.mark.parametrize(
         ("obj", "expected"),
@@ -98,22 +110,63 @@ class TestIntDump:
 
 class TestIntLoad:
     @pytest.mark.parametrize(
-        ("data", "expected"),
+        "value",
         [
-            (b'{"value":42}', ValueOf[int](value=42)),
-            (b'{"value":-100}', ValueOf[int](value=-100)),
-            (b'{"value":0}', ValueOf[int](value=0)),
-            (b'{"value":9999999999}', ValueOf[int](value=9999999999)),
-            (b'{"value":9223372036854775808}', ValueOf[int](value=9223372036854775808)),
-            (b'{"value":18446744073709551616}', ValueOf[int](value=18446744073709551616)),
-            (f'{{"value": {2**100}}}'.encode(), ValueOf[int](value=2**100)),
-            (b'{"value":-9223372036854775809}', ValueOf[int](value=-9223372036854775809)),
-            (f'{{"value": {-(2**100)}}}'.encode(), ValueOf[int](value=-(2**100))),
+            pytest.param(0, id="zero"),
+            pytest.param(42, id="positive"),
+            pytest.param(-100, id="negative"),
+            pytest.param(-(2**31) - 1, id="i32_min-1"),
+            pytest.param(-(2**31), id="i32_min"),
+            pytest.param(2**31 - 1, id="i32_max"),
+            pytest.param(2**31, id="i32_max+1"),
+            pytest.param(2**32 - 1, id="u32_max"),
+            pytest.param(2**32, id="u32_max+1"),
+            pytest.param(-(2**63) - 1, id="i64_min-1"),
+            pytest.param(-(2**63), id="i64_min"),
+            pytest.param(2**63 - 1, id="i64_max"),
+            pytest.param(2**63, id="i64_max+1"),
+            pytest.param(2**64 - 1, id="u64_max"),
+            pytest.param(2**64, id="u64_max+1"),
+            pytest.param(-(2**127) - 1, id="i128_min-1"),
+            pytest.param(-(2**127), id="i128_min"),
+            pytest.param(2**127 - 1, id="i128_max"),
+            pytest.param(2**127, id="i128_max+1"),
+            pytest.param(2**128 - 1, id="u128_max"),
+            pytest.param(2**128, id="u128_max+1"),
         ],
     )
-    def test_value(self, impl: Serializer, data: bytes, expected: ValueOf[int]) -> None:
+    def test_value(self, impl: Serializer, value: int) -> None:
+        data = f'{{"value":{value}}}'.encode()
         result = impl.load(ValueOf[int], data)
-        assert result == expected
+        assert result == ValueOf[int](value=value)
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param(-(2**31) - 1, id="i32_min-1"),
+            pytest.param(-(2**31), id="i32_min"),
+            pytest.param(2**31 - 1, id="i32_max"),
+            pytest.param(2**31, id="i32_max+1"),
+            pytest.param(2**32 - 1, id="u32_max"),
+            pytest.param(2**32, id="u32_max+1"),
+            pytest.param(-(2**63) - 1, id="i64_min-1"),
+            pytest.param(-(2**63), id="i64_min"),
+            pytest.param(2**63 - 1, id="i64_max"),
+            pytest.param(2**63, id="i64_max+1"),
+            pytest.param(2**64 - 1, id="u64_max"),
+            pytest.param(2**64, id="u64_max+1"),
+            pytest.param(-(2**127) - 1, id="i128_min-1"),
+            pytest.param(-(2**127), id="i128_min"),
+            pytest.param(2**127 - 1, id="i128_max"),
+            pytest.param(2**127, id="i128_max+1"),
+            pytest.param(2**128 - 1, id="u128_max"),
+            pytest.param(2**128, id="u128_max+1"),
+        ],
+    )
+    def test_value_as_string(self, impl: Serializer, value: int) -> None:
+        data = f'{{"value":"{value}"}}'.encode()
+        result = impl.load(ValueOf[int], data)
+        assert result == ValueOf[int](value=value)
 
     def test_validation_pass(self, impl: Serializer) -> None:
         data = b'{"value":10}'
