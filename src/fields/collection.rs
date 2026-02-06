@@ -6,7 +6,7 @@ use pyo3::types::{PyFrozenSet, PyList, PySet, PyTuple};
 use crate::container::FieldContainer;
 use crate::error::{DumpError, LoadError};
 use crate::error_convert::pyerrors_to_dump_error;
-use crate::utils::call_validator;
+use crate::utils::{call_validator, new_presized_list};
 
 const LIST_ERROR: &str = "Not a valid list.";
 const SET_ERROR: &str = "Not a valid set.";
@@ -177,10 +177,11 @@ pub fn dump_to_py(
         return Err(DumpError::simple(err_msg));
     }
 
-    let iter = value.try_iter().map_err(|_| DumpError::simple(err_msg))?;
-
-    let result = PyList::empty(py);
+    let size = value.len().map_err(|e| DumpError::simple(&e.to_string()))?;
+    let result = new_presized_list(py, size);
     let mut errors: Option<HashMap<usize, DumpError>> = None;
+
+    let iter = value.try_iter().map_err(|_| DumpError::simple(err_msg))?;
     let mut idx = 0usize;
 
     for item_result in iter {
@@ -197,11 +198,9 @@ pub fn dump_to_py(
         }
 
         match item.dump_to_py(&item_value) {
-            Ok(dumped) => {
-                result
-                    .append(dumped)
-                    .map_err(|e| DumpError::simple(&e.to_string()))?;
-            }
+            Ok(dumped) => unsafe {
+                pyo3::ffi::PyList_SET_ITEM(result.as_ptr(), idx.cast_signed(), dumped.into_ptr());
+            },
             Err(e) => {
                 errors.get_or_insert_with(HashMap::new).insert(idx, e);
             }

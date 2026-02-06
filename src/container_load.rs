@@ -12,7 +12,7 @@ use crate::fields::{
     str_enum, str_type, time, union, uuid,
 };
 use crate::slots::set_slot_value_direct;
-use crate::utils::{call_validator, extract_error_args, get_object_cls, new_presized_dict};
+use crate::utils::{call_validator, extract_error_args, get_object_cls, new_presized_dict, new_presized_list};
 
 const NESTED_ERROR: &str = "Invalid input type.";
 
@@ -425,12 +425,14 @@ impl TypeContainer {
                 let list = value
                     .cast::<PyList>()
                     .map_err(|_| LoadError::simple("Expected a list"))?;
-                let mut items = Vec::with_capacity(list.len());
+                let result = new_presized_list(py, list.len());
                 let mut errors: Option<HashMap<usize, LoadError>> = None;
 
                 for (idx, v) in list.iter().enumerate() {
                     match item.load_from_py(py, &v) {
-                        Ok(py_val) => items.push(py_val),
+                        Ok(py_val) => unsafe {
+                            pyo3::ffi::PyList_SET_ITEM(result.as_ptr(), idx.cast_signed(), py_val.into_ptr());
+                        },
                         Err(e) => {
                             errors.get_or_insert_with(HashMap::new).insert(idx, e);
                         }
@@ -441,9 +443,7 @@ impl TypeContainer {
                     return Err(LoadError::IndexMultiple(errors));
                 }
 
-                PyList::new(py, items)
-                    .map(|l| l.into_any().unbind())
-                    .map_err(|e| LoadError::simple(&e.to_string()))
+                Ok(result.into_any().unbind())
             }
             Self::Dict { value: value_container } => {
                 let dict = value
@@ -490,7 +490,8 @@ impl TypeContainer {
                 let iter = value
                     .try_iter()
                     .map_err(|_| LoadError::simple("Expected a set"))?;
-                let mut items = Vec::new();
+                let (size_hint, _) = iter.size_hint();
+                let mut items = Vec::with_capacity(size_hint);
                 let mut errors: Option<HashMap<usize, LoadError>> = None;
 
                 for (idx, item_result) in iter.enumerate() {
@@ -518,7 +519,8 @@ impl TypeContainer {
                 let iter = value
                     .try_iter()
                     .map_err(|_| LoadError::simple("Expected a frozenset"))?;
-                let mut items = Vec::new();
+                let (size_hint, _) = iter.size_hint();
+                let mut items = Vec::with_capacity(size_hint);
                 let mut errors: Option<HashMap<usize, LoadError>> = None;
 
                 for (idx, item_result) in iter.enumerate() {
@@ -546,7 +548,8 @@ impl TypeContainer {
                 let iter = value
                     .try_iter()
                     .map_err(|_| LoadError::simple("Expected a tuple"))?;
-                let mut items = Vec::new();
+                let (size_hint, _) = iter.size_hint();
+                let mut items = Vec::with_capacity(size_hint);
                 let mut errors: Option<HashMap<usize, LoadError>> = None;
 
                 for (idx, item_result) in iter.enumerate() {

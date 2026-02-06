@@ -4,7 +4,7 @@ use arrayvec::ArrayString;
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
-use pyo3::types::{PyDict, PyString, PyType};
+use pyo3::types::{PyDict, PyList, PyString, PyType};
 
 const PRESIZED_DICT_THRESHOLD: usize = 5;
 
@@ -15,6 +15,14 @@ pub fn new_presized_dict(py: Python<'_>, size: usize) -> Bound<'_, PyDict> {
     }
     unsafe {
         Bound::from_owned_ptr(py, pyo3::ffi::_PyDict_NewPresized(size.cast_signed()))
+            .cast_into_unchecked()
+    }
+}
+
+#[inline]
+pub fn new_presized_list(py: Python<'_>, size: usize) -> Bound<'_, PyList> {
+    unsafe {
+        Bound::from_owned_ptr(py, pyo3::ffi::PyList_New(size.cast_signed()))
             .cast_into_unchecked()
     }
 }

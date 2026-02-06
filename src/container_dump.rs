@@ -10,7 +10,7 @@ use crate::fields::{
     any, bool_type, collection, date, datetime, decimal, dict, float_type, int_enum, int_type,
     str_enum, str_type, time, union, uuid,
 };
-use crate::utils::{call_validator, new_presized_dict};
+use crate::utils::{call_validator, new_presized_dict, new_presized_list};
 
 #[allow(clippy::cast_sign_loss, clippy::unused_self)]
 impl FieldContainer {
@@ -158,16 +158,14 @@ impl TypeContainer {
                 let list = value
                     .cast::<PyList>()
                     .map_err(|_| DumpError::simple("Expected a list"))?;
-                let result = PyList::empty(py);
+                let result = new_presized_list(py, list.len());
                 let mut errors: Option<HashMap<usize, DumpError>> = None;
 
                 for (idx, v) in list.iter().enumerate() {
                     match item.dump_to_py(&v) {
-                        Ok(dumped) => {
-                            result
-                                .append(dumped)
-                                .map_err(|e| DumpError::simple(&e.to_string()))?;
-                        }
+                        Ok(dumped) => unsafe {
+                            pyo3::ffi::PyList_SET_ITEM(result.as_ptr(), idx.cast_signed(), dumped.into_ptr());
+                        },
                         Err(e) => {
                             errors.get_or_insert_with(HashMap::new).insert(idx, e);
                         }
@@ -218,17 +216,14 @@ impl TypeContainer {
                 let iter = value
                     .try_iter()
                     .map_err(|_| DumpError::simple("Expected an iterable"))?;
-                let result = PyList::empty(py);
+                let (size_hint, _) = iter.size_hint();
+                let mut items = Vec::with_capacity(size_hint);
                 let mut errors: Option<HashMap<usize, DumpError>> = None;
 
                 for (idx, item_result) in iter.enumerate() {
                     let v = item_result.map_err(|e| DumpError::simple(&e.to_string()))?;
                     match item.dump_to_py(&v) {
-                        Ok(dumped) => {
-                            result
-                                .append(dumped)
-                                .map_err(|e| DumpError::simple(&e.to_string()))?;
-                        }
+                        Ok(dumped) => items.push(dumped),
                         Err(e) => {
                             errors.get_or_insert_with(HashMap::new).insert(idx, e);
                         }
@@ -239,7 +234,9 @@ impl TypeContainer {
                     return Err(DumpError::IndexMultiple(errors));
                 }
 
-                Ok(result.into_any().unbind())
+                PyList::new(py, items)
+                    .map(|l| l.into_any().unbind())
+                    .map_err(|e| DumpError::simple(&e.to_string()))
             }
             Self::Union { variants } => {
                 for variant in variants {
