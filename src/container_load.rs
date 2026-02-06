@@ -12,7 +12,7 @@ use crate::fields::{
     str_enum, str_type, time, union, uuid,
 };
 use crate::slots::set_slot_value_direct;
-use crate::utils::{call_validator, extract_error_args, get_object_cls};
+use crate::utils::{call_validator, extract_error_args, get_object_cls, new_presized_dict};
 
 const NESTED_ERROR: &str = "Invalid input type.";
 
@@ -175,7 +175,7 @@ impl DataclassContainer {
         dict: &Bound<'_, PyDict>,
     ) -> Result<Py<PyAny>, LoadError> {
         let py = dict.py();
-        let kwargs = PyDict::new(py);
+        let kwargs = new_presized_dict(py, self.fields.len());
         let mut seen = SmallBitVec::from_elem(self.fields.len(), false);
         let mut errors: Option<HashMap<String, LoadError>> = None;
 
@@ -449,7 +449,7 @@ impl TypeContainer {
                 let dict = value
                     .cast::<PyDict>()
                     .map_err(|_| LoadError::simple("Expected a dict"))?;
-                let result = PyDict::new(py);
+                let result = new_presized_dict(py, dict.len());
                 let mut errors: Option<HashMap<String, LoadError>> = None;
 
                 for (k, v) in dict.iter() {

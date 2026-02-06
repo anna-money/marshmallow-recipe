@@ -41,6 +41,89 @@ class DatetimeOnlyNonUTC:
     dt5: datetime.datetime
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class DictData:
+    values: dict[str, str]
+
+
+DICT_DATA = DictData(values={f"key_{i}": f"value_{i}" for i in range(50)})
+
+
+def nuked_dump_dict() -> dict:
+    return mr.nuked.dump(DictData, DICT_DATA)
+
+
+DICT_DATA_DICT = nuked_dump_dict()
+
+
+def nuked_load_dict() -> DictData:
+    return mr.nuked.load(DictData, DICT_DATA_DICT)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ListIntData:
+    values: list[int]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ListStrData:
+    values: list[str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ListIntData500:
+    values: list[int]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ListStrData500:
+    values: list[str]
+
+
+LIST_INT_DATA = ListIntData(values=list(range(50)))
+LIST_STR_DATA = ListStrData(values=[f"value_{i}" for i in range(50)])
+LIST_INT_DATA_500 = ListIntData500(values=list(range(500)))
+LIST_STR_DATA_500 = ListStrData500(values=[f"value_{i}" for i in range(500)])
+
+
+def nuked_dump_list_int() -> dict:
+    return mr.nuked.dump(ListIntData, LIST_INT_DATA)
+
+
+def nuked_dump_list_str() -> dict:
+    return mr.nuked.dump(ListStrData, LIST_STR_DATA)
+
+
+def nuked_dump_list_int_500() -> dict:
+    return mr.nuked.dump(ListIntData500, LIST_INT_DATA_500)
+
+
+def nuked_dump_list_str_500() -> dict:
+    return mr.nuked.dump(ListStrData500, LIST_STR_DATA_500)
+
+
+LIST_INT_DATA_DICT = nuked_dump_list_int()
+LIST_STR_DATA_DICT = nuked_dump_list_str()
+LIST_INT_DATA_500_DICT = nuked_dump_list_int_500()
+LIST_STR_DATA_500_DICT = nuked_dump_list_str_500()
+
+
+def nuked_load_list_int() -> ListIntData:
+    return mr.nuked.load(ListIntData, LIST_INT_DATA_DICT)
+
+
+def nuked_load_list_str() -> ListStrData:
+    return mr.nuked.load(ListStrData, LIST_STR_DATA_DICT)
+
+
+def nuked_load_list_int_500() -> ListIntData500:
+    return mr.nuked.load(ListIntData500, LIST_INT_DATA_500_DICT)
+
+
+def nuked_load_list_str_500() -> ListStrData500:
+    return mr.nuked.load(ListStrData500, LIST_STR_DATA_500_DICT)
+
+
 FIXED_OFFSET = datetime.timezone(datetime.timedelta(hours=3))
 
 DATETIME_UTC = DatetimeOnlyUTC(
@@ -426,3 +509,15 @@ if __name__ == "__main__":
     runner.bench_func("nuked_dump_datetime_non_utc", nuked_dump_datetime_non_utc)
     runner.bench_func("nuked_load_datetime_utc", nuked_load_datetime_utc)
     runner.bench_func("nuked_load_datetime_non_utc", nuked_load_datetime_non_utc)
+    # Dict field
+    runner.bench_func("nuked_dump_dict", nuked_dump_dict)
+    runner.bench_func("nuked_load_dict", nuked_load_dict)
+    # List field
+    runner.bench_func("nuked_dump_list_int", nuked_dump_list_int)
+    runner.bench_func("nuked_load_list_int", nuked_load_list_int)
+    runner.bench_func("nuked_dump_list_str", nuked_dump_list_str)
+    runner.bench_func("nuked_load_list_str", nuked_load_list_str)
+    runner.bench_func("nuked_dump_list_int_500", nuked_dump_list_int_500)
+    runner.bench_func("nuked_load_list_int_500", nuked_load_list_int_500)
+    runner.bench_func("nuked_dump_list_str_500", nuked_dump_list_str_500)
+    runner.bench_func("nuked_load_list_str_500", nuked_load_list_str_500)

@@ -4,7 +4,20 @@ use arrayvec::ArrayString;
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
-use pyo3::types::{PyString, PyType};
+use pyo3::types::{PyDict, PyString, PyType};
+
+const PRESIZED_DICT_THRESHOLD: usize = 5;
+
+#[inline]
+pub fn new_presized_dict(py: Python<'_>, size: usize) -> Bound<'_, PyDict> {
+    if size <= PRESIZED_DICT_THRESHOLD {
+        return PyDict::new(py);
+    }
+    unsafe {
+        Bound::from_owned_ptr(py, pyo3::ffi::_PyDict_NewPresized(size.cast_signed()))
+            .cast_into_unchecked()
+    }
+}
 
 pub fn display_to_py<const N: usize, T: Display>(py: Python<'_>, value: &T) -> Py<PyAny> {
     let mut buf = ArrayString::<N>::new();

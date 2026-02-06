@@ -6,7 +6,7 @@ use pyo3::types::{PyDict, PyList, PyString};
 use crate::container::FieldContainer;
 use crate::error::{DumpError, LoadError};
 use crate::error_convert::pyerrors_to_dump_error;
-use crate::utils::call_validator;
+use crate::utils::{call_validator, new_presized_dict};
 
 const DICT_ERROR: &str = "Not a valid dict.";
 
@@ -75,7 +75,7 @@ pub fn load_from_py(
         .cast::<PyDict>()
         .map_err(|_| LoadError::simple(err_msg))?;
 
-    let result = PyDict::new(py);
+    let result = new_presized_dict(py, dict.len());
     let mut errors: Option<HashMap<String, LoadError>> = None;
 
     for (k, v) in dict.iter() {
@@ -133,7 +133,7 @@ pub fn dump_to_py(
         .cast::<PyDict>()
         .map_err(|_| DumpError::simple(DICT_ERROR))?;
 
-    let result = PyDict::new(py);
+    let result = new_presized_dict(py, dict.len());
     let mut errors: Option<HashMap<String, DumpError>> = None;
 
     for (k, v) in dict.iter() {

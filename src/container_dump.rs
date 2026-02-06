@@ -10,7 +10,7 @@ use crate::fields::{
     any, bool_type, collection, date, datetime, decimal, dict, float_type, int_enum, int_type,
     str_enum, str_type, time, union, uuid,
 };
-use crate::utils::call_validator;
+use crate::utils::{call_validator, new_presized_dict};
 
 #[allow(clippy::cast_sign_loss, clippy::unused_self)]
 impl FieldContainer {
@@ -73,7 +73,7 @@ impl DataclassContainer {
         let missing_sentinel = crate::utils::get_missing_sentinel(py)
             .map_err(|e| DumpError::simple(&e.to_string()))?;
 
-        let result = PyDict::new(py);
+        let result = new_presized_dict(py, self.fields.len());
         let mut errors: Option<HashMap<String, DumpError>> = None;
 
         for dc_field in &self.fields {
@@ -184,7 +184,7 @@ impl TypeContainer {
                 let dict = value
                     .cast::<PyDict>()
                     .map_err(|_| DumpError::simple("Expected a dict"))?;
-                let result = PyDict::new(py);
+                let result = new_presized_dict(py, dict.len());
                 let mut errors: Option<HashMap<String, DumpError>> = None;
 
                 for (k, v) in dict.iter() {
