@@ -1,9 +1,8 @@
 import dataclasses
 from typing import Annotated, Any
 
-import pytest
-
 import marshmallow_recipe as mr
+import pytest
 
 from .conftest import Serializer
 
@@ -103,6 +102,28 @@ class TestPreLoadLoad:
 
         result = impl.load(WithFieldNameNormalization, b'{"id":"test123"}')
         assert result == WithFieldNameNormalization(value="test123")
+
+
+class TestPreLoadNukedError:
+    def test_raises_on_pre_load(self, impl: Serializer) -> None:
+        if impl.supports_pre_load:
+            result = impl.load(WithPreLoad, b'{"value":"hello"}')
+            assert result == WithPreLoad(value="HELLO")
+        else:
+            with pytest.raises(TypeError, match="pre_load hooks are not supported in nuked"):
+                impl.load(WithPreLoad, b'{"value":"hello"}')
+
+    def test_raises_on_nested_pre_load(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class Outer:
+            inner: WithPreLoad
+
+        if impl.supports_pre_load:
+            result = impl.load(Outer, b'{"inner":{"value":"hello"}}')
+            assert result == Outer(inner=WithPreLoad(value="HELLO"))
+        else:
+            with pytest.raises(TypeError, match="pre_load hooks are not supported in nuked: WithPreLoad"):
+                impl.load(Outer, b'{"inner":{"value":"hello"}}')
 
 
 class TestGetPreLoads:

@@ -206,3 +206,4 @@ Pre-load hooks are useful for:
 4. **Multiple hooks**: Multiple `@mr.pre_load` decorators work together
 5. **Programmatic addition**: Use `mr.add_pre_load(cls, func)` to add hooks at runtime
 6. **Before validation**: Hooks run **before** field validation, allowing cleanup before checks
+7. **Marshmallow only**: Pre-load hooks only work with `mr.load()` (marshmallow-based), not with `mr.nuked.load()`. Using `@mr.pre_load` on a dataclass passed to `mr.nuked.load()` will raise a `TypeError`

@@ -1,9 +1,8 @@
 import datetime
 
 import marshmallow
-import pytest
-
 import marshmallow_recipe as mr
+import pytest
 
 from .conftest import (
     OptionalValueOf,
