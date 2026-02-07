@@ -5,9 +5,8 @@ import uuid
 from typing import Any, Optional
 
 import marshmallow
-import pytest
-
 import marshmallow_recipe as mr
+import pytest
 
 from .conftest import (
     Serializer,

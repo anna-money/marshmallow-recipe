@@ -9,9 +9,8 @@ from collections.abc import Mapping, Sequence
 from typing import Annotated, Any, NewType
 
 import marshmallow
-import pytest
-
 import marshmallow_recipe as mr
+import pytest
 
 
 class Serializer(abc.ABC):
@@ -42,6 +41,7 @@ class Serializer(abc.ABC):
         naming_case: mr.NamingCase | None = None,
         none_value_handling: mr.NoneValueHandling | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> bytes:
         raise NotImplementedError
 
@@ -62,6 +62,7 @@ class Serializer(abc.ABC):
         data: bytes,
         naming_case: mr.NamingCase | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> T:
         raise NotImplementedError
 
@@ -93,6 +94,7 @@ class MarshmallowSerializer(Serializer):
         naming_case: mr.NamingCase | None = None,
         none_value_handling: mr.NoneValueHandling | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> bytes:
         result = mr.dump(
             schema_class,
@@ -101,7 +103,7 @@ class MarshmallowSerializer(Serializer):
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
         )
-        return json.dumps(result, separators=(",", ":")).encode()
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def dump_many[T](
         self,
@@ -126,8 +128,11 @@ class MarshmallowSerializer(Serializer):
         data: bytes,
         naming_case: mr.NamingCase | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> T:
-        return mr.load(schema_class, json.loads(data), naming_case=naming_case, decimal_places=decimal_places)
+        return mr.load(
+            schema_class, json.loads(data.decode(encoding)), naming_case=naming_case, decimal_places=decimal_places
+        )
 
     def load_many[T](
         self,
@@ -139,9 +144,54 @@ class MarshmallowSerializer(Serializer):
         return mr.load_many(schema_class, json.loads(data), naming_case=naming_case, decimal_places=decimal_places)
 
 
-@pytest.fixture
-def impl() -> Serializer:
-    return MarshmallowSerializer()
+class NukedSerializer(Serializer):
+    __slots__ = ()
+
+    @property
+    def supports_pre_load(self) -> bool:
+        return False
+
+    @property
+    def supports_cyclic(self) -> bool:
+        return False
+
+    def dump[T](
+        self,
+        schema_class: type[T],
+        obj: T,
+        naming_case: mr.NamingCase | None = None,
+        none_value_handling: mr.NoneValueHandling | None = None,
+        decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
+    ) -> bytes:
+        result = mr.nuked.dump(
+            schema_class,
+            obj,
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
+        )
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
+
+    def load[T](
+        self,
+        schema_class: type[T],
+        data: bytes,
+        naming_case: mr.NamingCase | None = None,
+        decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
+    ) -> T:
+        return mr.nuked.load(
+            schema_class,
+            json.loads(data.decode(encoding)),
+            naming_case=naming_case,
+            decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
+        )
+
+
+@pytest.fixture(params=[MarshmallowSerializer(), NukedSerializer()], ids=["marshmallow", "nuked"])
+def impl(request: pytest.FixtureRequest) -> Serializer:
+    return request.param
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
