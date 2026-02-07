@@ -253,3 +253,66 @@ class TestOptionsNoneValueHandlingDump:
 
         result_default = impl.dump(DataClass, obj)
         assert result_default == b'{"str_field":"hello","int_field":null}'
+
+    def test_none_value_handling_not_affecting_nested(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class Child:
+            str_field: str | None = None
+            int_field: int | None = None
+
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        @mr.options(none_value_handling=mr.NoneValueHandling.INCLUDE)
+        class Parent:
+            str_field: str | None = None
+            child: Child | None = None
+
+        obj = Parent(str_field=None, child=Child(str_field="hello", int_field=None))
+        result = impl.dump(Parent, obj)
+        assert result == b'{"str_field":null,"child":{"str_field":"hello"}}'
+
+    def test_none_value_handling_nested_with_own_options(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        @mr.options(none_value_handling=mr.NoneValueHandling.INCLUDE)
+        class Child:
+            str_field: str | None = None
+            int_field: int | None = None
+
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class Parent:
+            str_field: str | None = None
+            child: Child | None = None
+
+        obj = Parent(str_field=None, child=Child(str_field="hello", int_field=None))
+        result = impl.dump(Parent, obj)
+        assert result == b'{"child":{"str_field":"hello","int_field":null}}'
+
+    def test_none_value_handling_function_param_affects_all(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class Child:
+            str_field: str | None = None
+            int_field: int | None = None
+
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class Parent:
+            str_field: str | None = None
+            child: Child | None = None
+
+        obj = Parent(str_field=None, child=Child(str_field="hello", int_field=None))
+        result = impl.dump(Parent, obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
+        assert result == b'{"str_field":null,"child":{"str_field":"hello","int_field":null}}'
+
+    def test_none_value_handling_function_param_overrides_nested_options(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        @mr.options(none_value_handling=mr.NoneValueHandling.IGNORE)
+        class Child:
+            str_field: str | None = None
+            int_field: int | None = None
+
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class Parent:
+            str_field: str | None = None
+            child: Child | None = None
+
+        obj = Parent(str_field=None, child=Child(str_field="hello", int_field=None))
+        result = impl.dump(Parent, obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
+        assert result == b'{"str_field":null,"child":{"str_field":"hello","int_field":null}}'

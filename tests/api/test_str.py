@@ -7,6 +7,7 @@ from .conftest import (
     OptionalValueOf,
     Serializer,
     ValueOf,
+    WithOptionalStrStripWhitespace,
     WithPostLoadAndStrip,
     WithPostLoadTransform,
     WithStrDefault,
@@ -93,6 +94,11 @@ class TestStrDump:
         obj = WithStripWhitespace(name="Bob", email="bob@example.com")
         result = impl.dump(WithStripWhitespace, obj)
         assert result == b'{"name":"Bob","email":"bob@example.com"}'
+
+    def test_strip_whitespace_optional_whitespace_only(self, impl: Serializer) -> None:
+        obj = WithOptionalStrStripWhitespace(value="   ")
+        result = impl.dump(WithOptionalStrStripWhitespace, obj)
+        assert result == b"{}"
 
     def test_post_load_transform(self, impl: Serializer) -> None:
         obj = WithPostLoadTransform(name="hello")
@@ -231,6 +237,11 @@ class TestStrLoad:
         data = b'{"name":"  Alice  ","email":"  alice@example.com  "}'
         result = impl.load(WithStripWhitespace, data)
         assert result == WithStripWhitespace(name="Alice", email="alice@example.com")
+
+    def test_strip_whitespace_optional_whitespace_only(self, impl: Serializer) -> None:
+        data = b'{"value":"   "}'
+        result = impl.load(WithOptionalStrStripWhitespace, data)
+        assert result == WithOptionalStrStripWhitespace(value=None)
 
     def test_post_load_transform(self, impl: Serializer) -> None:
         data = b'{"name":"hello"}'

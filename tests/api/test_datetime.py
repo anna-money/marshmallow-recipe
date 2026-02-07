@@ -276,6 +276,15 @@ class TestDatetimeDump:
         result = impl.dump(WithDateTimeFormatDateOnly, obj)
         assert result == expected
 
+    def test_format_iso_microsecond_precision(self, impl: Serializer) -> None:
+        obj = WithDateTimeFormatIso(created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, 100000, tzinfo=datetime.UTC))
+        result = impl.dump(WithDateTimeFormatIso, obj)
+        assert result in (
+            b'{"created_at":"2024-06-15T14:30:45.100000+00:00"}',
+            b'{"created_at":"2024-06-15T14:30:45.100+00:00"}',
+            b'{"created_at":"2024-06-15T14:30:45.1+00:00"}',
+        )
+
     @pytest.mark.parametrize(
         ("obj", "expected"),
         [
@@ -615,6 +624,18 @@ class TestDatetimeLoad:
                     )
                 ),
                 id="timezone_offset",
+            ),
+            pytest.param(
+                b'{"created_at":"2024-01-15T10:30:00"}',
+                WithDateTimeFormatIso(created_at=datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)),
+                id="without_timezone",
+            ),
+            pytest.param(
+                b'{"created_at":"2024-01-15T10:30:00.123456"}',
+                WithDateTimeFormatIso(
+                    created_at=datetime.datetime(2024, 1, 15, 10, 30, 0, 123456, tzinfo=datetime.UTC)
+                ),
+                id="without_timezone_microseconds",
             ),
         ],
     )

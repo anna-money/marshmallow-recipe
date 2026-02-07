@@ -9,7 +9,19 @@ import pytest
 
 import marshmallow_recipe as mr
 
-from .conftest import Serializer, ValueOf, WithAnyField, WithAnyNamingCase, WithDictAny, WithListAny, WithRequiredAny
+from .conftest import (
+    Serializer,
+    ValueOf,
+    WithAnyDefault,
+    WithAnyField,
+    WithAnyMissing,
+    WithAnyNamingCase,
+    WithAnyTwoValidators,
+    WithAnyValidation,
+    WithDictAny,
+    WithListAny,
+    WithRequiredAny,
+)
 
 
 class TestAnyDump:
@@ -52,6 +64,73 @@ class TestAnyDump:
         obj = WithAnyField(data={"items": [1, 2, {"nested": True}], "count": 3}, name="test")
         result = impl.dump(WithAnyField, obj)
         assert result == b'{"data":{"items":[1,2,{"nested":true}],"count":3},"name":"test"}'
+
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            pytest.param(WithAnyField(data="", name="test"), b'{"data":"","name":"test"}', id="empty_string"),
+            pytest.param(WithAnyField(data=0, name="test"), b'{"data":0,"name":"test"}', id="zero"),
+            pytest.param(WithAnyField(data=False, name="test"), b'{"data":false,"name":"test"}', id="false"),
+            pytest.param(WithAnyField(data=-42, name="test"), b'{"data":-42,"name":"test"}', id="negative_int"),
+            pytest.param(WithAnyField(data=-3.14, name="test"), b'{"data":-3.14,"name":"test"}', id="negative_float"),
+            pytest.param(WithAnyField(data=0.0, name="test"), b'{"data":0.0,"name":"test"}', id="zero_float"),
+            pytest.param(
+                WithAnyField(data={"a": {"b": {"c": {"d": 1}}}}, name="test"),
+                b'{"data":{"a":{"b":{"c":{"d":1}}}},"name":"test"}',
+                id="deeply_nested",
+            ),
+        ],
+    )
+    def test_value(self, impl: Serializer, obj: WithAnyField, expected: bytes) -> None:
+        result = impl.dump(WithAnyField, obj)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            pytest.param(
+                WithListAny(items=[[1, 2], [3, 4]], name="test"),
+                b'{"items":[[1,2],[3,4]],"name":"test"}',
+                id="nested_lists",
+            ),
+            pytest.param(
+                WithListAny(items=["a", "b", "c"], name="test"), b'{"items":["a","b","c"],"name":"test"}', id="strings"
+            ),
+        ],
+    )
+    def test_list_any_value(self, impl: Serializer, obj: WithListAny, expected: bytes) -> None:
+        result = impl.dump(WithListAny, obj)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            pytest.param(
+                WithDictAny(data={"items": [1, 2, 3]}, name="test"),
+                b'{"data":{"items":[1,2,3]},"name":"test"}',
+                id="list_values",
+            )
+        ],
+    )
+    def test_dict_any_value(self, impl: Serializer, obj: WithDictAny, expected: bytes) -> None:
+        result = impl.dump(WithDictAny, obj)
+        assert result == expected
+
+    def test_default_provided(self, impl: Serializer) -> None:
+        obj = WithAnyDefault(data="custom", name="test")
+        result = impl.dump(WithAnyDefault, obj)
+        assert result == b'{"data":"custom","name":"test"}'
+
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            pytest.param(WithAnyMissing(name="test"), b'{"name":"test"}', id="omitted"),
+            pytest.param(WithAnyMissing(data="hello", name="test"), b'{"data":"hello","name":"test"}', id="provided"),
+        ],
+    )
+    def test_missing(self, impl: Serializer, obj: WithAnyMissing, expected: bytes) -> None:
+        result = impl.dump(WithAnyMissing, obj)
+        assert result == expected
 
     def test_required_string(self, impl: Serializer) -> None:
         obj = WithRequiredAny(data="hello", name="test")
@@ -191,6 +270,30 @@ class TestAnyDump:
         with pytest.raises(marshmallow.ValidationError):
             impl.dump(ValueOf[Any], ValueOf[Any](value={"nested": {"deeply": {"invalid": uuid.uuid4()}}}))
 
+    def test_rejects_frozenset(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError):
+            impl.dump(ValueOf[Any], ValueOf[Any](value=frozenset({1, 2})))
+
+    def test_rejects_nested_list_invalid(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError):
+            impl.dump(ValueOf[Any], ValueOf[Any](value=[1, [datetime.datetime.now()]]))
+
+    def test_rejects_dict_tuple_value(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError):
+            impl.dump(ValueOf[Any], ValueOf[Any](value={"key": (1, 2)}))
+
+    def test_rejects_list_any_with_invalid_items(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError):
+            impl.dump(WithListAny, WithListAny(items=[1, datetime.datetime.now()]))
+
+    def test_rejects_nan_float(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError):
+            impl.dump(ValueOf[Any], ValueOf[Any](value=float("nan")))
+
+    def test_rejects_inf_float(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError):
+            impl.dump(ValueOf[Any], ValueOf[Any](value=float("inf")))
+
 
 class TestAnyLoad:
     def test_string(self, impl: Serializer) -> None:
@@ -250,6 +353,65 @@ class TestAnyLoad:
         data = b'{"data":{"items":[1,2,{"nested":true}],"count":3},"name":"test"}'
         result = impl.load(WithAnyField, data)
         assert result == WithAnyField(data={"items": [1, 2, {"nested": True}], "count": 3}, name="test")
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b'{"data":"","name":"test"}', WithAnyField(data="", name="test"), id="empty_string"),
+            pytest.param(b'{"data":0,"name":"test"}', WithAnyField(data=0, name="test"), id="zero"),
+            pytest.param(b'{"data":false,"name":"test"}', WithAnyField(data=False, name="test"), id="false"),
+            pytest.param(b'{"data":-42,"name":"test"}', WithAnyField(data=-42, name="test"), id="negative_int"),
+            pytest.param(b'{"data":-3.14,"name":"test"}', WithAnyField(data=-3.14, name="test"), id="negative_float"),
+            pytest.param(b'{"data":0.0,"name":"test"}', WithAnyField(data=0.0, name="test"), id="zero_float"),
+            pytest.param(
+                b'{"data":{"a":{"b":{"c":{"d":1}}}},"name":"test"}',
+                WithAnyField(data={"a": {"b": {"c": {"d": 1}}}}, name="test"),
+                id="deeply_nested",
+            ),
+        ],
+    )
+    def test_value(self, impl: Serializer, data: bytes, expected: WithAnyField) -> None:
+        result = impl.load(WithAnyField, data)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(
+                b'{"items":[[1,2],[3,4]],"name":"test"}',
+                WithListAny(items=[[1, 2], [3, 4]], name="test"),
+                id="nested_lists",
+            ),
+            pytest.param(
+                b'{"items":["a","b","c"],"name":"test"}', WithListAny(items=["a", "b", "c"], name="test"), id="strings"
+            ),
+        ],
+    )
+    def test_list_any_value(self, impl: Serializer, data: bytes, expected: WithListAny) -> None:
+        result = impl.load(WithListAny, data)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b'{"name":"test"}', WithAnyDefault(data="default_value", name="test"), id="omitted"),
+            pytest.param(b'{"data":"custom","name":"test"}', WithAnyDefault(data="custom", name="test"), id="provided"),
+        ],
+    )
+    def test_default(self, impl: Serializer, data: bytes, expected: WithAnyDefault) -> None:
+        result = impl.load(WithAnyDefault, data)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b'{"name":"test"}', WithAnyMissing(name="test"), id="omitted"),
+            pytest.param(b'{"data":"hello","name":"test"}', WithAnyMissing(data="hello", name="test"), id="provided"),
+        ],
+    )
+    def test_missing(self, impl: Serializer, data: bytes, expected: WithAnyMissing) -> None:
+        result = impl.load(WithAnyMissing, data)
+        assert result == expected
 
     def test_required_string(self, impl: Serializer) -> None:
         data = b'{"data":"hello","name":"test"}'
@@ -331,6 +493,28 @@ class TestAnyLoad:
         data = b'{"AnyData":[1,2,3],"FieldName":"test"}'
         result = impl.load(WithAnyNamingCase, data, naming_case=mr.CAPITAL_CAMEL_CASE)
         assert result == WithAnyNamingCase(any_data=[1, 2, 3], field_name="test")
+
+    def test_validation_pass(self, impl: Serializer) -> None:
+        data = b'{"data":"hello"}'
+        result = impl.load(WithAnyValidation, data)
+        assert result == WithAnyValidation(data="hello")
+
+    def test_validation_fail(self, impl: Serializer) -> None:
+        data = b'{"data":42}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithAnyValidation, data)
+        assert exc.value.messages == {"data": ["Invalid value."]}
+
+    def test_two_validators_pass(self, impl: Serializer) -> None:
+        data = b'{"data":"hello"}'
+        result = impl.load(WithAnyTwoValidators, data)
+        assert result == WithAnyTwoValidators(data="hello")
+
+    def test_two_validators_second_fails(self, impl: Serializer) -> None:
+        data = b'{"data":42}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithAnyTwoValidators, data)
+        assert exc.value.messages == {"data": ["Invalid value."]}
 
 
 class TestAnyTypeErrors:
