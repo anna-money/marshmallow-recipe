@@ -1353,7 +1353,9 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             stack = [value]
             while stack:
                 v = stack.pop()
-                if v is None or isinstance(v, bool | str | int | float):
+                if v is None or isinstance(v, bool | str | int):
+                    continue
+                if isinstance(v, float) and not math.isnan(v) and v != float("inf") and v != float("-inf"):
                     continue
                 if isinstance(v, list):
                     stack.extend(v)
@@ -1868,7 +1870,9 @@ else:
             stack = [value]
             while stack:
                 v = stack.pop()
-                if v is None or isinstance(v, bool | str | int | float):
+                if v is None or isinstance(v, bool | str | int):
+                    continue
+                if isinstance(v, float) and not math.isnan(v) and v != float("inf") and v != float("-inf"):
                     continue
                 if isinstance(v, list):
                     stack.extend(v)

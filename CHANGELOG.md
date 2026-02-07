@@ -3,6 +3,7 @@
 * [`ROUND_05UP` is no longer supported](https://github.com/anna-money/marshmallow-recipe/pull/242)
 * [Support timestamp format for datetime](https://github.com/anna-money/marshmallow-recipe/pull/243)
 * [Reject bool values in timestamp datetime and int enum deserialization](https://github.com/anna-money/marshmallow-recipe/pull/248)
+* [Prohibit NaN/+inf/-inf in Any field](https://github.com/anna-money/marshmallow-recipe/pull/249)
 
 
 ## v0.0.72 (2026-01-15)

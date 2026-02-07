@@ -633,6 +633,28 @@ class WithAnyNamingCase:
     field_name: str = ""
 
 
+@dataclasses.dataclass(slots=True, kw_only=True)
+class WithAnyValidation:
+    data: Any = dataclasses.field(metadata=mr.meta(validate=lambda x: isinstance(x, str)))
+
+
+@dataclasses.dataclass(slots=True, kw_only=True)
+class WithAnyTwoValidators:
+    data: Any = dataclasses.field(metadata=mr.meta(validate=[lambda x: x is not None, lambda x: isinstance(x, str)]))
+
+
+@dataclasses.dataclass(slots=True, kw_only=True)
+class WithAnyMissing:
+    data: Any = mr.MISSING
+    name: str = ""
+
+
+@dataclasses.dataclass(slots=True, kw_only=True)
+class WithAnyDefault:
+    data: Any = "default_value"
+    name: str = ""
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class CollectionHolder[T]:
     items: T
@@ -1276,6 +1298,16 @@ class WithListStripWhitespace:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Inner:
     x: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalStrStripWhitespace:
+    value: str | None = dataclasses.field(default=None, metadata=mr.str_meta(strip_whitespaces=True))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithListPostLoad:
+    items: list[Annotated[str, mr.str_meta(post_load=str.upper)]]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

@@ -23,6 +23,7 @@ from .conftest import (
     WithListItemValidation,
     WithListMissing,
     WithListNoneError,
+    WithListPostLoad,
     WithListRequiredError,
     WithListStripWhitespace,
 )
@@ -363,3 +364,8 @@ class TestListLoad:
         data = b'{"items":[" hello "," world "]}'
         result = impl.load(WithListStripWhitespace, data)
         assert result == WithListStripWhitespace(items=["hello", "world"])
+
+    def test_post_load_per_item(self, impl: Serializer) -> None:
+        data = b'{"items":["hello","world"]}'
+        result = impl.load(WithListPostLoad, data)
+        assert result == WithListPostLoad(items=["HELLO", "WORLD"])

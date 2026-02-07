@@ -83,8 +83,10 @@ class TestBoolLoad:
         [
             pytest.param(b'{"value":true}', ValueOf[bool](value=True), id="true"),
             pytest.param(b'{"value":false}', ValueOf[bool](value=False), id="false"),
-            pytest.param(b'{"value":0}', ValueOf[bool](value=False), id="zero"),
             pytest.param(b'{"value":1}', ValueOf[bool](value=True), id="one"),
+            pytest.param(b'{"value":0}', ValueOf[bool](value=False), id="zero"),
+            pytest.param(b'{"value":"true"}', ValueOf[bool](value=True), id="str true"),
+            pytest.param(b'{"value":"false"}', ValueOf[bool](value=False), id="str false"),
         ],
     )
     def test_value(self, impl: Serializer, data: bytes, expected: ValueOf[bool]) -> None:
