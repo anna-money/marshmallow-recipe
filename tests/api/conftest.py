@@ -9,8 +9,9 @@ from collections.abc import Mapping, Sequence
 from typing import Annotated, Any, NewType
 
 import marshmallow
-import marshmallow_recipe as mr
 import pytest
+
+import marshmallow_recipe as mr
 
 
 class Serializer(abc.ABC):
@@ -1205,6 +1206,11 @@ class WithBoolMissing:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithDecimalMissing:
     value: decimal.Decimal = mr.MISSING
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDecimalDefault:
+    value: decimal.Decimal = decimal.Decimal("99.99")
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

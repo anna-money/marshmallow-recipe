@@ -10,9 +10,9 @@ pub struct FieldCommon {
     pub optional: bool,
     pub default_value: Option<Py<PyAny>>,
     pub default_factory: Option<Py<PyAny>>,
-    pub required_error: Option<String>,
-    pub none_error: Option<String>,
-    pub invalid_error: Option<String>,
+    pub required_error: Option<Py<PyString>>,
+    pub none_error: Option<Py<PyString>>,
+    pub invalid_error: Py<PyString>,
     pub validator: Option<Py<PyAny>>,
 }
 
@@ -22,9 +22,9 @@ impl Clone for FieldCommon {
             optional: self.optional,
             default_value: self.default_value.as_ref().map(|v| v.clone_ref(py)),
             default_factory: self.default_factory.as_ref().map(|f| f.clone_ref(py)),
-            required_error: self.required_error.clone(),
-            none_error: self.none_error.clone(),
-            invalid_error: self.invalid_error.clone(),
+            required_error: self.required_error.as_ref().map(|v| v.clone_ref(py)),
+            none_error: self.none_error.as_ref().map(|v| v.clone_ref(py)),
+            invalid_error: self.invalid_error.clone_ref(py),
             validator: self.validator.as_ref().map(|v| v.clone_ref(py)),
         })
     }
@@ -253,7 +253,7 @@ impl FieldContainer {
         match self {
             Self::Str { common, .. }
             | Self::Int { common }
-            | Self::Float { common }
+            | Self::Float { common, .. }
             | Self::Bool { common }
             | Self::Decimal { common, .. }
             | Self::Date { common }

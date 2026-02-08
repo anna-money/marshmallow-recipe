@@ -1,8 +1,9 @@
 import dataclasses
 from typing import Annotated, Any
 
-import marshmallow_recipe as mr
 import pytest
+
+import marshmallow_recipe as mr
 
 from .conftest import Serializer
 

@@ -1,13 +1,9 @@
-use pyo3::conversion::IntoPyObjectExt;
 use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
-use pyo3::types::{PyString, PyType};
+use pyo3::types::{PyBool, PyFloat, PyInt, PyString, PyType};
 
 use crate::error::{DumpError, LoadError};
-
-const DECIMAL_ERROR: &str = "Not a valid decimal.";
-const DECIMAL_NUMBER_ERROR: &str = "Not a valid number.";
 
 pub fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     static DECIMAL_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
@@ -56,62 +52,87 @@ fn quantize_decimal<'py>(
     value.call_method1(intern!(py, "quantize"), (&exp, rounding.bind(py)))
 }
 
-fn apply_rounding_or_validate<'py>(
-    value: &Bound<'py, PyAny>,
-    places: Option<i32>,
-    rounding: Option<&Py<PyAny>>,
-) -> PyResult<Bound<'py, PyAny>> {
-    let Some(places) = places else {
-        return Ok(value.clone());
-    };
-
-    if let Some(rounding) = rounding {
-        quantize_decimal(value, places.cast_unsigned(), rounding)
-    } else {
-        let scale = get_decimal_scale(value)?;
-        if scale > places.cast_unsigned() {
-            return Err(pyo3::exceptions::PyValueError::new_err("scale exceeded"));
-        }
-        Ok(value.clone())
-    }
-}
-
 pub fn load_from_py(
     value: &Bound<'_, PyAny>,
     decimal_places: Option<i32>,
     rounding: Option<&Py<PyAny>>,
-    invalid_error: Option<&str>,
+    invalid_error: &Py<PyString>,
 ) -> Result<Py<PyAny>, LoadError> {
-    let err_msg = invalid_error.unwrap_or(DECIMAL_NUMBER_ERROR);
     let py = value.py();
 
-    let s: String = value
-        .str()
-        .map_err(|_| LoadError::simple(err_msg))?
-        .extract()
-        .map_err(|_: PyErr| LoadError::simple(err_msg))?;
+    if value.is_instance_of::<PyBool>() {
+        return Err(LoadError::Single(invalid_error.clone_ref(py)));
+    }
 
-    load_from_str(py, &s, decimal_places, rounding, err_msg)
+    let decimal_cls = get_decimal_cls(py).map_err(|e| LoadError::simple(py, &e.to_string()))?;
+
+    if value.is_instance_of::<PyInt>() {
+        let py_decimal = decimal_cls
+            .call1((value,))
+            .map_err(|_| LoadError::Single(invalid_error.clone_ref(py)))?;
+        return finalize_decimal(&py_decimal, decimal_places, rounding, invalid_error);
+    }
+
+    if value.is_instance_of::<PyString>() {
+        let py_decimal = decimal_cls
+            .call1((value,))
+            .map_err(|_| LoadError::Single(invalid_error.clone_ref(py)))?;
+        let is_finite: bool = py_decimal
+            .call_method0(intern!(py, "is_finite"))
+            .and_then(|v| v.extract())
+            .map_err(|e| LoadError::simple(py, &e.to_string()))?;
+        if !is_finite {
+            return Err(LoadError::Single(invalid_error.clone_ref(py)));
+        }
+        return finalize_decimal(&py_decimal, decimal_places, rounding, invalid_error);
+    }
+
+    if value.is_instance_of::<PyFloat>() {
+        let f: f64 = value
+            .extract()
+            .map_err(|_| LoadError::Single(invalid_error.clone_ref(py)))?;
+        if !f.is_finite() {
+            return Err(LoadError::Single(invalid_error.clone_ref(py)));
+        }
+        let s = value
+            .str()
+            .map_err(|_| LoadError::Single(invalid_error.clone_ref(py)))?;
+        let py_decimal = decimal_cls
+            .call1((&s,))
+            .map_err(|_| LoadError::Single(invalid_error.clone_ref(py)))?;
+        return finalize_decimal(&py_decimal, decimal_places, rounding, invalid_error);
+    }
+
+    Err(LoadError::Single(invalid_error.clone_ref(py)))
 }
 
 pub fn dump_to_py(
     value: &Bound<'_, PyAny>,
     decimal_places: Option<i32>,
     rounding: Option<&Py<PyAny>>,
+    invalid_error: &Py<PyString>,
 ) -> Result<Py<PyAny>, DumpError> {
     let py = value.py();
+
+    let is_finite: bool = value
+        .call_method0(intern!(py, "is_finite"))
+        .and_then(|v| v.extract())
+        .map_err(|e| DumpError::simple(py, &e.to_string()))?;
+    if !is_finite {
+        return Err(DumpError::Single(invalid_error.clone_ref(py)));
+    }
 
     let decimal = if let Some(places) = decimal_places {
         if let Some(rounding) = rounding {
             let exp = get_quantize_exp(py, places.unsigned_abs())
-                .map_err(|e| DumpError::simple(&e.to_string()))?;
+                .map_err(|e| DumpError::simple(py, &e.to_string()))?;
             value
                 .call_method1(intern!(py, "quantize"), (&exp, rounding.bind(py)))
-                .map_err(|e| DumpError::simple(&e.to_string()))?
+                .map_err(|e| DumpError::simple(py, &e.to_string()))?
         } else {
-            let scale = get_decimal_scale(value).map_err(|e| DumpError::simple(&e.to_string()))?;
+            let scale = get_decimal_scale(value).map_err(|e| DumpError::simple(py, &e.to_string()))?;
             if scale > places.unsigned_abs() {
-                return Err(DumpError::simple(DECIMAL_NUMBER_ERROR));
+                return Err(DumpError::Single(invalid_error.clone_ref(py)));
             }
             value.clone()
         }
@@ -121,32 +142,30 @@ pub fn dump_to_py(
 
     let formatted = decimal
         .call_method1(intern!(py, "__format__"), ("f",))
-        .map_err(|e| DumpError::simple(&e.to_string()))?;
-
-    let s: &str = formatted
-        .cast::<PyString>()
-        .map_err(|_| DumpError::simple(DECIMAL_ERROR))?
-        .to_str()
-        .map_err(|e| DumpError::simple(&e.to_string()))?;
-
-    s.into_py_any(py)
-        .map_err(|e| DumpError::simple(&e.to_string()))
+        .map_err(|e| DumpError::simple(py, &e.to_string()))?;
+    Ok(formatted.unbind())
 }
 
-fn load_from_str(
-    py: Python,
-    s: &str,
+fn finalize_decimal(
+    py_decimal: &Bound<'_, PyAny>,
     decimal_places: Option<i32>,
     rounding: Option<&Py<PyAny>>,
-    err_msg: &str,
+    invalid_error: &Py<PyString>,
 ) -> Result<Py<PyAny>, LoadError> {
-    let decimal_cls = get_decimal_cls(py).map_err(|e| LoadError::simple(&e.to_string()))?;
-    let py_decimal = decimal_cls
-        .call1((s,))
-        .map_err(|_| LoadError::simple(err_msg))?;
-
-    let final_decimal = apply_rounding_or_validate(&py_decimal, decimal_places, rounding)
-        .map_err(|_| LoadError::simple(err_msg))?;
-
-    Ok(final_decimal.unbind())
+    let py = py_decimal.py();
+    let Some(places) = decimal_places else {
+        return Ok(py_decimal.clone().unbind());
+    };
+    if let Some(rounding) = rounding {
+        quantize_decimal(py_decimal, places.cast_unsigned(), rounding)
+            .map(Bound::unbind)
+            .map_err(|_| LoadError::Single(invalid_error.clone_ref(py)))
+    } else {
+        let scale = get_decimal_scale(py_decimal)
+            .map_err(|_| LoadError::Single(invalid_error.clone_ref(py)))?;
+        if scale > places.cast_unsigned() {
+            return Err(LoadError::Single(invalid_error.clone_ref(py)));
+        }
+        Ok(py_decimal.clone().unbind())
+    }
 }

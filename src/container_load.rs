@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyFrozenSet, PyList, PySet, PyString, PyTuple};
@@ -17,46 +15,41 @@ use crate::utils::{call_validator, extract_error_args, get_object_cls, new_presi
 const NESTED_ERROR: &str = "Invalid input type.";
 
 fn pyerrors_to_load_error(py: Python<'_>, errors: &Py<PyAny>) -> LoadError {
-    let error = pyany_to_load_error(errors.bind(py));
-    maybe_wrap_nested_error(error)
+    let error = pyany_to_load_error(py, errors.bind(py));
+    maybe_wrap_nested_error(py, error)
 }
 
-fn pyany_to_load_error(value: &Bound<'_, PyAny>) -> LoadError {
+fn pyany_to_load_error(py: Python<'_>, value: &Bound<'_, PyAny>) -> LoadError {
     if let Ok(s) = value.extract::<String>() {
-        return LoadError::simple(&s);
+        return LoadError::simple(py, &s);
     }
     if let Ok(list) = value.cast::<PyList>() {
         if list.is_empty() {
-            return LoadError::messages(vec![]);
+            return LoadError::List(list.clone().unbind());
         }
         let all_strings = list.iter().all(|item| item.extract::<String>().is_ok());
         if all_strings {
-            let msgs: Vec<String> = list
-                .iter()
-                .filter_map(|v| v.extract::<String>().ok())
-                .collect();
-            return LoadError::messages(msgs);
+            return LoadError::List(list.clone().unbind());
         }
         if list.len() == 1
             && let Ok(item) = list.get_item(0)
         {
-            return pyany_to_load_error(&item);
+            return pyany_to_load_error(py, &item);
         }
-        let mut index_map = HashMap::with_capacity(list.len());
+        let dict = PyDict::new(py);
         for (idx, item) in list.iter().enumerate() {
-            index_map.insert(idx, pyany_to_load_error(&item));
+            let _ = dict.set_item(idx, pyany_to_load_error(py, &item).to_py_value(py).unwrap_or_else(|_| py.None()));
         }
-        return LoadError::IndexMultiple(index_map);
+        return LoadError::Dict(dict.unbind());
     }
     if let Ok(dict) = value.cast::<PyDict>() {
-        let mut map = HashMap::with_capacity(dict.len());
+        let result = PyDict::new(py);
         for (k, v) in dict.iter() {
-            let key = k.extract::<String>().unwrap_or_else(|_| k.to_string());
-            map.insert(key, pyany_to_load_error(&v));
+            let _ = result.set_item(&k, pyany_to_load_error(py, &v).to_py_value(py).unwrap_or_else(|_| py.None()));
         }
-        return LoadError::Multiple(map);
+        return LoadError::Dict(result.unbind());
     }
-    LoadError::simple(&value.to_string())
+    LoadError::simple(py, &value.to_string())
 }
 
 fn call_validator_with_error(
@@ -69,18 +62,19 @@ fn call_validator_with_error(
         Ok(Some(errors)) => Err(pyerrors_to_load_error(py, &errors)),
         Err(e) => {
             let error_value = extract_error_args(py, &e);
-            let error = pyany_to_load_error(error_value.bind(py));
-            Err(maybe_wrap_nested_error(error))
+            let error = pyany_to_load_error(py, error_value.bind(py));
+            Err(maybe_wrap_nested_error(py, error))
         }
     }
 }
 
-fn maybe_wrap_nested_error(e: LoadError) -> LoadError {
-    match &e {
-        LoadError::Multiple(_) | LoadError::Nested { .. } | LoadError::IndexMultiple(_) => {
-            LoadError::ArrayWrapped(Box::new(e))
+fn maybe_wrap_nested_error(py: Python<'_>, e: LoadError) -> LoadError {
+    match e {
+        LoadError::Dict(d) => {
+            let val = d.into_any();
+            LoadError::List(PyList::new(py, [val.bind(py)]).expect("single element").unbind())
         }
-        _ => e,
+        other => other,
     }
 }
 
@@ -97,40 +91,37 @@ impl FieldContainer {
             if common.optional {
                 return Ok(py.None());
             }
-            let msg = common
-                .none_error
-                .as_deref()
-                .unwrap_or("Field may not be null.");
-            return Err(LoadError::simple(msg));
+            return Err(common.none_error.as_ref().map_or_else(
+                || LoadError::Single(intern!(py, "Field may not be null.").clone().unbind()),
+                |s| LoadError::Single(s.clone_ref(py)),
+            ));
         }
 
         match self {
             Self::Str {
                 strip_whitespaces, post_load, ..
             } => {
-                let result = str_type::load_from_py(value, *strip_whitespaces, common.optional, common.invalid_error.as_deref())?;
+                let result = str_type::load_from_py(value, *strip_whitespaces, common.optional, &common.invalid_error)?;
                 if let Some(post_load_fn) = post_load {
                     post_load_fn
                         .call1(py, (&result,))
-                        .map_err(|e| LoadError::simple(&e.to_string()))
+                        .map_err(|e| LoadError::simple(py, &e.to_string()))
                 } else {
                     Ok(result)
                 }
             }
-            Self::Int { .. } => int_type::load_from_py(value, common.invalid_error.as_deref()),
-            Self::Float { .. } => {
-                float_type::load_from_py(value, common.invalid_error.as_deref())
-            }
-            Self::Bool { .. } => bool_type::load_from_py(value, common.invalid_error.as_deref()),
+            Self::Int { .. } => int_type::load_from_py(value, &common.invalid_error),
+            Self::Float { .. } => float_type::load_from_py(value, &common.invalid_error),
+            Self::Bool { .. } => bool_type::load_from_py(value, &common.invalid_error),
             Self::Decimal { decimal_places, rounding, .. } => {
-                decimal::load_from_py(value, *decimal_places, rounding.as_ref(), common.invalid_error.as_deref())
+                decimal::load_from_py(value, *decimal_places, rounding.as_ref(), &common.invalid_error)
             }
-            Self::Date { .. } => date::load_from_py(value, common.invalid_error.as_deref()),
-            Self::Time { .. } => time::load_from_py(value, common.invalid_error.as_deref()),
+            Self::Date { .. } => date::load_from_py(value, &common.invalid_error),
+            Self::Time { .. } => time::load_from_py(value, &common.invalid_error),
             Self::DateTime { format, .. } => {
-                datetime::load_from_py(value, format, common.invalid_error.as_deref())
+                datetime::load_from_py(value, format, &common.invalid_error)
             }
-            Self::Uuid { .. } => uuid::load_from_py(value, common.invalid_error.as_deref()),
+            Self::Uuid { .. } => uuid::load_from_py(value, &common.invalid_error),
             Self::StrEnum { loader_data, .. } => str_enum::load_from_py(value, loader_data),
             Self::IntEnum { loader_data, .. } => int_enum::load_from_py(value, loader_data),
             Self::Any { .. } => Ok(any::load_from_py(value)),
@@ -144,7 +135,7 @@ impl FieldContainer {
                 *kind,
                 item,
                 item_validator.as_ref(),
-                common.invalid_error.as_deref(),
+                &common.invalid_error,
             ),
             Self::Dict {
                 value: value_schema,
@@ -154,7 +145,7 @@ impl FieldContainer {
                 value,
                 value_schema,
                 value_validator.as_ref(),
-                common.invalid_error.as_deref(),
+                &common.invalid_error,
             ),
             Self::Nested { container, .. } => container.load_from_py(value),
             Self::Union { variants, .. } => union::load_from_py(value, variants),
@@ -167,9 +158,14 @@ impl DataclassContainer {
         &self,
         value: &Bound<'_, PyAny>,
     ) -> Result<Py<PyAny>, LoadError> {
-        let dict = value.cast::<PyDict>().map_err(|_| LoadError::Nested {
-            field: "_schema".to_string(),
-            inner: Box::new(LoadError::simple(NESTED_ERROR)),
+        let py = value.py();
+        let dict = value.cast::<PyDict>().map_err(|_| {
+            let err_dict = PyDict::new(py);
+            let _ = err_dict.set_item(
+                "_schema",
+                PyList::new(py, [intern!(py, NESTED_ERROR)]).unwrap(),
+            );
+            LoadError::Dict(err_dict.unbind())
         })?;
 
         if self.can_use_direct_slots {
@@ -186,7 +182,7 @@ impl DataclassContainer {
         let py = dict.py();
         let kwargs = new_presized_dict(py, self.fields.len());
         let mut seen = SmallBitVec::from_elem(self.fields.len(), false);
-        let mut errors: Option<HashMap<String, LoadError>> = None;
+        let mut errors: Option<Bound<'_, PyDict>> = None;
 
         for (k, v) in dict.iter() {
             let key_str = k
@@ -215,16 +211,20 @@ impl DataclassContainer {
                                 let _ = kwargs.set_item(dc_field.name_interned.bind(py), validated);
                             }
                             Err(e) => {
-                                errors
-                                    .get_or_insert_with(HashMap::new)
-                                    .insert(dc_field.name.clone(), e);
+                                let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                                let _ = err_dict.set_item(
+                                    dc_field.name_interned.bind(py),
+                                    e.to_py_value(py).unwrap_or_else(|_| py.None()),
+                                );
                             }
                         }
                     }
                     Err(e) => {
-                        errors
-                            .get_or_insert_with(HashMap::new)
-                            .insert(dc_field.name.clone(), e);
+                        let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                        let _ = err_dict.set_item(
+                            dc_field.name_interned.bind(py),
+                            e.to_py_value(py).unwrap_or_else(|_| py.None()),
+                        );
                     }
                 }
             }
@@ -234,7 +234,7 @@ impl DataclassContainer {
             let common = dc_field.field.common();
             if errors
                 .as_ref()
-                .is_some_and(|e| e.contains_key(&dc_field.name))
+                .is_some_and(|e| e.contains(dc_field.name_interned.bind(py)).unwrap_or(false))
             {
                 continue;
             }
@@ -244,47 +244,52 @@ impl DataclassContainer {
                         let _ = kwargs.set_item(dc_field.name_interned.bind(py), val);
                     }
                     Ok(None) => {
-                        let msg = common
-                            .required_error
-                            .as_deref()
-                            .unwrap_or("Missing data for required field.");
-                        errors
-                            .get_or_insert_with(HashMap::new)
-                            .insert(dc_field.name.clone(), LoadError::simple(msg));
+                        let err_list = common.required_error.as_ref().map_or_else(
+                            || PyList::new(py, [intern!(py, "Missing data for required field.")]).unwrap(),
+                            |s| PyList::new(py, [s.bind(py)]).unwrap(),
+                        );
+                        let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                        let _ = err_dict.set_item(
+                            dc_field.name_interned.bind(py),
+                            err_list,
+                        );
                     }
                     Err(e) => {
-                        errors
-                            .get_or_insert_with(HashMap::new)
-                            .insert(dc_field.name.clone(), e);
+                        let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                        let _ = err_dict.set_item(
+                            dc_field.name_interned.bind(py),
+                            e.to_py_value(py).unwrap_or_else(|_| py.None()),
+                        );
                     }
                 }
             }
         }
 
         if let Some(errors) = errors {
-            return Err(LoadError::Multiple(errors));
+            return Err(LoadError::Dict(errors.unbind()));
         }
 
         self.cls
             .bind(py)
             .call((), Some(&kwargs))
             .map(Bound::unbind)
-            .map_err(|e| LoadError::simple(&e.to_string()))
+            .map_err(|e| LoadError::simple(py, &e.to_string()))
     }
 
+    #[allow(clippy::too_many_lines)]
     fn load_from_py_direct_slots(
         &self,
         dict: &Bound<'_, PyDict>,
     ) -> Result<Py<PyAny>, LoadError> {
         let py = dict.py();
-        let object_type = get_object_cls(py).map_err(|e| LoadError::simple(&e.to_string()))?;
+        let object_type = get_object_cls(py).map_err(|e| LoadError::simple(py, &e.to_string()))?;
         let instance = object_type
             .call_method1(intern!(py, "__new__"), (self.cls.bind(py),))
-            .map_err(|e| LoadError::simple(&e.to_string()))?;
+            .map_err(|e| LoadError::simple(py, &e.to_string()))?;
 
         let mut field_values: Vec<Option<Py<PyAny>>> =
             (0..self.fields.len()).map(|_| None).collect();
-        let mut errors: Option<HashMap<String, LoadError>> = None;
+        let mut errors: Option<Bound<'_, PyDict>> = None;
 
         for (k, v) in dict.iter() {
             let key_str = k
@@ -308,16 +313,20 @@ impl DataclassContainer {
                                 field_values[idx] = Some(validated);
                             }
                             Err(e) => {
-                                errors
-                                    .get_or_insert_with(HashMap::new)
-                                    .insert(dc_field.name.clone(), e);
+                                let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                                let _ = err_dict.set_item(
+                                    dc_field.name_interned.bind(py),
+                                    e.to_py_value(py).unwrap_or_else(|_| py.None()),
+                                );
                             }
                         }
                     }
                     Err(e) => {
-                        errors
-                            .get_or_insert_with(HashMap::new)
-                            .insert(dc_field.name.clone(), e);
+                        let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                        let _ = err_dict.set_item(
+                            dc_field.name_interned.bind(py),
+                            e.to_py_value(py).unwrap_or_else(|_| py.None()),
+                        );
                     }
                 }
             }
@@ -327,7 +336,7 @@ impl DataclassContainer {
             let common = dc_field.field.common();
             if errors
                 .as_ref()
-                .is_some_and(|e| e.contains_key(&dc_field.name))
+                .is_some_and(|e| e.contains(dc_field.name_interned.bind(py)).unwrap_or(false))
             {
                 continue;
             }
@@ -337,19 +346,23 @@ impl DataclassContainer {
                 match get_default_value(py, common) {
                     Ok(Some(val)) => val,
                     Ok(None) => {
-                        let msg = common
-                            .required_error
-                            .as_deref()
-                            .unwrap_or("Missing data for required field.");
-                        errors
-                            .get_or_insert_with(HashMap::new)
-                            .insert(dc_field.name.clone(), LoadError::simple(msg));
+                        let err_list = common.required_error.as_ref().map_or_else(
+                            || PyList::new(py, [intern!(py, "Missing data for required field.")]).unwrap(),
+                            |s| PyList::new(py, [s.bind(py)]).unwrap(),
+                        );
+                        let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                        let _ = err_dict.set_item(
+                            dc_field.name_interned.bind(py),
+                            err_list,
+                        );
                         continue;
                     }
                     Err(e) => {
-                        errors
-                            .get_or_insert_with(HashMap::new)
-                            .insert(dc_field.name.clone(), e);
+                        let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                        let _ = err_dict.set_item(
+                            dc_field.name_interned.bind(py),
+                            e.to_py_value(py).unwrap_or_else(|_| py.None()),
+                        );
                         continue;
                     }
                 }
@@ -357,19 +370,21 @@ impl DataclassContainer {
 
             if let Some(offset) = dc_field.slot_offset {
                 if !unsafe { set_slot_value_direct(&instance, offset, py_value) } {
-                    errors
-                        .get_or_insert_with(HashMap::new)
-                        .insert(dc_field.name.clone(), LoadError::simple("Failed to set slot value: null object pointer"));
+                    let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                    let _ = err_dict.set_item(
+                        dc_field.name_interned.bind(py),
+                        PyList::new(py, [intern!(py, "Failed to set slot value: null object pointer")]).unwrap(),
+                    );
                 }
             } else {
                 instance
                     .setattr(dc_field.name_interned.bind(py), py_value)
-                    .map_err(|e| LoadError::simple(&e.to_string()))?;
+                    .map_err(|e| LoadError::simple(py, &e.to_string()))?;
             }
         }
 
         if let Some(errors) = errors {
-            return Err(LoadError::Multiple(errors));
+            return Err(LoadError::Dict(errors.unbind()));
         }
 
         Ok(instance.unbind())
@@ -384,7 +399,7 @@ fn get_default_value(
         return factory
             .call0(py)
             .map(Some)
-            .map_err(|e| LoadError::simple(&e.to_string()));
+            .map_err(|e| LoadError::simple(py, &e.to_string()));
     }
     if let Some(ref value) = common.default_value {
         return Ok(Some(value.clone_ref(py)));
@@ -422,9 +437,9 @@ impl TypeContainer {
             Self::List { item } => {
                 let list = value
                     .cast::<PyList>()
-                    .map_err(|_| LoadError::simple("Expected a list"))?;
+                    .map_err(|_| LoadError::Single(intern!(py, "Expected a list").clone().unbind()))?;
                 let result = new_presized_list(py, list.len());
-                let mut errors: Option<HashMap<usize, LoadError>> = None;
+                let mut errors: Option<Bound<'_, PyDict>> = None;
 
                 for (idx, v) in list.iter().enumerate() {
                     match item.load_from_py(py, &v) {
@@ -432,13 +447,14 @@ impl TypeContainer {
                             pyo3::ffi::PyList_SET_ITEM(result.as_ptr(), idx.cast_signed(), py_val.into_ptr());
                         },
                         Err(e) => {
-                            errors.get_or_insert_with(HashMap::new).insert(idx, e);
+                            let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                            let _ = err_dict.set_item(idx, e.to_py_value(py).unwrap_or_else(|_| py.None()));
                         }
                     }
                 }
 
                 if let Some(errors) = errors {
-                    return Err(LoadError::IndexMultiple(errors));
+                    return Err(LoadError::Dict(errors.unbind()));
                 }
 
                 Ok(result.into_any().unbind())
@@ -446,9 +462,9 @@ impl TypeContainer {
             Self::Dict { value: value_container } => {
                 let dict = value
                     .cast::<PyDict>()
-                    .map_err(|_| LoadError::simple("Expected a dict"))?;
+                    .map_err(|_| LoadError::Single(intern!(py, "Expected a dict").clone().unbind()))?;
                 let result = new_presized_dict(py, dict.len());
-                let mut errors: Option<HashMap<String, LoadError>> = None;
+                let mut errors: Option<Bound<'_, PyDict>> = None;
 
                 for (k, v) in dict.iter() {
                     let key_str = k
@@ -461,15 +477,14 @@ impl TypeContainer {
                             let _ = result.set_item(k, py_val);
                         }
                         Err(e) => {
-                            errors
-                                .get_or_insert_with(HashMap::new)
-                                .insert(key_str.to_string(), e);
+                            let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                            let _ = err_dict.set_item(key_str, e.to_py_value(py).unwrap_or_else(|_| py.None()));
                         }
                     }
                 }
 
                 if let Some(errors) = errors {
-                    return Err(LoadError::Multiple(errors));
+                    return Err(LoadError::Dict(errors.unbind()));
                 }
 
                 Ok(result.into_any().unbind())
@@ -483,90 +498,93 @@ impl TypeContainer {
             }
             Self::Set { item } => {
                 if value.is_instance_of::<PyString>() {
-                    return Err(LoadError::simple("Not a valid set."));
+                    return Err(LoadError::Single(intern!(py, "Not a valid set.").clone().unbind()));
                 }
                 let iter = value
                     .try_iter()
-                    .map_err(|_| LoadError::simple("Expected a set"))?;
+                    .map_err(|_| LoadError::Single(intern!(py, "Expected a set").clone().unbind()))?;
                 let (size_hint, _) = iter.size_hint();
                 let mut items = Vec::with_capacity(size_hint);
-                let mut errors: Option<HashMap<usize, LoadError>> = None;
+                let mut errors: Option<Bound<'_, PyDict>> = None;
 
                 for (idx, item_result) in iter.enumerate() {
-                    let v = item_result.map_err(|e| LoadError::simple(&e.to_string()))?;
+                    let v = item_result.map_err(|e| LoadError::simple(py, &e.to_string()))?;
                     match item.load_from_py(py, &v) {
                         Ok(py_val) => items.push(py_val),
                         Err(e) => {
-                            errors.get_or_insert_with(HashMap::new).insert(idx, e);
+                            let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                            let _ = err_dict.set_item(idx, e.to_py_value(py).unwrap_or_else(|_| py.None()));
                         }
                     }
                 }
 
                 if let Some(errors) = errors {
-                    return Err(LoadError::IndexMultiple(errors));
+                    return Err(LoadError::Dict(errors.unbind()));
                 }
 
                 PySet::new(py, &items)
                     .map(|s| s.into_any().unbind())
-                    .map_err(|e| LoadError::simple(&e.to_string()))
+                    .map_err(|e| LoadError::simple(py, &e.to_string()))
             }
             Self::FrozenSet { item } => {
                 if value.is_instance_of::<PyString>() {
-                    return Err(LoadError::simple("Not a valid frozenset."));
+                    return Err(LoadError::Single(intern!(py, "Not a valid frozenset.").clone().unbind()));
                 }
                 let iter = value
                     .try_iter()
-                    .map_err(|_| LoadError::simple("Expected a frozenset"))?;
+                    .map_err(|_| LoadError::Single(intern!(py, "Expected a frozenset").clone().unbind()))?;
                 let (size_hint, _) = iter.size_hint();
                 let mut items = Vec::with_capacity(size_hint);
-                let mut errors: Option<HashMap<usize, LoadError>> = None;
+                let mut errors: Option<Bound<'_, PyDict>> = None;
 
                 for (idx, item_result) in iter.enumerate() {
-                    let v = item_result.map_err(|e| LoadError::simple(&e.to_string()))?;
+                    let v = item_result.map_err(|e| LoadError::simple(py, &e.to_string()))?;
                     match item.load_from_py(py, &v) {
                         Ok(py_val) => items.push(py_val),
                         Err(e) => {
-                            errors.get_or_insert_with(HashMap::new).insert(idx, e);
+                            let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                            let _ = err_dict.set_item(idx, e.to_py_value(py).unwrap_or_else(|_| py.None()));
                         }
                     }
                 }
 
                 if let Some(errors) = errors {
-                    return Err(LoadError::IndexMultiple(errors));
+                    return Err(LoadError::Dict(errors.unbind()));
                 }
 
                 PyFrozenSet::new(py, &items)
                     .map(|s| s.into_any().unbind())
-                    .map_err(|e| LoadError::simple(&e.to_string()))
+                    .map_err(|e| LoadError::simple(py, &e.to_string()))
             }
             Self::Tuple { item } => {
                 if value.is_instance_of::<PyString>() {
-                    return Err(LoadError::simple("Not a valid tuple."));
+                    return Err(LoadError::Single(intern!(py, "Not a valid tuple.").clone().unbind()));
                 }
                 let iter = value
                     .try_iter()
-                    .map_err(|_| LoadError::simple("Expected a tuple"))?;
+                    .map_err(|_| LoadError::Single(intern!(py, "Expected a tuple").clone().unbind()))?;
                 let (size_hint, _) = iter.size_hint();
                 let mut items = Vec::with_capacity(size_hint);
-                let mut errors: Option<HashMap<usize, LoadError>> = None;
+                let mut errors: Option<Bound<'_, PyDict>> = None;
 
                 for (idx, item_result) in iter.enumerate() {
-                    let v = item_result.map_err(|e| LoadError::simple(&e.to_string()))?;
+                    let v = item_result.map_err(|e| LoadError::simple(py, &e.to_string()))?;
                     match item.load_from_py(py, &v) {
                         Ok(py_val) => items.push(py_val),
                         Err(e) => {
-                            errors.get_or_insert_with(HashMap::new).insert(idx, e);
+                            let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                            let _ = err_dict.set_item(idx, e.to_py_value(py).unwrap_or_else(|_| py.None()));
                         }
                     }
                 }
 
                 if let Some(errors) = errors {
-                    return Err(LoadError::IndexMultiple(errors));
+                    return Err(LoadError::Dict(errors.unbind()));
                 }
 
                 PyTuple::new(py, &items)
                     .map(|t| t.into_any().unbind())
-                    .map_err(|e| LoadError::simple(&e.to_string()))
+                    .map_err(|e| LoadError::simple(py, &e.to_string()))
             }
             Self::Union { variants } => {
                 let mut errors = Vec::new();
@@ -576,7 +594,7 @@ impl TypeContainer {
                         Err(e) => errors.push(e),
                     }
                 }
-                Err(LoadError::Array(errors))
+                Err(LoadError::collect_list(py, errors))
             }
         }
     }

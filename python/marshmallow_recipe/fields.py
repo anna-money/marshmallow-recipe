@@ -1109,6 +1109,13 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     StrField = StrFieldV3
 
     class FloatFieldV3(m.fields.Float):
+        default_error_messages = {"special": "Not a valid number."}  # noqa: RUF012
+
+        def __init__(self, *, error_messages: dict[str, str] | None = None, **kwargs: Any):
+            if error_messages and (invalid_message := error_messages.get("invalid")):
+                error_messages["special"] = invalid_message
+            super().__init__(error_messages=error_messages, **kwargs)
+
         def _format_num(self, value: Any) -> float | int:
             if isinstance(value, int):
                 return value
@@ -1117,13 +1124,20 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     FloatField = FloatFieldV3
 
     class DecimalFieldV3(m.fields.Decimal):
+        default_error_messages = {"special": "Not a valid number."}  # noqa: RUF012
+
         def __init__(
             self,
             places: int | None = None,
             rounding: str | None = None,
             validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+            *,
+            error_messages: dict[str, str] | None = None,
             **kwargs: Any,
         ):
+            if error_messages and (invalid_message := error_messages.get("invalid")):
+                error_messages["special"] = invalid_message
+
             if places is not None and rounding is None:
                 local_places = places
 
@@ -1135,7 +1149,9 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 validate = combine_validators(validate, places_validator)
                 places = None
 
-            super().__init__(places=places, rounding=rounding, validate=validate, **kwargs)
+            super().__init__(
+                places=places, rounding=rounding, validate=validate, error_messages=error_messages, **kwargs
+            )
 
     DecimalField = DecimalFieldV3
 
@@ -1474,15 +1490,10 @@ else:
     StrField = StrFieldV2
 
     class FloatFieldV2(m.fields.Float):
-        default_error_messages = {  # noqa: RUF012
-            **m.fields.Float.default_error_messages,
-            "special": "Special numeric values (nan or infinity) are not permitted.",
-        }
-
         def _validated(self, value: Any) -> float:
             num = super()._validated(value)
             if num is not None and (math.isnan(num) or num == float("inf") or num == float("-inf")):  # type: ignore[reportUnnecessaryComparison]
-                self.fail("special")
+                self.fail("invalid")
             return num
 
         def _format_num(self, value: Any) -> float | int:
@@ -1512,6 +1523,12 @@ else:
                 places = None
 
             super().__init__(places=places, rounding=rounding, validate=validate, **kwargs)
+
+        def _validated(self, value: Any) -> decimal.Decimal:
+            num = super()._validated(value)
+            if num is not None and (num.is_nan() or num.is_infinite()):  # type: ignore[reportUnnecessaryComparison]
+                self.fail("invalid")
+            return num
 
     DecimalField = DecimalFieldV2
 

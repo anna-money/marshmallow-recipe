@@ -1,3 +1,4 @@
+use pyo3::intern;
 use pyo3::prelude::*;
 
 use crate::container::FieldContainer;
@@ -7,6 +8,7 @@ pub fn load_from_py(
     value: &Bound<'_, PyAny>,
     variants: &[FieldContainer],
 ) -> Result<Py<PyAny>, LoadError> {
+    let py = value.py();
     let mut errors = Vec::new();
     for variant in variants {
         match variant.load_from_py(value) {
@@ -14,18 +16,19 @@ pub fn load_from_py(
             Err(e) => errors.push(e),
         }
     }
-    Err(LoadError::Array(errors))
+    Err(LoadError::collect_list(py, errors))
 }
 
 pub fn dump_to_py(
     value: &Bound<'_, PyAny>,
     variants: &[FieldContainer],
 ) -> Result<Py<PyAny>, DumpError> {
+    let py = value.py();
     for variant in variants {
         if let Ok(result) = variant.dump_to_py(value) {
             return Ok(result);
         }
     }
 
-    Err(DumpError::simple("Value does not match any union variant"))
+    Err(DumpError::Single(intern!(py, "Value does not match any union variant").clone().unbind()))
 }

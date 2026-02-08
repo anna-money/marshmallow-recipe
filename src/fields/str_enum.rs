@@ -29,7 +29,7 @@ pub fn load_from_py(
         value_str,
         allowed.join(", ")
     );
-    Err(LoadError::simple(&err_msg))
+    Err(LoadError::simple(py, &err_msg))
 }
 
 pub fn dump_to_py(
@@ -46,12 +46,12 @@ pub fn dump_to_py(
             "Invalid enum type. Expected {}.",
             data.enum_name.as_deref().unwrap_or("enum")
         );
-        return Err(DumpError::simple(&msg));
+        return Err(DumpError::simple(py, &msg));
     }
 
     let enum_value = value
         .getattr("value")
-        .map_err(|e| DumpError::simple(&e.to_string()))?;
+        .map_err(|e| DumpError::simple(py, &e.to_string()))?;
 
     Ok(enum_value.unbind())
 }

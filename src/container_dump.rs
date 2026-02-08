@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 
@@ -22,20 +21,21 @@ impl FieldContainer {
             return Ok(value.py().None());
         }
 
+        let common = self.common();
         match self {
             Self::Str {
                 strip_whitespaces, ..
-            } => str_type::dump_to_py(value, *strip_whitespaces, self.common().optional),
-            Self::Int { .. } => int_type::dump_to_py(value),
-            Self::Float { .. } => float_type::dump_to_py(value),
-            Self::Bool { .. } => bool_type::dump_to_py(value),
+            } => str_type::dump_to_py(value, *strip_whitespaces, common.optional, &common.invalid_error),
+            Self::Int { .. } => int_type::dump_to_py(value, &common.invalid_error),
+            Self::Float { .. } => float_type::dump_to_py(value, &common.invalid_error),
+            Self::Bool { .. } => bool_type::dump_to_py(value, &common.invalid_error),
             Self::Decimal { decimal_places, rounding, .. } => {
-                decimal::dump_to_py(value, *decimal_places, rounding.as_ref())
+                decimal::dump_to_py(value, *decimal_places, rounding.as_ref(), &common.invalid_error)
             }
-            Self::Date { .. } => date::dump_to_py(value),
-            Self::Time { .. } => time::dump_to_py(value),
-            Self::DateTime { format, .. } => datetime::dump_to_py(value, format),
-            Self::Uuid { .. } => uuid::dump_to_py(value),
+            Self::Date { .. } => date::dump_to_py(value, &common.invalid_error),
+            Self::Time { .. } => time::dump_to_py(value, &common.invalid_error),
+            Self::DateTime { format, .. } => datetime::dump_to_py(value, format, &common.invalid_error),
+            Self::Uuid { .. } => uuid::dump_to_py(value, &common.invalid_error),
             Self::StrEnum { dumper_data, .. } => str_enum::dump_to_py(value, dumper_data),
             Self::IntEnum { dumper_data, .. } => int_enum::dump_to_py(value, dumper_data),
             Self::Any { .. } => any::dump_to_py(value),
@@ -44,12 +44,12 @@ impl FieldContainer {
                 item,
                 item_validator,
                 ..
-            } => collection::dump_to_py(value, *kind, item, item_validator.as_ref()),
+            } => collection::dump_to_py(value, *kind, item, item_validator.as_ref(), &common.invalid_error),
             Self::Dict {
                 value: value_schema,
                 value_validator,
                 ..
-            } => dict::dump_to_py(value, value_schema, value_validator.as_ref()),
+            } => dict::dump_to_py(value, value_schema, value_validator.as_ref(), &common.invalid_error),
             Self::Nested { container, .. } => container.dump_to_py(value),
             Self::Union { variants, .. } => union::dump_to_py(value, variants),
         }
@@ -65,16 +65,16 @@ impl DataclassContainer {
         let py = value.py();
 
         if !value.is_instance(self.cls.bind(py)).unwrap_or(false) {
-            return Err(DumpError::simple(
-                "Invalid nested object type. Expected instance of dataclass.",
+            return Err(DumpError::Single(
+                intern!(py, "Invalid nested object type. Expected instance of dataclass.").clone().unbind(),
             ));
         }
 
         let missing_sentinel = crate::utils::get_missing_sentinel(py)
-            .map_err(|e| DumpError::simple(&e.to_string()))?;
+            .map_err(|e| DumpError::simple(py, &e.to_string()))?;
 
         let result = new_presized_dict(py, self.fields.len());
-        let mut errors: Option<HashMap<String, DumpError>> = None;
+        let mut errors: Option<Bound<'_, PyDict>> = None;
 
         for dc_field in &self.fields {
             let common = dc_field.field.common();
@@ -85,12 +85,12 @@ impl DataclassContainer {
                         Some(v) => v,
                         None => value
                             .getattr(dc_field.name.as_str())
-                            .map_err(|e| DumpError::simple(&e.to_string()))?,
+                            .map_err(|e| DumpError::simple(py, &e.to_string()))?,
                     }
                 }
                 None => value
                     .getattr(dc_field.name.as_str())
-                    .map_err(|e| DumpError::simple(&e.to_string()))?,
+                    .map_err(|e| DumpError::simple(py, &e.to_string()))?,
             };
 
             if py_value.is(missing_sentinel.as_any()) || (py_value.is_none() && self.ignore_none) {
@@ -100,9 +100,11 @@ impl DataclassContainer {
             if let Some(ref validator) = common.validator
                 && let Ok(Some(err_list)) = call_validator(py, validator, &py_value)
             {
-                errors
-                    .get_or_insert_with(HashMap::new)
-                    .insert(dc_field.name.clone(), pyerrors_to_dump_error(py, &err_list));
+                let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                let _ = err_dict.set_item(
+                    dc_field.name_interned.bind(py),
+                    pyerrors_to_dump_error(py, &err_list).to_py_value(py).unwrap_or_else(|_| py.None()),
+                );
                 continue;
             }
 
@@ -114,7 +116,7 @@ impl DataclassContainer {
             if py_value.is_none() {
                 result
                     .set_item(key_interned.bind(py), py.None())
-                    .map_err(|e| DumpError::simple(&e.to_string()))?;
+                    .map_err(|e| DumpError::simple(py, &e.to_string()))?;
             } else {
                 match dc_field.field.dump_to_py(&py_value) {
                     Ok(dumped) => {
@@ -123,19 +125,21 @@ impl DataclassContainer {
                         }
                         result
                             .set_item(key_interned.bind(py), dumped)
-                            .map_err(|e| DumpError::simple(&e.to_string()))?;
+                            .map_err(|e| DumpError::simple(py, &e.to_string()))?;
                     }
                     Err(e) => {
-                        errors
-                            .get_or_insert_with(HashMap::new)
-                            .insert(dc_field.name.clone(), e);
+                        let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                        let _ = err_dict.set_item(
+                            dc_field.name_interned.bind(py),
+                            e.to_py_value(py).unwrap_or_else(|_| py.None()),
+                        );
                     }
                 }
             }
         }
 
         if let Some(errors) = errors {
-            return Err(DumpError::Multiple(errors));
+            return Err(DumpError::Dict(errors.unbind()));
         }
 
         Ok(result.into_any().unbind())
@@ -160,9 +164,9 @@ impl TypeContainer {
             Self::List { item } => {
                 let list = value
                     .cast::<PyList>()
-                    .map_err(|_| DumpError::simple("Expected a list"))?;
+                    .map_err(|_| DumpError::Single(intern!(py, "Expected a list").clone().unbind()))?;
                 let result = new_presized_list(py, list.len());
-                let mut errors: Option<HashMap<usize, DumpError>> = None;
+                let mut errors: Option<Bound<'_, PyDict>> = None;
 
                 for (idx, v) in list.iter().enumerate() {
                     match item.dump_to_py(&v) {
@@ -170,13 +174,14 @@ impl TypeContainer {
                             pyo3::ffi::PyList_SET_ITEM(result.as_ptr(), idx.cast_signed(), dumped.into_ptr());
                         },
                         Err(e) => {
-                            errors.get_or_insert_with(HashMap::new).insert(idx, e);
+                            let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                            let _ = err_dict.set_item(idx, e.to_py_value(py).unwrap_or_else(|_| py.None()));
                         }
                     }
                 }
 
                 if let Some(errors) = errors {
-                    return Err(DumpError::IndexMultiple(errors));
+                    return Err(DumpError::Dict(errors.unbind()));
                 }
 
                 Ok(result.into_any().unbind())
@@ -184,26 +189,27 @@ impl TypeContainer {
             Self::Dict { value: value_container } => {
                 let dict = value
                     .cast::<PyDict>()
-                    .map_err(|_| DumpError::simple("Expected a dict"))?;
+                    .map_err(|_| DumpError::Single(intern!(py, "Expected a dict").clone().unbind()))?;
                 let result = new_presized_dict(py, dict.len());
-                let mut errors: Option<HashMap<String, DumpError>> = None;
+                let mut errors: Option<Bound<'_, PyDict>> = None;
 
                 for (k, v) in dict.iter() {
                     match value_container.dump_to_py(&v) {
                         Ok(dumped) => {
                             result
                                 .set_item(k, dumped)
-                                .map_err(|e| DumpError::simple(&e.to_string()))?;
+                                .map_err(|e| DumpError::simple(py, &e.to_string()))?;
                         }
                         Err(e) => {
                             let key_str = k.str().map(|s| s.to_string()).unwrap_or_default();
-                            errors.get_or_insert_with(HashMap::new).insert(key_str, e);
+                            let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                            let _ = err_dict.set_item(key_str, e.to_py_value(py).unwrap_or_else(|_| py.None()));
                         }
                     }
                 }
 
                 if let Some(errors) = errors {
-                    return Err(DumpError::Multiple(errors));
+                    return Err(DumpError::Dict(errors.unbind()));
                 }
 
                 Ok(result.into_any().unbind())
@@ -218,28 +224,29 @@ impl TypeContainer {
             Self::Set { item } | Self::FrozenSet { item } | Self::Tuple { item } => {
                 let iter = value
                     .try_iter()
-                    .map_err(|_| DumpError::simple("Expected an iterable"))?;
+                    .map_err(|_| DumpError::Single(intern!(py, "Expected an iterable").clone().unbind()))?;
                 let (size_hint, _) = iter.size_hint();
                 let mut items = Vec::with_capacity(size_hint);
-                let mut errors: Option<HashMap<usize, DumpError>> = None;
+                let mut errors: Option<Bound<'_, PyDict>> = None;
 
                 for (idx, item_result) in iter.enumerate() {
-                    let v = item_result.map_err(|e| DumpError::simple(&e.to_string()))?;
+                    let v = item_result.map_err(|e| DumpError::simple(py, &e.to_string()))?;
                     match item.dump_to_py(&v) {
                         Ok(dumped) => items.push(dumped),
                         Err(e) => {
-                            errors.get_or_insert_with(HashMap::new).insert(idx, e);
+                            let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+                            let _ = err_dict.set_item(idx, e.to_py_value(py).unwrap_or_else(|_| py.None()));
                         }
                     }
                 }
 
                 if let Some(errors) = errors {
-                    return Err(DumpError::IndexMultiple(errors));
+                    return Err(DumpError::Dict(errors.unbind()));
                 }
 
                 PyList::new(py, items)
                     .map(|l| l.into_any().unbind())
-                    .map_err(|e| DumpError::simple(&e.to_string()))
+                    .map_err(|e| DumpError::simple(py, &e.to_string()))
             }
             Self::Union { variants } => {
                 for variant in variants {
@@ -247,7 +254,7 @@ impl TypeContainer {
                         return Ok(result);
                     }
                 }
-                Err(DumpError::simple("Value does not match any union variant"))
+                Err(DumpError::Single(intern!(py, "Value does not match any union variant").clone().unbind()))
             }
         }
     }

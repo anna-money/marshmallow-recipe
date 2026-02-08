@@ -1,3 +1,4 @@
+use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::{PyList, PyString, PyTuple};
 
@@ -100,6 +101,16 @@ fn extract_optional_string(kwargs: &Bound<'_, PyAny>, key: &str) -> PyResult<Opt
     Ok(None)
 }
 
+fn extract_optional_py_string(kwargs: &Bound<'_, PyAny>, key: &str) -> PyResult<Option<Py<PyString>>> {
+    if let Ok(value) = kwargs.get_item(key)
+        && !value.is_none()
+    {
+        let s: String = value.extract()?;
+        return Ok(Some(PyString::new(value.py(), &s).unbind()));
+    }
+    Ok(None)
+}
+
 fn extract_bool(kwargs: &Bound<'_, PyAny>, key: &str, default: bool) -> PyResult<bool> {
     if let Ok(value) = kwargs.get_item(key)
         && !value.is_none()
@@ -122,12 +133,11 @@ fn get_kwargs<'py>(py: Python<'py>, kwargs: Option<&Bound<'py, PyAny>>) -> Bound
     kwargs.cloned().unwrap_or_else(|| py.None().into_bound(py))
 }
 
-fn build_field_common(optional: bool, kwargs: &Bound<'_, PyAny>) -> PyResult<FieldCommon> {
+fn build_field_common(optional: bool, kwargs: &Bound<'_, PyAny>, invalid_error: Py<PyString>) -> PyResult<FieldCommon> {
     let default_value = extract_optional_py(kwargs, "default_value");
     let default_factory = extract_optional_py(kwargs, "default_factory");
-    let required_error = extract_optional_string(kwargs, "required_error")?;
-    let none_error = extract_optional_string(kwargs, "none_error")?;
-    let invalid_error = extract_optional_string(kwargs, "invalid_error")?;
+    let required_error = extract_optional_py_string(kwargs, "required_error")?;
+    let none_error = extract_optional_py_string(kwargs, "none_error")?;
     let validator = extract_optional_py(kwargs, "validator");
 
     Ok(FieldCommon {
@@ -197,7 +207,9 @@ impl ContainerBuilder {
         let kwargs = get_kwargs(py, kwargs);
         let strip_whitespaces = extract_bool(&kwargs, "strip_whitespaces", false)?;
         let post_load = extract_optional_py(&kwargs, "post_load");
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid string.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
         let container = FieldContainer::Str { common, strip_whitespaces, post_load };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
@@ -215,7 +227,9 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid integer.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
         let container = FieldContainer::Int { common };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
@@ -233,7 +247,9 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid number.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
         let container = FieldContainer::Float { common };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
@@ -251,7 +267,9 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid boolean.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
         let container = FieldContainer::Bool { common };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
@@ -269,7 +287,9 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid number.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
 
         let decimal_places: Option<i32> = kwargs.get_item("decimal_places").map_or_else(
             |_| self.global_decimal_places.or(Some(2)),
@@ -306,7 +326,9 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid date.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
         let container = FieldContainer::Date { common };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
@@ -324,7 +346,9 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid time.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
         let container = FieldContainer::Time { common };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
@@ -342,7 +366,9 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid datetime.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
 
         let datetime_format = extract_optional_string(&kwargs, "datetime_format")?;
         let format = parse_datetime_format(datetime_format.as_deref());
@@ -364,7 +390,9 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid UUID.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
         let container = FieldContainer::Uuid { common };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
@@ -382,7 +410,8 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = intern!(py, "").clone().unbind();
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
         let container = FieldContainer::Any { common };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
@@ -405,7 +434,8 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = intern!(py, "").clone().unbind();
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
 
         let values: Vec<(String, Py<PyAny>)> = enum_values
             .iter()
@@ -447,7 +477,8 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = intern!(py, "").clone().unbind();
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
 
         let values: Vec<(Py<PyAny>, Py<PyAny>)> = enum_values
             .iter()
@@ -485,7 +516,9 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid list.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
         let item_validator = extract_optional_py(&kwargs, "item_validator");
 
         let item_container = self.fields.get(item.0).ok_or_else(|| {
@@ -518,7 +551,9 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid set.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
         let item_validator = extract_optional_py(&kwargs, "item_validator");
 
         let item_container = self.fields.get(item.0).ok_or_else(|| {
@@ -551,7 +586,9 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid frozenset.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
         let item_validator = extract_optional_py(&kwargs, "item_validator");
 
         let item_container = self.fields.get(item.0).ok_or_else(|| {
@@ -584,7 +621,9 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid tuple.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
         let item_validator = extract_optional_py(&kwargs, "item_validator");
 
         let item_container = self.fields.get(item.0).ok_or_else(|| {
@@ -617,7 +656,9 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid dict.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
         let value_validator = extract_optional_py(&kwargs, "value_validator");
 
         let value_container = self.fields.get(value.0).ok_or_else(|| {
@@ -649,7 +690,8 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = intern!(py, "").clone().unbind();
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
 
         let nested_container = self.dataclasses.get(nested.0).ok_or_else(|| {
             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
@@ -679,7 +721,8 @@ impl ContainerBuilder {
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
-        let common = build_field_common(optional, &kwargs)?;
+        let invalid_error = intern!(py, "").clone().unbind();
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
 
         let mut variant_containers = Vec::with_capacity(variants.len());
         for handle in variants {

@@ -76,21 +76,9 @@ class TestFloatDump:
     @pytest.mark.parametrize(
         ("obj", "expected_message"),
         [
-            pytest.param(
-                ValueOf[float](value=float("nan")),
-                {"value": ["Special numeric values (nan or infinity) are not permitted."]},
-                id="nan",
-            ),
-            pytest.param(
-                ValueOf[float](value=float("inf")),
-                {"value": ["Special numeric values (nan or infinity) are not permitted."]},
-                id="inf",
-            ),
-            pytest.param(
-                ValueOf[float](value=float("-inf")),
-                {"value": ["Special numeric values (nan or infinity) are not permitted."]},
-                id="negative_inf",
-            ),
+            pytest.param(ValueOf[float](value=float("nan")), {"value": ["Not a valid number."]}, id="nan"),
+            pytest.param(ValueOf[float](value=float("inf")), {"value": ["Not a valid number."]}, id="inf"),
+            pytest.param(ValueOf[float](value=float("-inf")), {"value": ["Not a valid number."]}, id="negative_inf"),
         ],
     )
     def test_special_values_fail(
@@ -230,8 +218,16 @@ class TestFloatLoad:
             impl.load(WithFloatNoneError, data)
         assert exc.value.messages == {"value": ["Custom none message"]}
 
-    def test_custom_invalid_error(self, impl: Serializer) -> None:
-        data = b'{"value":"not-a-number"}'
+    @pytest.mark.parametrize(
+        ("data",),
+        [
+            pytest.param(b'{"value":"not-a-number"}', id="null"),
+            pytest.param(b'{"value":"+inf"}', id="special"),
+            pytest.param(b'{"value":"-inf"}', id="special"),
+            pytest.param(b'{"value":"nan"}', id="special"),
+        ],
+    )
+    def test_custom_invalid_error(self, data: bytes, impl: Serializer) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithFloatInvalidError, data)
         assert exc.value.messages == {"value": ["Custom invalid message"]}
@@ -271,7 +267,7 @@ class TestFloatLoad:
         if impl.supports_special_float_validation:
             with pytest.raises(marshmallow.ValidationError) as exc:
                 impl.load(ValueOf[float], data)
-            assert exc.value.messages == {"value": ["Special numeric values (nan or infinity) are not permitted."]}
+            assert exc.value.messages == {"value": ["Not a valid number."]}
         else:
             with pytest.raises(Exception):
                 impl.load(ValueOf[float], data)
@@ -281,7 +277,7 @@ class TestFloatLoad:
         if impl.supports_special_float_validation:
             with pytest.raises(marshmallow.ValidationError) as exc:
                 impl.load(ValueOf[float], data)
-            assert exc.value.messages == {"value": ["Special numeric values (nan or infinity) are not permitted."]}
+            assert exc.value.messages == {"value": ["Not a valid number."]}
         else:
             with pytest.raises(Exception):
                 impl.load(ValueOf[float], data)
@@ -291,7 +287,7 @@ class TestFloatLoad:
         if impl.supports_special_float_validation:
             with pytest.raises(marshmallow.ValidationError) as exc:
                 impl.load(ValueOf[float], data)
-            assert exc.value.messages == {"value": ["Special numeric values (nan or infinity) are not permitted."]}
+            assert exc.value.messages == {"value": ["Not a valid number."]}
         else:
             with pytest.raises(Exception):
                 impl.load(ValueOf[float], data)
@@ -327,19 +323,9 @@ class TestFloatLoad:
     @pytest.mark.parametrize(
         ("data", "expected_message"),
         [
-            pytest.param(
-                b'{"value":"NaN"}', {"value": ["Special numeric values (nan or infinity) are not permitted."]}, id="nan"
-            ),
-            pytest.param(
-                b'{"value":"Infinity"}',
-                {"value": ["Special numeric values (nan or infinity) are not permitted."]},
-                id="inf",
-            ),
-            pytest.param(
-                b'{"value":"-Infinity"}',
-                {"value": ["Special numeric values (nan or infinity) are not permitted."]},
-                id="negative_inf",
-            ),
+            pytest.param(b'{"value":"NaN"}', {"value": ["Not a valid number."]}, id="nan"),
+            pytest.param(b'{"value":"Infinity"}', {"value": ["Not a valid number."]}, id="inf"),
+            pytest.param(b'{"value":"-Infinity"}', {"value": ["Not a valid number."]}, id="negative_inf"),
         ],
     )
     def test_from_string_special_values_fail(

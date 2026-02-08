@@ -6,8 +6,9 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 import marshmallow
-import marshmallow_recipe as mr
 import pytest
+
+import marshmallow_recipe as mr
 
 from .conftest import (
     Address,

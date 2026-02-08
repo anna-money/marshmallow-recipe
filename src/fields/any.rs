@@ -1,3 +1,4 @@
+use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString};
 use smallvec::SmallVec;
@@ -16,6 +17,7 @@ pub fn dump_to_py(value: &Bound<'_, PyAny>) -> Result<Py<PyAny>, DumpError> {
 }
 
 fn validate_json_serializable(value: &Bound<'_, PyAny>) -> Result<(), DumpError> {
+    let py = value.py();
     let mut stack: SmallVec<[Bound<'_, PyAny>; 32]> = SmallVec::new();
     stack.push(value.clone());
 
@@ -35,7 +37,7 @@ fn validate_json_serializable(value: &Bound<'_, PyAny>) -> Result<(), DumpError>
             continue;
         }
         if current.is_instance_of::<PyFloat>() {
-            return Err(DumpError::simple(ANY_ERROR));
+            return Err(DumpError::Single(intern!(py, ANY_ERROR).clone().unbind()));
         }
         if let Ok(list) = current.cast::<PyList>() {
             stack.extend(list.iter());
@@ -44,13 +46,13 @@ fn validate_json_serializable(value: &Bound<'_, PyAny>) -> Result<(), DumpError>
         if let Ok(dict) = current.cast::<PyDict>() {
             for (k, v) in dict.iter() {
                 if !k.is_instance_of::<PyString>() {
-                    return Err(DumpError::simple(ANY_ERROR));
+                    return Err(DumpError::Single(intern!(py, ANY_ERROR).clone().unbind()));
                 }
                 stack.push(v);
             }
             continue;
         }
-        return Err(DumpError::simple(ANY_ERROR));
+        return Err(DumpError::Single(intern!(py, ANY_ERROR).clone().unbind()));
     }
 
     Ok(())

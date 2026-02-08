@@ -7,8 +7,6 @@ use crate::error::{DumpError, LoadError};
 use crate::utils::display_to_py;
 use crate::utils::{parse_datetime_with_format, python_to_chrono_format};
 
-const DATETIME_ERROR: &str = "Not a valid datetime.";
-
 pub const FORMAT_ISO: &str = "iso";
 pub const FORMAT_TIMESTAMP: &str = "timestamp";
 
@@ -39,9 +37,8 @@ pub fn parse_datetime_format(format: Option<&str>) -> DateTimeFormat {
 pub fn load_from_py(
     value: &Bound<'_, PyAny>,
     format: &DateTimeFormat,
-    invalid_error: Option<&str>,
+    invalid_error: &Py<PyString>,
 ) -> Result<Py<PyAny>, LoadError> {
-    let err_msg = invalid_error.unwrap_or(DATETIME_ERROR);
     let py = value.py();
 
     if value.is_instance_of::<PyDateTime>() {
@@ -59,10 +56,10 @@ pub fn load_from_py(
                         .map(|naive| naive.and_utc().fixed_offset())
                 });
                 return dt
-                    .map_err(|_| LoadError::simple(err_msg))
+                    .map_err(|_| LoadError::Single(invalid_error.clone_ref(py)))
                     .and_then(|dt| {
                         dt.into_py_any(py)
-                            .map_err(|e| LoadError::simple(&e.to_string()))
+                            .map_err(|e| LoadError::simple(py, &e.to_string()))
                     });
             }
         }
@@ -70,8 +67,8 @@ pub fn load_from_py(
             if value.is_instance_of::<PyFloat>()
                 || (value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>())
             {
-                let f: f64 = value.extract().map_err(|_| LoadError::simple(err_msg))?;
-                return load_from_timestamp(py, f, err_msg);
+                let f: f64 = value.extract().map_err(|_| LoadError::Single(invalid_error.clone_ref(py)))?;
+                return load_from_timestamp(py, f, invalid_error);
             }
         }
         DateTimeFormat::Strftime(chrono_fmt) => {
@@ -81,32 +78,34 @@ pub fn load_from_py(
             {
                 return dt
                     .into_py_any(py)
-                    .map_err(|e| LoadError::simple(&e.to_string()));
+                    .map_err(|e| LoadError::simple(py, &e.to_string()));
             }
         }
     }
 
-    Err(LoadError::simple(err_msg))
+    Err(LoadError::Single(invalid_error.clone_ref(py)))
 }
 
 pub fn dump_to_py(
     value: &Bound<'_, PyAny>,
     format: &DateTimeFormat,
+    invalid_error: &Py<PyString>,
 ) -> Result<Py<PyAny>, DumpError> {
-    let dt = extract_datetime(value).map_err(|_| DumpError::simple(DATETIME_ERROR))?;
+    let py = value.py();
+    let dt = extract_datetime(value).map_err(|_| DumpError::Single(invalid_error.clone_ref(py)))?;
 
     match format {
-        DateTimeFormat::Iso => Ok(display_to_py::<40, _>(value.py(), &dt.format("%+"))),
+        DateTimeFormat::Iso => Ok(display_to_py::<40, _>(py, &dt.format("%+"))),
         DateTimeFormat::Timestamp => {
-            let ts = datetime_to_timestamp(&dt).ok_or_else(|| DumpError::simple(DATETIME_ERROR))?;
-            ts.into_py_any(value.py())
-                .map_err(|e| DumpError::simple(&e.to_string()))
+            let ts = datetime_to_timestamp(&dt).ok_or_else(|| DumpError::Single(invalid_error.clone_ref(py)))?;
+            ts.into_py_any(py)
+                .map_err(|e| DumpError::simple(py, &e.to_string()))
         }
         DateTimeFormat::Strftime(chrono_fmt) => {
             let formatted = dt.format(chrono_fmt).to_string();
             formatted
-                .into_py_any(value.py())
-                .map_err(|e| DumpError::simple(&e.to_string()))
+                .into_py_any(py)
+                .map_err(|e| DumpError::simple(py, &e.to_string()))
         }
     }
 }
@@ -131,9 +130,9 @@ fn datetime_to_timestamp(dt: &DateTime<FixedOffset>) -> Option<f64> {
 fn load_from_timestamp(
     py: Python,
     timestamp: f64,
-    err_msg: &str,
+    invalid_error: &Py<PyString>,
 ) -> Result<Py<PyAny>, LoadError> {
     timestamp_to_datetime(timestamp)
-        .ok_or_else(|| LoadError::simple(err_msg))
-        .and_then(|dt| dt.into_py_any(py).map_err(|e| LoadError::simple(&e.to_string())))
+        .ok_or_else(|| LoadError::Single(invalid_error.clone_ref(py)))
+        .and_then(|dt| dt.into_py_any(py).map_err(|e| LoadError::simple(py, &e.to_string())))
 }

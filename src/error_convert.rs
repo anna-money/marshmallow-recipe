@@ -1,58 +1,52 @@
-use std::collections::HashMap;
-
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 
 use crate::error::DumpError;
 
 pub fn pyerrors_to_dump_error(py: Python<'_>, errors: &Py<PyAny>) -> DumpError {
-    let error = pyany_to_dump_error(errors.bind(py));
-    maybe_wrap_dump_nested_error(error)
+    let error = pyany_to_dump_error(py, errors.bind(py));
+    maybe_wrap_dump_nested_error(py, error)
 }
 
-fn pyany_to_dump_error(value: &Bound<'_, PyAny>) -> DumpError {
+fn pyany_to_dump_error(py: Python<'_>, value: &Bound<'_, PyAny>) -> DumpError {
     if let Ok(s) = value.extract::<String>() {
-        return DumpError::simple(&s);
+        return DumpError::simple(py, &s);
     }
     if let Ok(list) = value.cast::<PyList>() {
         if list.is_empty() {
-            return DumpError::messages(vec![]);
+            return DumpError::List(list.clone().unbind());
         }
         let all_strings = list.iter().all(|item| item.extract::<String>().is_ok());
         if all_strings {
-            let msgs: Vec<String> = list
-                .iter()
-                .filter_map(|v| v.extract::<String>().ok())
-                .collect();
-            return DumpError::messages(msgs);
+            return DumpError::List(list.clone().unbind());
         }
         if list.len() == 1
             && let Ok(item) = list.get_item(0)
         {
-            return pyany_to_dump_error(&item);
+            return pyany_to_dump_error(py, &item);
         }
-        let mut errors = HashMap::with_capacity(list.len());
+        let dict = PyDict::new(py);
         for (idx, item) in list.iter().enumerate() {
-            errors.insert(idx, pyany_to_dump_error(&item));
+            let _ = dict.set_item(idx, pyany_to_dump_error(py, &item).to_py_value(py).unwrap_or_else(|_| py.None()));
         }
-        return DumpError::IndexMultiple(errors);
+        return DumpError::Dict(dict.unbind());
     }
     if let Ok(dict) = value.cast::<PyDict>() {
-        let mut map = HashMap::with_capacity(dict.len());
+        let result = PyDict::new(py);
         for (k, v) in dict.iter() {
-            let key = k.extract::<String>().unwrap_or_else(|_| k.to_string());
-            map.insert(key, pyany_to_dump_error(&v));
+            let _ = result.set_item(&k, pyany_to_dump_error(py, &v).to_py_value(py).unwrap_or_else(|_| py.None()));
         }
-        return DumpError::Multiple(map);
+        return DumpError::Dict(result.unbind());
     }
-    DumpError::simple(&value.to_string())
+    DumpError::simple(py, &value.to_string())
 }
 
-fn maybe_wrap_dump_nested_error(e: DumpError) -> DumpError {
-    match &e {
-        DumpError::Multiple(_) | DumpError::IndexMultiple(_) | DumpError::Nested { .. } => {
-            DumpError::ArrayWrapped(Box::new(e))
+fn maybe_wrap_dump_nested_error(py: Python<'_>, e: DumpError) -> DumpError {
+    match e {
+        DumpError::Dict(d) => {
+            let val = d.into_any();
+            DumpError::List(PyList::new(py, [val.bind(py)]).expect("single element").unbind())
         }
-        _ => e,
+        other => other,
     }
 }
