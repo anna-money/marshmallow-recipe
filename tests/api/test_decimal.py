@@ -274,8 +274,17 @@ class TestDecimalDump:
         ],
     )
     def test_invalid_type(self, impl: Serializer, obj: WithDecimal) -> None:
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(WithDecimal, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Not a valid number."]}
+
+    def test_custom_invalid_error(self, impl: Serializer) -> None:
+        obj = WithDecimalInvalidError(**{"value": "123.45"})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalInvalidError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Custom invalid message"]}
 
     def test_default_provided(self, impl: Serializer) -> None:
         obj = WithDecimalDefault(value=decimal.Decimal("50.00"))

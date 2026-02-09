@@ -214,20 +214,28 @@ class TestEnumDumpInvalidType:
 
     def test_str_enum_with_string(self, impl: Serializer) -> None:
         obj = ValueOf[Status](value="active")  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(ValueOf[Status], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Invalid enum type. Expected Status."]}
 
     def test_str_enum_with_int(self, impl: Serializer) -> None:
         obj = ValueOf[Status](value=1)  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(ValueOf[Status], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Invalid enum type. Expected Status."]}
 
     def test_int_enum_with_int(self, impl: Serializer) -> None:
         obj = ValueOf[Priority](value=1)  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(ValueOf[Priority], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Invalid enum type. Expected Priority."]}
 
     def test_int_enum_with_string(self, impl: Serializer) -> None:
         obj = ValueOf[Priority](value="high")  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(ValueOf[Priority], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Invalid enum type. Expected Priority."]}

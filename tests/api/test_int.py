@@ -105,8 +105,17 @@ class TestIntDump:
         ],
     )
     def test_invalid_type(self, impl: Serializer, obj: ValueOf[int]) -> None:
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(ValueOf[int], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Not a valid integer."]}
+
+    def test_custom_invalid_error(self, impl: Serializer) -> None:
+        obj = WithIntInvalidError(**{"value": "not an int"})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithIntInvalidError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Custom invalid message"]}
 
 
 class TestIntLoad:

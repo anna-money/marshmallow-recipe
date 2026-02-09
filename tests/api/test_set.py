@@ -114,8 +114,17 @@ class TestSetDump:
         ],
     )
     def test_invalid_type(self, impl: Serializer, obj: SetOf[int]) -> None:
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(SetOf[int], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"items": ["Not a valid set."]}
+
+    def test_custom_invalid_error(self, impl: Serializer) -> None:
+        obj = WithSetInvalidError(**{"items": "not a set"})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithSetInvalidError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"items": ["Custom invalid message"]}
 
 
 class TestSetLoad:

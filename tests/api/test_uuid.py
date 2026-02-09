@@ -88,8 +88,17 @@ class TestUuidDump:
         ],
     )
     def test_invalid_type(self, impl: Serializer, obj: ValueOf[uuid.UUID]) -> None:
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(ValueOf[uuid.UUID], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Not a valid UUID."]}
+
+    def test_custom_invalid_error(self, impl: Serializer) -> None:
+        obj = WithUuidInvalidError(**{"value": "not-a-uuid"})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithUuidInvalidError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Custom invalid message"]}
 
 
 class TestUuidLoad:

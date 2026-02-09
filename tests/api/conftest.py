@@ -34,6 +34,10 @@ class Serializer(abc.ABC):
     def supports_cyclic(self) -> bool:
         return True
 
+    @property
+    def supports_proper_validation_errors_on_dump(self) -> bool:
+        return True
+
     @abc.abstractmethod
     def dump[T](
         self,
@@ -87,6 +91,10 @@ class MarshmallowSerializer(Serializer):
     @property
     def supports_many(self) -> bool:
         return True
+
+    @property
+    def supports_proper_validation_errors_on_dump(self) -> bool:
+        return False
 
     def dump[T](
         self,

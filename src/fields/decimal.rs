@@ -114,6 +114,10 @@ pub fn dump_to_py(
 ) -> Result<Py<PyAny>, DumpError> {
     let py = value.py();
 
+    if !is_instance_of_decimal(value).map_err(|e| DumpError::simple(py, &e.to_string()))? {
+        return Err(DumpError::Single(invalid_error.clone_ref(py)));
+    }
+
     let is_finite: bool = value
         .call_method0(intern!(py, "is_finite"))
         .and_then(|v| v.extract())
@@ -168,4 +172,11 @@ fn finalize_decimal(
         }
         Ok(py_decimal.clone().unbind())
     }
+}
+
+#[inline]
+fn is_instance_of_decimal(value: &Bound<'_, PyAny>) -> PyResult<bool> {
+    let py = value.py();
+    let decimal_cls = get_decimal_cls(py)?;
+    value.is_instance(decimal_cls)
 }

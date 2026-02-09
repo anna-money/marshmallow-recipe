@@ -100,13 +100,24 @@ class TestDatetimeDump:
 
     def test_invalid_type_string(self, impl: Serializer) -> None:
         obj = ValueOf[datetime.datetime](**{"value": "2024-01-01T12:00:00"})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(ValueOf[datetime.datetime], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Not a valid datetime."]}
 
     def test_invalid_type_int(self, impl: Serializer) -> None:
         obj = ValueOf[datetime.datetime](**{"value": 123})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(ValueOf[datetime.datetime], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Not a valid datetime."]}
+
+    def test_custom_invalid_error(self, impl: Serializer) -> None:
+        obj = WithDatetimeInvalidError(**{"value": "2024-01-01"})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDatetimeInvalidError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Custom invalid message"]}
 
     @pytest.mark.parametrize(
         ("obj", "expected"),
