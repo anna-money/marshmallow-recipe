@@ -1504,13 +1504,20 @@ else:
     FloatField = FloatFieldV2
 
     class DecimalFieldV2(m.fields.Decimal):
+        default_error_messages = {"special": "Not a valid number."}  # noqa: RUF012
+
         def __init__(
             self,
             places: int | None = None,
             rounding: str | None = None,
             validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+            *,
+            error_messages: dict[str, str] | None = None,
             **kwargs: Any,
         ):
+            if error_messages and (invalid_message := error_messages.get("invalid")):
+                error_messages["special"] = invalid_message
+
             if places is not None and rounding is None:
                 local_places = places
 
@@ -1522,7 +1529,9 @@ else:
                 validate = combine_validators(validate, places_validator)
                 places = None
 
-            super().__init__(places=places, rounding=rounding, validate=validate, **kwargs)
+            super().__init__(
+                places=places, rounding=rounding, validate=validate, error_messages=error_messages, **kwargs
+            )
 
         def _validated(self, value: Any) -> decimal.Decimal:
             num = super()._validated(value)
