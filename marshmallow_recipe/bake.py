@@ -233,7 +233,9 @@ def _get_field_for(
         t = t.__supertype__
 
     if inspect.isclass(t) and issubclass(t, enum.Enum):
-        return enum_field(enum_type=t, required=required, allow_none=allow_none, **metadata)
+        return with_type_checks_on_serialize(
+            enum_field(enum_type=t, required=required, allow_none=allow_none, **metadata), type_guards=t
+        )
 
     if (unsubscripted_type := get_origin(t) or t) and dataclasses.is_dataclass(unsubscripted_type):
         nested_schema: type[m.Schema] | collections.abc.Callable[[], type[m.Schema]]

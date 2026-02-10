@@ -1205,106 +1205,31 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     TupleField = TupleFieldV3
 
     class EnumFieldV3(m.fields.Field):
-        default_error = "Not a valid choice: '{input}'. Allowed values: {choices}"
+        default_error_messages = {"invalid": "Not a valid enum."}  # noqa: RUF012
 
-        def __init__(self, *args: Any, enum_type: type[enum.Enum], error: str | None = None, **kwargs: Any):
-            """
-            :param enum_type: class inherited from Enum and string, where all values are different strings
-            :param error: error string pattern with {input} and {choices}
-            """
-            allow_none = kwargs.get("allow_none") is True or (
-                kwargs.get("allow_none") is None and kwargs.get("missing", m.missing) is None
-            )
-
+        def __init__(self, *args: Any, enum_type: type[enum.Enum], **kwargs: Any):
             self.enum_type = enum_type
-            enum_value_type = self._extract_enum_value_type(self.enum_type)
-
-            self.error = error or EnumFieldV3.default_error
-            self._validate_error(self.error)
-
-            self.choices = [enum_instance.value for enum_instance in enum_type]
-            self._validate_choices(self.choices, enum_value_type)
-            if allow_none:
-                self.choices.append(None)
-
-            self.__enum_members_repr = "[" + ", ".join(f"{enum_type.__name__}.{m.name}" for m in enum_type) + "]"
-
-            if "dump_default" in kwargs:
-                self._validate_default(self.enum_type, kwargs["dump_default"], allow_none)
-            if "load_default" in kwargs:
-                self._validate_default(self.enum_type, kwargs["load_default"], allow_none)
-
-            enum_validator = m.validate.OneOf(self.choices, error=self.error)  # type: ignore
-            if "validate" in kwargs and kwargs["validate"] is not None:
-                validators = kwargs["validate"]
-                if not isinstance(validators, list):
-                    validators = [validators]
-                validators.append(enum_validator)
-                kwargs["validate"] = validators
-            else:
-                kwargs["validate"] = enum_validator
-
             super().__init__(*args, **kwargs)
+
+        def _validated(self, value: Any) -> Any:
+            if value is None:
+                return None
+            if isinstance(value, bool):
+                raise self.make_error("invalid")
+            if isinstance(value, self.enum_type):
+                return value
+            try:
+                return self.enum_type(value)
+            except (ValueError, KeyError):
+                raise self.make_error("invalid")
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
             if value is None:
                 return None
-            if not isinstance(value, self.enum_type):
-                raise m.ValidationError(
-                    f"Expected {self.enum_type.__name__} instance, got {type(value).__name__}. "
-                    f"Allowed values: {self.__enum_members_repr}"
-                )
             return value.value
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
-            if value is None:
-                return None
-            if isinstance(value, bool):
-                raise m.ValidationError(self.error.format(input=value, choices=self.choices))
-            if isinstance(value, self.enum_type):
-                return value
-            enum_value = super()._deserialize(value, attr, data)
-            try:
-                return self.enum_type(enum_value)
-            except ValueError:
-                raise m.ValidationError(self.error.format(input=value, choices=self.choices))
-
-        @staticmethod
-        def _extract_enum_value_type(enum_type: Any) -> type[str | int]:
-            if not issubclass(enum_type, enum.Enum):
-                raise ValueError(f"Enum type {enum_type} should be subtype of Enum")
-            if issubclass(enum_type, str):
-                return str
-            if issubclass(enum_type, int):
-                return int
-            raise ValueError(f"Enum type {enum_type} should be subtype of str or int")
-
-        @staticmethod
-        def _validate_error(error: str) -> None:
-            try:
-                error.format(input="", choices="")
-            except KeyError:
-                raise ValueError("Error should contain only {{input}} and {{choices}}'")
-
-        @staticmethod
-        def _validate_choices(choices: list, enum_value_type: type[str | int]) -> None:
-            for choice in choices:
-                if not isinstance(choice, enum_value_type):
-                    raise ValueError(f"There is enum value, which is not isinstance of {enum_value_type}: {choice}")
-
-        @staticmethod
-        def _validate_default(enum_type: Any, default: Any, allow_none: bool) -> None:
-            if default is m.missing:
-                return
-
-            if allow_none and default is None:
-                return
-
-            if callable(default):
-                return
-
-            if not isinstance(default, enum_type):
-                raise ValueError(f"Default should be an instance of enum_type {enum_type}")
+            return self._validated(value)
 
     EnumField = EnumFieldV3
 
@@ -1634,106 +1559,31 @@ else:
     TupleField = TupleFieldV2
 
     class EnumFieldV2(m.fields.Field):
-        default_error = "Not a valid choice: '{input}'. Allowed values: {choices}"
+        default_error_messages = {"invalid": "Not a valid enum."}  # noqa: RUF012
 
-        def __init__(self, *args: Any, enum_type: type[enum.Enum], error: str | None = None, **kwargs: Any):
-            """
-            :param enum_type: class inherited from Enum and string, where all values are different strings
-            :param error: error string pattern with {input} and {choices}
-            """
-            allow_none = kwargs.get("allow_none") is True or (
-                kwargs.get("allow_none") is None and kwargs.get("missing", m.missing) is None
-            )
-
+        def __init__(self, *args: Any, enum_type: type[enum.Enum], **kwargs: Any):
             self.enum_type = enum_type
-            enum_value_type = self._extract_enum_value_type(self.enum_type)
-
-            self.error = error or EnumFieldV2.default_error
-            self._validate_error(self.error)
-
-            self.choices = [enum_instance.value for enum_instance in enum_type]
-            self._validate_choices(self.choices, enum_value_type)
-            if allow_none:
-                self.choices.append(None)
-
-            self.__enum_members_repr = "[" + ", ".join(f"{enum_type.__name__}.{m.name}" for m in enum_type) + "]"
-
-            if "default" in kwargs:
-                self._validate_default(self.enum_type, kwargs["default"], allow_none)
-            if "missing" in kwargs:
-                self._validate_default(self.enum_type, kwargs["missing"], allow_none)
-
-            enum_validator = m.validate.OneOf(self.choices, error=self.error)  # type: ignore
-            if "validate" in kwargs and kwargs["validate"] is not None:
-                validators = kwargs["validate"]
-                if not isinstance(validators, list):
-                    validators = [validators]
-                validators.append(enum_validator)
-                kwargs["validate"] = validators
-            else:
-                kwargs["validate"] = enum_validator
-
             super().__init__(*args, **kwargs)
+
+        def _validated(self, value: Any) -> Any:
+            if value is None:
+                return None
+            if isinstance(value, bool):
+                self.fail("invalid")
+            if isinstance(value, self.enum_type):
+                return value
+            try:
+                return self.enum_type(value)
+            except (ValueError, KeyError):
+                self.fail("invalid")
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
             if value is None:
                 return None
-            if not isinstance(value, self.enum_type):
-                raise m.ValidationError(
-                    f"Expected {self.enum_type.__name__} instance, got {type(value).__name__}. "
-                    f"Allowed values: {self.__enum_members_repr}"
-                )
             return value.value
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
-            if value is None:
-                return None
-            if isinstance(value, bool):
-                raise m.ValidationError(self.error.format(input=value, choices=self.choices))
-            if isinstance(value, self.enum_type):
-                return value
-            enum_value = super()._deserialize(value, attr, data)
-            try:
-                return self.enum_type(enum_value)
-            except ValueError:
-                raise m.ValidationError(self.error.format(input=value, choices=self.choices))
-
-        @staticmethod
-        def _extract_enum_value_type(enum_type: Any) -> type[str | int]:
-            if not issubclass(enum_type, enum.Enum):
-                raise ValueError(f"Enum type {enum_type} should be subtype of Enum")
-            if issubclass(enum_type, str):
-                return str
-            if issubclass(enum_type, int):
-                return int
-            raise ValueError(f"Enum type {enum_type} should be subtype of str or int")
-
-        @staticmethod
-        def _validate_error(error: str) -> None:
-            try:
-                error.format(input="", choices="")
-            except KeyError:
-                raise ValueError("Error should contain only {{input}} and {{choices}}'")
-
-        @staticmethod
-        def _validate_choices(choices: list, enum_value_type: type[str | int]) -> None:
-            for choice in choices:
-                if not isinstance(choice, enum_value_type):
-                    raise ValueError(f"There is enum value, which is not isinstance of {enum_value_type}: {choice}")
-
-        @staticmethod
-        def _validate_default(enum_type: Any, default: Any, allow_none: bool) -> None:
-            if default is m.missing:
-                return
-
-            if allow_none and default is None:
-                return
-
-            if callable(default):
-                return
-
-            if not isinstance(default, enum_type):
-                raise ValueError(f"Default should be an instance of enum_type {enum_type}")
+            return self._validated(value)
 
     EnumField = EnumFieldV2
 
