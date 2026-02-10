@@ -83,25 +83,25 @@ class TestEnumLoad:
         data = b'{"value":"invalid_status"}'
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(ValueOf[Status], data)
-        assert exc.value.messages == {"value": ["Not a valid enum."]}
+        assert exc.value.messages == {"value": ["Not a valid enum. Allowed values: ['active', 'inactive', 'pending']"]}
 
     def test_int_enum_invalid_value(self, impl: Serializer) -> None:
         data = b'{"value":999}'
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(ValueOf[Priority], data)
-        assert exc.value.messages == {"value": ["Not a valid enum."]}
+        assert exc.value.messages == {"value": ["Not a valid enum. Allowed values: [1, 2, 3]"]}
 
     def test_str_enum_wrong_type(self, impl: Serializer) -> None:
         data = b'{"value":123}'
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(ValueOf[Status], data)
-        assert exc.value.messages == {"value": ["Not a valid enum."]}
+        assert exc.value.messages == {"value": ["Not a valid enum. Allowed values: ['active', 'inactive', 'pending']"]}
 
     def test_int_enum_wrong_type(self, impl: Serializer) -> None:
         data = b'{"value":"not_a_number"}'
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(ValueOf[Priority], data)
-        assert exc.value.messages == {"value": ["Not a valid enum."]}
+        assert exc.value.messages == {"value": ["Not a valid enum. Allowed values: [1, 2, 3]"]}
 
     def test_str_enum_missing_required(self, impl: Serializer) -> None:
         data = b"{}"
@@ -196,7 +196,7 @@ class TestEnumLoad:
         data = f'{{"value":{value}}}'.encode()
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(ValueOf[Priority], data)
-        assert exc.value.messages == {"value": ["Not a valid enum."]}
+        assert exc.value.messages == {"value": ["Not a valid enum. Allowed values: [1, 2, 3]"]}
 
 
 class TestEnumDumpInvalidType:
