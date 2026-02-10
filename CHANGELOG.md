@@ -4,9 +4,7 @@
 * [Support timestamp format for datetime](https://github.com/anna-money/marshmallow-recipe/pull/243)
 * [Reject bool values in timestamp datetime and int enum deserialization](https://github.com/anna-money/marshmallow-recipe/pull/248)
 * [Prohibit NaN/+inf/-inf in Any field](https://github.com/anna-money/marshmallow-recipe/pull/249)
-* Add `json_schema()` function for JSON Schema Draft 2020-12 generation
-* Add `title` and `description` parameters to `@options()` decorator for schema-level metadata in JSON Schema
-* Add `item_description` parameter to `list_meta()`, `set_meta()`, and `tuple_meta()` for collection item descriptions in JSON Schema
+* [Add `json_schema()` function for JSON Schema Draft 2020-12 generation](https://github.com/anna-money/marshmallow-recipe/pull/206)
 * [Simplify enum error handling: unified error message format, removed redundant OneOf validator](https://github.com/anna-money/marshmallow-recipe/pull/250)
 
 
