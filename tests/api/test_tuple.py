@@ -140,8 +140,17 @@ class TestTupleDump:
     )
     def test_invalid_type(self, impl: Serializer, value: object) -> None:
         obj = TupleOf[int](**{"items": value})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(TupleOf[int], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"items": ["Not a valid tuple."]}
+
+    def test_custom_invalid_error(self, impl: Serializer) -> None:
+        obj = WithTupleInvalidError(**{"items": "not a tuple"})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithTupleInvalidError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"items": ["Custom invalid message"]}
 
 
 class TestTupleLoad:

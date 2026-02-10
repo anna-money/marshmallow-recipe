@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.9,<2.0"]
+build-backend = "maturin"
 
 [project]
 name = "marshmallow-recipe"
@@ -20,6 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Rust",
     "Operating System :: OS Independent",
     "Development Status :: 5 - Production/Stable",
 ]
@@ -36,13 +37,17 @@ dev = [
     "ruff==0.8.4",
     "pyright==1.1.407",
     "setuptools",
+    "maturin>=1.9,<2.0",
+    "pyperf>=2.7",
 ]
 
-[tool.hatch.version]
-source = "vcs"
+[tool.maturin]
+features = ["pyo3/extension-module"]
+python-source = "python"
+module-name = "marshmallow_recipe._nuked"
 
-[tool.hatch.build.targets.wheel]
-packages = ["marshmallow_recipe"]
+[tool.maturin.environment]
+PYO3_USE_ABI3_FORWARD_COMPATIBILITY = "1"
 
 [tool.ruff]
 line-length = 120
@@ -53,6 +58,7 @@ exclude = [
     ".idea",
     "__pycache__",
     "venv",
+    "benchmarks",
 ]
 
 [tool.ruff.lint]
@@ -68,13 +74,14 @@ skip-magic-trailing-comma = true
 [tool.ruff.lint.isort]
 combine-as-imports = true
 split-on-trailing-comma = false
+known-first-party = ["marshmallow_recipe"]
 
 [tool.pytest.ini_options]
-norecursedirs = [".git", ".venv"]
+norecursedirs = [".git", ".venv", "benchmarks"]
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 
 [tool.pyright]
-include = ["marshmallow_recipe/", "tests/"]
+include = ["python/marshmallow_recipe/", "tests/"]
 pythonVersion = "3.12"
 pythonPlatform = "All"
 stubPath = ""

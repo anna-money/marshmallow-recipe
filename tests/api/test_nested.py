@@ -1,6 +1,8 @@
 import marshmallow
 import pytest
 
+import marshmallow_recipe as mr
+
 from .conftest import (
     Address,
     Company,
@@ -212,20 +214,32 @@ class TestCyclicDump:
         assert result == expected
 
 
+class TestCyclicNotSupportedInNuked:
+    def test_cyclic_raises_not_implemented(self) -> None:
+        with pytest.raises(NotImplementedError, match="Cyclic dataclass references are not supported"):
+            mr.nuked.dump(Cyclic, Cyclic(marker="test", child=None))
+
+
 class TestNestedDumpInvalidType:
     """Test that invalid types in nested fields raise ValidationError on dump."""
 
     def test_string(self, impl: Serializer) -> None:
         obj = Person(**{"name": "John", "age": 30, "address": "not an address"})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(Person, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"address": ["Invalid nested object type. Expected instance of dataclass."]}
 
     def test_dict(self, impl: Serializer) -> None:
         obj = Person(**{"name": "John", "age": 30, "address": {"street": "Main", "city": "NYC", "zip_code": "10001"}})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(Person, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"address": ["Invalid nested object type. Expected instance of dataclass."]}
 
     def test_int(self, impl: Serializer) -> None:
         obj = Person(**{"name": "John", "age": 30, "address": 123})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(Person, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"address": ["Invalid nested object type. Expected instance of dataclass."]}

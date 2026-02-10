@@ -176,23 +176,42 @@ class TestDictDump:
         ],
     )
     def test_invalid_type(self, impl: Serializer, obj: DictOf[str, int]) -> None:
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(DictOf[str, int], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"data": ["Not a valid dict."]}
+
+    def test_custom_invalid_error(self, impl: Serializer) -> None:
+        obj = WithDictInvalidError(**{"data": "not a dict"})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDictInvalidError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"data": ["Custom invalid message"]}
 
     def test_value_wrong_type(self, impl: Serializer) -> None:
         obj = DictOf[str, int](**{"data": {"a": "not_int"}})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(DictOf[str, int], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"data": {"a": {"value": ["Not a valid integer."]}}}
 
     def test_nested_value_wrong_type(self, impl: Serializer) -> None:
         obj = DictOf[str, Address](**{"data": {"home": "not_an_address"}})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(DictOf[str, Address], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {
+                "data": {"home": {"value": ["Invalid nested object type. Expected instance of dataclass."]}}
+            }
 
     def test_multiple_value_errors(self, impl: Serializer) -> None:
         obj = DictOf[str, int](**{"data": {"a": "not_int", "b": "also_not_int"}})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(DictOf[str, int], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {
+                "data": {"a": {"value": ["Not a valid integer."]}, "b": {"value": ["Not a valid integer."]}}
+            }
 
 
 class TestDictLoad:

@@ -128,8 +128,17 @@ class TestStrDump:
         ],
     )
     def test_invalid_type(self, impl: Serializer, obj: ValueOf[str]) -> None:
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(ValueOf[str], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Not a valid string."]}
+
+    def test_custom_invalid_error(self, impl: Serializer) -> None:
+        obj = WithStrInvalidError(**{"value": 123})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithStrInvalidError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Custom invalid message"]}
 
 
 class TestStrLoad:

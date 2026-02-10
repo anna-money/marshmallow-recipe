@@ -170,8 +170,17 @@ class TestListDump:
         ],
     )
     def test_invalid_type(self, impl: Serializer, obj: ListOf[int]) -> None:
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(ListOf[int], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"items": ["Not a valid list."]}
+
+    def test_custom_invalid_error(self, impl: Serializer) -> None:
+        obj = WithListInvalidError(**{"items": "not a list"})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithListInvalidError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"items": ["Custom invalid message"]}
 
 
 class TestListLoad:
