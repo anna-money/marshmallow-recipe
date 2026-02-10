@@ -83,29 +83,25 @@ class TestEnumLoad:
         data = b'{"value":"invalid_status"}'
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(ValueOf[Status], data)
-        assert exc.value.messages == {
-            "value": ["Not a valid choice: 'invalid_status'. Allowed values: ['active', 'inactive', 'pending']"]
-        }
+        assert exc.value.messages == {"value": ["Not a valid enum. Allowed values: ['active', 'inactive', 'pending']"]}
 
     def test_int_enum_invalid_value(self, impl: Serializer) -> None:
         data = b'{"value":999}'
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(ValueOf[Priority], data)
-        assert exc.value.messages == {"value": ["Not a valid choice: '999'. Allowed values: [1, 2, 3]"]}
+        assert exc.value.messages == {"value": ["Not a valid enum. Allowed values: [1, 2, 3]"]}
 
     def test_str_enum_wrong_type(self, impl: Serializer) -> None:
         data = b'{"value":123}'
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(ValueOf[Status], data)
-        assert exc.value.messages == {
-            "value": ["Not a valid choice: '123'. Allowed values: ['active', 'inactive', 'pending']"]
-        }
+        assert exc.value.messages == {"value": ["Not a valid enum. Allowed values: ['active', 'inactive', 'pending']"]}
 
     def test_int_enum_wrong_type(self, impl: Serializer) -> None:
         data = b'{"value":"not_a_number"}'
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(ValueOf[Priority], data)
-        assert exc.value.messages == {"value": ["Not a valid choice: 'not_a_number'. Allowed values: [1, 2, 3]"]}
+        assert exc.value.messages == {"value": ["Not a valid enum. Allowed values: [1, 2, 3]"]}
 
     def test_str_enum_missing_required(self, impl: Serializer) -> None:
         data = b"{}"
@@ -195,18 +191,12 @@ class TestEnumLoad:
         result = impl.load(WithIntEnumMissing, data)
         assert result == WithIntEnumMissing(priority=Priority.HIGH)
 
-    @pytest.mark.parametrize(
-        ("value", "expected_error"),
-        [
-            ("true", "Not a valid choice: 'True'. Allowed values: [1, 2, 3]"),
-            ("false", "Not a valid choice: 'False'. Allowed values: [1, 2, 3]"),
-        ],
-    )
-    def test_int_enum_bool_rejected(self, impl: Serializer, value: str, expected_error: str) -> None:
+    @pytest.mark.parametrize("value", ["true", "false"])
+    def test_int_enum_bool_rejected(self, impl: Serializer, value: str) -> None:
         data = f'{{"value":{value}}}'.encode()
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(ValueOf[Priority], data)
-        assert exc.value.messages == {"value": [expected_error]}
+        assert exc.value.messages == {"value": ["Not a valid enum. Allowed values: [1, 2, 3]"]}
 
 
 class TestEnumDumpInvalidType:
