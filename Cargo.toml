@@ -1,0 +1,30 @@
+[package]
+name = "marshmallow-recipe"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "_nuked"
+crate-type = ["cdylib"]
+
+[features]
+default = []
+alloc-stats = []
+
+[dependencies]
+pyo3 = { version = "0.27", features = ["extension-module", "uuid", "chrono"] }
+smallbitvec = "2.6"
+smallvec = "1.13"
+uuid = { version = "1.11" }
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+arrayvec = "0.7"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "warn", priority = -1 }

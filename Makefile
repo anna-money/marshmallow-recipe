@@ -1,3 +1,5 @@
+.PHONY: all uv rust deps lint test bench build build-wheel build-sdist
+
 all: deps lint test
 
 UV_EXTRA_ARGS ?=
@@ -8,19 +10,42 @@ uv:
 		exit 1;\
 	}
 
-deps: uv
-	@uv sync --all-extras
+rust:
+	@which cargo >/dev/null 2>&1 || { \
+		echo "Rust is not installed"; \
+		exit 1;\
+	}
 
-ruff-format:
-	@uv run $(UV_EXTRA_ARGS) ruff format marshmallow_recipe tests
+deps: uv rust
+	@uv sync --extra dev
+	@uv run maturin develop --release
 
-ruff-lint:
-	@uv run $(UV_EXTRA_ARGS) ruff check marshmallow_recipe tests --fix
-
-pyright:
+lint: deps
+ifeq ($(MODE), ci)
+	@uv run $(UV_EXTRA_ARGS) ruff format python/marshmallow_recipe tests --check
+	@uv run $(UV_EXTRA_ARGS) ruff check python/marshmallow_recipe tests
 	@uv run $(UV_EXTRA_ARGS) pyright
+	@cargo fmt --check
+	@cargo clippy
+else
+	@uv run $(UV_EXTRA_ARGS) ruff format python/marshmallow_recipe tests
+	@uv run $(UV_EXTRA_ARGS) ruff check python/marshmallow_recipe tests --fix
+	@uv run $(UV_EXTRA_ARGS) pyright
+	@cargo fmt
+	@cargo clippy
+endif
 
-lint: ruff-format ruff-lint pyright
+test: deps
+	@uv run $(UV_EXTRA_ARGS) pytest -vv $(or $(T),.)
 
-test:
-	@uv run $(UV_EXTRA_ARGS) pytest -vv --rootdir tests .
+bench: deps
+	@uv run python benchmarks/bench_serialization.py
+
+build: deps
+	@uv run maturin build --release
+
+build-wheel: deps
+	@uv run maturin build --release --out dist
+
+build-sdist: deps
+	@uv run maturin sdist --out dist

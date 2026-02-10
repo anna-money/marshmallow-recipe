@@ -174,6 +174,13 @@ class TestMappingDump:
         result = impl.dump(CollectionHolder[Mapping], obj)
         assert result == b'{"items":{"a":1,"b":"va"}}'
 
+    def test_custom_invalid_error(self, impl: Serializer) -> None:
+        obj = WithMappingInvalidError(**{"data": "not a mapping"})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithMappingInvalidError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"data": ["Custom invalid message"]}
+
 
 class TestMappingLoad:
     @pytest.mark.parametrize(
