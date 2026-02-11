@@ -23,7 +23,7 @@ The `nuked` module provides significantly faster dataclass serialization/deseria
 │       ├─ builder.type_dataclass(dc)        → TypeHandle      │
 │       └─ builder.build(type_handle)        → Container       │
 │                                                              │
-│  _container_cache: dict[_ContainerKey, Container]            │
+│  _container_cache: dict[ContainerKey, Container]             │
 │       │                                                      │
 │  dump(cls, data) ─→ container.dump(data) ─→ dict/list       │
 │  load(cls, data) ─→ container.load(data) ─→ dataclass       │
@@ -71,8 +71,8 @@ The `nuked` module provides significantly faster dataclass serialization/deseria
 **Solution**: Python calls builder methods directly, receiving opaque handles:
 
 ```python
-builder = nuked.ContainerBuilder(none_value_handling="ignore", decimal_places=2)
-ctx = _BuildContext(builder)
+builder = nuked.ContainerBuilder(decimal_places=decimal_places)
+ctx = _BuildContext(builder, none_value_handling)
 type_handle = ctx.build_root_type(cls, naming_case, set())
 container = builder.build(type_handle)
 ```
@@ -92,14 +92,26 @@ Handles are `usize` indices into internal `Vec` storage:
 
 ```rust
 pub unsafe fn get_slot_value_direct<'py>(
-    py: Python<'py>, obj: &Bound<'_, PyAny>, offset: usize,
-) -> &Bound<'py, PyAny> {
-    let ptr = obj.as_ptr().cast::<u8>().add(offset).cast::<*mut ffi::PyObject>();
-    (*ptr).assume_borrowed(py).downcast_unchecked()
+    py: Python<'py>, obj: &Bound<'_, PyAny>, offset: isize,
+) -> Option<Bound<'py, PyAny>> {
+    let slot_ptr = (obj.as_ptr() as *const u8)
+        .offset(offset)
+        .cast::<*mut ffi::PyObject>();
+    Bound::from_borrowed_ptr_or_opt(py, *slot_ptr)
+}
+
+pub unsafe fn set_slot_value_direct(
+    obj: &Bound<'_, PyAny>, offset: isize, value: Py<PyAny>,
+) -> bool {
+    let slot_ptr = obj.as_ptr().cast::<u8>().offset(offset).cast::<*mut ffi::PyObject>();
+    let old_ptr = *slot_ptr;
+    *slot_ptr = value.into_ptr();
+    if !old_ptr.is_null() { ffi::Py_DECREF(old_ptr); }
+    true
 }
 ```
 
-**Guard**: Only pointer-aligned offsets are accepted (`offset % align_of::<*mut PyObject>() == 0`).
+**Guard**: Only pointer-aligned offsets are accepted (`offset.cast_unsigned().is_multiple_of(align_of::<*mut PyObject>())`).
 
 **Fallback**: Classes without `__slots__`, or with `__post_init__`, or with `init=False` fields use `getattr`/`__init__`.
 
@@ -120,6 +132,8 @@ def build_combined_validator(validators):
                     errors = (errors or []) + ["Invalid value."]
             except marshmallow.ValidationError as e:
                 errors = (errors or []) + (e.messages if isinstance(e.messages, list) else [e.messages])
+            except Exception:
+                errors = (errors or []) + ["Invalid value."]
         return errors
     return combined
 ```
@@ -130,17 +144,27 @@ Rust calls the combined validator once per field via FFI. Returned errors are me
 
 **Problem**: Finding an enum member by value during deserialization.
 
-**Solution**: At build time, Python passes `[(value, member), ...]` pairs. Rust stores these and does linear scan during load:
+**Solution**: At build time, Python passes `[(value, member), ...]` pairs. Rust stores these in type-specific loader data and does linear scan during load:
 
 ```rust
-for (enum_value, enum_member) in &self.enum_values {
-    if key.eq(enum_value.bind(py))? {
-        return Ok(enum_member.clone_ref(py));
+// StrEnumLoaderData: values are Rust Strings — fast comparison without Python overhead
+for (k, member) in &data.values {
+    if k == s {  // Rust string comparison
+        return Ok(member.clone_ref(py));
+    }
+}
+
+// IntEnumLoaderData: values are PyAny — comparison via Python eq
+for (k, member) in &data.values {
+    if value.eq(k.bind(py)).unwrap_or(false) {
+        return Ok(member.clone_ref(py));
     }
 }
 ```
 
-**Serialization**: Uses `.getattr("value")` to extract the enum member's underlying value.
+**Default error**: Python generates a descriptive error message at build time: `f"Not a valid enum. Allowed values: {[e.value for e in field_type]}"`.
+
+**Serialization**: Uses `.getattr("value")` to extract the enum member's underlying value, after verifying the value is an instance of the enum class.
 
 ### 6. Datetime via chrono
 
@@ -169,12 +193,13 @@ Three datetime formats are supported:
 
 ```rust
 // Load: string → Python UUID
-let uuid = ::uuid::Uuid::parse_str(s).map_err(|_| LoadError::simple(UUID_ERROR))?;
+let uuid = ::uuid::Uuid::parse_str(s)
+    .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
 uuid.into_pyobject(py)
 
 // Dump: Python UUID → string
 let uuid: ::uuid::Uuid = value.extract()?;
-display_to_py::<36, _>(value.py(), &uuid)  // stack buffer, no heap allocation
+display_to_py::<36, _>(py, &uuid)  // stack buffer, no heap allocation
 ```
 
 ### 8. Decimal Quantize Caching
@@ -184,19 +209,25 @@ display_to_py::<36, _>(value.py(), &uuid)  // stack buffer, no heap allocation
 **Solution**: Static array of `PyOnceLock` caches quantize exponents for decimal places 0–15:
 
 ```rust
-static QUANTIZE_EXPS: [PyOnceLock<Py<PyAny>>; 16] = [
-    PyOnceLock::new(), PyOnceLock::new(), /* ... */
-];
+const MAX_CACHED_PLACES: usize = 16;
 
-fn get_quantize_exp(py: Python<'_>, decimal_places: u32) -> PyResult<&Py<PyAny>> {
-    QUANTIZE_EXPS[decimal_places as usize].get_or_try_init(py, || {
-        let exp_str = format!("0.{}", "0".repeat(decimal_places as usize));
-        // create Python Decimal once, reuse forever
-    })
+static QUANTIZE_EXP_CACHE: [PyOnceLock<Py<PyAny>>; MAX_CACHED_PLACES] =
+    [const { PyOnceLock::new() }; MAX_CACHED_PLACES];
+
+fn get_quantize_exp(py: Python<'_>, places: u32) -> PyResult<Bound<'_, PyAny>> {
+    let idx = places as usize;
+    if idx < MAX_CACHED_PLACES {
+        QUANTIZE_EXP_CACHE[idx].get_or_try_init(py, || {
+            let exp_str = format!("0.{}", "0".repeat(places as usize));
+            get_decimal_cls(py)?.call1((&exp_str,)).map(Bound::unbind)
+        }).map(|v| v.bind(py).clone())
+    } else {
+        // fallback: create without caching
+    }
 }
 ```
 
-Quantization is done in Python (`Decimal.quantize()`) — Rust handles the caching of the exponent argument.
+Quantization is done in Python (`Decimal.quantize()`) — Rust handles the caching of the exponent argument. During dump, when no `rounding` mode is specified, Rust validates the precision instead of quantizing: values with more decimal places than allowed are rejected.
 
 ### 9. Presized Dicts and Lists
 
@@ -205,16 +236,23 @@ Quantization is done in Python (`Decimal.quantize()`) — Rust handles the cachi
 **Solution**: Pre-allocate exact capacity before populating:
 
 ```rust
+const PRESIZED_DICT_THRESHOLD: usize = 5;
+
 pub fn new_presized_dict(py: Python<'_>, size: usize) -> Bound<'_, PyDict> {
-    if size > 5 {
-        unsafe { ffi::_PyDict_NewPresized(size as ffi::Py_ssize_t) }
-    } else {
-        PyDict::new(py)
+    if size <= PRESIZED_DICT_THRESHOLD {
+        return PyDict::new(py);
+    }
+    unsafe {
+        Bound::from_owned_ptr(py, ffi::_PyDict_NewPresized(size.cast_signed()))
+            .cast_into_unchecked()
     }
 }
 
 pub fn new_presized_list(py: Python<'_>, size: usize) -> Bound<'_, PyList> {
-    unsafe { ffi::PyList_New(size as ffi::Py_ssize_t) }
+    unsafe {
+        Bound::from_owned_ptr(py, ffi::PyList_New(size.cast_signed()))
+            .cast_into_unchecked()
+    }
 }
 ```
 
@@ -275,7 +313,7 @@ Python's string interning guarantees pointer equality for identical strings, mak
 | `int` | pass-through (rejects bool) | pass-through |
 | `float` | pass-through | pass-through |
 | `bool` | pass-through | pass-through |
-| `Decimal` | from string/number, optional quantize | quantize + format |
+| `Decimal` | from string/number, optional quantize | validate precision (or quantize with rounding) + format |
 | `UUID` | from Python UUID or string (via `uuid` crate) | to hyphenated string |
 | `datetime` | ISO/timestamp/strftime (via `chrono`) | ISO/timestamp/strftime |
 | `date` | ISO string (via `chrono::NaiveDate`) | ISO string |
@@ -292,29 +330,25 @@ Python's string interning guarantees pointer equality for identical strings, mak
 
 ## Error Handling
 
-Rust uses a `SerializationError` enum (aliased as `DumpError`/`LoadError`):
+Rust uses a `SerializationError` enum that wraps Python objects directly:
 
 ```rust
 pub enum SerializationError {
-    Simple(String),           // single message
-    Messages(Vec<String>),    // multiple messages for one field
-    Nested { field, inner },  // field → nested error
-    Multiple(HashMap<...>),   // multiple fields with errors
-    IndexMultiple(HashMap<usize, ...>), // list index errors
-    ArrayWrapped(Box<Self>),  // wrapper for nested structures
-    Array(Vec<Self>),         // array of errors
+    Single(Py<PyString>),  // single error message
+    List(Py<PyList>),      // multiple messages (e.g. ["error1", "error2"])
+    Dict(Py<PyDict>),      // nested field errors (e.g. {"field": ["error"]})
 }
 ```
 
-Rust converts errors to `ValueError` with a structured Python value (dict/list). Python catches `ValueError` and converts to `marshmallow.ValidationError`:
+Errors are accumulated during processing into `Option<Bound<'_, PyDict>>` using `accumulate_error`, then converted at the end. At the boundary (Container's `load`/`dump` methods), errors are raised directly as `marshmallow.ValidationError` — no intermediate `ValueError` or Python-side conversion needed:
 
-```python
-def _convert_rust_error_to_validation_error(e: ValueError) -> marshmallow.ValidationError:
-    msg = e.args[0]
-    if isinstance(msg, dict | list):
-        return marshmallow.ValidationError(msg)
-    return marshmallow.ValidationError(json.loads(msg))
+```rust
+fn load(&self, py: Python<'_>, data: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    self.inner.load_from_py(py, data).map_err(|e| e.to_validation_err(py))
+}
 ```
+
+The `to_validation_err` method caches the `marshmallow.ValidationError` class via `PyOnceLock` and constructs the exception directly in Rust.
 
 ## Limitations & Trade-offs
 
