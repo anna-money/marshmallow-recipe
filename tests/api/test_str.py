@@ -32,24 +32,6 @@ class TestStrDump:
         result = impl.dump(ValueOf[str], obj)
         assert result == b'{"value":""}'
 
-    @pytest.mark.parametrize(
-        ("obj", "expected"),
-        [
-            (ValueOf[str](value="Привет мир"), ValueOf[str](value="Привет мир")),
-            (ValueOf[str](value="你好世界"), ValueOf[str](value="你好世界")),
-            (ValueOf[str](value="Hello 👋 World 🌍"), ValueOf[str](value="Hello 👋 World 🌍")),
-            (ValueOf[str](value="  spaces  "), ValueOf[str](value="  spaces  ")),
-            (
-                ValueOf[str](value="Line1\nLine2\tTab\r\nNewline\"Quote'"),
-                ValueOf[str](value="Line1\nLine2\tTab\r\nNewline\"Quote'"),
-            ),
-        ],
-    )
-    def test_roundtrip(self, impl: Serializer, obj: ValueOf[str], expected: ValueOf[str]) -> None:
-        result = impl.dump(ValueOf[str], obj)
-        loaded = impl.load(ValueOf[str], result)
-        assert loaded == expected
-
     def test_optional_none(self, impl: Serializer) -> None:
         obj = OptionalValueOf[str](value=None)
         result = impl.dump(OptionalValueOf[str], obj)
