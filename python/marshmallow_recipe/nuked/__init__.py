@@ -612,6 +612,9 @@ class _BuildContext:
         raise NotImplementedError(f"Unsupported type: {field_type}")
 
     def __build_enum_field(self, name: str, field_type: type[enum.Enum], optional: bool, kwargs: dict[str, Any]) -> Any:
+        if "invalid_error" not in kwargs:
+            kwargs["invalid_error"] = f"Not a valid enum. Allowed values: {[e.value for e in field_type]}"
+
         if issubclass(field_type, str):
             enum_values = [(m.value, m) for m in field_type]
             return self.__builder.str_enum_field(name, optional, field_type, enum_values, **kwargs)
