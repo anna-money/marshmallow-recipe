@@ -1,3 +1,8 @@
+## v0.0.74 (2026-02-12)
+
+* [Rust extension to speedup serialization](https://github.com/anna-money/marshmallow-recipe/commit/d49248e85f2b0a60429840746351a763fdf17386)
+
+
 ## v0.0.73 (2026-02-11)
 
 * [`ROUND_05UP` is no longer supported](https://github.com/anna-money/marshmallow-recipe/pull/242)
@@ -6,7 +11,6 @@
 * [Prohibit NaN/+inf/-inf in Any field](https://github.com/anna-money/marshmallow-recipe/pull/249)
 * [Add `json_schema()` function for JSON Schema Draft 2020-12 generation](https://github.com/anna-money/marshmallow-recipe/pull/206)
 * [Simplify enum error handling: unified error message format, removed redundant OneOf validator](https://github.com/anna-money/marshmallow-recipe/pull/250)
-* [Rust extension to speedup serialization](https://github.com/anna-money/marshmallow-recipe/commit/d49248e85f2b0a60429840746351a763fdf17386)
 
 
 ## v0.0.72 (2026-01-15)
