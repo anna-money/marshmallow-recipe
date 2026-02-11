@@ -7,10 +7,6 @@ edition = "2024"
 name = "_nuked"
 crate-type = ["cdylib"]
 
-[features]
-default = []
-alloc-stats = []
-
 [dependencies]
 pyo3 = { version = "0.27", features = ["extension-module", "uuid", "chrono"] }
 smallbitvec = "2.6"
