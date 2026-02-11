@@ -1,4 +1,4 @@
-## v0.0.73 (unreleased)
+## v0.0.73 (2026-02-11)
 
 * [`ROUND_05UP` is no longer supported](https://github.com/anna-money/marshmallow-recipe/pull/242)
 * [Support timestamp format for datetime](https://github.com/anna-money/marshmallow-recipe/pull/243)
