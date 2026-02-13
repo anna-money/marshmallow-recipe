@@ -1,3 +1,8 @@
+## v0.0.75 (2026-02-13)
+
+* [Rust extension to speedup serialization](https://github.com/anna-money/marshmallow-recipe/commit/d49248e85f2b0a60429840746351a763fdf17386)
+
+
 ## v0.0.74 (2026-02-13)
 
 * Add enum values to field metadata for apispec/Swagger introspection
@@ -11,7 +16,6 @@
 * [Prohibit NaN/+inf/-inf in Any field](https://github.com/anna-money/marshmallow-recipe/pull/249)
 * [Add `json_schema()` function for JSON Schema Draft 2020-12 generation](https://github.com/anna-money/marshmallow-recipe/pull/206)
 * [Simplify enum error handling: unified error message format, removed redundant OneOf validator](https://github.com/anna-money/marshmallow-recipe/pull/250)
-* [Rust extension to speedup serialization](https://github.com/anna-money/marshmallow-recipe/commit/d49248e85f2b0a60429840746351a763fdf17386)
 
 
 ## v0.0.72 (2026-01-15)
