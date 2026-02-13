@@ -1207,14 +1207,25 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     class EnumFieldV3(m.fields.Field):
         default_error_messages = {"invalid": "Not a valid enum."}  # noqa: RUF012
 
-        def __init__(self, *, enum_type: type[enum.Enum], error_messages: dict[str, str] | None = None, **kwargs: Any):
+        def __init__(
+            self,
+            *,
+            enum_type: type[enum.Enum],
+            error_messages: dict[str, str] | None = None,
+            metadata: dict[str, str] | None = None,
+            **kwargs: Any,
+        ):
             self.enum_type = enum_type
             if error_messages is None or "invalid" not in error_messages:
                 error_messages = {
                     **(error_messages or {}),
                     "invalid": f"Not a valid enum. Allowed values: {[e.value for e in enum_type]}",
                 }
-            super().__init__(error_messages=error_messages, **kwargs)
+            super().__init__(
+                error_messages=error_messages,
+                metadata={**(metadata or {}), "enum": [e.value for e in enum_type]},
+                **kwargs,
+            )
 
         def _validated(self, value: Any) -> Any:
             if value is None:
@@ -1573,7 +1584,7 @@ else:
                     **(error_messages or {}),
                     "invalid": f"Not a valid enum. Allowed values: {[e.value for e in enum_type]}",
                 }
-            super().__init__(error_messages=error_messages, **kwargs)
+            super().__init__(error_messages=error_messages, **kwargs, enum=[e.value for e in enum_type])
 
         def _validated(self, value: Any) -> Any:
             if value is None:

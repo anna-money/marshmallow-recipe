@@ -1,3 +1,8 @@
+## v0.0.74 (2026-02-13)
+
+* Add enum values to field metadata for apispec/Swagger introspection
+
+
 ## v0.0.73 (2026-02-11)
 
 * [`ROUND_05UP` is no longer supported](https://github.com/anna-money/marshmallow-recipe/pull/242)
