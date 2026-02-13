@@ -1,3 +1,8 @@
+## v0.0.75 (2026-02-13)
+
+* [Rust extension to speedup serialization](https://github.com/anna-money/marshmallow-recipe/commit/d49248e85f2b0a60429840746351a763fdf17386)
+
+
 ## v0.0.74 (2026-02-13)
 
 * Add enum values to field metadata for apispec/Swagger introspection

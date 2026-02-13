@@ -67,6 +67,13 @@ class TestTimeDump:
         result = impl.dump(WithTimeMissing, obj)
         assert result == expected
 
+    def test_custom_invalid_error(self, impl: Serializer) -> None:
+        obj = WithTimeInvalidError(**{"value": "10:30:45"})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithTimeInvalidError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Custom invalid message"]}
+
 
 class TestTimeLoad:
     @pytest.mark.parametrize(

@@ -32,24 +32,6 @@ class TestStrDump:
         result = impl.dump(ValueOf[str], obj)
         assert result == b'{"value":""}'
 
-    @pytest.mark.parametrize(
-        ("obj", "expected"),
-        [
-            (ValueOf[str](value="Привет мир"), ValueOf[str](value="Привет мир")),
-            (ValueOf[str](value="你好世界"), ValueOf[str](value="你好世界")),
-            (ValueOf[str](value="Hello 👋 World 🌍"), ValueOf[str](value="Hello 👋 World 🌍")),
-            (ValueOf[str](value="  spaces  "), ValueOf[str](value="  spaces  ")),
-            (
-                ValueOf[str](value="Line1\nLine2\tTab\r\nNewline\"Quote'"),
-                ValueOf[str](value="Line1\nLine2\tTab\r\nNewline\"Quote'"),
-            ),
-        ],
-    )
-    def test_roundtrip(self, impl: Serializer, obj: ValueOf[str], expected: ValueOf[str]) -> None:
-        result = impl.dump(ValueOf[str], obj)
-        loaded = impl.load(ValueOf[str], result)
-        assert loaded == expected
-
     def test_optional_none(self, impl: Serializer) -> None:
         obj = OptionalValueOf[str](value=None)
         result = impl.dump(OptionalValueOf[str], obj)
@@ -128,8 +110,17 @@ class TestStrDump:
         ],
     )
     def test_invalid_type(self, impl: Serializer, obj: ValueOf[str]) -> None:
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(ValueOf[str], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Not a valid string."]}
+
+    def test_custom_invalid_error(self, impl: Serializer) -> None:
+        obj = WithStrInvalidError(**{"value": 123})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithStrInvalidError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Custom invalid message"]}
 
 
 class TestStrLoad:

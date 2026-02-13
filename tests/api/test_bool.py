@@ -194,5 +194,14 @@ class TestBoolDumpInvalidType:
         ],
     )
     def test_invalid_type(self, impl: Serializer, obj: ValueOf[bool]) -> None:
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(ValueOf[bool], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Not a valid boolean."]}
+
+    def test_custom_invalid_error(self, impl: Serializer) -> None:
+        obj = WithBoolInvalidError(**{"value": "not a bool"})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithBoolInvalidError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Custom invalid message"]}

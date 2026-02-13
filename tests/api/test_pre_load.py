@@ -105,6 +105,28 @@ class TestPreLoadLoad:
         assert result == WithFieldNameNormalization(value="test123")
 
 
+class TestPreLoadNukedError:
+    def test_raises_on_pre_load(self, impl: Serializer) -> None:
+        if impl.supports_pre_load:
+            result = impl.load(WithPreLoad, b'{"value":"hello"}')
+            assert result == WithPreLoad(value="HELLO")
+        else:
+            with pytest.raises(TypeError, match="pre_load hooks are not supported in nuked"):
+                impl.load(WithPreLoad, b'{"value":"hello"}')
+
+    def test_raises_on_nested_pre_load(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class Outer:
+            inner: WithPreLoad
+
+        if impl.supports_pre_load:
+            result = impl.load(Outer, b'{"inner":{"value":"hello"}}')
+            assert result == Outer(inner=WithPreLoad(value="HELLO"))
+        else:
+            with pytest.raises(TypeError, match="pre_load hooks are not supported in nuked: WithPreLoad"):
+                impl.load(Outer, b'{"inner":{"value":"hello"}}')
+
+
 class TestGetPreLoads:
     def test_returns_methods(self) -> None:
         pre_loads = mr.hooks.get_pre_loads(WithPreLoad)

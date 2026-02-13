@@ -132,8 +132,17 @@ class TestFrozenSetDump:
         ],
     )
     def test_invalid_type(self, impl: Serializer, obj: FrozenSetOf[int]) -> None:
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(FrozenSetOf[int], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"items": ["Not a valid frozenset."]}
+
+    def test_custom_invalid_error(self, impl: Serializer) -> None:
+        obj = WithFrozenSetInvalidError(**{"items": "not a frozenset"})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithFrozenSetInvalidError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"items": ["Custom invalid message"]}
 
 
 class TestFrozenSetLoad:
