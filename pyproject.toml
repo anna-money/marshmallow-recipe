@@ -25,7 +25,7 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
 ]
 dependencies = [
-    "marshmallow>=2.20.5,<4",
+    "marshmallow>=2.20.5,<5",
 ]
 
 [project.urls]
@@ -33,9 +33,9 @@ Homepage = "https://github.com/anna-money/marshmallow-recipe"
 
 [project.optional-dependencies]
 dev = [
-    "pytest==8.3.5",
-    "ruff==0.8.4",
-    "pyright==1.1.407",
+    "pytest==9.0.2",
+    "ruff==0.15.1",
+    "pyright==1.1.408",
     "setuptools",
     "maturin>=1.9,<2.0",
     "pyperf>=2.7",
