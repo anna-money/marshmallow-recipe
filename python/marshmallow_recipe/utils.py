@@ -31,6 +31,13 @@ def validate_decimal_rounding(value: str | None) -> None:
         )
 
 
+def validate_decimal_bound(value: decimal.Decimal | int | None, name: str) -> None:
+    if value is None:
+        return
+    if isinstance(value, bool):
+        raise TypeError(f"{name} must be Decimal or int, got bool")
+
+
 SUPPORTED_DATETIME_FORMATS: frozenset[str] = frozenset({"iso", "timestamp"})
 
 

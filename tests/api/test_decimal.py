@@ -1221,3 +1221,8 @@ class TestDecimalMetadata:
     def test_negative_places_raises(self) -> None:
         with pytest.raises(ValueError, match="decimal_places must be None or a non-negative integer"):
             mr.decimal_meta(places=-1)
+
+    @pytest.mark.parametrize("bound_name", ["gt", "gte", "lt", "lte"])
+    def test_bool_bound_raises(self, bound_name: str) -> None:
+        with pytest.raises(TypeError, match=f"{bound_name} must be Decimal or int, got bool"):
+            mr.decimal_meta(**{bound_name: True})  # type: ignore[reportArgumentType]

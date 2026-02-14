@@ -3,7 +3,7 @@ import decimal
 from typing import Any, TypeGuard, final
 
 from .missing import MISSING
-from .utils import validate_datetime_format, validate_decimal_places, validate_decimal_rounding
+from .utils import validate_datetime_format, validate_decimal_bound, validate_decimal_places, validate_decimal_rounding
 from .validation import ValidationFunc
 
 
@@ -135,6 +135,10 @@ def decimal_metadata(
 ) -> Metadata:
     validate_decimal_places(places)
     validate_decimal_rounding(rounding)
+    validate_decimal_bound(gt, "gt")
+    validate_decimal_bound(gte, "gte")
+    validate_decimal_bound(lt, "lt")
+    validate_decimal_bound(lte, "lte")
     values = dict[str, Any]()
     if name is not MISSING:
         values.update(name=name)
