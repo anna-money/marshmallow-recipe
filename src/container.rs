@@ -264,7 +264,6 @@ impl Clone for FieldContainer {
 
 #[allow(clippy::missing_const_for_fn)]
 impl FieldContainer {
-    #[inline]
     pub fn common(&self) -> &FieldCommon {
         match self {
             Self::Str { common, .. }

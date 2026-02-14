@@ -6,7 +6,6 @@ use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
 use pyo3::types::{PyList, PyString, PyType};
 
-#[inline]
 pub fn new_presized_list(py: Python<'_>, size: usize) -> Bound<'_, PyList> {
     unsafe {
         Bound::from_owned_ptr(py, pyo3::ffi::PyList_New(size.cast_signed())).cast_into_unchecked()
@@ -33,7 +32,6 @@ pub fn python_to_chrono_format(fmt: &str) -> String {
     fmt.replace(".%f", "%.6f").replace("%f", "%6f")
 }
 
-#[inline]
 pub fn parse_datetime_with_format(s: &str, chrono_fmt: &str) -> Option<DateTime<FixedOffset>> {
     if let Ok(dt) = DateTime::parse_from_str(s, chrono_fmt) {
         return Some(dt);
@@ -49,7 +47,6 @@ pub fn parse_datetime_with_format(s: &str, chrono_fmt: &str) -> Option<DateTime<
         .map(|dt| dt.and_utc().fixed_offset())
 }
 
-#[inline]
 pub fn call_validator(
     py: Python,
     validator: &Py<PyAny>,
