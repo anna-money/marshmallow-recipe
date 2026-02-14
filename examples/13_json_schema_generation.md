@@ -176,6 +176,35 @@ schema = mr.json_schema(Pricing)
 # price_num: {"type": "number"}
 ```
 
+## Decimal Range Constraints
+
+Use `decimal_meta` range parameters to emit JSON Schema validation keywords:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Invoice:
+    amount: Annotated[decimal.Decimal, mr.decimal_meta(gt=decimal.Decimal("0"), lte=decimal.Decimal("999999.99"))]
+
+
+schema = mr.json_schema(Invoice)
+```
+
+Output:
+```json
+{
+  "properties": {
+    "amount": {
+      "type": "string",
+      "exclusiveMinimum": "0",
+      "maximum": "999999.99"
+    }
+  },
+  "required": ["amount"]
+}
+```
+
+The mapping is: `gt` → `exclusiveMinimum`, `gte` → `minimum`, `lt` → `exclusiveMaximum`, `lte` → `maximum`. Values are strings to match the decimal `type: "string"` representation.
+
 ## Union Types
 
 Union types are mapped to `anyOf`:

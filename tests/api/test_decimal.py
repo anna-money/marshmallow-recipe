@@ -1,3 +1,4 @@
+import dataclasses
 import decimal
 
 import marshmallow
@@ -316,6 +317,231 @@ class TestDecimalDump:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(WithDecimalNoPlaces, obj)
         assert exc.value.messages == expected_message
+
+    @pytest.mark.parametrize(
+        ("meta", "value", "expected"),
+        [
+            pytest.param(mr.decimal_meta(gt=0), decimal.Decimal("1"), b'{"value":"1"}', id="gt_int"),
+            pytest.param(
+                mr.decimal_meta(gt=decimal.Decimal("0")), decimal.Decimal("1"), b'{"value":"1"}', id="gt_decimal"
+            ),
+            pytest.param(mr.decimal_meta(gte=0), decimal.Decimal("0"), b'{"value":"0"}', id="gte_int"),
+            pytest.param(
+                mr.decimal_meta(gte=decimal.Decimal("0")), decimal.Decimal("0"), b'{"value":"0"}', id="gte_decimal"
+            ),
+            pytest.param(mr.decimal_meta(lt=100), decimal.Decimal("99"), b'{"value":"99"}', id="lt_int"),
+            pytest.param(
+                mr.decimal_meta(lt=decimal.Decimal("100")), decimal.Decimal("99"), b'{"value":"99"}', id="lt_decimal"
+            ),
+            pytest.param(mr.decimal_meta(lte=100), decimal.Decimal("100"), b'{"value":"100"}', id="lte_int"),
+            pytest.param(
+                mr.decimal_meta(lte=decimal.Decimal("100")),
+                decimal.Decimal("100"),
+                b'{"value":"100"}',
+                id="lte_decimal",
+            ),
+            pytest.param(mr.decimal_meta(gte=0, lte=100), decimal.Decimal("50"), b'{"value":"50"}', id="range_int"),
+            pytest.param(
+                mr.decimal_meta(gte=decimal.Decimal("0"), lte=decimal.Decimal("100")),
+                decimal.Decimal("50"),
+                b'{"value":"50"}',
+                id="range_decimal",
+            ),
+        ],
+    )
+    def test_range_pass(
+        self, impl: Serializer, meta: dict[str, object], value: decimal.Decimal, expected: bytes
+    ) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: decimal.Decimal = dataclasses.field(metadata=meta)
+
+        result = impl.dump(DC, DC(value=value))
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("meta", "value", "expected_messages"),
+        [
+            pytest.param(
+                mr.decimal_meta(gt=0), decimal.Decimal("0"), {"value": ["Must be greater than 0."]}, id="gt_int_equal"
+            ),
+            pytest.param(
+                mr.decimal_meta(gt=0), decimal.Decimal("-1"), {"value": ["Must be greater than 0."]}, id="gt_int_less"
+            ),
+            pytest.param(
+                mr.decimal_meta(gt=decimal.Decimal("0")),
+                decimal.Decimal("0"),
+                {"value": ["Must be greater than 0."]},
+                id="gt_decimal_equal",
+            ),
+            pytest.param(
+                mr.decimal_meta(gte=0),
+                decimal.Decimal("-1"),
+                {"value": ["Must be greater than or equal to 0."]},
+                id="gte_int",
+            ),
+            pytest.param(
+                mr.decimal_meta(gte=decimal.Decimal("0")),
+                decimal.Decimal("-1"),
+                {"value": ["Must be greater than or equal to 0."]},
+                id="gte_decimal",
+            ),
+            pytest.param(
+                mr.decimal_meta(lt=100),
+                decimal.Decimal("100"),
+                {"value": ["Must be less than 100."]},
+                id="lt_int_equal",
+            ),
+            pytest.param(
+                mr.decimal_meta(lt=100),
+                decimal.Decimal("101"),
+                {"value": ["Must be less than 100."]},
+                id="lt_int_greater",
+            ),
+            pytest.param(
+                mr.decimal_meta(lt=decimal.Decimal("100")),
+                decimal.Decimal("100"),
+                {"value": ["Must be less than 100."]},
+                id="lt_decimal_equal",
+            ),
+            pytest.param(
+                mr.decimal_meta(lte=100),
+                decimal.Decimal("101"),
+                {"value": ["Must be less than or equal to 100."]},
+                id="lte_int",
+            ),
+            pytest.param(
+                mr.decimal_meta(lte=decimal.Decimal("100")),
+                decimal.Decimal("101"),
+                {"value": ["Must be less than or equal to 100."]},
+                id="lte_decimal",
+            ),
+            pytest.param(
+                mr.decimal_meta(gte=0, lte=100),
+                decimal.Decimal("-1"),
+                {"value": ["Must be greater than or equal to 0."]},
+                id="range_below",
+            ),
+            pytest.param(
+                mr.decimal_meta(gte=0, lte=100),
+                decimal.Decimal("101"),
+                {"value": ["Must be less than or equal to 100."]},
+                id="range_above",
+            ),
+        ],
+    )
+    def test_range_fail(
+        self, impl: Serializer, meta: dict[str, object], value: decimal.Decimal, expected_messages: dict[str, list[str]]
+    ) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: decimal.Decimal = dataclasses.field(metadata=meta)
+
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(DC, DC(value=value))
+        assert exc.value.messages == expected_messages
+
+    @pytest.mark.parametrize(
+        ("meta", "value", "expected_messages"),
+        [
+            pytest.param(
+                mr.decimal_meta(gt=0, gt_error="Custom gt error"),
+                decimal.Decimal("0"),
+                {"value": ["Custom gt error"]},
+                id="gt",
+            ),
+            pytest.param(
+                mr.decimal_meta(gte=0, gte_error="Custom gte error"),
+                decimal.Decimal("-1"),
+                {"value": ["Custom gte error"]},
+                id="gte",
+            ),
+            pytest.param(
+                mr.decimal_meta(lt=100, lt_error="Custom lt error"),
+                decimal.Decimal("100"),
+                {"value": ["Custom lt error"]},
+                id="lt",
+            ),
+            pytest.param(
+                mr.decimal_meta(lte=100, lte_error="Custom lte error"),
+                decimal.Decimal("101"),
+                {"value": ["Custom lte error"]},
+                id="lte",
+            ),
+            pytest.param(
+                mr.decimal_meta(gt=0, gt_error="Value must be greater than {min}"),
+                decimal.Decimal("0"),
+                {"value": ["Value must be greater than 0"]},
+                id="gt_format_min",
+            ),
+            pytest.param(
+                mr.decimal_meta(lt=100, lt_error="Value must be less than {max}"),
+                decimal.Decimal("100"),
+                {"value": ["Value must be less than 100"]},
+                id="lt_format_max",
+            ),
+        ],
+    )
+    def test_range_custom_error(
+        self, impl: Serializer, meta: dict[str, object], value: decimal.Decimal, expected_messages: dict[str, list[str]]
+    ) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: decimal.Decimal = dataclasses.field(metadata=meta)
+
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(DC, DC(value=value))
+        assert exc.value.messages == expected_messages
+
+    @pytest.mark.parametrize(
+        ("value", "expected"), [pytest.param(decimal.Decimal("50.12"), b'{"value":"50.12"}', id="pass")]
+    )
+    def test_range_and_places_pass(self, impl: Serializer, value: decimal.Decimal, expected: bytes) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(gte=0, lte=100, places=2))
+
+        result = impl.dump(DC, DC(value=value))
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("value", "expected_messages"),
+        [
+            pytest.param(decimal.Decimal("50.123"), {"value": ["Not a valid number."]}, id="places_fail"),
+            pytest.param(decimal.Decimal("150.12"), {"value": ["Must be less than or equal to 100."]}, id="range_fail"),
+        ],
+    )
+    def test_range_and_places_fail(
+        self, impl: Serializer, value: decimal.Decimal, expected_messages: dict[str, list[str]]
+    ) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(gte=0, lte=100, places=2))
+
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(DC, DC(value=value))
+        assert exc.value.messages == expected_messages
+
+    def test_range_validated_after_rounding(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: decimal.Decimal = dataclasses.field(
+                metadata=mr.decimal_meta(lt=decimal.Decimal("100"), places=2, rounding=decimal.ROUND_DOWN)
+            )
+
+        result = impl.dump(DC, DC(value=decimal.Decimal("99.999")))
+        assert result == b'{"value":"99.99"}'
+
+    def test_range_validated_after_rounding_fail(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: decimal.Decimal = dataclasses.field(
+                metadata=mr.decimal_meta(lt=decimal.Decimal("100"), places=2, rounding=decimal.ROUND_UP)
+            )
+
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(DC, DC(value=decimal.Decimal("99.999")))
+        assert exc.value.messages == {"value": ["Must be less than 100."]}
 
 
 class TestDecimalLoad:
@@ -648,6 +874,213 @@ class TestDecimalLoad:
             impl.load(WithDecimalPlacesAndRange, data)
         assert exc.value.messages == {"value": ["Invalid value."]}
 
+    @pytest.mark.parametrize(
+        ("meta", "data", "expected_value"),
+        [
+            pytest.param(mr.decimal_meta(gt=0), b'{"value":"1"}', decimal.Decimal("1"), id="gt_int"),
+            pytest.param(
+                mr.decimal_meta(gt=decimal.Decimal("0")), b'{"value":"1"}', decimal.Decimal("1"), id="gt_decimal"
+            ),
+            pytest.param(mr.decimal_meta(gte=0), b'{"value":"0"}', decimal.Decimal("0"), id="gte_int_equal"),
+            pytest.param(mr.decimal_meta(gte=0), b'{"value":"1"}', decimal.Decimal("1"), id="gte_int_above"),
+            pytest.param(
+                mr.decimal_meta(gte=decimal.Decimal("0")),
+                b'{"value":"0"}',
+                decimal.Decimal("0"),
+                id="gte_decimal_equal",
+            ),
+            pytest.param(mr.decimal_meta(lt=100), b'{"value":"99"}', decimal.Decimal("99"), id="lt_int"),
+            pytest.param(
+                mr.decimal_meta(lt=decimal.Decimal("100")), b'{"value":"99"}', decimal.Decimal("99"), id="lt_decimal"
+            ),
+            pytest.param(mr.decimal_meta(lte=100), b'{"value":"100"}', decimal.Decimal("100"), id="lte_int_equal"),
+            pytest.param(mr.decimal_meta(lte=100), b'{"value":"99"}', decimal.Decimal("99"), id="lte_int_below"),
+            pytest.param(
+                mr.decimal_meta(lte=decimal.Decimal("100")),
+                b'{"value":"100"}',
+                decimal.Decimal("100"),
+                id="lte_decimal_equal",
+            ),
+            pytest.param(mr.decimal_meta(gte=0, lte=100), b'{"value":"50"}', decimal.Decimal("50"), id="range_int_mid"),
+            pytest.param(mr.decimal_meta(gte=0, lte=100), b'{"value":"0"}', decimal.Decimal("0"), id="range_int_low"),
+            pytest.param(
+                mr.decimal_meta(gte=0, lte=100), b'{"value":"100"}', decimal.Decimal("100"), id="range_int_high"
+            ),
+            pytest.param(
+                mr.decimal_meta(gte=decimal.Decimal("0"), lte=decimal.Decimal("100")),
+                b'{"value":"50"}',
+                decimal.Decimal("50"),
+                id="range_decimal",
+            ),
+        ],
+    )
+    def test_range_pass(
+        self, impl: Serializer, meta: dict[str, object], data: bytes, expected_value: decimal.Decimal
+    ) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: decimal.Decimal = dataclasses.field(metadata=meta)
+
+        result = impl.load(DC, data)
+        assert result == DC(value=expected_value)
+
+    @pytest.mark.parametrize(
+        ("meta", "data", "expected_messages"),
+        [
+            pytest.param(
+                mr.decimal_meta(gt=0), b'{"value":"0"}', {"value": ["Must be greater than 0."]}, id="gt_int_equal"
+            ),
+            pytest.param(
+                mr.decimal_meta(gt=0), b'{"value":"-1"}', {"value": ["Must be greater than 0."]}, id="gt_int_less"
+            ),
+            pytest.param(
+                mr.decimal_meta(gt=decimal.Decimal("0")),
+                b'{"value":"0"}',
+                {"value": ["Must be greater than 0."]},
+                id="gt_decimal_equal",
+            ),
+            pytest.param(
+                mr.decimal_meta(gte=0),
+                b'{"value":"-1"}',
+                {"value": ["Must be greater than or equal to 0."]},
+                id="gte_int",
+            ),
+            pytest.param(
+                mr.decimal_meta(gte=decimal.Decimal("0")),
+                b'{"value":"-1"}',
+                {"value": ["Must be greater than or equal to 0."]},
+                id="gte_decimal",
+            ),
+            pytest.param(
+                mr.decimal_meta(lt=100), b'{"value":"100"}', {"value": ["Must be less than 100."]}, id="lt_int_equal"
+            ),
+            pytest.param(
+                mr.decimal_meta(lt=100), b'{"value":"101"}', {"value": ["Must be less than 100."]}, id="lt_int_greater"
+            ),
+            pytest.param(
+                mr.decimal_meta(lt=decimal.Decimal("100")),
+                b'{"value":"100"}',
+                {"value": ["Must be less than 100."]},
+                id="lt_decimal_equal",
+            ),
+            pytest.param(
+                mr.decimal_meta(lte=100),
+                b'{"value":"101"}',
+                {"value": ["Must be less than or equal to 100."]},
+                id="lte_int",
+            ),
+            pytest.param(
+                mr.decimal_meta(lte=decimal.Decimal("100")),
+                b'{"value":"101"}',
+                {"value": ["Must be less than or equal to 100."]},
+                id="lte_decimal",
+            ),
+            pytest.param(
+                mr.decimal_meta(gte=0, lte=100),
+                b'{"value":"-1"}',
+                {"value": ["Must be greater than or equal to 0."]},
+                id="range_below",
+            ),
+            pytest.param(
+                mr.decimal_meta(gte=0, lte=100),
+                b'{"value":"101"}',
+                {"value": ["Must be less than or equal to 100."]},
+                id="range_above",
+            ),
+        ],
+    )
+    def test_range_fail(
+        self, impl: Serializer, meta: dict[str, object], data: bytes, expected_messages: dict[str, list[str]]
+    ) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: decimal.Decimal = dataclasses.field(metadata=meta)
+
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(DC, data)
+        assert exc.value.messages == expected_messages
+
+    @pytest.mark.parametrize(
+        ("meta", "data", "expected_messages"),
+        [
+            pytest.param(
+                mr.decimal_meta(gt=0, gt_error="Custom gt error"),
+                b'{"value":"0"}',
+                {"value": ["Custom gt error"]},
+                id="gt",
+            ),
+            pytest.param(
+                mr.decimal_meta(gte=0, gte_error="Custom gte error"),
+                b'{"value":"-1"}',
+                {"value": ["Custom gte error"]},
+                id="gte",
+            ),
+            pytest.param(
+                mr.decimal_meta(lt=100, lt_error="Custom lt error"),
+                b'{"value":"100"}',
+                {"value": ["Custom lt error"]},
+                id="lt",
+            ),
+            pytest.param(
+                mr.decimal_meta(lte=100, lte_error="Custom lte error"),
+                b'{"value":"101"}',
+                {"value": ["Custom lte error"]},
+                id="lte",
+            ),
+            pytest.param(
+                mr.decimal_meta(gt=0, gt_error="Value must be greater than {min}"),
+                b'{"value":"0"}',
+                {"value": ["Value must be greater than 0"]},
+                id="gt_format_min",
+            ),
+            pytest.param(
+                mr.decimal_meta(lt=100, lt_error="Value must be less than {max}"),
+                b'{"value":"100"}',
+                {"value": ["Value must be less than 100"]},
+                id="lt_format_max",
+            ),
+        ],
+    )
+    def test_range_custom_error(
+        self, impl: Serializer, meta: dict[str, object], data: bytes, expected_messages: dict[str, list[str]]
+    ) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: decimal.Decimal = dataclasses.field(metadata=meta)
+
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(DC, data)
+        assert exc.value.messages == expected_messages
+
+    @pytest.mark.parametrize(
+        ("data", "expected_value"), [pytest.param(b'{"value":"50.12"}', decimal.Decimal("50.12"), id="pass")]
+    )
+    def test_range_and_places_pass(self, impl: Serializer, data: bytes, expected_value: decimal.Decimal) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(gte=0, lte=100, places=2))
+
+        result = impl.load(DC, data)
+        assert result == DC(value=expected_value)
+
+    @pytest.mark.parametrize(
+        ("data", "expected_messages"),
+        [
+            pytest.param(b'{"value":"50.123"}', {"value": ["Not a valid number."]}, id="places_fail"),
+            pytest.param(b'{"value":"150.12"}', {"value": ["Must be less than or equal to 100."]}, id="range_fail"),
+        ],
+    )
+    def test_range_and_places_fail(
+        self, impl: Serializer, data: bytes, expected_messages: dict[str, list[str]]
+    ) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(gte=0, lte=100, places=2))
+
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(DC, data)
+        assert exc.value.messages == expected_messages
+
 
 class TestDecimalNoPlaces:
     @pytest.mark.parametrize(
@@ -833,3 +1266,45 @@ class TestDecimalMetadata:
     def test_negative_places_raises(self) -> None:
         with pytest.raises(ValueError, match="decimal_places must be None or a non-negative integer"):
             mr.decimal_meta(places=-1)
+
+    @pytest.mark.parametrize("bound_name", ["gt", "gte", "lt", "lte"])
+    def test_bool_bound_raises(self, bound_name: str) -> None:
+        with pytest.raises(TypeError, match=f"{bound_name} must be Decimal or int, got bool"):
+            mr.decimal_meta(**{bound_name: True})  # type: ignore[reportArgumentType]
+
+    def test_gt_and_gte_mutually_exclusive(self) -> None:
+        with pytest.raises(ValueError, match="gt and gte are mutually exclusive"):
+            mr.decimal_meta(gt=0, gte=0)
+
+    def test_lt_and_lte_mutually_exclusive(self) -> None:
+        with pytest.raises(ValueError, match="lt and lte are mutually exclusive"):
+            mr.decimal_meta(lt=100, lte=100)
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            pytest.param({"gt": 10, "lt": 10}, "lower bound 10 must be less than upper bound 10", id="gt_eq_lt"),
+            pytest.param({"gt": 10, "lt": 5}, "lower bound 10 must be less than upper bound 5", id="gt_above_lt"),
+            pytest.param({"gt": 10, "lte": 10}, "lower bound 10 must be less than upper bound 10", id="gt_eq_lte"),
+            pytest.param({"gte": 10, "lt": 10}, "lower bound 10 must be less than upper bound 10", id="gte_eq_lt"),
+            pytest.param(
+                {"gte": 10, "lte": 5}, "lower bound 10 must be less than or equal to upper bound 5", id="gte_above_lte"
+            ),
+        ],
+    )
+    def test_invalid_range(self, kwargs: dict[str, int], match: str) -> None:
+        with pytest.raises(ValueError, match=match):
+            mr.decimal_meta(**kwargs)  # type: ignore[reportArgumentType]
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param({"gt": 0, "lt": 10}, id="gt_lt"),
+            pytest.param({"gt": 0, "lte": 10}, id="gt_lte"),
+            pytest.param({"gte": 0, "lt": 10}, id="gte_lt"),
+            pytest.param({"gte": 0, "lte": 10}, id="gte_lte"),
+            pytest.param({"gte": 10, "lte": 10}, id="gte_eq_lte"),
+        ],
+    )
+    def test_valid_range(self, kwargs: dict[str, int]) -> None:
+        mr.decimal_meta(**kwargs)  # type: ignore[reportArgumentType]

@@ -84,6 +84,14 @@ class _FieldMetadata:
     decimal_places: int | None = None
     decimal_places_explicitly_set: bool = False
     decimal_rounding: str | None = None
+    decimal_gt: decimal.Decimal | None = None
+    decimal_gt_error: str | None = None
+    decimal_gte: decimal.Decimal | None = None
+    decimal_gte_error: str | None = None
+    decimal_lt: decimal.Decimal | None = None
+    decimal_lt_error: str | None = None
+    decimal_lte: decimal.Decimal | None = None
+    decimal_lte_error: str | None = None
     datetime_format: str | None = None
     item_validators: list[Callable] | None = None
 
@@ -370,6 +378,14 @@ class _BuildContext:
         none_error_msg: str | None = None
         invalid_error_msg: str | None = None
         item_validators: list[Callable] | None = None
+        decimal_gt: decimal.Decimal | None = None
+        decimal_gt_error: str | None = None
+        decimal_gte: decimal.Decimal | None = None
+        decimal_gte_error: str | None = None
+        decimal_lt: decimal.Decimal | None = None
+        decimal_lt_error: str | None = None
+        decimal_lte: decimal.Decimal | None = None
+        decimal_lte_error: str | None = None
 
         if metadata:
             data_key = metadata.get("name")
@@ -378,6 +394,14 @@ class _BuildContext:
                 decimal_places = metadata.get("places")
                 decimal_places_explicitly_set = True
             decimal_rounding = metadata.get("rounding")
+            decimal_gt = metadata.get("gt")
+            decimal_gt_error = metadata.get("gt_error")
+            decimal_gte = metadata.get("gte")
+            decimal_gte_error = metadata.get("gte_error")
+            decimal_lt = metadata.get("lt")
+            decimal_lt_error = metadata.get("lt_error")
+            decimal_lte = metadata.get("lte")
+            decimal_lte_error = metadata.get("lte_error")
             datetime_format = metadata.get("format")
             post_load_callback = metadata.get("post_load")
             required_error_msg = metadata.get("required_error")
@@ -460,6 +484,14 @@ class _BuildContext:
             decimal_places=decimal_places,
             decimal_places_explicitly_set=decimal_places_explicitly_set,
             decimal_rounding=decimal_rounding,
+            decimal_gt=decimal_gt,
+            decimal_gt_error=decimal_gt_error,
+            decimal_gte=decimal_gte,
+            decimal_gte_error=decimal_gte_error,
+            decimal_lt=decimal_lt,
+            decimal_lt_error=decimal_lt_error,
+            decimal_lte=decimal_lte,
+            decimal_lte_error=decimal_lte_error,
             datetime_format=datetime_format,
             item_validators=item_validators,
         )
@@ -592,6 +624,22 @@ class _BuildContext:
                 kwargs["decimal_places"] = default_decimal_places
             if field_metadata.decimal_rounding is not None:
                 kwargs["rounding"] = field_metadata.decimal_rounding
+            if field_metadata.decimal_gt is not None:
+                kwargs["gt"] = field_metadata.decimal_gt
+            if field_metadata.decimal_gt_error is not None:
+                kwargs["gt_error"] = field_metadata.decimal_gt_error
+            if field_metadata.decimal_gte is not None:
+                kwargs["gte"] = field_metadata.decimal_gte
+            if field_metadata.decimal_gte_error is not None:
+                kwargs["gte_error"] = field_metadata.decimal_gte_error
+            if field_metadata.decimal_lt is not None:
+                kwargs["lt"] = field_metadata.decimal_lt
+            if field_metadata.decimal_lt_error is not None:
+                kwargs["lt_error"] = field_metadata.decimal_lt_error
+            if field_metadata.decimal_lte is not None:
+                kwargs["lte"] = field_metadata.decimal_lte
+            if field_metadata.decimal_lte_error is not None:
+                kwargs["lte_error"] = field_metadata.decimal_lte_error
             return self.__builder.decimal_field(name, optional, **kwargs)
         if field_type is uuid.UUID:
             return self.__builder.uuid_field(name, optional, **kwargs)

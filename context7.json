@@ -16,6 +16,8 @@
     "For string transformations: Annotated[str, mr.str_meta(strip_whitespaces=True, post_load=func)]",
     "For decimal precision validation: Annotated[decimal.Decimal, mr.decimal_meta(places=N)] - validates max decimal places, raises ValidationError if exceeded",
     "For decimal rounding: Annotated[decimal.Decimal, mr.decimal_meta(places=N, rounding=decimal.ROUND_HALF_UP)] - rounds to N places instead of validating",
+    "For decimal range validation: Annotated[decimal.Decimal, mr.decimal_meta(gt=0, lte=100)] - operators: gt (>), gte (>=), lt (<), lte (<=); accepts both int and Decimal bounds (int auto-converted to Decimal)",
+    "For decimal range custom errors: mr.decimal_meta(gt=Decimal('0'), gt_error='Must be positive') - each operator has a corresponding _error param",
     "For validation: Annotated[T, mr.meta(validate=lambda x: condition)] or mr.regexp_validate(regex, error=msg)",
     "For email validation: Annotated[str, mr.str_meta(validate=mr.email_validate())] or with custom error: mr.email_validate(error='msg')",
     "For custom field error messages: Annotated[T, mr.meta(required_error='msg', none_error='msg', invalid_error='msg')]",
@@ -59,6 +61,7 @@
     "JSON Schema: Default values included in schema - field: int = 42 → {\"type\": \"integer\", \"default\": 42}",
     "JSON Schema: Naming case conversion - mr.json_schema(Class, naming_case=mr.CAMEL_CASE) converts field names",
     "JSON Schema: Decimal representation controlled by metadata - mr.decimal_meta(as_string=True) → string, as_string=False → number",
+    "JSON Schema: Decimal range constraints emitted - gt→exclusiveMinimum, gte→minimum, lt→exclusiveMaximum, lte→maximum (values as strings)",
     "JSON Schema: Not cached (unlike mr.schema) - generates fresh dict each call, similar to mr.dump()",
     "JSON Schema: Override title per call - mr.json_schema(User, title='Custom') overrides @mr.options(title='...')"
   ],
