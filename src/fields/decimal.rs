@@ -176,7 +176,6 @@ fn finalize_decimal(
     }
 }
 
-#[inline]
 fn is_instance_of_decimal(value: &Bound<'_, PyAny>) -> PyResult<bool> {
     let py = value.py();
     let decimal_cls = get_decimal_cls(py)?;

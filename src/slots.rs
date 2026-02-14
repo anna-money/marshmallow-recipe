@@ -13,7 +13,6 @@ use pyo3::prelude::*;
 // 2. We verify that offset is aligned before it reaches these functions
 // 3. Therefore (obj_ptr + offset) is guaranteed to be properly aligned
 
-#[inline]
 #[allow(clippy::cast_ptr_alignment)]
 pub unsafe fn get_slot_value_direct<'py>(
     py: Python<'py>,
@@ -40,7 +39,6 @@ pub unsafe fn get_slot_value_direct<'py>(
     }
 }
 
-#[inline]
 #[allow(clippy::cast_ptr_alignment)]
 pub unsafe fn set_slot_value_direct(
     obj: &Bound<'_, PyAny>,
