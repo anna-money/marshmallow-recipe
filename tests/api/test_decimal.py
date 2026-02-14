@@ -1247,3 +1247,40 @@ class TestDecimalMetadata:
     def test_bool_bound_raises(self, bound_name: str) -> None:
         with pytest.raises(TypeError, match=f"{bound_name} must be Decimal or int, got bool"):
             mr.decimal_meta(**{bound_name: True})  # type: ignore[reportArgumentType]
+
+    def test_gt_and_gte_mutually_exclusive(self) -> None:
+        with pytest.raises(ValueError, match="gt and gte are mutually exclusive"):
+            mr.decimal_meta(gt=0, gte=0)
+
+    def test_lt_and_lte_mutually_exclusive(self) -> None:
+        with pytest.raises(ValueError, match="lt and lte are mutually exclusive"):
+            mr.decimal_meta(lt=100, lte=100)
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            pytest.param({"gt": 10, "lt": 10}, "lower bound 10 must be less than upper bound 10", id="gt_eq_lt"),
+            pytest.param({"gt": 10, "lt": 5}, "lower bound 10 must be less than upper bound 5", id="gt_above_lt"),
+            pytest.param({"gt": 10, "lte": 10}, "lower bound 10 must be less than upper bound 10", id="gt_eq_lte"),
+            pytest.param({"gte": 10, "lt": 10}, "lower bound 10 must be less than upper bound 10", id="gte_eq_lt"),
+            pytest.param(
+                {"gte": 10, "lte": 5}, "lower bound 10 must be less than or equal to upper bound 5", id="gte_above_lte"
+            ),
+        ],
+    )
+    def test_invalid_range(self, kwargs: dict[str, int], match: str) -> None:
+        with pytest.raises(ValueError, match=match):
+            mr.decimal_meta(**kwargs)  # type: ignore[reportArgumentType]
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param({"gt": 0, "lt": 10}, id="gt_lt"),
+            pytest.param({"gt": 0, "lte": 10}, id="gt_lte"),
+            pytest.param({"gte": 0, "lt": 10}, id="gte_lt"),
+            pytest.param({"gte": 0, "lte": 10}, id="gte_lte"),
+            pytest.param({"gte": 10, "lte": 10}, id="gte_eq_lte"),
+        ],
+    )
+    def test_valid_range(self, kwargs: dict[str, int]) -> None:
+        mr.decimal_meta(**kwargs)  # type: ignore[reportArgumentType]

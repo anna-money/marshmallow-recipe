@@ -139,6 +139,18 @@ def decimal_metadata(
     validate_decimal_bound(gte, "gte")
     validate_decimal_bound(lt, "lt")
     validate_decimal_bound(lte, "lte")
+    if gt is not None and gte is not None:
+        raise ValueError("gt and gte are mutually exclusive")
+    if lt is not None and lte is not None:
+        raise ValueError("lt and lte are mutually exclusive")
+    lower = gt if gt is not None else gte
+    upper = lt if lt is not None else lte
+    if lower is not None and upper is not None:
+        if gte is not None and lte is not None:
+            if lower > upper:
+                raise ValueError(f"lower bound {lower} must be less than or equal to upper bound {upper}")
+        elif lower >= upper:
+            raise ValueError(f"lower bound {lower} must be less than upper bound {upper}")
     values = dict[str, Any]()
     if name is not MISSING:
         values.update(name=name)
