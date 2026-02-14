@@ -468,6 +468,18 @@ class TestDecimalDump:
                 {"value": ["Custom lte error"]},
                 id="lte",
             ),
+            pytest.param(
+                mr.decimal_meta(gt=0, gt_error="Value must be greater than {min}"),
+                decimal.Decimal("0"),
+                {"value": ["Value must be greater than 0"]},
+                id="gt_format_min",
+            ),
+            pytest.param(
+                mr.decimal_meta(lt=100, lt_error="Value must be less than {max}"),
+                decimal.Decimal("100"),
+                {"value": ["Value must be less than 100"]},
+                id="lt_format_max",
+            ),
         ],
     )
     def test_range_custom_error(
@@ -1014,6 +1026,18 @@ class TestDecimalLoad:
                 b'{"value":"101"}',
                 {"value": ["Custom lte error"]},
                 id="lte",
+            ),
+            pytest.param(
+                mr.decimal_meta(gt=0, gt_error="Value must be greater than {min}"),
+                b'{"value":"0"}',
+                {"value": ["Value must be greater than 0"]},
+                id="gt_format_min",
+            ),
+            pytest.param(
+                mr.decimal_meta(lt=100, lt_error="Value must be less than {max}"),
+                b'{"value":"100"}',
+                {"value": ["Value must be less than 100"]},
+                id="lt_format_max",
             ),
         ],
     )

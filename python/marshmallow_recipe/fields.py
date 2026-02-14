@@ -1346,7 +1346,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     JsonRawField = JsonRawFieldV3
 
-    _Range = m.validate.Range
+    Range = m.validate.Range
 else:
 
     def with_type_checks_on_serialize_v2[TField: m.fields.Field](
@@ -1846,7 +1846,7 @@ else:
                     raise m.ValidationError(self.__error or f"Must be less than {self.__max}.")
             return value
 
-    _Range = _RangeV2
+    Range = _RangeV2
 
 
 def _build_decimal_range_validate(
@@ -1862,11 +1862,11 @@ def _build_decimal_range_validate(
     lte_error: str | None,
 ) -> ValidationFunc | collections.abc.Sequence[ValidationFunc] | None:
     if gt is not None:
-        validate = combine_validators(validate, _Range(min=gt, min_inclusive=False, error=gt_error))
+        validate = combine_validators(validate, Range(min=gt, min_inclusive=False, error=gt_error))
     if gte is not None:
-        validate = combine_validators(validate, _Range(min=gte, min_inclusive=True, error=gte_error))
+        validate = combine_validators(validate, Range(min=gte, min_inclusive=True, error=gte_error))
     if lt is not None:
-        validate = combine_validators(validate, _Range(max=lt, max_inclusive=False, error=lt_error))
+        validate = combine_validators(validate, Range(max=lt, max_inclusive=False, error=lt_error))
     if lte is not None:
-        validate = combine_validators(validate, _Range(max=lte, max_inclusive=True, error=lte_error))
+        validate = combine_validators(validate, Range(max=lte, max_inclusive=True, error=lte_error))
     return validate

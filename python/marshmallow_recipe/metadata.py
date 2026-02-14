@@ -160,22 +160,26 @@ def decimal_metadata(
         values.update(places=places)
     if rounding is not None:
         values.update(rounding=rounding)
-    if gt is not None:
-        values.update(gt=decimal.Decimal(gt) if isinstance(gt, int) else gt)
+    gt_value = decimal.Decimal(gt) if isinstance(gt, int) else gt
+    gte_value = decimal.Decimal(gte) if isinstance(gte, int) else gte
+    lt_value = decimal.Decimal(lt) if isinstance(lt, int) else lt
+    lte_value = decimal.Decimal(lte) if isinstance(lte, int) else lte
+    if gt_value is not None:
+        values.update(gt=gt_value)
     if gt_error is not None:
-        values.update(gt_error=gt_error)
-    if gte is not None:
-        values.update(gte=decimal.Decimal(gte) if isinstance(gte, int) else gte)
+        values.update(gt_error=gt_error.format(min=gt_value))
+    if gte_value is not None:
+        values.update(gte=gte_value)
     if gte_error is not None:
-        values.update(gte_error=gte_error)
-    if lt is not None:
-        values.update(lt=decimal.Decimal(lt) if isinstance(lt, int) else lt)
+        values.update(gte_error=gte_error.format(min=gte_value))
+    if lt_value is not None:
+        values.update(lt=lt_value)
     if lt_error is not None:
-        values.update(lt_error=lt_error)
-    if lte is not None:
-        values.update(lte=decimal.Decimal(lte) if isinstance(lte, int) else lte)
+        values.update(lt_error=lt_error.format(max=lt_value))
+    if lte_value is not None:
+        values.update(lte=lte_value)
     if lte_error is not None:
-        values.update(lte_error=lte_error)
+        values.update(lte_error=lte_error.format(max=lte_value))
     if validate is not None:
         values.update(validate=validate)
     if required_error is not None:
