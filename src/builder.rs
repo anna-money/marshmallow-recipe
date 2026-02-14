@@ -8,7 +8,7 @@ use crate::container::{
 };
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::parse_datetime_format;
-use crate::fields::decimal::RangeBound;
+use crate::fields::decimal::{RangeBound, get_decimal_cls};
 
 #[pyclass]
 pub struct Container {
@@ -147,6 +147,12 @@ fn extract_range_bound(
     let Some(bound_value) = bound_value else {
         return Ok(None);
     };
+    let decimal_cls = get_decimal_cls(py)?;
+    if !bound_value.bind(py).is_instance(decimal_cls)? {
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+            "{bound_key} must be Decimal"
+        )));
+    }
     let error = if let Some(custom_error) = extract_optional_py_string(kwargs, error_key)? {
         custom_error
     } else {
