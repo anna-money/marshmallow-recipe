@@ -510,6 +510,27 @@ class TestDecimalDump:
             impl.dump(DC, DC(value=value))
         assert exc.value.messages == expected_messages
 
+    def test_range_validated_after_rounding(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: decimal.Decimal = dataclasses.field(
+                metadata=mr.decimal_meta(lt=decimal.Decimal("100"), places=2, rounding=decimal.ROUND_DOWN)
+            )
+
+        result = impl.dump(DC, DC(value=decimal.Decimal("99.999")))
+        assert result == b'{"value":"99.99"}'
+
+    def test_range_validated_after_rounding_fail(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: decimal.Decimal = dataclasses.field(
+                metadata=mr.decimal_meta(lt=decimal.Decimal("100"), places=2, rounding=decimal.ROUND_UP)
+            )
+
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(DC, DC(value=decimal.Decimal("99.999")))
+        assert exc.value.messages == {"value": ["Must be less than 100."]}
+
 
 class TestDecimalLoad:
     @pytest.mark.parametrize(

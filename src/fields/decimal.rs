@@ -157,8 +157,6 @@ pub fn dump_to_py(
         return Err(SerializationError::Single(invalid_error.clone_ref(py)));
     }
 
-    validate_range(value, gt, gte, lt, lte)?;
-
     let decimal = if let Some(places) = decimal_places {
         if let Some(rounding) = rounding {
             let exp = get_quantize_exp(py, places.unsigned_abs())
@@ -177,6 +175,8 @@ pub fn dump_to_py(
     } else {
         value.clone()
     };
+
+    validate_range(&decimal, gt, gte, lt, lte)?;
 
     let formatted = decimal
         .call_method1(intern!(py, "__format__"), ("f",))
