@@ -473,10 +473,10 @@ def test_decimal_types() -> None:
         name: str
         price: decimal.Decimal
         price_with_places: Annotated[decimal.Decimal, mr.decimal_meta(places=2)]
-        price_gt: Annotated[decimal.Decimal, mr.decimal_meta(gt=decimal.Decimal("0"))]
-        price_gte: Annotated[decimal.Decimal, mr.decimal_meta(gte=decimal.Decimal("0"))]
-        price_lt: Annotated[decimal.Decimal, mr.decimal_meta(lt=decimal.Decimal("1000"))]
-        price_lte: Annotated[decimal.Decimal, mr.decimal_meta(lte=decimal.Decimal("1000"))]
+        price_gt: Annotated[decimal.Decimal, mr.decimal_meta(gt=0)]
+        price_gte: Annotated[decimal.Decimal, mr.decimal_meta(gte=0)]
+        price_lt: Annotated[decimal.Decimal, mr.decimal_meta(lt=1000)]
+        price_lte: Annotated[decimal.Decimal, mr.decimal_meta(lte=1000)]
         price_range: Annotated[
             decimal.Decimal, mr.decimal_meta(gte=decimal.Decimal("0.01"), lte=decimal.Decimal("999.99"))
         ]

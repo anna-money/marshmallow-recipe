@@ -116,19 +116,19 @@ import decimal
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Product:
-    # Price: must be greater than 0
+    # Price: must be greater than 0 (int bounds auto-converted to Decimal)
     price: Annotated[
         decimal.Decimal,
-        mr.decimal_meta(gt=decimal.Decimal("0")),
+        mr.decimal_meta(gt=0),
     ]
 
     # Discount: must be between 0 and 100 (inclusive)
     discount: Annotated[
         decimal.Decimal,
-        mr.decimal_meta(gte=decimal.Decimal("0"), lte=decimal.Decimal("100")),
+        mr.decimal_meta(gte=0, lte=100),
     ]
 
-    # Tax rate: must be less than 1
+    # Tax rate: must be less than 1 (Decimal bounds also supported)
     tax_rate: Annotated[
         decimal.Decimal,
         mr.decimal_meta(lt=decimal.Decimal("1"), places=4),

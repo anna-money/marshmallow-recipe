@@ -1091,3 +1091,16 @@ class TestDecimalMetadata:
     def test_negative_places_raises(self) -> None:
         with pytest.raises(ValueError, match="decimal_places must be None or a non-negative integer"):
             mr.decimal_meta(places=-1)
+
+    @pytest.mark.parametrize(
+        ("meta", "key", "expected"),
+        [
+            pytest.param(mr.decimal_meta(gt=0), "gt", decimal.Decimal("0"), id="gt"),
+            pytest.param(mr.decimal_meta(gte=0), "gte", decimal.Decimal("0"), id="gte"),
+            pytest.param(mr.decimal_meta(lt=100), "lt", decimal.Decimal("100"), id="lt"),
+            pytest.param(mr.decimal_meta(lte=100), "lte", decimal.Decimal("100"), id="lte"),
+        ],
+    )
+    def test_int_bound_converted_to_decimal(self, meta: mr.Metadata, key: str, expected: decimal.Decimal) -> None:
+        assert meta[key] == expected
+        assert isinstance(meta[key], decimal.Decimal)

@@ -16,7 +16,7 @@
     "For string transformations: Annotated[str, mr.str_meta(strip_whitespaces=True, post_load=func)]",
     "For decimal precision validation: Annotated[decimal.Decimal, mr.decimal_meta(places=N)] - validates max decimal places, raises ValidationError if exceeded",
     "For decimal rounding: Annotated[decimal.Decimal, mr.decimal_meta(places=N, rounding=decimal.ROUND_HALF_UP)] - rounds to N places instead of validating",
-    "For decimal range validation: Annotated[decimal.Decimal, mr.decimal_meta(gt=Decimal('0'), lte=Decimal('100'))] - operators: gt (>), gte (>=), lt (<), lte (<=)",
+    "For decimal range validation: Annotated[decimal.Decimal, mr.decimal_meta(gt=0, lte=100)] - operators: gt (>), gte (>=), lt (<), lte (<=); accepts both int and Decimal bounds (int auto-converted to Decimal)",
     "For decimal range custom errors: mr.decimal_meta(gt=Decimal('0'), gt_error='Must be positive') - each operator has a corresponding _error param",
     "For validation: Annotated[T, mr.meta(validate=lambda x: condition)] or mr.regexp_validate(regex, error=msg)",
     "For email validation: Annotated[str, mr.str_meta(validate=mr.email_validate())] or with custom error: mr.email_validate(error='msg')",
