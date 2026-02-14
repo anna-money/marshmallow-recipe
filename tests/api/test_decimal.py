@@ -12,12 +12,22 @@ from .conftest import (
     WithAnnotatedDecimalRounding,
     WithDecimal,
     WithDecimalDefault,
+    WithDecimalGt,
+    WithDecimalGtCustomError,
+    WithDecimalGte,
+    WithDecimalGteCustomError,
     WithDecimalInvalidError,
+    WithDecimalLt,
+    WithDecimalLtCustomError,
+    WithDecimalLte,
+    WithDecimalLteCustomError,
     WithDecimalMissing,
     WithDecimalNoneError,
     WithDecimalNoPlaces,
     WithDecimalPlacesAndRange,
     WithDecimalPlacesZero,
+    WithDecimalRange,
+    WithDecimalRangeAndPlaces,
     WithDecimalRequiredError,
     WithDecimalRoundCeiling,
     WithDecimalRoundDown,
@@ -316,6 +326,120 @@ class TestDecimalDump:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(WithDecimalNoPlaces, obj)
         assert exc.value.messages == expected_message
+
+    def test_gt_pass(self, impl: Serializer) -> None:
+        obj = WithDecimalGt(value=decimal.Decimal("1"))
+        result = impl.dump(WithDecimalGt, obj)
+        assert result == b'{"value":"1"}'
+
+    def test_gt_fail_equal(self, impl: Serializer) -> None:
+        obj = WithDecimalGt(value=decimal.Decimal("0"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalGt, obj)
+        assert exc.value.messages == {"value": ["Must be greater than 0."]}
+
+    def test_gt_fail_less(self, impl: Serializer) -> None:
+        obj = WithDecimalGt(value=decimal.Decimal("-1"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalGt, obj)
+        assert exc.value.messages == {"value": ["Must be greater than 0."]}
+
+    def test_gte_pass(self, impl: Serializer) -> None:
+        obj = WithDecimalGte(value=decimal.Decimal("0"))
+        result = impl.dump(WithDecimalGte, obj)
+        assert result == b'{"value":"0"}'
+
+    def test_gte_fail(self, impl: Serializer) -> None:
+        obj = WithDecimalGte(value=decimal.Decimal("-1"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalGte, obj)
+        assert exc.value.messages == {"value": ["Must be greater than or equal to 0."]}
+
+    def test_lt_pass(self, impl: Serializer) -> None:
+        obj = WithDecimalLt(value=decimal.Decimal("99"))
+        result = impl.dump(WithDecimalLt, obj)
+        assert result == b'{"value":"99"}'
+
+    def test_lt_fail_equal(self, impl: Serializer) -> None:
+        obj = WithDecimalLt(value=decimal.Decimal("100"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalLt, obj)
+        assert exc.value.messages == {"value": ["Must be less than 100."]}
+
+    def test_lt_fail_greater(self, impl: Serializer) -> None:
+        obj = WithDecimalLt(value=decimal.Decimal("101"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalLt, obj)
+        assert exc.value.messages == {"value": ["Must be less than 100."]}
+
+    def test_lte_pass(self, impl: Serializer) -> None:
+        obj = WithDecimalLte(value=decimal.Decimal("100"))
+        result = impl.dump(WithDecimalLte, obj)
+        assert result == b'{"value":"100"}'
+
+    def test_lte_fail(self, impl: Serializer) -> None:
+        obj = WithDecimalLte(value=decimal.Decimal("101"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalLte, obj)
+        assert exc.value.messages == {"value": ["Must be less than or equal to 100."]}
+
+    def test_range_pass(self, impl: Serializer) -> None:
+        obj = WithDecimalRange(value=decimal.Decimal("50"))
+        result = impl.dump(WithDecimalRange, obj)
+        assert result == b'{"value":"50"}'
+
+    def test_range_fail_below(self, impl: Serializer) -> None:
+        obj = WithDecimalRange(value=decimal.Decimal("-1"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalRange, obj)
+        assert exc.value.messages == {"value": ["Must be greater than or equal to 0."]}
+
+    def test_range_fail_above(self, impl: Serializer) -> None:
+        obj = WithDecimalRange(value=decimal.Decimal("101"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalRange, obj)
+        assert exc.value.messages == {"value": ["Must be less than or equal to 100."]}
+
+    def test_gt_custom_error(self, impl: Serializer) -> None:
+        obj = WithDecimalGtCustomError(value=decimal.Decimal("0"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalGtCustomError, obj)
+        assert exc.value.messages == {"value": ["Custom gt error"]}
+
+    def test_gte_custom_error(self, impl: Serializer) -> None:
+        obj = WithDecimalGteCustomError(value=decimal.Decimal("-1"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalGteCustomError, obj)
+        assert exc.value.messages == {"value": ["Custom gte error"]}
+
+    def test_lt_custom_error(self, impl: Serializer) -> None:
+        obj = WithDecimalLtCustomError(value=decimal.Decimal("100"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalLtCustomError, obj)
+        assert exc.value.messages == {"value": ["Custom lt error"]}
+
+    def test_lte_custom_error(self, impl: Serializer) -> None:
+        obj = WithDecimalLteCustomError(value=decimal.Decimal("101"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalLteCustomError, obj)
+        assert exc.value.messages == {"value": ["Custom lte error"]}
+
+    def test_range_and_places_pass(self, impl: Serializer) -> None:
+        obj = WithDecimalRangeAndPlaces(value=decimal.Decimal("50.12"))
+        result = impl.dump(WithDecimalRangeAndPlaces, obj)
+        assert result == b'{"value":"50.12"}'
+
+    def test_range_and_places_places_fail(self, impl: Serializer) -> None:
+        obj = WithDecimalRangeAndPlaces(value=decimal.Decimal("50.123"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalRangeAndPlaces, obj)
+        assert exc.value.messages == {"value": ["Not a valid number."]}
+
+    def test_range_and_places_range_fail(self, impl: Serializer) -> None:
+        obj = WithDecimalRangeAndPlaces(value=decimal.Decimal("150.12"))
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDecimalRangeAndPlaces, obj)
+        assert exc.value.messages == {"value": ["Must be less than or equal to 100."]}
 
 
 class TestDecimalLoad:
@@ -647,6 +771,140 @@ class TestDecimalLoad:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithDecimalPlacesAndRange, data)
         assert exc.value.messages == {"value": ["Invalid value."]}
+
+    def test_gt_pass(self, impl: Serializer) -> None:
+        data = b'{"value":"1"}'
+        result = impl.load(WithDecimalGt, data)
+        assert result == WithDecimalGt(value=decimal.Decimal("1"))
+
+    def test_gt_fail_equal(self, impl: Serializer) -> None:
+        data = b'{"value":"0"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalGt, data)
+        assert exc.value.messages == {"value": ["Must be greater than 0."]}
+
+    def test_gt_fail_less(self, impl: Serializer) -> None:
+        data = b'{"value":"-1"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalGt, data)
+        assert exc.value.messages == {"value": ["Must be greater than 0."]}
+
+    def test_gte_pass_equal(self, impl: Serializer) -> None:
+        data = b'{"value":"0"}'
+        result = impl.load(WithDecimalGte, data)
+        assert result == WithDecimalGte(value=decimal.Decimal("0"))
+
+    def test_gte_pass_above(self, impl: Serializer) -> None:
+        data = b'{"value":"1"}'
+        result = impl.load(WithDecimalGte, data)
+        assert result == WithDecimalGte(value=decimal.Decimal("1"))
+
+    def test_gte_fail(self, impl: Serializer) -> None:
+        data = b'{"value":"-1"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalGte, data)
+        assert exc.value.messages == {"value": ["Must be greater than or equal to 0."]}
+
+    def test_lt_pass(self, impl: Serializer) -> None:
+        data = b'{"value":"99"}'
+        result = impl.load(WithDecimalLt, data)
+        assert result == WithDecimalLt(value=decimal.Decimal("99"))
+
+    def test_lt_fail_equal(self, impl: Serializer) -> None:
+        data = b'{"value":"100"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalLt, data)
+        assert exc.value.messages == {"value": ["Must be less than 100."]}
+
+    def test_lt_fail_greater(self, impl: Serializer) -> None:
+        data = b'{"value":"101"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalLt, data)
+        assert exc.value.messages == {"value": ["Must be less than 100."]}
+
+    def test_lte_pass_equal(self, impl: Serializer) -> None:
+        data = b'{"value":"100"}'
+        result = impl.load(WithDecimalLte, data)
+        assert result == WithDecimalLte(value=decimal.Decimal("100"))
+
+    def test_lte_pass_below(self, impl: Serializer) -> None:
+        data = b'{"value":"99"}'
+        result = impl.load(WithDecimalLte, data)
+        assert result == WithDecimalLte(value=decimal.Decimal("99"))
+
+    def test_lte_fail(self, impl: Serializer) -> None:
+        data = b'{"value":"101"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalLte, data)
+        assert exc.value.messages == {"value": ["Must be less than or equal to 100."]}
+
+    def test_range_pass(self, impl: Serializer) -> None:
+        data = b'{"value":"50"}'
+        result = impl.load(WithDecimalRange, data)
+        assert result == WithDecimalRange(value=decimal.Decimal("50"))
+
+    def test_range_pass_boundary_low(self, impl: Serializer) -> None:
+        data = b'{"value":"0"}'
+        result = impl.load(WithDecimalRange, data)
+        assert result == WithDecimalRange(value=decimal.Decimal("0"))
+
+    def test_range_pass_boundary_high(self, impl: Serializer) -> None:
+        data = b'{"value":"100"}'
+        result = impl.load(WithDecimalRange, data)
+        assert result == WithDecimalRange(value=decimal.Decimal("100"))
+
+    def test_range_fail_below(self, impl: Serializer) -> None:
+        data = b'{"value":"-1"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalRange, data)
+        assert exc.value.messages == {"value": ["Must be greater than or equal to 0."]}
+
+    def test_range_fail_above(self, impl: Serializer) -> None:
+        data = b'{"value":"101"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalRange, data)
+        assert exc.value.messages == {"value": ["Must be less than or equal to 100."]}
+
+    def test_gt_custom_error(self, impl: Serializer) -> None:
+        data = b'{"value":"0"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalGtCustomError, data)
+        assert exc.value.messages == {"value": ["Custom gt error"]}
+
+    def test_gte_custom_error(self, impl: Serializer) -> None:
+        data = b'{"value":"-1"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalGteCustomError, data)
+        assert exc.value.messages == {"value": ["Custom gte error"]}
+
+    def test_lt_custom_error(self, impl: Serializer) -> None:
+        data = b'{"value":"100"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalLtCustomError, data)
+        assert exc.value.messages == {"value": ["Custom lt error"]}
+
+    def test_lte_custom_error(self, impl: Serializer) -> None:
+        data = b'{"value":"101"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalLteCustomError, data)
+        assert exc.value.messages == {"value": ["Custom lte error"]}
+
+    def test_range_and_places_pass(self, impl: Serializer) -> None:
+        data = b'{"value":"50.12"}'
+        result = impl.load(WithDecimalRangeAndPlaces, data)
+        assert result == WithDecimalRangeAndPlaces(value=decimal.Decimal("50.12"))
+
+    def test_range_and_places_places_fail(self, impl: Serializer) -> None:
+        data = b'{"value":"50.123"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalRangeAndPlaces, data)
+        assert exc.value.messages == {"value": ["Not a valid number."]}
+
+    def test_range_and_places_range_fail(self, impl: Serializer) -> None:
+        data = b'{"value":"150.12"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalRangeAndPlaces, data)
+        assert exc.value.messages == {"value": ["Must be less than or equal to 100."]}
 
 
 class TestDecimalNoPlaces:

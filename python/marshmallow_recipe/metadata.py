@@ -1,4 +1,5 @@
 import collections.abc
+import decimal
 from typing import Any, TypeGuard, final
 
 from .missing import MISSING
@@ -119,6 +120,14 @@ def decimal_metadata(
     description: str | None = None,
     places: int | None = MISSING,
     rounding: str | None = None,
+    gt: decimal.Decimal | None = None,
+    gt_error: str | None = None,
+    gte: decimal.Decimal | None = None,
+    gte_error: str | None = None,
+    lt: decimal.Decimal | None = None,
+    lt_error: str | None = None,
+    lte: decimal.Decimal | None = None,
+    lte_error: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     required_error: str | None = None,
     none_error: str | None = None,
@@ -135,6 +144,22 @@ def decimal_metadata(
         values.update(places=places)
     if rounding is not None:
         values.update(rounding=rounding)
+    if gt is not None:
+        values.update(gt=gt)
+    if gt_error is not None:
+        values.update(gt_error=gt_error)
+    if gte is not None:
+        values.update(gte=gte)
+    if gte_error is not None:
+        values.update(gte_error=gte_error)
+    if lt is not None:
+        values.update(lt=lt)
+    if lt_error is not None:
+        values.update(lt_error=lt_error)
+    if lte is not None:
+        values.update(lte=lte)
+    if lte_error is not None:
+        values.update(lte_error=lte_error)
     if validate is not None:
         values.update(validate=validate)
     if required_error is not None:

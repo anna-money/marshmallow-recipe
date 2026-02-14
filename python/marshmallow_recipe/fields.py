@@ -14,6 +14,30 @@ import marshmallow.validate
 
 from .validation import ValidationFunc, combine_validators
 
+
+def _build_decimal_range_validate(
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None,
+    *,
+    gt: decimal.Decimal | None,
+    gt_error: str | None,
+    gte: decimal.Decimal | None,
+    gte_error: str | None,
+    lt: decimal.Decimal | None,
+    lt_error: str | None,
+    lte: decimal.Decimal | None,
+    lte_error: str | None,
+) -> ValidationFunc | collections.abc.Sequence[ValidationFunc] | None:
+    if gt is not None:
+        validate = combine_validators(validate, m.validate.Range(min=gt, min_inclusive=False, error=gt_error))
+    if gte is not None:
+        validate = combine_validators(validate, m.validate.Range(min=gte, min_inclusive=True, error=gte_error))
+    if lt is not None:
+        validate = combine_validators(validate, m.validate.Range(max=lt, max_inclusive=False, error=lt_error))
+    if lte is not None:
+        validate = combine_validators(validate, m.validate.Range(max=lte, max_inclusive=True, error=lte_error))
+    return validate
+
+
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 
@@ -137,6 +161,14 @@ def decimal_field(
     name: str | None = None,
     places: int | None = 2,
     rounding: str | None = None,
+    gt: decimal.Decimal | None = None,
+    gt_error: str | None = None,
+    gte: decimal.Decimal | None = None,
+    gte_error: str | None = None,
+    lt: decimal.Decimal | None = None,
+    lt_error: str | None = None,
+    lte: decimal.Decimal | None = None,
+    lte_error: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     required_error: str | None = None,
     none_error: str | None = None,
@@ -144,6 +176,17 @@ def decimal_field(
     description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    validate = _build_decimal_range_validate(
+        validate,
+        gt=gt,
+        gt_error=gt_error,
+        gte=gte,
+        gte_error=gte_error,
+        lt=lt,
+        lt_error=lt_error,
+        lte=lte,
+        lte_error=lte_error,
+    )
     if default is m.missing:
         return DecimalField(
             allow_none=allow_none,

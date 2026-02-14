@@ -107,6 +107,62 @@ user = UserAccount(
 # - Invalid user part
 ```
 
+## Decimal Range Validation
+
+Range validation for decimal fields using `mr.decimal_meta()`:
+
+```python
+import decimal
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Product:
+    # Price: must be greater than 0
+    price: Annotated[
+        decimal.Decimal,
+        mr.decimal_meta(gt=decimal.Decimal("0")),
+    ]
+
+    # Discount: must be between 0 and 100 (inclusive)
+    discount: Annotated[
+        decimal.Decimal,
+        mr.decimal_meta(gte=decimal.Decimal("0"), lte=decimal.Decimal("100")),
+    ]
+
+    # Tax rate: must be less than 1
+    tax_rate: Annotated[
+        decimal.Decimal,
+        mr.decimal_meta(lt=decimal.Decimal("1"), places=4),
+    ]
+
+
+product = Product(
+    price=decimal.Decimal("9.99"),
+    discount=decimal.Decimal("15.00"),
+    tax_rate=decimal.Decimal("0.2100"),
+)
+
+product_dict = mr.dump(product)
+loaded_product = mr.load(Product, product_dict)
+```
+
+Range operators: `gt` (>), `gte` (>=), `lt` (<), `lte` (<=).
+
+Custom error messages for range validation:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Invoice:
+    amount: Annotated[
+        decimal.Decimal,
+        mr.decimal_meta(
+            gt=decimal.Decimal("0"),
+            gt_error="Amount must be positive",
+            lte=decimal.Decimal("1000000"),
+            lte_error="Amount cannot exceed 1,000,000",
+        ),
+    ]
+```
+
 ## Custom Error Messages
 
 Using `mr.validate()` helper for readable error messages:

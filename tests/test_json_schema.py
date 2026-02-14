@@ -50,8 +50,6 @@ def test_optional_fields() -> None:
 
     schema = mr.json_schema(OptionalFields)
 
-    # Optional fields have simple type, NOT anyOf with null
-    # They are just omitted from required array
     assert schema == {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -74,7 +72,6 @@ def test_fields_with_defaults() -> None:
 
     schema = mr.json_schema(WithDefaults)
 
-    # Fields with defaults are not required and include default value
     assert schema == {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -97,8 +94,6 @@ def test_default_factory() -> None:
 
     schema = mr.json_schema(WithFactories)
 
-    # Fields with default_factory should NOT include a "default" key in JSON Schema
-    # because factories are dynamic and can't be represented as static JSON values
     assert schema == {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -232,15 +227,25 @@ def test_schema_title_in_options() -> None:
         "required": ["name", "age"],
     }
 
-    # Test that title parameter overrides @options title
     schema_override = mr.json_schema(UserWithTitle, title="Overridden Title")
-    assert schema_override["title"] == "Overridden Title"
-    assert schema_override["description"] == "A user in the system"
+    assert schema_override == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "Overridden Title",
+        "description": "A user in the system",
+        "properties": {"name": {"type": "string"}, "age": {"type": "integer"}},
+        "required": ["name", "age"],
+    }
 
-    # Test that empty string title overrides @options title (not treated as falsy)
     schema_empty = mr.json_schema(UserWithTitle, title="")
-    assert schema_empty["title"] == ""
-    assert schema_empty["description"] == "A user in the system"
+    assert schema_empty == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "",
+        "description": "A user in the system",
+        "properties": {"name": {"type": "string"}, "age": {"type": "integer"}},
+        "required": ["name", "age"],
+    }
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -363,65 +368,66 @@ def test_list_item_description() -> None:
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class _CyclicNode:
-    """Test class for cyclic references - defined at module level to avoid forward ref issues"""
-
     value: int
     next_node: _CyclicNode | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class _RecursivePerson:
-    """Test class for recursive references - defined at module level to avoid forward ref issues"""
-
     name: str
     spouse: _RecursivePerson | None = None
     friends: list[_RecursivePerson] = dataclasses.field(default_factory=list)
 
 
 def test_cyclic_references() -> None:
-    """Test that cyclic/self-referential dataclasses work correctly"""
-
     schema = mr.json_schema(_CyclicNode)
 
-    # Should have $defs with Node definition
-    assert "$defs" in schema
-    assert "_CyclicNode" in schema["$defs"]
-
-    # Top-level schema
-    assert schema["type"] == "object"
-    assert schema["title"] == "_CyclicNode"
-    assert set(schema["properties"].keys()) == {"value", "next_node"}
-    assert schema["properties"]["value"] == {"type": "integer"}
-    assert schema["properties"]["next_node"] == {"$ref": "#/$defs/_CyclicNode", "default": None}
-    assert schema["required"] == ["value"]
-
-    # $defs/_CyclicNode should match the structure
-    node_def = schema["$defs"]["_CyclicNode"]
-    assert node_def["type"] == "object"
-    assert node_def["title"] == "_CyclicNode"
-    assert node_def["properties"]["value"] == {"type": "integer"}
-    assert node_def["properties"]["next_node"] == {"$ref": "#/$defs/_CyclicNode", "default": None}
-    assert node_def["required"] == ["value"]
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "_CyclicNode",
+        "properties": {"value": {"type": "integer"}, "next_node": {"$ref": "#/$defs/_CyclicNode", "default": None}},
+        "required": ["value"],
+        "$defs": {
+            "_CyclicNode": {
+                "type": "object",
+                "title": "_CyclicNode",
+                "properties": {
+                    "value": {"type": "integer"},
+                    "next_node": {"$ref": "#/$defs/_CyclicNode", "default": None},
+                },
+                "required": ["value"],
+            }
+        },
+    }
 
 
 def test_mutually_recursive_types() -> None:
-    """Test mutually recursive dataclasses"""
-
     schema = mr.json_schema(_RecursivePerson)
 
-    assert "$defs" in schema
-    assert "_RecursivePerson" in schema["$defs"]
-
-    # Check self-references work
-    assert schema["properties"]["spouse"] == {"$ref": "#/$defs/_RecursivePerson", "default": None}
-    # friends has default_factory=list, so no "default" key in schema (it's dynamic)
-    assert schema["properties"]["friends"] == {"type": "array", "items": {"$ref": "#/$defs/_RecursivePerson"}}
-
-    # Verify $defs has the same structure
-    person_def = schema["$defs"]["_RecursivePerson"]
-    assert person_def["properties"]["spouse"] == {"$ref": "#/$defs/_RecursivePerson", "default": None}
-    # friends has default_factory=list, so no "default" key in schema (it's dynamic)
-    assert person_def["properties"]["friends"] == {"type": "array", "items": {"$ref": "#/$defs/_RecursivePerson"}}
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "_RecursivePerson",
+        "properties": {
+            "name": {"type": "string"},
+            "spouse": {"$ref": "#/$defs/_RecursivePerson", "default": None},
+            "friends": {"type": "array", "items": {"$ref": "#/$defs/_RecursivePerson"}},
+        },
+        "required": ["name"],
+        "$defs": {
+            "_RecursivePerson": {
+                "type": "object",
+                "title": "_RecursivePerson",
+                "properties": {
+                    "name": {"type": "string"},
+                    "spouse": {"$ref": "#/$defs/_RecursivePerson", "default": None},
+                    "friends": {"type": "array", "items": {"$ref": "#/$defs/_RecursivePerson"}},
+                },
+                "required": ["name"],
+            }
+        },
+    }
 
 
 class _Status(str, enum.Enum):
@@ -445,39 +451,66 @@ class _Task:
 
 
 def test_enum_types() -> None:
-    """Test that enum types work correctly"""
-
     schema = mr.json_schema(_Task)
 
-    assert schema["properties"]["status"] == {"type": "string", "enum": ["active", "inactive", "pending"]}
-    assert schema["properties"]["priority"] == {"type": "integer", "enum": [1, 2, 3]}
-    assert schema["properties"]["optional_status"] == {
-        "type": "string",
-        "enum": ["active", "inactive", "pending"],
-        "default": None,
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "_Task",
+        "properties": {
+            "title": {"type": "string"},
+            "status": {"type": "string", "enum": ["active", "inactive", "pending"]},
+            "priority": {"type": "integer", "enum": [1, 2, 3]},
+            "optional_status": {"type": "string", "enum": ["active", "inactive", "pending"], "default": None},
+        },
+        "required": ["title", "status", "priority"],
     }
-    assert schema["required"] == ["title", "status", "priority"]
 
 
 def test_decimal_types() -> None:
-    """Test decimal types are always serialized as strings"""
-
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class Product:
         name: str
         price: decimal.Decimal
         price_with_places: Annotated[decimal.Decimal, mr.decimal_meta(places=2)]
+        price_gt: Annotated[decimal.Decimal, mr.decimal_meta(gt=decimal.Decimal("0"))]
+        price_gte: Annotated[decimal.Decimal, mr.decimal_meta(gte=decimal.Decimal("0"))]
+        price_lt: Annotated[decimal.Decimal, mr.decimal_meta(lt=decimal.Decimal("1000"))]
+        price_lte: Annotated[decimal.Decimal, mr.decimal_meta(lte=decimal.Decimal("1000"))]
+        price_range: Annotated[
+            decimal.Decimal, mr.decimal_meta(gte=decimal.Decimal("0.01"), lte=decimal.Decimal("999.99"))
+        ]
 
     schema = mr.json_schema(Product)
 
-    # All decimals are serialized as strings
-    assert schema["properties"]["price"] == {"type": "string"}
-    assert schema["properties"]["price_with_places"] == {"type": "string"}
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "Product",
+        "properties": {
+            "name": {"type": "string"},
+            "price": {"type": "string"},
+            "price_with_places": {"type": "string"},
+            "price_gt": {"type": "string", "exclusiveMinimum": "0"},
+            "price_gte": {"type": "string", "minimum": "0"},
+            "price_lt": {"type": "string", "exclusiveMaximum": "1000"},
+            "price_lte": {"type": "string", "maximum": "1000"},
+            "price_range": {"type": "string", "minimum": "0.01", "maximum": "999.99"},
+        },
+        "required": [
+            "name",
+            "price",
+            "price_with_places",
+            "price_gt",
+            "price_gte",
+            "price_lt",
+            "price_lte",
+            "price_range",
+        ],
+    }
 
 
 def test_set_and_frozenset_types() -> None:
-    """Test set and frozenset types have uniqueItems"""
-
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class UniqueItems:
         tags_set: set[str]
@@ -486,20 +519,20 @@ def test_set_and_frozenset_types() -> None:
 
     schema = mr.json_schema(UniqueItems)
 
-    assert schema["properties"]["tags_set"] == {"type": "array", "uniqueItems": True, "items": {"type": "string"}}
-    assert schema["properties"]["ids_frozenset"] == {"type": "array", "uniqueItems": True, "items": {"type": "integer"}}
-    assert schema["properties"]["optional_set"] == {
-        "type": "array",
-        "uniqueItems": True,
-        "items": {"type": "string"},
-        "default": None,
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "UniqueItems",
+        "properties": {
+            "tags_set": {"type": "array", "uniqueItems": True, "items": {"type": "string"}},
+            "ids_frozenset": {"type": "array", "uniqueItems": True, "items": {"type": "integer"}},
+            "optional_set": {"type": "array", "uniqueItems": True, "items": {"type": "string"}, "default": None},
+        },
+        "required": ["tags_set", "ids_frozenset"],
     }
-    assert schema["required"] == ["tags_set", "ids_frozenset"]
 
 
 def test_dict_types() -> None:
-    """Test dict/mapping types"""
-
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class Config:
         simple_dict: dict[str, int]
@@ -508,19 +541,20 @@ def test_dict_types() -> None:
 
     schema = mr.json_schema(Config)
 
-    assert schema["properties"]["simple_dict"] == {"type": "object", "additionalProperties": {"type": "integer"}}
-    assert schema["properties"]["any_dict"] == {"type": "object", "additionalProperties": {"type": "object"}}
-    assert schema["properties"]["optional_dict"] == {
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
-        "additionalProperties": {"type": "string"},
-        "default": None,
+        "title": "Config",
+        "properties": {
+            "simple_dict": {"type": "object", "additionalProperties": {"type": "integer"}},
+            "any_dict": {"type": "object", "additionalProperties": {"type": "object"}},
+            "optional_dict": {"type": "object", "additionalProperties": {"type": "string"}, "default": None},
+        },
+        "required": ["simple_dict", "any_dict"],
     }
-    assert schema["required"] == ["simple_dict", "any_dict"]
 
 
 def test_non_dataclass_error() -> None:
-    """Test that non-dataclass input raises ValueError"""
-
     class NotADataclass:
         name: str
 
@@ -529,13 +563,10 @@ def test_non_dataclass_error() -> None:
 
 
 def test_generic_simple() -> None:
-    """Test simple generic dataclass with type parameter"""
-
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class Container(Generic[T]):
         value: T
 
-    # Test with int type parameter
     schema = mr.json_schema(Container[int])
 
     assert schema == {
@@ -546,15 +577,18 @@ def test_generic_simple() -> None:
         "required": ["value"],
     }
 
-    # Test with str type parameter
     schema_str = mr.json_schema(Container[str])
-    assert schema_str["title"] == "Container[str]"
-    assert schema_str["properties"]["value"] == {"type": "string"}
+
+    assert schema_str == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "Container[str]",
+        "properties": {"value": {"type": "string"}},
+        "required": ["value"],
+    }
 
 
 def test_generic_with_options() -> None:
-    """Test that @options works correctly with generic types"""
-
     @mr.options(naming_case=mr.CAMEL_CASE, description="A generic container")
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class Container(Generic[T]):
@@ -583,8 +617,6 @@ class _GenericOuter(Generic[T]):
 
 
 def test_generic_nested() -> None:
-    """Test nested generic dataclasses"""
-
     schema = mr.json_schema(_GenericOuter[str])
 
     assert schema == {
@@ -605,8 +637,6 @@ def test_generic_nested() -> None:
 
 
 def test_generic_in_parents() -> None:
-    """Test generic type parameters in parent classes"""
-
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class Data(Generic[T]):
         data: T
@@ -622,17 +652,24 @@ def test_generic_in_parents() -> None:
 
     schema = mr.json_schema(Child)
 
-    assert schema["title"] == "Child"
-    assert schema["properties"]["name"] == {"type": "string"}
-    assert schema["properties"]["content"] == {"$ref": "#/$defs/Data[int]"}
-    assert "$defs" in schema
-    assert "Data[int]" in schema["$defs"]
-    assert schema["$defs"]["Data[int]"]["properties"]["data"] == {"type": "integer"}
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "Child",
+        "properties": {"name": {"type": "string"}, "content": {"$ref": "#/$defs/Data[int]"}},
+        "required": ["name", "content"],
+        "$defs": {
+            "Data[int]": {
+                "type": "object",
+                "title": "Data[int]",
+                "properties": {"data": {"type": "integer"}},
+                "required": ["data"],
+            }
+        },
+    }
 
 
 def test_generic_with_multiple_type_vars() -> None:
-    """Test generic with multiple type parameters"""
-
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class Pair(Generic[K, V]):
         key: K

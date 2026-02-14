@@ -5,6 +5,20 @@ use pyo3::types::{PyBool, PyFloat, PyInt, PyString, PyType};
 
 use crate::error::SerializationError;
 
+pub struct RangeBound {
+    pub value: Py<PyAny>,
+    pub error: Py<PyString>,
+}
+
+impl Clone for RangeBound {
+    fn clone(&self) -> Self {
+        Python::attach(|py| Self {
+            value: self.value.clone_ref(py),
+            error: self.error.clone_ref(py),
+        })
+    }
+}
+
 pub fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     static DECIMAL_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     DECIMAL_CLS.import(py, "decimal", "Decimal")
@@ -52,11 +66,16 @@ fn quantize_decimal<'py>(
     value.call_method1(intern!(py, "quantize"), (&exp, rounding.bind(py)))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn load_from_py(
     value: &Bound<'_, PyAny>,
     decimal_places: Option<i32>,
     rounding: Option<&Py<PyAny>>,
     invalid_error: &Py<PyString>,
+    gt: Option<&RangeBound>,
+    gte: Option<&RangeBound>,
+    lt: Option<&RangeBound>,
+    lte: Option<&RangeBound>,
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
 
@@ -71,7 +90,9 @@ pub fn load_from_py(
         let py_decimal = decimal_cls
             .call1((value,))
             .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
-        return finalize_decimal(&py_decimal, decimal_places, rounding, invalid_error);
+        let result = finalize_decimal(&py_decimal, decimal_places, rounding, invalid_error)?;
+        validate_range(result.bind(py), gt, gte, lt, lte)?;
+        return Ok(result);
     }
 
     if value.is_instance_of::<PyString>() {
@@ -85,7 +106,9 @@ pub fn load_from_py(
         if !is_finite {
             return Err(SerializationError::Single(invalid_error.clone_ref(py)));
         }
-        return finalize_decimal(&py_decimal, decimal_places, rounding, invalid_error);
+        let result = finalize_decimal(&py_decimal, decimal_places, rounding, invalid_error)?;
+        validate_range(result.bind(py), gt, gte, lt, lte)?;
+        return Ok(result);
     }
 
     if value.is_instance_of::<PyFloat>() {
@@ -101,17 +124,24 @@ pub fn load_from_py(
         let py_decimal = decimal_cls
             .call1((&s,))
             .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
-        return finalize_decimal(&py_decimal, decimal_places, rounding, invalid_error);
+        let result = finalize_decimal(&py_decimal, decimal_places, rounding, invalid_error)?;
+        validate_range(result.bind(py), gt, gte, lt, lte)?;
+        return Ok(result);
     }
 
     Err(SerializationError::Single(invalid_error.clone_ref(py)))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn dump_to_py(
     value: &Bound<'_, PyAny>,
     decimal_places: Option<i32>,
     rounding: Option<&Py<PyAny>>,
     invalid_error: &Py<PyString>,
+    gt: Option<&RangeBound>,
+    gte: Option<&RangeBound>,
+    lt: Option<&RangeBound>,
+    lte: Option<&RangeBound>,
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
 
@@ -126,6 +156,8 @@ pub fn dump_to_py(
     if !is_finite {
         return Err(SerializationError::Single(invalid_error.clone_ref(py)));
     }
+
+    validate_range(value, gt, gte, lt, lte)?;
 
     let decimal = if let Some(places) = decimal_places {
         if let Some(rounding) = rounding {
@@ -174,6 +206,49 @@ fn finalize_decimal(
         }
         Ok(py_decimal.clone().unbind())
     }
+}
+
+fn validate_range(
+    value: &Bound<'_, PyAny>,
+    gt: Option<&RangeBound>,
+    gte: Option<&RangeBound>,
+    lt: Option<&RangeBound>,
+    lte: Option<&RangeBound>,
+) -> Result<(), SerializationError> {
+    let py = value.py();
+    if let Some(bound) = gt {
+        let ok = value
+            .gt(bound.value.bind(py))
+            .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+        if !ok {
+            return Err(SerializationError::Single(bound.error.clone_ref(py)));
+        }
+    }
+    if let Some(bound) = gte {
+        let ok = value
+            .ge(bound.value.bind(py))
+            .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+        if !ok {
+            return Err(SerializationError::Single(bound.error.clone_ref(py)));
+        }
+    }
+    if let Some(bound) = lt {
+        let ok = value
+            .lt(bound.value.bind(py))
+            .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+        if !ok {
+            return Err(SerializationError::Single(bound.error.clone_ref(py)));
+        }
+    }
+    if let Some(bound) = lte {
+        let ok = value
+            .le(bound.value.bind(py))
+            .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+        if !ok {
+            return Err(SerializationError::Single(bound.error.clone_ref(py)));
+        }
+    }
+    Ok(())
 }
 
 fn is_instance_of_decimal(value: &Bound<'_, PyAny>) -> PyResult<bool> {
