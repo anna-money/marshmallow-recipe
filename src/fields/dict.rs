@@ -4,7 +4,7 @@ use pyo3::types::{PyDict, PyString};
 
 use crate::container::FieldContainer;
 use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
-use crate::utils::{call_validator, new_presized_dict};
+use crate::utils::call_validator;
 
 pub fn load_from_py(
     value: &Bound<'_, PyAny>,
@@ -18,7 +18,7 @@ pub fn load_from_py(
         .cast::<PyDict>()
         .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
 
-    let result = new_presized_dict(py, dict.len());
+    let result = PyDict::new(py);
     let mut errors: Option<Bound<'_, PyDict>> = None;
 
     for (k, v) in dict.iter() {
@@ -72,7 +72,7 @@ pub fn dump_to_py(
         .cast::<PyDict>()
         .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
 
-    let result = new_presized_dict(py, dict.len());
+    let result = PyDict::new(py);
     let mut errors: Option<Bound<'_, PyDict>> = None;
 
     for (k, v) in dict.iter() {
