@@ -8,7 +8,7 @@ name = "_nuked"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.27", features = ["extension-module", "uuid", "chrono"] }
+pyo3 = { version = "0.28", features = ["extension-module", "uuid", "chrono"] }
 smallbitvec = "2.6"
 smallvec = "1.13"
 uuid = { version = "1.11" }

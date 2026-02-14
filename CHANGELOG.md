@@ -1,3 +1,8 @@
+## unreleased
+
+* [Upgrade PyO3 from 0.27 to 0.28](https://github.com/anna-money/marshmallow-recipe/pull/254)
+
+
 ## v0.0.75 (2026-02-13)
 
 * [Rust extension to speedup serialization](https://github.com/anna-money/marshmallow-recipe/pull/211)

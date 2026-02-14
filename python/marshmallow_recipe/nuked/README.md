@@ -229,25 +229,13 @@ fn get_quantize_exp(py: Python<'_>, places: u32) -> PyResult<Bound<'_, PyAny>> {
 
 Quantization is done in Python (`Decimal.quantize()`) — Rust handles the caching of the exponent argument. During dump, when no `rounding` mode is specified, Rust validates the precision instead of quantizing: values with more decimal places than allowed are rejected.
 
-### 9. Presized Dicts and Lists
+### 9. Presized Lists
 
-**Problem**: Python dicts resize their hash table as items are added. Lists reallocate on append.
+**Problem**: Lists reallocate on append.
 
 **Solution**: Pre-allocate exact capacity before populating:
 
 ```rust
-const PRESIZED_DICT_THRESHOLD: usize = 5;
-
-pub fn new_presized_dict(py: Python<'_>, size: usize) -> Bound<'_, PyDict> {
-    if size <= PRESIZED_DICT_THRESHOLD {
-        return PyDict::new(py);
-    }
-    unsafe {
-        Bound::from_owned_ptr(py, ffi::_PyDict_NewPresized(size.cast_signed()))
-            .cast_into_unchecked()
-    }
-}
-
 pub fn new_presized_list(py: Python<'_>, size: usize) -> Bound<'_, PyList> {
     unsafe {
         Bound::from_owned_ptr(py, ffi::PyList_New(size.cast_signed()))
@@ -255,8 +243,6 @@ pub fn new_presized_list(py: Python<'_>, size: usize) -> Bound<'_, PyList> {
     }
 }
 ```
-
-Threshold of 5 for dicts: CPython's default dict fits ~5 entries without resizing.
 
 ### 10. Direct PyList_SET_ITEM
 

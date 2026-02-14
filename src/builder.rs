@@ -29,7 +29,7 @@ impl Container {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Copy)]
 pub struct FieldHandle(pub usize);
 
@@ -41,7 +41,7 @@ impl FieldHandle {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Copy)]
 pub struct DataclassHandle(pub usize);
 
@@ -53,7 +53,7 @@ impl DataclassHandle {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Copy)]
 pub struct TypeHandle(pub usize);
 
