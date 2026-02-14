@@ -1,4 +1,4 @@
-## v0.0.76 (2026-02-14)
+## unreleased
 
 * [Upgrade PyO3 from 0.27 to 0.28](https://github.com/anna-money/marshmallow-recipe/pull/254)
 
