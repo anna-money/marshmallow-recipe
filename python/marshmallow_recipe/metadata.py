@@ -99,6 +99,12 @@ def str_metadata(
     none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
+    if min_length is not None and min_length < 0:
+        raise ValueError(f"min_length must be a non-negative integer, got {min_length}")
+    if max_length is not None and max_length < 0:
+        raise ValueError(f"max_length must be a non-negative integer, got {max_length}")
+    if min_length is not None and max_length is not None and min_length > max_length:
+        raise ValueError(f"min_length ({min_length}) must be less than or equal to max_length ({max_length})")
     values = dict[str, Any]()
     if name is not MISSING:
         values.update(name=name)

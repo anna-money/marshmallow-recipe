@@ -1,3 +1,7 @@
+import dataclasses
+import re
+from typing import Any
+
 import marshmallow
 import pytest
 
@@ -10,22 +14,14 @@ from .conftest import (
     WithOptionalStrStripWhitespace,
     WithPostLoadAndStrip,
     WithPostLoadTransform,
-    WithStrAllValidators,
     WithStrDefault,
     WithStrInvalidError,
     WithStripWhitespace,
-    WithStrMaxLength,
-    WithStrMaxLengthCustomError,
-    WithStrMinLength,
-    WithStrMinLengthCustomError,
     WithStrMissing,
     WithStrNoneError,
-    WithStrRegexp,
-    WithStrRegexpCustomError,
     WithStrRequiredError,
     WithStrTwoValidators,
     WithStrValidation,
-    WithStrValidatorsAndStrip,
 )
 
 
@@ -130,71 +126,102 @@ class TestStrDump:
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == {"value": ["Custom invalid message"]}
 
-    def test_min_length_pass(self, impl: Serializer) -> None:
-        obj = WithStrMinLength(value="abc")
-        result = impl.dump(WithStrMinLength, obj)
-        assert result == b'{"value":"abc"}'
+    @pytest.mark.parametrize(
+        ("meta", "value", "expected"),
+        [
+            pytest.param(mr.str_meta(min_length=3), "abc", b'{"value":"abc"}', id="min_length"),
+            pytest.param(mr.str_meta(max_length=5), "hello", b'{"value":"hello"}', id="max_length"),
+            pytest.param(mr.str_meta(regexp=r"^\d+$"), "12345", b'{"value":"12345"}', id="regexp"),
+            pytest.param(
+                mr.str_meta(min_length=2, max_length=10, regexp=r"^[a-z]+$"),
+                "hello",
+                b'{"value":"hello"}',
+                id="combined",
+            ),
+        ],
+    )
+    def test_validator_pass(self, impl: Serializer, meta: dict, value: str, expected: bytes) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: str = dataclasses.field(metadata=meta)
 
-    def test_min_length_fail(self, impl: Serializer) -> None:
-        obj = WithStrMinLength(value="ab")
+        result = impl.dump(DC, DC(value=value))
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("meta", "value", "expected_messages"),
+        [
+            pytest.param(mr.str_meta(min_length=3), "ab", {"value": ["Length must be at least 3."]}, id="min_length"),
+            pytest.param(
+                mr.str_meta(max_length=5), "toolong", {"value": ["Length must be at most 5."]}, id="max_length"
+            ),
+            pytest.param(
+                mr.str_meta(regexp=r"^\d+$"), "abc", {"value": ["String does not match expected pattern."]}, id="regexp"
+            ),
+        ],
+    )
+    def test_validator_fail(self, impl: Serializer, meta: dict, value: str, expected_messages: dict) -> None:
+        if not impl.supports_proper_validation_errors_on_dump:
+            return
+
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: str = dataclasses.field(metadata=meta)
+
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(WithStrMinLength, obj)
-        if impl.supports_proper_validation_errors_on_dump:
-            assert exc.value.messages == {"value": ["Length must be at least 3."]}
+            impl.dump(DC, DC(value=value))
+        assert exc.value.messages == expected_messages
 
-    def test_min_length_custom_error(self, impl: Serializer) -> None:
-        obj = WithStrMinLengthCustomError(value="ab")
+    @pytest.mark.parametrize(
+        ("meta", "value", "expected_messages"),
+        [
+            pytest.param(
+                mr.str_meta(min_length=3, min_length_error="Too short"), "ab", {"value": ["Too short"]}, id="min_length"
+            ),
+            pytest.param(
+                mr.str_meta(max_length=5, max_length_error="Too long"),
+                "toolong",
+                {"value": ["Too long"]},
+                id="max_length",
+            ),
+            pytest.param(
+                mr.str_meta(regexp=r"^\d+$", regexp_error="Must be digits"),
+                "abc",
+                {"value": ["Must be digits"]},
+                id="regexp",
+            ),
+            pytest.param(
+                mr.str_meta(min_length=3, min_length_error="At least {min} chars"),
+                "ab",
+                {"value": ["At least 3 chars"]},
+                id="min_length_interpolated",
+            ),
+            pytest.param(
+                mr.str_meta(max_length=5, max_length_error="At most {max} chars"),
+                "toolong",
+                {"value": ["At most 5 chars"]},
+                id="max_length_interpolated",
+            ),
+        ],
+    )
+    def test_validator_custom_error(self, impl: Serializer, meta: dict, value: str, expected_messages: dict) -> None:
+        if not impl.supports_proper_validation_errors_on_dump:
+            return
+
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: str = dataclasses.field(metadata=meta)
+
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(WithStrMinLengthCustomError, obj)
-        if impl.supports_proper_validation_errors_on_dump:
-            assert exc.value.messages == {"value": ["Too short"]}
-
-    def test_max_length_pass(self, impl: Serializer) -> None:
-        obj = WithStrMaxLength(value="hello")
-        result = impl.dump(WithStrMaxLength, obj)
-        assert result == b'{"value":"hello"}'
-
-    def test_max_length_fail(self, impl: Serializer) -> None:
-        obj = WithStrMaxLength(value="toolong")
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(WithStrMaxLength, obj)
-        if impl.supports_proper_validation_errors_on_dump:
-            assert exc.value.messages == {"value": ["Length must be at most 5."]}
-
-    def test_max_length_custom_error(self, impl: Serializer) -> None:
-        obj = WithStrMaxLengthCustomError(value="toolong")
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(WithStrMaxLengthCustomError, obj)
-        if impl.supports_proper_validation_errors_on_dump:
-            assert exc.value.messages == {"value": ["Too long"]}
-
-    def test_regexp_pass(self, impl: Serializer) -> None:
-        obj = WithStrRegexp(value="12345")
-        result = impl.dump(WithStrRegexp, obj)
-        assert result == b'{"value":"12345"}'
-
-    def test_regexp_fail(self, impl: Serializer) -> None:
-        obj = WithStrRegexp(value="abc")
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(WithStrRegexp, obj)
-        if impl.supports_proper_validation_errors_on_dump:
-            assert exc.value.messages == {"value": ["String does not match expected pattern."]}
-
-    def test_regexp_custom_error(self, impl: Serializer) -> None:
-        obj = WithStrRegexpCustomError(value="abc")
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(WithStrRegexpCustomError, obj)
-        if impl.supports_proper_validation_errors_on_dump:
-            assert exc.value.messages == {"value": ["Must be digits"]}
-
-    def test_combined_validators_pass(self, impl: Serializer) -> None:
-        obj = WithStrAllValidators(value="hello")
-        result = impl.dump(WithStrAllValidators, obj)
-        assert result == b'{"value":"hello"}'
+            impl.dump(DC, DC(value=value))
+        assert exc.value.messages == expected_messages
 
     def test_validators_with_strip(self, impl: Serializer) -> None:
-        obj = WithStrValidatorsAndStrip(value="  hello  ")
-        result = impl.dump(WithStrValidatorsAndStrip, obj)
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: str = dataclasses.field(metadata=mr.str_meta(strip_whitespaces=True, min_length=2, max_length=10))
+
+        result = impl.dump(DC, DC(value="  hello  "))
         assert result == b'{"value":"hello"}'
 
 
@@ -329,87 +356,177 @@ class TestStrLoad:
         result = impl.load(WithStrMissing, data)
         assert result == WithStrMissing(value="hello")
 
-    def test_min_length_pass(self, impl: Serializer) -> None:
-        data = b'{"value":"abc"}'
-        result = impl.load(WithStrMinLength, data)
-        assert result == WithStrMinLength(value="abc")
+    @pytest.mark.parametrize(
+        ("meta", "value"),
+        [
+            pytest.param(mr.str_meta(min_length=3), "abc", id="min_length"),
+            pytest.param(mr.str_meta(max_length=5), "hello", id="max_length"),
+            pytest.param(mr.str_meta(regexp=r"^\d+$"), "12345", id="regexp"),
+            pytest.param(mr.str_meta(min_length=2, max_length=10, regexp=r"^[a-z]+$"), "hello", id="combined"),
+        ],
+    )
+    def test_validator_pass(self, impl: Serializer, meta: dict, value: str) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: str = dataclasses.field(metadata=meta)
 
-    def test_min_length_fail(self, impl: Serializer) -> None:
-        data = b'{"value":"ab"}'
+        data = b'{"value":"' + value.encode() + b'"}'
+        result = impl.load(DC, data)
+        assert result == DC(value=value)
+
+    @pytest.mark.parametrize(
+        ("meta", "value", "expected_messages"),
+        [
+            pytest.param(mr.str_meta(min_length=3), "ab", {"value": ["Length must be at least 3."]}, id="min_length"),
+            pytest.param(
+                mr.str_meta(max_length=5), "toolong", {"value": ["Length must be at most 5."]}, id="max_length"
+            ),
+            pytest.param(
+                mr.str_meta(regexp=r"^\d+$"), "abc", {"value": ["String does not match expected pattern."]}, id="regexp"
+            ),
+        ],
+    )
+    def test_validator_fail(self, impl: Serializer, meta: dict, value: str, expected_messages: dict) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: str = dataclasses.field(metadata=meta)
+
+        data = b'{"value":"' + value.encode() + b'"}'
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithStrMinLength, data)
-        assert exc.value.messages == {"value": ["Length must be at least 3."]}
+            impl.load(DC, data)
+        assert exc.value.messages == expected_messages
 
-    def test_min_length_custom_error(self, impl: Serializer) -> None:
-        data = b'{"value":"ab"}'
+    @pytest.mark.parametrize(
+        ("meta", "value", "expected_messages"),
+        [
+            pytest.param(
+                mr.str_meta(min_length=3, min_length_error="Too short"), "ab", {"value": ["Too short"]}, id="min_length"
+            ),
+            pytest.param(
+                mr.str_meta(max_length=5, max_length_error="Too long"),
+                "toolong",
+                {"value": ["Too long"]},
+                id="max_length",
+            ),
+            pytest.param(
+                mr.str_meta(regexp=r"^\d+$", regexp_error="Must be digits"),
+                "abc",
+                {"value": ["Must be digits"]},
+                id="regexp",
+            ),
+            pytest.param(
+                mr.str_meta(min_length=3, min_length_error="At least {min} chars"),
+                "ab",
+                {"value": ["At least 3 chars"]},
+                id="min_length_interpolated",
+            ),
+            pytest.param(
+                mr.str_meta(max_length=5, max_length_error="At most {max} chars"),
+                "toolong",
+                {"value": ["At most 5 chars"]},
+                id="max_length_interpolated",
+            ),
+        ],
+    )
+    def test_validator_custom_error(self, impl: Serializer, meta: dict, value: str, expected_messages: dict) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: str = dataclasses.field(metadata=meta)
+
+        data = b'{"value":"' + value.encode() + b'"}'
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithStrMinLengthCustomError, data)
-        assert exc.value.messages == {"value": ["Too short"]}
+            impl.load(DC, data)
+        assert exc.value.messages == expected_messages
 
-    def test_max_length_pass(self, impl: Serializer) -> None:
-        data = b'{"value":"hello"}'
-        result = impl.load(WithStrMaxLength, data)
-        assert result == WithStrMaxLength(value="hello")
+    @pytest.mark.parametrize(
+        ("meta", "value", "expected_messages"),
+        [
+            pytest.param(
+                mr.str_meta(min_length=2, max_length=10, regexp=r"^[a-z]+$"),
+                "a",
+                {"value": ["Length must be at least 2."]},
+                id="min_length",
+            ),
+            pytest.param(
+                mr.str_meta(min_length=2, max_length=10, regexp=r"^[a-z]+$"),
+                "abcdefghijk",
+                {"value": ["Length must be at most 10."]},
+                id="max_length",
+            ),
+            pytest.param(
+                mr.str_meta(min_length=2, max_length=10, regexp=r"^[a-z]+$"),
+                "HELLO",
+                {"value": ["String does not match expected pattern."]},
+                id="regexp",
+            ),
+        ],
+    )
+    def test_combined_validators_fail(self, impl: Serializer, meta: dict, value: str, expected_messages: dict) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: str = dataclasses.field(metadata=meta)
 
-    def test_max_length_fail(self, impl: Serializer) -> None:
-        data = b'{"value":"toolong"}'
+        data = b'{"value":"' + value.encode() + b'"}'
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithStrMaxLength, data)
-        assert exc.value.messages == {"value": ["Length must be at most 5."]}
-
-    def test_max_length_custom_error(self, impl: Serializer) -> None:
-        data = b'{"value":"toolong"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithStrMaxLengthCustomError, data)
-        assert exc.value.messages == {"value": ["Too long"]}
-
-    def test_regexp_pass(self, impl: Serializer) -> None:
-        data = b'{"value":"12345"}'
-        result = impl.load(WithStrRegexp, data)
-        assert result == WithStrRegexp(value="12345")
-
-    def test_regexp_fail(self, impl: Serializer) -> None:
-        data = b'{"value":"abc"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithStrRegexp, data)
-        assert exc.value.messages == {"value": ["String does not match expected pattern."]}
-
-    def test_regexp_custom_error(self, impl: Serializer) -> None:
-        data = b'{"value":"abc"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithStrRegexpCustomError, data)
-        assert exc.value.messages == {"value": ["Must be digits"]}
-
-    def test_combined_validators_pass(self, impl: Serializer) -> None:
-        data = b'{"value":"hello"}'
-        result = impl.load(WithStrAllValidators, data)
-        assert result == WithStrAllValidators(value="hello")
-
-    def test_combined_validators_min_length_fail(self, impl: Serializer) -> None:
-        data = b'{"value":"a"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithStrAllValidators, data)
-        assert exc.value.messages == {"value": ["Length must be at least 2."]}
-
-    def test_combined_validators_max_length_fail(self, impl: Serializer) -> None:
-        data = b'{"value":"abcdefghijk"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithStrAllValidators, data)
-        assert exc.value.messages == {"value": ["Length must be at most 10."]}
-
-    def test_combined_validators_regexp_fail(self, impl: Serializer) -> None:
-        data = b'{"value":"HELLO"}'
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithStrAllValidators, data)
-        assert exc.value.messages == {"value": ["String does not match expected pattern."]}
+            impl.load(DC, data)
+        assert exc.value.messages == expected_messages
 
     def test_validators_with_strip_pass(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: str = dataclasses.field(metadata=mr.str_meta(strip_whitespaces=True, min_length=2, max_length=10))
+
         data = b'{"value":"  hello  "}'
-        result = impl.load(WithStrValidatorsAndStrip, data)
-        assert result == WithStrValidatorsAndStrip(value="hello")
+        result = impl.load(DC, data)
+        assert result == DC(value="hello")
 
     def test_validators_with_strip_fail(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: str = dataclasses.field(metadata=mr.str_meta(strip_whitespaces=True, min_length=2, max_length=10))
+
         data = b'{"value":"  a  "}'
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithStrValidatorsAndStrip, data)
+            impl.load(DC, data)
         assert exc.value.messages == {"value": ["Length must be at least 2."]}
+
+
+class TestStrMetadata:
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            pytest.param(
+                {"min_length": -1}, "min_length must be a non-negative integer, got -1", id="negative_min_length"
+            ),
+            pytest.param(
+                {"max_length": -3}, "max_length must be a non-negative integer, got -3", id="negative_max_length"
+            ),
+            pytest.param(
+                {"min_length": 10, "max_length": 5},
+                r"min_length \(10\) must be less than or equal to max_length \(5\)",
+                id="min_greater_than_max",
+            ),
+        ],
+    )
+    def test_invalid_args(self, kwargs: dict, match: str) -> None:
+        with pytest.raises(ValueError, match=match):
+            mr.str_meta(**kwargs)
+
+    def test_invalid_regexp(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class WithInvalidRegexp:
+            value: str = dataclasses.field(metadata=mr.str_meta(regexp="[invalid"))
+
+        with pytest.raises((re.error, ValueError)):
+            impl.load(WithInvalidRegexp, b'{"value":"test"}')
+
+    @pytest.mark.parametrize(
+        "params",
+        [
+            pytest.param({"min_length": 0}, id="zero_min_length"),
+            pytest.param({"max_length": 0}, id="zero_max_length"),
+            pytest.param({"min_length": 5, "max_length": 5}, id="equal_min_max"),
+        ],
+    )
+    def test_valid_args(self, params: dict[str, Any]) -> None:
+        mr.str_meta(**params)
