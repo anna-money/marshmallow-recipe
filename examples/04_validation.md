@@ -38,13 +38,50 @@ user_dict = mr.dump(user)
 loaded_user = mr.load(UserRegistration, user_dict)
 ```
 
-## Regex Validation
+## String Length and Regexp Validation
 
-Pattern matching with `mr.regexp_validate()`:
+Built-in string constraints via `mr.str_meta()`:
 
 ```python
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class ContactInfo:
+    # Username: 3-20 alphanumeric characters
+    username: Annotated[
+        str,
+        mr.str_meta(
+            min_length=3,
+            max_length=20,
+            regexp=r"^[a-zA-Z0-9]+$",
+            regexp_error="Username must be alphanumeric",
+        ),
+    ]
+
+    # Phone: international format
+    phone: Annotated[
+        str,
+        mr.str_meta(regexp=r"^\+?[1-9]\d{1,14}$", regexp_error="Invalid phone number"),
+    ]
+
+    # Bio: max 500 characters with custom error
+    bio: Annotated[
+        str,
+        mr.str_meta(max_length=500, max_length_error="Bio is too long"),
+    ] = ""
+
+
+contact = ContactInfo(
+    username="johndoe",
+    phone="+15551234567",
+)
+```
+
+## Regex Validation with `mr.regexp_validate()`
+
+For use with `mr.meta()` (non-string-specific metadata):
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class LegacyContactInfo:
     # Username: alphanumeric, 3-20 characters
     username: Annotated[
         str,
@@ -63,7 +100,7 @@ class ContactInfo:
     ]
 
 
-contact = ContactInfo(
+contact = LegacyContactInfo(
     username="john_doe",
     phone="+15551234567",
 )

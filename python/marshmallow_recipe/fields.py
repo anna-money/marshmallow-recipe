@@ -17,6 +17,28 @@ from .validation import ValidationFunc, combine_validators
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 
+def _build_str_validate(
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None,
+    *,
+    min_length: int | None,
+    min_length_error: str | None,
+    max_length: int | None,
+    max_length_error: str | None,
+    regexp: str | None,
+    regexp_error: str | None,
+) -> ValidationFunc | collections.abc.Sequence[ValidationFunc] | None:
+    if min_length is not None:
+        error = min_length_error or f"Length must be at least {min_length}."
+        validate = combine_validators(validate, m.validate.Length(min=min_length, error=error))
+    if max_length is not None:
+        error = max_length_error or f"Length must be at most {max_length}."
+        validate = combine_validators(validate, m.validate.Length(max=max_length, error=error))
+    if regexp is not None:
+        error = regexp_error or "String does not match expected pattern."
+        validate = combine_validators(validate, m.validate.Regexp(regex=regexp, error=error))
+    return validate
+
+
 def str_field(
     *,
     required: bool,
@@ -26,12 +48,27 @@ def str_field(
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     strip_whitespaces: bool = False,
     post_load: collections.abc.Callable[[str], str] | None = None,
+    min_length: int | None = None,
+    min_length_error: str | None = None,
+    max_length: int | None = None,
+    max_length_error: str | None = None,
+    regexp: str | None = None,
+    regexp_error: str | None = None,
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
     description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    validate = _build_str_validate(
+        validate,
+        min_length=min_length,
+        min_length_error=min_length_error,
+        max_length=max_length,
+        max_length_error=max_length_error,
+        regexp=regexp,
+        regexp_error=regexp_error,
+    )
     if default is m.missing:
         return StrField(
             allow_none=allow_none,

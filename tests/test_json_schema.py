@@ -647,3 +647,67 @@ def test_generic_with_multiple_type_vars() -> None:
         "properties": {"key": {"type": "string"}, "value": {"type": "integer"}},
         "required": ["key", "value"],
     }
+
+
+def test_str_min_length_schema() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class WithMinLength:
+        value: str = dataclasses.field(metadata=mr.str_meta(min_length=3))
+
+    schema = mr.json_schema(WithMinLength)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "WithMinLength",
+        "properties": {"value": {"type": "string", "minLength": 3}},
+        "required": ["value"],
+    }
+
+
+def test_str_max_length_schema() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class WithMaxLength:
+        value: str = dataclasses.field(metadata=mr.str_meta(max_length=10))
+
+    schema = mr.json_schema(WithMaxLength)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "WithMaxLength",
+        "properties": {"value": {"type": "string", "maxLength": 10}},
+        "required": ["value"],
+    }
+
+
+def test_str_regexp_schema() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class WithRegexp:
+        value: str = dataclasses.field(metadata=mr.str_meta(regexp=r"^\d+$"))
+
+    schema = mr.json_schema(WithRegexp)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "WithRegexp",
+        "properties": {"value": {"type": "string", "pattern": r"^\d+$"}},
+        "required": ["value"],
+    }
+
+
+def test_str_all_validators_schema() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class WithAllStr:
+        value: str = dataclasses.field(metadata=mr.str_meta(min_length=2, max_length=10, regexp=r"^[a-z]+$"))
+
+    schema = mr.json_schema(WithAllStr)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "WithAllStr",
+        "properties": {"value": {"type": "string", "minLength": 2, "maxLength": 10, "pattern": r"^[a-z]+$"}},
+        "required": ["value"],
+    }

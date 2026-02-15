@@ -80,6 +80,24 @@ class ListStrData500:
     values: list[str]
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class StrRegexpLambda:
+    s1: Annotated[str, mr.meta(validate=mr.regexp_validate(r"^\d+$"))]
+    s2: Annotated[str, mr.meta(validate=mr.regexp_validate(r"^\d+$"))]
+    s3: Annotated[str, mr.meta(validate=mr.regexp_validate(r"^\d+$"))]
+    s4: Annotated[str, mr.meta(validate=mr.regexp_validate(r"^\d+$"))]
+    s5: Annotated[str, mr.meta(validate=mr.regexp_validate(r"^\d+$"))]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class StrRegexpBuiltin:
+    s1: Annotated[str, mr.str_meta(regexp=r"^\d+$")]
+    s2: Annotated[str, mr.str_meta(regexp=r"^\d+$")]
+    s3: Annotated[str, mr.str_meta(regexp=r"^\d+$")]
+    s4: Annotated[str, mr.str_meta(regexp=r"^\d+$")]
+    s5: Annotated[str, mr.str_meta(regexp=r"^\d+$")]
+
+
 LIST_INT_DATA = ListIntData(values=list(range(50)))
 LIST_STR_DATA = ListStrData(values=[f"value_{i}" for i in range(50)])
 LIST_INT_DATA_500 = ListIntData500(values=list(range(500)))
@@ -122,6 +140,124 @@ def nuked_load_list_int_500() -> ListIntData500:
 
 def nuked_load_list_str_500() -> ListStrData500:
     return mr.nuked.load(ListStrData500, LIST_STR_DATA_500_DICT)
+
+
+STR_REGEXP_LAMBDA = StrRegexpLambda(s1="12345", s2="67890", s3="11111", s4="22222", s5="33333")
+STR_REGEXP_BUILTIN = StrRegexpBuiltin(s1="12345", s2="67890", s3="11111", s4="22222", s5="33333")
+
+
+def marshmallow_dump_str_regexp_lambda() -> dict:
+    return mr.dump(StrRegexpLambda, STR_REGEXP_LAMBDA)
+
+
+def nuked_dump_str_regexp_lambda() -> dict:
+    return mr.nuked.dump(StrRegexpLambda, STR_REGEXP_LAMBDA)
+
+
+def marshmallow_dump_str_regexp_builtin() -> dict:
+    return mr.dump(StrRegexpBuiltin, STR_REGEXP_BUILTIN)
+
+
+def nuked_dump_str_regexp_builtin() -> dict:
+    return mr.nuked.dump(StrRegexpBuiltin, STR_REGEXP_BUILTIN)
+
+
+STR_REGEXP_LAMBDA_DICT = marshmallow_dump_str_regexp_lambda()
+STR_REGEXP_BUILTIN_DICT = marshmallow_dump_str_regexp_builtin()
+
+
+def marshmallow_load_str_regexp_lambda() -> StrRegexpLambda:
+    return mr.load(StrRegexpLambda, STR_REGEXP_LAMBDA_DICT)
+
+
+def nuked_load_str_regexp_lambda() -> StrRegexpLambda:
+    return mr.nuked.load(StrRegexpLambda, STR_REGEXP_LAMBDA_DICT)
+
+
+def marshmallow_load_str_regexp_builtin() -> StrRegexpBuiltin:
+    return mr.load(StrRegexpBuiltin, STR_REGEXP_BUILTIN_DICT)
+
+
+def nuked_load_str_regexp_builtin() -> StrRegexpBuiltin:
+    return mr.nuked.load(StrRegexpBuiltin, STR_REGEXP_BUILTIN_DICT)
+
+
+STR_REGEXP_LAMBDA_LIST = [STR_REGEXP_LAMBDA] * 100
+STR_REGEXP_BUILTIN_LIST = [STR_REGEXP_BUILTIN] * 100
+STR_REGEXP_LAMBDA_LIST_1000 = [STR_REGEXP_LAMBDA] * 1000
+STR_REGEXP_BUILTIN_LIST_1000 = [STR_REGEXP_BUILTIN] * 1000
+
+
+def marshmallow_dump_many_str_regexp_lambda() -> list[dict]:
+    return mr.dump_many(StrRegexpLambda, STR_REGEXP_LAMBDA_LIST)
+
+
+def nuked_dump_many_str_regexp_lambda() -> list[dict]:
+    return mr.nuked.dump(list[StrRegexpLambda], STR_REGEXP_LAMBDA_LIST)
+
+
+def marshmallow_dump_many_str_regexp_builtin() -> list[dict]:
+    return mr.dump_many(StrRegexpBuiltin, STR_REGEXP_BUILTIN_LIST)
+
+
+def nuked_dump_many_str_regexp_builtin() -> list[dict]:
+    return mr.nuked.dump(list[StrRegexpBuiltin], STR_REGEXP_BUILTIN_LIST)
+
+
+STR_REGEXP_LAMBDA_MANY_DICT = marshmallow_dump_many_str_regexp_lambda()
+STR_REGEXP_BUILTIN_MANY_DICT = marshmallow_dump_many_str_regexp_builtin()
+
+
+def marshmallow_load_many_str_regexp_lambda() -> list[StrRegexpLambda]:
+    return mr.load_many(StrRegexpLambda, STR_REGEXP_LAMBDA_MANY_DICT)
+
+
+def nuked_load_many_str_regexp_lambda() -> list[StrRegexpLambda]:
+    return mr.nuked.load(list[StrRegexpLambda], STR_REGEXP_LAMBDA_MANY_DICT)
+
+
+def marshmallow_load_many_str_regexp_builtin() -> list[StrRegexpBuiltin]:
+    return mr.load_many(StrRegexpBuiltin, STR_REGEXP_BUILTIN_MANY_DICT)
+
+
+def nuked_load_many_str_regexp_builtin() -> list[StrRegexpBuiltin]:
+    return mr.nuked.load(list[StrRegexpBuiltin], STR_REGEXP_BUILTIN_MANY_DICT)
+
+
+def marshmallow_dump_many_1000_str_regexp_lambda() -> list[dict]:
+    return mr.dump_many(StrRegexpLambda, STR_REGEXP_LAMBDA_LIST_1000)
+
+
+def nuked_dump_many_1000_str_regexp_lambda() -> list[dict]:
+    return mr.nuked.dump(list[StrRegexpLambda], STR_REGEXP_LAMBDA_LIST_1000)
+
+
+def marshmallow_dump_many_1000_str_regexp_builtin() -> list[dict]:
+    return mr.dump_many(StrRegexpBuiltin, STR_REGEXP_BUILTIN_LIST_1000)
+
+
+def nuked_dump_many_1000_str_regexp_builtin() -> list[dict]:
+    return mr.nuked.dump(list[StrRegexpBuiltin], STR_REGEXP_BUILTIN_LIST_1000)
+
+
+STR_REGEXP_LAMBDA_MANY_1000_DICT = marshmallow_dump_many_1000_str_regexp_lambda()
+STR_REGEXP_BUILTIN_MANY_1000_DICT = marshmallow_dump_many_1000_str_regexp_builtin()
+
+
+def marshmallow_load_many_1000_str_regexp_lambda() -> list[StrRegexpLambda]:
+    return mr.load_many(StrRegexpLambda, STR_REGEXP_LAMBDA_MANY_1000_DICT)
+
+
+def nuked_load_many_1000_str_regexp_lambda() -> list[StrRegexpLambda]:
+    return mr.nuked.load(list[StrRegexpLambda], STR_REGEXP_LAMBDA_MANY_1000_DICT)
+
+
+def marshmallow_load_many_1000_str_regexp_builtin() -> list[StrRegexpBuiltin]:
+    return mr.load_many(StrRegexpBuiltin, STR_REGEXP_BUILTIN_MANY_1000_DICT)
+
+
+def nuked_load_many_1000_str_regexp_builtin() -> list[StrRegexpBuiltin]:
+    return mr.nuked.load(list[StrRegexpBuiltin], STR_REGEXP_BUILTIN_MANY_1000_DICT)
 
 
 FIXED_OFFSET = datetime.timezone(datetime.timedelta(hours=3))
@@ -521,3 +657,30 @@ if __name__ == "__main__":
     runner.bench_func("nuked_load_list_int_500", nuked_load_list_int_500)
     runner.bench_func("nuked_dump_list_str_500", nuked_dump_list_str_500)
     runner.bench_func("nuked_load_list_str_500", nuked_load_list_str_500)
+    # Str regexp validation (lambda vs builtin) - 1 item
+    runner.bench_func("marshmallow_dump_str_regexp_lambda", marshmallow_dump_str_regexp_lambda)
+    runner.bench_func("nuked_dump_str_regexp_lambda", nuked_dump_str_regexp_lambda)
+    runner.bench_func("marshmallow_dump_str_regexp_builtin", marshmallow_dump_str_regexp_builtin)
+    runner.bench_func("nuked_dump_str_regexp_builtin", nuked_dump_str_regexp_builtin)
+    runner.bench_func("marshmallow_load_str_regexp_lambda", marshmallow_load_str_regexp_lambda)
+    runner.bench_func("nuked_load_str_regexp_lambda", nuked_load_str_regexp_lambda)
+    runner.bench_func("marshmallow_load_str_regexp_builtin", marshmallow_load_str_regexp_builtin)
+    runner.bench_func("nuked_load_str_regexp_builtin", nuked_load_str_regexp_builtin)
+    # Str regexp validation - 100 items
+    runner.bench_func("marshmallow_dump_many_str_regexp_lambda", marshmallow_dump_many_str_regexp_lambda)
+    runner.bench_func("nuked_dump_many_str_regexp_lambda", nuked_dump_many_str_regexp_lambda)
+    runner.bench_func("marshmallow_dump_many_str_regexp_builtin", marshmallow_dump_many_str_regexp_builtin)
+    runner.bench_func("nuked_dump_many_str_regexp_builtin", nuked_dump_many_str_regexp_builtin)
+    runner.bench_func("marshmallow_load_many_str_regexp_lambda", marshmallow_load_many_str_regexp_lambda)
+    runner.bench_func("nuked_load_many_str_regexp_lambda", nuked_load_many_str_regexp_lambda)
+    runner.bench_func("marshmallow_load_many_str_regexp_builtin", marshmallow_load_many_str_regexp_builtin)
+    runner.bench_func("nuked_load_many_str_regexp_builtin", nuked_load_many_str_regexp_builtin)
+    # Str regexp validation - 1000 items
+    runner.bench_func("marshmallow_dump_many_1000_str_regexp_lambda", marshmallow_dump_many_1000_str_regexp_lambda)
+    runner.bench_func("nuked_dump_many_1000_str_regexp_lambda", nuked_dump_many_1000_str_regexp_lambda)
+    runner.bench_func("marshmallow_dump_many_1000_str_regexp_builtin", marshmallow_dump_many_1000_str_regexp_builtin)
+    runner.bench_func("nuked_dump_many_1000_str_regexp_builtin", nuked_dump_many_1000_str_regexp_builtin)
+    runner.bench_func("marshmallow_load_many_1000_str_regexp_lambda", marshmallow_load_many_1000_str_regexp_lambda)
+    runner.bench_func("nuked_load_many_1000_str_regexp_lambda", nuked_load_many_1000_str_regexp_lambda)
+    runner.bench_func("marshmallow_load_many_1000_str_regexp_builtin", marshmallow_load_many_1000_str_regexp_builtin)
+    runner.bench_func("nuked_load_many_1000_str_regexp_builtin", nuked_load_many_1000_str_regexp_builtin)
