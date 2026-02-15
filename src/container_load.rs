@@ -53,6 +53,9 @@ impl FieldContainer {
             Self::Str {
                 strip_whitespaces,
                 post_load,
+                min_length,
+                max_length,
+                regexp,
                 ..
             } => {
                 let result = str_type::load_from_py(
@@ -60,6 +63,9 @@ impl FieldContainer {
                     *strip_whitespaces,
                     common.optional,
                     &common.invalid_error,
+                    min_length.as_ref(),
+                    max_length.as_ref(),
+                    regexp.as_ref(),
                 )?;
                 if let Some(post_load_fn) = post_load {
                     post_load_fn
