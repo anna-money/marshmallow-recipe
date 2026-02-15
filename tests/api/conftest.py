@@ -1377,3 +1377,43 @@ class WithListPostLoad:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithUnionDictDataclass:
     value: dict[str, Inner] | str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrMinLength:
+    value: str = dataclasses.field(metadata=mr.str_meta(min_length=3))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrMaxLength:
+    value: str = dataclasses.field(metadata=mr.str_meta(max_length=5))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrRegexp:
+    value: str = dataclasses.field(metadata=mr.str_meta(regexp=r"^\d+$"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrMinLengthCustomError:
+    value: str = dataclasses.field(metadata=mr.str_meta(min_length=3, min_length_error="Too short"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrMaxLengthCustomError:
+    value: str = dataclasses.field(metadata=mr.str_meta(max_length=5, max_length_error="Too long"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrRegexpCustomError:
+    value: str = dataclasses.field(metadata=mr.str_meta(regexp=r"^\d+$", regexp_error="Must be digits"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrAllValidators:
+    value: str = dataclasses.field(metadata=mr.str_meta(min_length=2, max_length=10, regexp=r"^[a-z]+$"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrValidatorsAndStrip:
+    value: str = dataclasses.field(metadata=mr.str_meta(strip_whitespaces=True, min_length=2, max_length=10))

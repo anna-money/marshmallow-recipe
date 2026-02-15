@@ -1,5 +1,6 @@
 ## unreleased
 
+* Add `min_length`, `max_length`, and `regexp` parameters to `str_meta()` for built-in string validation with Rust acceleration
 * [Upgrade PyO3 from 0.27 to 0.28](https://github.com/anna-money/marshmallow-recipe/pull/254)
 
 

@@ -89,6 +89,12 @@ def str_metadata(
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     strip_whitespaces: bool | None = None,
     post_load: collections.abc.Callable[[str], str] | None = None,
+    min_length: int | None = None,
+    min_length_error: str | None = None,
+    max_length: int | None = None,
+    max_length_error: str | None = None,
+    regexp: str | None = None,
+    regexp_error: str | None = None,
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
@@ -104,6 +110,18 @@ def str_metadata(
         values.update(strip_whitespaces=strip_whitespaces)
     if post_load is not None:
         values.update(post_load=post_load)
+    if min_length is not None:
+        values.update(min_length=min_length)
+    if min_length_error is not None:
+        values.update(min_length_error=min_length_error.format(min=min_length))
+    if max_length is not None:
+        values.update(max_length=max_length)
+    if max_length_error is not None:
+        values.update(max_length_error=max_length_error.format(max=max_length))
+    if regexp is not None:
+        values.update(regexp=regexp)
+    if regexp_error is not None:
+        values.update(regexp_error=regexp_error)
     if required_error is not None:
         values.update(required_error=required_error)
     if none_error is not None:

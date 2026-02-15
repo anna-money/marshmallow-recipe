@@ -8,6 +8,7 @@ use crate::container::{
 };
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::parse_datetime_format;
+use crate::fields::str_type::{LengthBound, RegexpBound};
 
 #[pyclass]
 pub struct Container {
@@ -131,6 +132,59 @@ fn extract_optional_isize(kwargs: &Bound<'_, PyAny>, key: &str) -> PyResult<Opti
     Ok(None)
 }
 
+fn extract_optional_usize(kwargs: &Bound<'_, PyAny>, key: &str) -> PyResult<Option<usize>> {
+    if let Ok(value) = kwargs.get_item(key)
+        && !value.is_none()
+    {
+        return Ok(Some(value.extract()?));
+    }
+    Ok(None)
+}
+
+fn extract_length_bound(
+    py: Python<'_>,
+    kwargs: &Bound<'_, PyAny>,
+    value_key: &str,
+    error_key: &str,
+    default_error_prefix: &str,
+) -> PyResult<Option<LengthBound>> {
+    let value = extract_optional_usize(kwargs, value_key)?;
+    match value {
+        Some(v) => {
+            let error = extract_optional_py_string(kwargs, error_key)?.unwrap_or_else(|| {
+                PyString::new(py, &format!("{default_error_prefix}{v}.")).unbind()
+            });
+            Ok(Some(LengthBound { value: v, error }))
+        }
+        None => Ok(None),
+    }
+}
+
+fn extract_regexp_bound(
+    py: Python<'_>,
+    kwargs: &Bound<'_, PyAny>,
+    pattern_key: &str,
+    error_key: &str,
+) -> PyResult<Option<RegexpBound>> {
+    let pattern_str = extract_optional_string(kwargs, pattern_key)?;
+    match pattern_str {
+        Some(s) => {
+            let compiled = regex::Regex::new(&s)
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+            let error = extract_optional_py_string(kwargs, error_key)?.unwrap_or_else(|| {
+                intern!(py, "String does not match expected pattern.")
+                    .clone()
+                    .unbind()
+            });
+            Ok(Some(RegexpBound {
+                pattern: compiled,
+                error,
+            }))
+        }
+        None => Ok(None),
+    }
+}
+
 fn get_kwargs<'py>(py: Python<'py>, kwargs: Option<&Bound<'py, PyAny>>) -> Bound<'py, PyAny> {
     kwargs.cloned().unwrap_or_else(|| py.None().into_bound(py))
 }
@@ -211,6 +265,21 @@ impl ContainerBuilder {
         let kwargs = get_kwargs(py, kwargs);
         let strip_whitespaces = extract_bool(&kwargs, "strip_whitespaces", false)?;
         let post_load = extract_optional_py(&kwargs, "post_load");
+        let min_length = extract_length_bound(
+            py,
+            &kwargs,
+            "min_length",
+            "min_length_error",
+            "Length must be at least ",
+        )?;
+        let max_length = extract_length_bound(
+            py,
+            &kwargs,
+            "max_length",
+            "max_length_error",
+            "Length must be at most ",
+        )?;
+        let regexp = extract_regexp_bound(py, &kwargs, "regexp", "regexp_error")?;
         let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
             .unwrap_or_else(|| intern!(py, "Not a valid string.").clone().unbind());
         let common = build_field_common(optional, &kwargs, invalid_error)?;
@@ -218,6 +287,9 @@ impl ContainerBuilder {
             common,
             strip_whitespaces,
             post_load,
+            min_length,
+            max_length,
+            regexp,
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 

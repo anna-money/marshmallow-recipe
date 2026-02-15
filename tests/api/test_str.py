@@ -10,14 +10,22 @@ from .conftest import (
     WithOptionalStrStripWhitespace,
     WithPostLoadAndStrip,
     WithPostLoadTransform,
+    WithStrAllValidators,
     WithStrDefault,
     WithStrInvalidError,
     WithStripWhitespace,
+    WithStrMaxLength,
+    WithStrMaxLengthCustomError,
+    WithStrMinLength,
+    WithStrMinLengthCustomError,
     WithStrMissing,
     WithStrNoneError,
+    WithStrRegexp,
+    WithStrRegexpCustomError,
     WithStrRequiredError,
     WithStrTwoValidators,
     WithStrValidation,
+    WithStrValidatorsAndStrip,
 )
 
 
@@ -121,6 +129,73 @@ class TestStrDump:
             impl.dump(WithStrInvalidError, obj)
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == {"value": ["Custom invalid message"]}
+
+    def test_min_length_pass(self, impl: Serializer) -> None:
+        obj = WithStrMinLength(value="abc")
+        result = impl.dump(WithStrMinLength, obj)
+        assert result == b'{"value":"abc"}'
+
+    def test_min_length_fail(self, impl: Serializer) -> None:
+        obj = WithStrMinLength(value="ab")
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithStrMinLength, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Length must be at least 3."]}
+
+    def test_min_length_custom_error(self, impl: Serializer) -> None:
+        obj = WithStrMinLengthCustomError(value="ab")
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithStrMinLengthCustomError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Too short"]}
+
+    def test_max_length_pass(self, impl: Serializer) -> None:
+        obj = WithStrMaxLength(value="hello")
+        result = impl.dump(WithStrMaxLength, obj)
+        assert result == b'{"value":"hello"}'
+
+    def test_max_length_fail(self, impl: Serializer) -> None:
+        obj = WithStrMaxLength(value="toolong")
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithStrMaxLength, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Length must be at most 5."]}
+
+    def test_max_length_custom_error(self, impl: Serializer) -> None:
+        obj = WithStrMaxLengthCustomError(value="toolong")
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithStrMaxLengthCustomError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Too long"]}
+
+    def test_regexp_pass(self, impl: Serializer) -> None:
+        obj = WithStrRegexp(value="12345")
+        result = impl.dump(WithStrRegexp, obj)
+        assert result == b'{"value":"12345"}'
+
+    def test_regexp_fail(self, impl: Serializer) -> None:
+        obj = WithStrRegexp(value="abc")
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithStrRegexp, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["String does not match expected pattern."]}
+
+    def test_regexp_custom_error(self, impl: Serializer) -> None:
+        obj = WithStrRegexpCustomError(value="abc")
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithStrRegexpCustomError, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Must be digits"]}
+
+    def test_combined_validators_pass(self, impl: Serializer) -> None:
+        obj = WithStrAllValidators(value="hello")
+        result = impl.dump(WithStrAllValidators, obj)
+        assert result == b'{"value":"hello"}'
+
+    def test_validators_with_strip(self, impl: Serializer) -> None:
+        obj = WithStrValidatorsAndStrip(value="  hello  ")
+        result = impl.dump(WithStrValidatorsAndStrip, obj)
+        assert result == b'{"value":"hello"}'
 
 
 class TestStrLoad:
@@ -253,3 +328,88 @@ class TestStrLoad:
         data = b'{"value":"hello"}'
         result = impl.load(WithStrMissing, data)
         assert result == WithStrMissing(value="hello")
+
+    def test_min_length_pass(self, impl: Serializer) -> None:
+        data = b'{"value":"abc"}'
+        result = impl.load(WithStrMinLength, data)
+        assert result == WithStrMinLength(value="abc")
+
+    def test_min_length_fail(self, impl: Serializer) -> None:
+        data = b'{"value":"ab"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrMinLength, data)
+        assert exc.value.messages == {"value": ["Length must be at least 3."]}
+
+    def test_min_length_custom_error(self, impl: Serializer) -> None:
+        data = b'{"value":"ab"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrMinLengthCustomError, data)
+        assert exc.value.messages == {"value": ["Too short"]}
+
+    def test_max_length_pass(self, impl: Serializer) -> None:
+        data = b'{"value":"hello"}'
+        result = impl.load(WithStrMaxLength, data)
+        assert result == WithStrMaxLength(value="hello")
+
+    def test_max_length_fail(self, impl: Serializer) -> None:
+        data = b'{"value":"toolong"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrMaxLength, data)
+        assert exc.value.messages == {"value": ["Length must be at most 5."]}
+
+    def test_max_length_custom_error(self, impl: Serializer) -> None:
+        data = b'{"value":"toolong"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrMaxLengthCustomError, data)
+        assert exc.value.messages == {"value": ["Too long"]}
+
+    def test_regexp_pass(self, impl: Serializer) -> None:
+        data = b'{"value":"12345"}'
+        result = impl.load(WithStrRegexp, data)
+        assert result == WithStrRegexp(value="12345")
+
+    def test_regexp_fail(self, impl: Serializer) -> None:
+        data = b'{"value":"abc"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrRegexp, data)
+        assert exc.value.messages == {"value": ["String does not match expected pattern."]}
+
+    def test_regexp_custom_error(self, impl: Serializer) -> None:
+        data = b'{"value":"abc"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrRegexpCustomError, data)
+        assert exc.value.messages == {"value": ["Must be digits"]}
+
+    def test_combined_validators_pass(self, impl: Serializer) -> None:
+        data = b'{"value":"hello"}'
+        result = impl.load(WithStrAllValidators, data)
+        assert result == WithStrAllValidators(value="hello")
+
+    def test_combined_validators_min_length_fail(self, impl: Serializer) -> None:
+        data = b'{"value":"a"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrAllValidators, data)
+        assert exc.value.messages == {"value": ["Length must be at least 2."]}
+
+    def test_combined_validators_max_length_fail(self, impl: Serializer) -> None:
+        data = b'{"value":"abcdefghijk"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrAllValidators, data)
+        assert exc.value.messages == {"value": ["Length must be at most 10."]}
+
+    def test_combined_validators_regexp_fail(self, impl: Serializer) -> None:
+        data = b'{"value":"HELLO"}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrAllValidators, data)
+        assert exc.value.messages == {"value": ["String does not match expected pattern."]}
+
+    def test_validators_with_strip_pass(self, impl: Serializer) -> None:
+        data = b'{"value":"  hello  "}'
+        result = impl.load(WithStrValidatorsAndStrip, data)
+        assert result == WithStrValidatorsAndStrip(value="hello")
+
+    def test_validators_with_strip_fail(self, impl: Serializer) -> None:
+        data = b'{"value":"  a  "}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrValidatorsAndStrip, data)
+        assert exc.value.messages == {"value": ["Length must be at least 2."]}
