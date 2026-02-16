@@ -8,6 +8,7 @@ use crate::container::{
 };
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::parse_datetime_format;
+use crate::fields::decimal::{RangeBound, get_decimal_cls};
 
 #[pyclass]
 pub struct Container {
@@ -133,6 +134,35 @@ fn extract_optional_isize(kwargs: &Bound<'_, PyAny>, key: &str) -> PyResult<Opti
 
 fn get_kwargs<'py>(py: Python<'py>, kwargs: Option<&Bound<'py, PyAny>>) -> Bound<'py, PyAny> {
     kwargs.cloned().unwrap_or_else(|| py.None().into_bound(py))
+}
+
+fn extract_range_bound(
+    py: Python<'_>,
+    kwargs: &Bound<'_, PyAny>,
+    bound_key: &str,
+    error_key: &str,
+    default_error_prefix: &str,
+) -> PyResult<Option<RangeBound>> {
+    let bound_value = extract_optional_py(kwargs, bound_key);
+    let Some(bound_value) = bound_value else {
+        return Ok(None);
+    };
+    let decimal_cls = get_decimal_cls(py)?;
+    if !bound_value.bind(py).is_instance(decimal_cls)? {
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+            "{bound_key} must be Decimal"
+        )));
+    }
+    let error = if let Some(custom_error) = extract_optional_py_string(kwargs, error_key)? {
+        custom_error
+    } else {
+        let value_str = bound_value.bind(py).str()?.to_string();
+        PyString::new(py, &format!("{default_error_prefix}{value_str}.")).unbind()
+    };
+    Ok(Some(RangeBound {
+        value: bound_value,
+        error,
+    }))
 }
 
 fn build_field_common(
@@ -310,10 +340,31 @@ impl ContainerBuilder {
             .filter(|&p| p >= 0);
         let rounding = extract_optional_py(&kwargs, "rounding");
 
+        let gt = extract_range_bound(py, &kwargs, "gt", "gt_error", "Must be greater than ")?;
+        let gte = extract_range_bound(
+            py,
+            &kwargs,
+            "gte",
+            "gte_error",
+            "Must be greater than or equal to ",
+        )?;
+        let lt = extract_range_bound(py, &kwargs, "lt", "lt_error", "Must be less than ")?;
+        let lte = extract_range_bound(
+            py,
+            &kwargs,
+            "lte",
+            "lte_error",
+            "Must be less than or equal to ",
+        )?;
+
         let container = FieldContainer::Decimal {
             common,
             decimal_places,
             rounding,
+            gt,
+            gte,
+            lt,
+            lte,
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 

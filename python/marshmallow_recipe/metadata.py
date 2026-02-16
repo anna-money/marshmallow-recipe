@@ -1,8 +1,9 @@
 import collections.abc
+import decimal
 from typing import Any, TypeGuard, final
 
 from .missing import MISSING
-from .utils import validate_datetime_format, validate_decimal_places, validate_decimal_rounding
+from .utils import validate_datetime_format, validate_decimal_bound, validate_decimal_places, validate_decimal_rounding
 from .validation import ValidationFunc
 
 
@@ -119,6 +120,14 @@ def decimal_metadata(
     description: str | None = None,
     places: int | None = MISSING,
     rounding: str | None = None,
+    gt: decimal.Decimal | int | None = None,
+    gt_error: str | None = None,
+    gte: decimal.Decimal | int | None = None,
+    gte_error: str | None = None,
+    lt: decimal.Decimal | int | None = None,
+    lt_error: str | None = None,
+    lte: decimal.Decimal | int | None = None,
+    lte_error: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     required_error: str | None = None,
     none_error: str | None = None,
@@ -126,6 +135,22 @@ def decimal_metadata(
 ) -> Metadata:
     validate_decimal_places(places)
     validate_decimal_rounding(rounding)
+    validate_decimal_bound(gt, "gt")
+    validate_decimal_bound(gte, "gte")
+    validate_decimal_bound(lt, "lt")
+    validate_decimal_bound(lte, "lte")
+    if gt is not None and gte is not None:
+        raise ValueError("gt and gte are mutually exclusive")
+    if lt is not None and lte is not None:
+        raise ValueError("lt and lte are mutually exclusive")
+    lower = gt if gt is not None else gte
+    upper = lt if lt is not None else lte
+    if lower is not None and upper is not None:
+        if gte is not None and lte is not None:
+            if lower > upper:
+                raise ValueError(f"lower bound {lower} must be less than or equal to upper bound {upper}")
+        elif lower >= upper:
+            raise ValueError(f"lower bound {lower} must be less than upper bound {upper}")
     values = dict[str, Any]()
     if name is not MISSING:
         values.update(name=name)
@@ -135,6 +160,26 @@ def decimal_metadata(
         values.update(places=places)
     if rounding is not None:
         values.update(rounding=rounding)
+    gt_value = decimal.Decimal(gt) if isinstance(gt, int) else gt
+    gte_value = decimal.Decimal(gte) if isinstance(gte, int) else gte
+    lt_value = decimal.Decimal(lt) if isinstance(lt, int) else lt
+    lte_value = decimal.Decimal(lte) if isinstance(lte, int) else lte
+    if gt_value is not None:
+        values.update(gt=gt_value)
+    if gt_error is not None:
+        values.update(gt_error=gt_error.format(min=gt_value))
+    if gte_value is not None:
+        values.update(gte=gte_value)
+    if gte_error is not None:
+        values.update(gte_error=gte_error.format(min=gte_value))
+    if lt_value is not None:
+        values.update(lt=lt_value)
+    if lt_error is not None:
+        values.update(lt_error=lt_error.format(max=lt_value))
+    if lte_value is not None:
+        values.update(lte=lte_value)
+    if lte_error is not None:
+        values.update(lte_error=lte_error.format(max=lte_value))
     if validate is not None:
         values.update(validate=validate)
     if required_error is not None:

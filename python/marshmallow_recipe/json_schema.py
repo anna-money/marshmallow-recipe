@@ -213,8 +213,15 @@ def __convert_field_to_json_schema(
         schema["type"] = "string"
         schema["format"] = "uuid"
     elif field_type is decimal.Decimal:
-        # Decimals are always serialized as strings
         schema["type"] = "string"
+        if metadata.get("gt") is not None:
+            schema["exclusiveMinimum"] = str(metadata["gt"])
+        if metadata.get("gte") is not None:
+            schema["minimum"] = str(metadata["gte"])
+        if metadata.get("lt") is not None:
+            schema["exclusiveMaximum"] = str(metadata["lt"])
+        if metadata.get("lte") is not None:
+            schema["maximum"] = str(metadata["lte"])
     else:
         origin = get_origin(field_type)
         if origin is not None:

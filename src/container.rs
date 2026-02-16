@@ -5,6 +5,7 @@ use pyo3::types::PyString;
 
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::DateTimeFormat;
+use crate::fields::decimal::RangeBound;
 
 pub struct FieldCommon {
     pub optional: bool,
@@ -118,6 +119,10 @@ pub enum FieldContainer {
         common: FieldCommon,
         decimal_places: Option<i32>,
         rounding: Option<Py<PyAny>>,
+        gt: Option<RangeBound>,
+        gte: Option<RangeBound>,
+        lt: Option<RangeBound>,
+        lte: Option<RangeBound>,
     },
     Date {
         common: FieldCommon,
@@ -191,10 +196,18 @@ impl Clone for FieldContainer {
                 common,
                 decimal_places,
                 rounding,
+                gt,
+                gte,
+                lt,
+                lte,
             } => Self::Decimal {
                 common: common.clone(),
                 decimal_places: *decimal_places,
                 rounding: rounding.as_ref().map(|r| r.clone_ref(py)),
+                gt: gt.clone(),
+                gte: gte.clone(),
+                lt: lt.clone(),
+                lte: lte.clone(),
             },
             Self::Date { common } => Self::Date {
                 common: common.clone(),

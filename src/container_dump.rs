@@ -33,12 +33,20 @@ impl FieldContainer {
             Self::Decimal {
                 decimal_places,
                 rounding,
+                gt,
+                gte,
+                lt,
+                lte,
                 ..
             } => decimal::dump_to_py(
                 value,
                 *decimal_places,
                 rounding.as_ref(),
                 &common.invalid_error,
+                gt.as_ref(),
+                gte.as_ref(),
+                lt.as_ref(),
+                lte.as_ref(),
             ),
             Self::Date { .. } => date::dump_to_py(value, &common.invalid_error),
             Self::Time { .. } => time::dump_to_py(value, &common.invalid_error),

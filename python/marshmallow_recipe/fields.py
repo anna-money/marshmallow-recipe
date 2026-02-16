@@ -137,6 +137,14 @@ def decimal_field(
     name: str | None = None,
     places: int | None = 2,
     rounding: str | None = None,
+    gt: decimal.Decimal | None = None,
+    gt_error: str | None = None,
+    gte: decimal.Decimal | None = None,
+    gte_error: str | None = None,
+    lt: decimal.Decimal | None = None,
+    lt_error: str | None = None,
+    lte: decimal.Decimal | None = None,
+    lte_error: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     required_error: str | None = None,
     none_error: str | None = None,
@@ -144,6 +152,14 @@ def decimal_field(
     description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    if gt is not None:
+        validate = combine_validators(validate, Range(min=gt, min_inclusive=False, error=gt_error))
+    if gte is not None:
+        validate = combine_validators(validate, Range(min=gte, min_inclusive=True, error=gte_error))
+    if lt is not None:
+        validate = combine_validators(validate, Range(max=lt, max_inclusive=False, error=lt_error))
+    if lte is not None:
+        validate = combine_validators(validate, Range(max=lte, max_inclusive=True, error=lte_error))
     if default is m.missing:
         return DecimalField(
             allow_none=allow_none,
@@ -1326,6 +1342,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 raise self.make_error("invalid")
 
     JsonRawField = JsonRawFieldV3
+
+    Range = m.validate.Range
 else:
 
     def with_type_checks_on_serialize_v2[TField: m.fields.Field](
@@ -1783,3 +1801,46 @@ else:
                 self.fail("invalid")
 
     JsonRawField = JsonRawFieldV2
+
+    class _RangeV2(m.validate.Validator):
+        __slots__ = ("__error", "__max", "__max_inclusive", "__min", "__min_inclusive")
+
+        def __init__(
+            self,
+            min: Any = None,
+            max: Any = None,
+            *,
+            min_inclusive: bool = True,
+            max_inclusive: bool = True,
+            error: str | None = None,
+        ):
+            self.__min = min
+            self.__max = max
+            self.__min_inclusive = min_inclusive
+            self.__max_inclusive = max_inclusive
+            self.__error = error
+
+        @property
+        def min(self) -> Any:
+            return self.__min
+
+        @property
+        def max(self) -> Any:
+            return self.__max
+
+        def __call__(self, value: Any) -> Any:
+            if self.__min is not None:
+                if self.__min_inclusive:
+                    if value < self.__min:
+                        raise m.ValidationError(self.__error or f"Must be greater than or equal to {self.__min}.")
+                elif value <= self.__min:
+                    raise m.ValidationError(self.__error or f"Must be greater than {self.__min}.")
+            if self.__max is not None:
+                if self.__max_inclusive:
+                    if value > self.__max:
+                        raise m.ValidationError(self.__error or f"Must be less than or equal to {self.__max}.")
+                elif value >= self.__max:
+                    raise m.ValidationError(self.__error or f"Must be less than {self.__max}.")
+            return value
+
+    Range = _RangeV2

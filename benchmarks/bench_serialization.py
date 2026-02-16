@@ -80,6 +80,24 @@ class ListStrData500:
     values: list[str]
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class DecimalLambdaValidated:
+    d1: Annotated[decimal.Decimal, mr.meta(validate=lambda x: x > 0)]
+    d2: Annotated[decimal.Decimal, mr.meta(validate=lambda x: x > 0)]
+    d3: Annotated[decimal.Decimal, mr.meta(validate=lambda x: x > 0)]
+    d4: Annotated[decimal.Decimal, mr.meta(validate=lambda x: x > 0)]
+    d5: Annotated[decimal.Decimal, mr.meta(validate=lambda x: x > 0)]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class DecimalRangeValidated:
+    d1: Annotated[decimal.Decimal, mr.decimal_meta(gt=decimal.Decimal("0"))]
+    d2: Annotated[decimal.Decimal, mr.decimal_meta(gt=decimal.Decimal("0"))]
+    d3: Annotated[decimal.Decimal, mr.decimal_meta(gt=decimal.Decimal("0"))]
+    d4: Annotated[decimal.Decimal, mr.decimal_meta(gt=decimal.Decimal("0"))]
+    d5: Annotated[decimal.Decimal, mr.decimal_meta(gt=decimal.Decimal("0"))]
+
+
 LIST_INT_DATA = ListIntData(values=list(range(50)))
 LIST_STR_DATA = ListStrData(values=[f"value_{i}" for i in range(50)])
 LIST_INT_DATA_500 = ListIntData500(values=list(range(500)))
@@ -122,6 +140,132 @@ def nuked_load_list_int_500() -> ListIntData500:
 
 def nuked_load_list_str_500() -> ListStrData500:
     return mr.nuked.load(ListStrData500, LIST_STR_DATA_500_DICT)
+
+
+DECIMAL_LAMBDA = DecimalLambdaValidated(
+    d1=decimal.Decimal("10.00"), d2=decimal.Decimal("20.00"),
+    d3=decimal.Decimal("30.00"), d4=decimal.Decimal("40.00"),
+    d5=decimal.Decimal("50.00"),
+)
+DECIMAL_RANGE = DecimalRangeValidated(
+    d1=decimal.Decimal("10.00"), d2=decimal.Decimal("20.00"),
+    d3=decimal.Decimal("30.00"), d4=decimal.Decimal("40.00"),
+    d5=decimal.Decimal("50.00"),
+)
+
+
+def marshmallow_dump_decimal_lambda() -> dict:
+    return mr.dump(DecimalLambdaValidated, DECIMAL_LAMBDA)
+
+
+def nuked_dump_decimal_lambda() -> dict:
+    return mr.nuked.dump(DecimalLambdaValidated, DECIMAL_LAMBDA)
+
+
+DECIMAL_LAMBDA_DICT = marshmallow_dump_decimal_lambda()
+DECIMAL_RANGE_DICT = mr.dump(DecimalRangeValidated, DECIMAL_RANGE)
+
+
+def marshmallow_load_decimal_lambda() -> DecimalLambdaValidated:
+    return mr.load(DecimalLambdaValidated, DECIMAL_LAMBDA_DICT)
+
+
+def nuked_load_decimal_lambda() -> DecimalLambdaValidated:
+    return mr.nuked.load(DecimalLambdaValidated, DECIMAL_LAMBDA_DICT)
+
+
+def marshmallow_dump_decimal_range() -> dict:
+    return mr.dump(DecimalRangeValidated, DECIMAL_RANGE)
+
+
+def nuked_dump_decimal_range() -> dict:
+    return mr.nuked.dump(DecimalRangeValidated, DECIMAL_RANGE)
+
+
+def marshmallow_load_decimal_range() -> DecimalRangeValidated:
+    return mr.load(DecimalRangeValidated, DECIMAL_RANGE_DICT)
+
+
+def nuked_load_decimal_range() -> DecimalRangeValidated:
+    return mr.nuked.load(DecimalRangeValidated, DECIMAL_RANGE_DICT)
+
+
+DECIMALS_LAMBDA = [DECIMAL_LAMBDA] * 100
+DECIMALS_RANGE = [DECIMAL_RANGE] * 100
+DECIMALS_LAMBDA_1000 = [DECIMAL_LAMBDA] * 1000
+DECIMALS_RANGE_1000 = [DECIMAL_RANGE] * 1000
+
+
+def marshmallow_dump_many_decimal_lambda() -> list[dict]:
+    return mr.dump_many(DecimalLambdaValidated, DECIMALS_LAMBDA)
+
+
+def nuked_dump_many_decimal_lambda() -> list[dict]:
+    return mr.nuked.dump(list[DecimalLambdaValidated], DECIMALS_LAMBDA)
+
+
+def marshmallow_dump_many_decimal_range() -> list[dict]:
+    return mr.dump_many(DecimalRangeValidated, DECIMALS_RANGE)
+
+
+def nuked_dump_many_decimal_range() -> list[dict]:
+    return mr.nuked.dump(list[DecimalRangeValidated], DECIMALS_RANGE)
+
+
+DECIMALS_LAMBDA_MANY_DICT = marshmallow_dump_many_decimal_lambda()
+DECIMALS_RANGE_MANY_DICT = marshmallow_dump_many_decimal_range()
+
+
+def marshmallow_load_many_decimal_lambda() -> list[DecimalLambdaValidated]:
+    return mr.load_many(DecimalLambdaValidated, DECIMALS_LAMBDA_MANY_DICT)
+
+
+def nuked_load_many_decimal_lambda() -> list[DecimalLambdaValidated]:
+    return mr.nuked.load(list[DecimalLambdaValidated], DECIMALS_LAMBDA_MANY_DICT)
+
+
+def marshmallow_load_many_decimal_range() -> list[DecimalRangeValidated]:
+    return mr.load_many(DecimalRangeValidated, DECIMALS_RANGE_MANY_DICT)
+
+
+def nuked_load_many_decimal_range() -> list[DecimalRangeValidated]:
+    return mr.nuked.load(list[DecimalRangeValidated], DECIMALS_RANGE_MANY_DICT)
+
+
+def marshmallow_dump_many_1000_decimal_lambda() -> list[dict]:
+    return mr.dump_many(DecimalLambdaValidated, DECIMALS_LAMBDA_1000)
+
+
+def nuked_dump_many_1000_decimal_lambda() -> list[dict]:
+    return mr.nuked.dump(list[DecimalLambdaValidated], DECIMALS_LAMBDA_1000)
+
+
+def marshmallow_dump_many_1000_decimal_range() -> list[dict]:
+    return mr.dump_many(DecimalRangeValidated, DECIMALS_RANGE_1000)
+
+
+def nuked_dump_many_1000_decimal_range() -> list[dict]:
+    return mr.nuked.dump(list[DecimalRangeValidated], DECIMALS_RANGE_1000)
+
+
+DECIMALS_LAMBDA_MANY_1000_DICT = marshmallow_dump_many_1000_decimal_lambda()
+DECIMALS_RANGE_MANY_1000_DICT = marshmallow_dump_many_1000_decimal_range()
+
+
+def marshmallow_load_many_1000_decimal_lambda() -> list[DecimalLambdaValidated]:
+    return mr.load_many(DecimalLambdaValidated, DECIMALS_LAMBDA_MANY_1000_DICT)
+
+
+def nuked_load_many_1000_decimal_lambda() -> list[DecimalLambdaValidated]:
+    return mr.nuked.load(list[DecimalLambdaValidated], DECIMALS_LAMBDA_MANY_1000_DICT)
+
+
+def marshmallow_load_many_1000_decimal_range() -> list[DecimalRangeValidated]:
+    return mr.load_many(DecimalRangeValidated, DECIMALS_RANGE_MANY_1000_DICT)
+
+
+def nuked_load_many_1000_decimal_range() -> list[DecimalRangeValidated]:
+    return mr.nuked.load(list[DecimalRangeValidated], DECIMALS_RANGE_MANY_1000_DICT)
 
 
 FIXED_OFFSET = datetime.timezone(datetime.timedelta(hours=3))
@@ -521,3 +665,30 @@ if __name__ == "__main__":
     runner.bench_func("nuked_load_list_int_500", nuked_load_list_int_500)
     runner.bench_func("nuked_dump_list_str_500", nuked_dump_list_str_500)
     runner.bench_func("nuked_load_list_str_500", nuked_load_list_str_500)
+    # Decimal range validation: lambda vs native
+    runner.bench_func("marshmallow_dump_decimal_lambda", marshmallow_dump_decimal_lambda)
+    runner.bench_func("nuked_dump_decimal_lambda", nuked_dump_decimal_lambda)
+    runner.bench_func("marshmallow_load_decimal_lambda", marshmallow_load_decimal_lambda)
+    runner.bench_func("nuked_load_decimal_lambda", nuked_load_decimal_lambda)
+    runner.bench_func("marshmallow_dump_decimal_range", marshmallow_dump_decimal_range)
+    runner.bench_func("nuked_dump_decimal_range", nuked_dump_decimal_range)
+    runner.bench_func("marshmallow_load_decimal_range", marshmallow_load_decimal_range)
+    runner.bench_func("nuked_load_decimal_range", nuked_load_decimal_range)
+    # Decimal range validation: 100 items
+    runner.bench_func("marshmallow_dump_many_decimal_lambda", marshmallow_dump_many_decimal_lambda)
+    runner.bench_func("nuked_dump_many_decimal_lambda", nuked_dump_many_decimal_lambda)
+    runner.bench_func("marshmallow_load_many_decimal_lambda", marshmallow_load_many_decimal_lambda)
+    runner.bench_func("nuked_load_many_decimal_lambda", nuked_load_many_decimal_lambda)
+    runner.bench_func("marshmallow_dump_many_decimal_range", marshmallow_dump_many_decimal_range)
+    runner.bench_func("nuked_dump_many_decimal_range", nuked_dump_many_decimal_range)
+    runner.bench_func("marshmallow_load_many_decimal_range", marshmallow_load_many_decimal_range)
+    runner.bench_func("nuked_load_many_decimal_range", nuked_load_many_decimal_range)
+    # Decimal range validation: 1000 items
+    runner.bench_func("marshmallow_dump_many_1000_decimal_lambda", marshmallow_dump_many_1000_decimal_lambda)
+    runner.bench_func("nuked_dump_many_1000_decimal_lambda", nuked_dump_many_1000_decimal_lambda)
+    runner.bench_func("marshmallow_load_many_1000_decimal_lambda", marshmallow_load_many_1000_decimal_lambda)
+    runner.bench_func("nuked_load_many_1000_decimal_lambda", nuked_load_many_1000_decimal_lambda)
+    runner.bench_func("marshmallow_dump_many_1000_decimal_range", marshmallow_dump_many_1000_decimal_range)
+    runner.bench_func("nuked_dump_many_1000_decimal_range", nuked_dump_many_1000_decimal_range)
+    runner.bench_func("marshmallow_load_many_1000_decimal_range", marshmallow_load_many_1000_decimal_range)
+    runner.bench_func("nuked_load_many_1000_decimal_range", nuked_load_many_1000_decimal_range)
