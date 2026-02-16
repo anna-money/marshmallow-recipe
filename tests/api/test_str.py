@@ -132,6 +132,7 @@ class TestStrDump:
             pytest.param(mr.str_meta(min_length=3), "abc", b'{"value":"abc"}', id="min_length"),
             pytest.param(mr.str_meta(max_length=5), "hello", b'{"value":"hello"}', id="max_length"),
             pytest.param(mr.str_meta(regexp=r"^\d+$"), "12345", b'{"value":"12345"}', id="regexp"),
+            pytest.param(mr.str_meta(regexp=r"\d+"), "123abc", b'{"value":"123abc"}', id="regexp_unanchored_pass"),
             pytest.param(
                 mr.str_meta(min_length=2, max_length=10, regexp=r"^[a-z]+$"),
                 "hello",
@@ -157,6 +158,12 @@ class TestStrDump:
             ),
             pytest.param(
                 mr.str_meta(regexp=r"^\d+$"), "abc", {"value": ["String does not match expected pattern."]}, id="regexp"
+            ),
+            pytest.param(
+                mr.str_meta(regexp=r"\d+"),
+                "abc",
+                {"value": ["String does not match expected pattern."]},
+                id="regexp_unanchored_fail",
             ),
         ],
     )
@@ -362,6 +369,7 @@ class TestStrLoad:
             pytest.param(mr.str_meta(min_length=3), "abc", id="min_length"),
             pytest.param(mr.str_meta(max_length=5), "hello", id="max_length"),
             pytest.param(mr.str_meta(regexp=r"^\d+$"), "12345", id="regexp"),
+            pytest.param(mr.str_meta(regexp=r"\d+"), "123abc", id="regexp_unanchored_pass"),
             pytest.param(mr.str_meta(min_length=2, max_length=10, regexp=r"^[a-z]+$"), "hello", id="combined"),
         ],
     )
@@ -383,6 +391,12 @@ class TestStrLoad:
             ),
             pytest.param(
                 mr.str_meta(regexp=r"^\d+$"), "abc", {"value": ["String does not match expected pattern."]}, id="regexp"
+            ),
+            pytest.param(
+                mr.str_meta(regexp=r"\d+"),
+                "abc",
+                {"value": ["String does not match expected pattern."]},
+                id="regexp_unanchored_fail",
             ),
         ],
     )

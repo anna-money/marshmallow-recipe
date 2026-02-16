@@ -31,6 +31,7 @@ fn call_validator_with_error(
 
 #[allow(clippy::cast_sign_loss)]
 impl FieldContainer {
+    #[allow(clippy::too_many_lines)]
     pub fn load_from_py(&self, value: &Bound<'_, PyAny>) -> Result<Py<PyAny>, SerializationError> {
         let py = value.py();
         let common = self.common();
