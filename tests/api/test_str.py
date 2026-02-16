@@ -153,6 +153,8 @@ class TestStrDump:
                 b'{"value":"hello"}',
                 id="combined",
             ),
+            pytest.param(mr.str_meta(min_length=2), "你好", b'{"value":"\\u4f60\\u597d"}', id="min_length_unicode"),
+            pytest.param(mr.str_meta(max_length=4), "café", b'{"value":"caf\\u00e9"}', id="max_length_unicode"),
         ],
     )
     def test_validator_pass(self, impl: Serializer, meta: dict, value: str, expected: bytes) -> None:
@@ -178,6 +180,12 @@ class TestStrDump:
                 "abc",
                 {"value": ["String does not match expected pattern."]},
                 id="regexp_unanchored_fail",
+            ),
+            pytest.param(
+                mr.str_meta(min_length=3), "你好", {"value": ["Length must be at least 3."]}, id="min_length_unicode"
+            ),
+            pytest.param(
+                mr.str_meta(max_length=3), "café", {"value": ["Length must be at most 3."]}, id="max_length_unicode"
             ),
         ],
     )
@@ -401,6 +409,8 @@ class TestStrLoad:
             pytest.param(mr.str_meta(regexp=r"^\d+$"), "12345", id="regexp"),
             pytest.param(mr.str_meta(regexp=r"\d+"), "123abc", id="regexp_unanchored_pass"),
             pytest.param(mr.str_meta(min_length=2, max_length=10, regexp=r"^[a-z]+$"), "hello", id="combined"),
+            pytest.param(mr.str_meta(min_length=2), "你好", id="min_length_unicode"),
+            pytest.param(mr.str_meta(max_length=4), "café", id="max_length_unicode"),
         ],
     )
     def test_validator_pass(self, impl: Serializer, meta: dict, value: str) -> None:
@@ -427,6 +437,12 @@ class TestStrLoad:
                 "abc",
                 {"value": ["String does not match expected pattern."]},
                 id="regexp_unanchored_fail",
+            ),
+            pytest.param(
+                mr.str_meta(min_length=3), "你好", {"value": ["Length must be at least 3."]}, id="min_length_unicode"
+            ),
+            pytest.param(
+                mr.str_meta(max_length=3), "café", {"value": ["Length must be at most 3."]}, id="max_length_unicode"
             ),
         ],
     )
