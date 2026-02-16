@@ -235,6 +235,7 @@ pub enum FieldContainer {
 }
 
 impl Clone for FieldContainer {
+    #[allow(clippy::too_many_lines)]
     fn clone(&self) -> Self {
         Python::attach(|py| match self {
             Self::Str {
