@@ -2,7 +2,7 @@
 
 * [Upgrade PyO3 from 0.27 to 0.28](https://github.com/anna-money/marshmallow-recipe/pull/254)
 * Add decimal range validators (`gt`, `gte`, `lt`, `lte`) to `decimal_meta` with custom error message support
-* [Add `mr.nuked.schema()` — marshmallow schemas for introspection with delegation of load/dump to rust](https://github.com/anna-money/marshmallow-recipe/pull/257)
+* [Add `mr.nuked.schema()` to build schemas for introspection with delegation of load/dump to rust](https://github.com/anna-money/marshmallow-recipe/pull/257)
 
 
 ## v0.0.75 (2026-02-13)
