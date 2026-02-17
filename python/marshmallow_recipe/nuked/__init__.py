@@ -3,6 +3,7 @@ import dataclasses
 import datetime
 import decimal
 import enum
+import importlib.metadata
 import types
 import uuid
 from collections.abc import Callable, Mapping, Sequence
@@ -11,13 +12,16 @@ from typing import Annotated, Any, ClassVar, NewType, Union, get_args, get_origi
 import marshmallow
 
 from .. import NamingCase, _nuked as nuked  # type: ignore[attr-defined]
+from ..bake import bake_schema
 from ..generics import get_fields_type_map
 from ..hooks import get_pre_loads
 from ..missing import MISSING
 from ..options import NoneValueHandling, try_get_options_for
 from ..utils import validate_decimal_places
 
-__all__ = ("dump", "load")
+__all__ = ("dump", "load", "schema")
+
+_MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 
 def build_combined_validator(validators: list[Callable]) -> Callable[[Any], list[Any] | None]:
@@ -730,3 +734,115 @@ def load[T](cls: type[T], data: Any, *, naming_case: NamingCase | None = None, d
 
     container = _get_container(cls, naming_case, NoneValueHandling.IGNORE, decimal_places)
     return container.load(data)  # type: ignore[return-value]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class _SchemaKey:
+    cls: type
+    many: bool
+    naming_case: NamingCase | None
+    none_value_handling: NoneValueHandling | None
+    decimal_places: int | None
+
+
+_nuked_schemas: dict[_SchemaKey, marshmallow.Schema] = {}
+
+if _MARSHMALLOW_VERSION_MAJOR >= 3:
+
+    def schema(
+        cls: type,
+        /,
+        *,
+        many: bool = False,
+        naming_case: NamingCase | None = None,
+        none_value_handling: NoneValueHandling | None = None,
+        decimal_places: int | None = MISSING,
+    ) -> marshmallow.Schema:
+        validate_decimal_places(decimal_places)
+        key = _SchemaKey(
+            cls=cls,
+            many=many,
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places,
+        )
+        existent = _nuked_schemas.get(key)
+        if existent is not None:
+            return existent
+
+        schema_cls = bake_schema(
+            cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
+        )
+        container = _get_container(
+            cls, naming_case, none_value_handling, decimal_places if decimal_places is not MISSING else None
+        )
+
+        class _NukedSchema(schema_cls):  # type: ignore[misc]
+            __slots__ = ()
+
+            def load(
+                self, data: Any, *, many: bool | None = None, partial: Any = None, unknown: str | None = None
+            ) -> Any:  # type: ignore[override]
+                effective_many = many if many is not None else self.many
+                if effective_many:
+                    return [container.load(item) for item in data]
+                return container.load(data)
+
+            def dump(self, obj: Any, *, many: bool | None = None) -> Any:  # type: ignore[override]
+                effective_many = many if many is not None else self.many
+                if effective_many:
+                    return [container.dump(item) for item in obj]
+                return container.dump(obj)
+
+        new_schema = _NukedSchema(many=many)
+        _nuked_schemas[key] = new_schema
+        return new_schema
+
+else:
+
+    def schema(  # type: ignore[no-redef]
+        cls: type,
+        /,
+        *,
+        many: bool = False,
+        naming_case: NamingCase | None = None,
+        none_value_handling: NoneValueHandling | None = None,
+        decimal_places: int | None = MISSING,
+    ) -> marshmallow.Schema:
+        validate_decimal_places(decimal_places)
+        key = _SchemaKey(
+            cls=cls,
+            many=many,
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places,
+        )
+        existent = _nuked_schemas.get(key)
+        if existent is not None:
+            return existent
+
+        schema_cls = bake_schema(
+            cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
+        )
+        container = _get_container(
+            cls, naming_case, none_value_handling, decimal_places if decimal_places is not MISSING else None
+        )
+
+        class _NukedSchema(schema_cls):  # type: ignore[misc]
+            __slots__ = ()
+
+            def load(self, data: Any, many: bool | None = None, partial: Any = None) -> Any:  # type: ignore[override]
+                effective_many = many if many is not None else self.many
+                if effective_many:
+                    return [container.load(item) for item in data], {}
+                return container.load(data), {}
+
+            def dump(self, obj: Any, many: bool | None = None, **kwargs: Any) -> Any:  # type: ignore[override]
+                effective_many = many if many is not None else self.many
+                if effective_many:
+                    return [container.dump(item) for item in obj], {}
+                return container.dump(obj), {}
+
+        new_schema = _NukedSchema(strict=True, many=many)  # type: ignore[call-arg]
+        _nuked_schemas[key] = new_schema
+        return new_schema
