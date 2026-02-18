@@ -2,6 +2,7 @@
 
 * [Upgrade PyO3 from 0.27 to 0.28](https://github.com/anna-money/marshmallow-recipe/pull/254)
 * Add decimal range validators (`gt`, `gte`, `lt`, `lte`) to `decimal_meta` with custom error message support
+* [Support capitalized True/False strings in bool field loading](https://github.com/anna-money/marshmallow-recipe/pull/258)
 
 
 ## v0.0.75 (2026-02-13)
