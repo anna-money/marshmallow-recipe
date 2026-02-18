@@ -27,8 +27,8 @@ pub fn load_from_py(
             .extract()
             .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
         return match s {
-            "true" => Ok(PyBool::new(py, true).to_owned().into_any().unbind()),
-            "false" => Ok(PyBool::new(py, false).to_owned().into_any().unbind()),
+            "true" | "True" => Ok(PyBool::new(py, true).to_owned().into_any().unbind()),
+            "false" | "False" => Ok(PyBool::new(py, false).to_owned().into_any().unbind()),
             _ => Err(SerializationError::Single(invalid_error.clone_ref(py))),
         };
     }
