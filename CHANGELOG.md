@@ -1,3 +1,8 @@
+## v0.0.77 (2026-02-18)
+
+* [Add musllinux wheel builds for alpine](https://github.com/anna-money/marshmallow-recipe/pull/260)
+
+
 ## v0.0.76 (2026-02-18)
 
 * [Upgrade PyO3 from 0.27 to 0.28](https://github.com/anna-money/marshmallow-recipe/pull/254)
