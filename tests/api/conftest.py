@@ -3,6 +3,7 @@ import dataclasses
 import datetime
 import decimal
 import enum
+import importlib.metadata
 import json
 import uuid
 from collections.abc import Mapping, Sequence
@@ -12,6 +13,8 @@ import marshmallow
 import pytest
 
 import marshmallow_recipe as mr
+
+_MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 
 class Serializer(abc.ABC):
@@ -198,7 +201,89 @@ class NukedSerializer(Serializer):
         )
 
 
-@pytest.fixture(params=[MarshmallowSerializer(), NukedSerializer()], ids=["marshmallow", "nuked"])
+class NukedSchemaSerializer(Serializer):
+    __slots__ = ()
+
+    @property
+    def supports_pre_load(self) -> bool:
+        return False
+
+    @property
+    def supports_cyclic(self) -> bool:
+        return False
+
+    @property
+    def supports_many(self) -> bool:
+        return True
+
+    def dump[T](
+        self,
+        schema_class: type[T],
+        obj: T,
+        naming_case: mr.NamingCase | None = None,
+        none_value_handling: mr.NoneValueHandling | None = None,
+        decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
+    ) -> bytes:
+        s = mr.nuked.schema(
+            schema_class,
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places,
+        )
+        result = s.dump(obj)
+        dumped = result[0] if _MARSHMALLOW_VERSION_MAJOR < 3 else result
+        return json.dumps(dumped, separators=(",", ":")).encode(encoding)
+
+    def dump_many[T](
+        self,
+        schema_class: type[T],
+        objs: list[T],
+        naming_case: mr.NamingCase | None = None,
+        none_value_handling: mr.NoneValueHandling | None = None,
+        decimal_places: int | None = mr.MISSING,
+    ) -> bytes:
+        s = mr.nuked.schema(
+            schema_class,
+            many=True,
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places,
+        )
+        result = s.dump(objs)
+        dumped = result[0] if _MARSHMALLOW_VERSION_MAJOR < 3 else result
+        return json.dumps(dumped, separators=(",", ":")).encode()
+
+    def load[T](
+        self,
+        schema_class: type[T],
+        data: bytes,
+        naming_case: mr.NamingCase | None = None,
+        decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
+    ) -> T:
+        result = mr.nuked.schema(schema_class, naming_case=naming_case, decimal_places=decimal_places).load(
+            json.loads(data.decode(encoding))
+        )
+        return result[0] if _MARSHMALLOW_VERSION_MAJOR < 3 else result  # type: ignore[return-value]
+
+    def load_many[T](
+        self,
+        schema_class: type[T],
+        data: bytes,
+        naming_case: mr.NamingCase | None = None,
+        decimal_places: int | None = mr.MISSING,
+    ) -> list[T]:
+        result = mr.nuked.schema(schema_class, many=True, naming_case=naming_case, decimal_places=decimal_places).load(
+            json.loads(data)
+        )
+        return result[0] if _MARSHMALLOW_VERSION_MAJOR < 3 else result  # type: ignore[return-value]
+
+
+@pytest.fixture(
+    params=[MarshmallowSerializer(), NukedSerializer(), NukedSchemaSerializer()],
+    ids=["marshmallow", "nuked", "nuked_schema"],
+)
 def impl(request: pytest.FixtureRequest) -> Serializer:
     return request.param
 

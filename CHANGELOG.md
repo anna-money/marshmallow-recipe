@@ -4,6 +4,7 @@
 * Add decimal range validators (`gt`, `gte`, `lt`, `lte`) to `decimal_meta` with custom error message support
 * [Support capitalized True/False strings in bool loading](https://github.com/anna-money/marshmallow-recipe/pull/258)
 * [Fix nullable enum field metadata](https://github.com/anna-money/marshmallow-recipe/pull/259)
+* [Add `mr.nuked.schema()` to build schemas for introspection with delegation of load/dump to rust](https://github.com/anna-money/marshmallow-recipe/pull/257)
 
 
 ## v0.0.75 (2026-02-13)

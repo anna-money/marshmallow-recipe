@@ -63,7 +63,13 @@
     "JSON Schema: Decimal representation controlled by metadata - mr.decimal_meta(as_string=True) → string, as_string=False → number",
     "JSON Schema: Decimal range constraints emitted - gt→exclusiveMinimum, gte→minimum, lt→exclusiveMaximum, lte→maximum (values as strings)",
     "JSON Schema: Not cached (unlike mr.schema) - generates fresh dict each call, similar to mr.dump()",
-    "JSON Schema: Override title per call - mr.json_schema(User, title='Custom') overrides @mr.options(title='...')"
+    "JSON Schema: Override title per call - mr.json_schema(User, title='Custom') overrides @mr.options(title='...')",
+    "NUKED SCHEMA: mr.nuked.schema(Class) generates marshmallow Schema for introspection (apispec), delegates load() and dump() to Rust backend — automatic speedup without extra effort",
+    "NUKED SCHEMA: Schema fields available for apispec/OpenAPI, but actual serialization runs through Rust — drop-in replacement for mr.schema() with speedup",
+    "NUKED SCHEMA: Supports many=True — mr.nuked.schema(Class, many=True).load(list_data) for batch loading",
+    "NUKED SCHEMA: Accepts same parameters as mr.schema() — naming_case, none_value_handling, decimal_places",
+    "NUKED SCHEMA: Cached per (cls, many, naming_case, none_value_handling, decimal_places) — same instance returned for same args",
+    "NUKED SCHEMA: Does NOT support pre_load hooks or cyclic references (same limitations as mr.nuked.load())"
   ],
   "previousVersions": []
 }
