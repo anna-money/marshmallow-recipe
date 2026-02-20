@@ -225,12 +225,12 @@ class NukedSchemaSerializer(Serializer):
         s = mr.nuked.schema(
             cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
-        if _MARSHMALLOW_VERSION_MAJOR < 3:
+        if _MARSHMALLOW_VERSION_MAJOR >= 3:
+            result = s.dump(obj)
+        else:
             dumped = s.dump(obj)
             assert isinstance(dumped, marshmallow.MarshalResult)
             result = dumped.data  # type: ignore
-        else:
-            result = s.dump(obj)
 
         return json.dumps(result, separators=(",", ":")).encode(encoding)
 
@@ -250,12 +250,12 @@ class NukedSchemaSerializer(Serializer):
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
         )
-        if _MARSHMALLOW_VERSION_MAJOR < 3:
+        if _MARSHMALLOW_VERSION_MAJOR >= 3:
+            result = s.dump(obj)
+        else:
             dumped = s.dump(obj)
             assert isinstance(dumped, marshmallow.MarshalResult)
             result = dumped.data  # type: ignore
-        else:
-            result = s.dump(obj)
 
         return json.dumps(result, separators=(",", ":")).encode(encoding)
 
@@ -269,12 +269,12 @@ class NukedSchemaSerializer(Serializer):
     ) -> T:
         data_json = json.loads(data.decode(encoding))
         schema = mr.nuked.schema(cls, naming_case=naming_case, decimal_places=decimal_places)
-        if _MARSHMALLOW_VERSION_MAJOR < 3:
+        if _MARSHMALLOW_VERSION_MAJOR >= 3:
+            result = schema.load(data_json)
+        else:
             dumped = schema.load(data_json)
             assert isinstance(dumped, marshmallow.UnmarshalResult)
             result = dumped.data  # type: ignore
-        else:
-            result = schema.load(data_json)
         return result  # type: ignore[return-value]
 
     def load_many[T](
@@ -287,12 +287,12 @@ class NukedSchemaSerializer(Serializer):
     ) -> list[T]:
         data_json = json.loads(data.decode(encoding))
         schema = mr.nuked.schema(cls, many=True, naming_case=naming_case, decimal_places=decimal_places)
-        if _MARSHMALLOW_VERSION_MAJOR < 3:
+        if _MARSHMALLOW_VERSION_MAJOR >= 3:
+            result = schema.load(data_json)
+        else:
             dumped = schema.load(data_json)
             assert isinstance(dumped, marshmallow.UnmarshalResult)
             result = dumped.data  # type: ignore
-        else:
-            result = schema.load(data_json)
         return result  # type: ignore[return-value]
 
 
