@@ -832,17 +832,18 @@ else:
             __slots__ = ()
 
             def load(self, data: Any, many: bool | None = None, partial: Any = None) -> Any:  # type: ignore[override]
-                effective_many = many if many is not None else self.many
-                if effective_many:
-                    return marshmallow.UnmarshalResult([container.load(item) for item in data], {})
-
-                return marshmallow.UnmarshalResult(container.load(data), None)
+                if many if many is not None else self.many:
+                    loaded = [container.load(item) for item in data]
+                else:
+                    loaded = container.load(data)
+                return marshmallow.UnmarshalResult(loaded, None)
 
             def dump(self, obj: Any, many: bool | None = None, **kwargs: Any) -> Any:  # type: ignore[override]
-                effective_many = many if many is not None else self.many
-                if effective_many:
-                    return marshmallow.UnmarshalResult([container.dump(item) for item in obj], {})
-                return marshmallow.UnmarshalResult(container.dump(obj), None)
+                if many if many is not None else self.many:
+                    dumped = [container.dump(item) for item in obj]
+                else:
+                    dumped = container.dump(obj)
+                return marshmallow.UnmarshalResult(dumped, None)
 
         new_schema = _NukedSchema(strict=True, many=many)  # type: ignore[call-arg]
         _nuked_schemas[key] = new_schema
