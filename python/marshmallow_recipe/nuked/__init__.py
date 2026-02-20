@@ -834,14 +834,14 @@ else:
             def load(self, data: Any, many: bool | None = None, partial: Any = None) -> Any:  # type: ignore[override]
                 effective_many = many if many is not None else self.many
                 if effective_many:
-                    return [container.load(item) for item in data], {}
+                    return marshmallow.UnmarshalResult([container.load(item) for item in data], {})
 
                 return marshmallow.UnmarshalResult(container.load(data), None)
 
             def dump(self, obj: Any, many: bool | None = None, **kwargs: Any) -> Any:  # type: ignore[override]
                 effective_many = many if many is not None else self.many
                 if effective_many:
-                    return [container.dump(item) for item in obj], {}
+                    return marshmallow.UnmarshalResult([container.dump(item) for item in obj], {})
                 return marshmallow.UnmarshalResult(container.dump(obj), None)
 
         new_schema = _NukedSchema(strict=True, many=many)  # type: ignore[call-arg]
