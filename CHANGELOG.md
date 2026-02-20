@@ -1,3 +1,8 @@
+## v0.0.78 (2026-02-20)
+
+* [Fix marshmallow 2.x compatibility for nuked schema load/dump](https://github.com/anna-money/marshmallow-recipe/pull/261)
+
+
 ## v0.0.77 (2026-02-18)
 
 * [Add musllinux wheel builds for alpine](https://github.com/anna-money/marshmallow-recipe/pull/260)
