@@ -227,8 +227,7 @@ class NukedSchemaSerializer(Serializer):
         )
         if _MARSHMALLOW_VERSION_MAJOR < 3:
             dumped = s.dump(obj)
-            assert hasattr(dumped, "data")
-            assert hasattr(dumped, "errors")
+            assert isinstance(dumped, marshmallow.MarshalResult)
             result = dumped.data  # type: ignore
         else:
             result = s.dump(obj)
@@ -253,8 +252,7 @@ class NukedSchemaSerializer(Serializer):
         )
         if _MARSHMALLOW_VERSION_MAJOR < 3:
             dumped = s.dump(obj)
-            assert hasattr(dumped, "data")
-            assert hasattr(dumped, "errors")
+            assert isinstance(dumped, marshmallow.MarshalResult)
             result = dumped.data  # type: ignore
         else:
             result = s.dump(obj)
@@ -273,8 +271,7 @@ class NukedSchemaSerializer(Serializer):
         schema = mr.nuked.schema(cls, naming_case=naming_case, decimal_places=decimal_places)
         if _MARSHMALLOW_VERSION_MAJOR < 3:
             dumped = schema.load(data_json)
-            assert hasattr(dumped, "data")
-            assert hasattr(dumped, "errors")
+            assert isinstance(dumped, marshmallow.UnmarshalResult)
             result = dumped.data  # type: ignore
         else:
             result = schema.load(data_json)
@@ -292,8 +289,7 @@ class NukedSchemaSerializer(Serializer):
         schema = mr.nuked.schema(cls, many=True, naming_case=naming_case, decimal_places=decimal_places)
         if _MARSHMALLOW_VERSION_MAJOR < 3:
             dumped = schema.load(data_json)
-            assert hasattr(dumped, "data")
-            assert hasattr(dumped, "errors")
+            assert isinstance(dumped, marshmallow.UnmarshalResult)
             result = dumped.data  # type: ignore
         else:
             result = schema.load(data_json)
