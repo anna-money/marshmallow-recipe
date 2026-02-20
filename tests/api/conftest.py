@@ -44,7 +44,7 @@ class Serializer(abc.ABC):
     @abc.abstractmethod
     def dump[T](
         self,
-        schema_class: type[T],
+        cls: type[T],
         obj: T,
         naming_case: mr.NamingCase | None = None,
         none_value_handling: mr.NoneValueHandling | None = None,
@@ -55,18 +55,19 @@ class Serializer(abc.ABC):
 
     def dump_many[T](
         self,
-        schema_class: type[T],
-        objs: list[T],
+        cls: type[T],
+        obj: list[T],
         naming_case: mr.NamingCase | None = None,
         none_value_handling: mr.NoneValueHandling | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> bytes:
         raise NotImplementedError
 
     @abc.abstractmethod
     def load[T](
         self,
-        schema_class: type[T],
+        cls: type[T],
         data: bytes,
         naming_case: mr.NamingCase | None = None,
         decimal_places: int | None = mr.MISSING,
@@ -76,10 +77,11 @@ class Serializer(abc.ABC):
 
     def load_many[T](
         self,
-        schema_class: type[T],
+        cls: type[T],
         data: bytes,
         naming_case: mr.NamingCase | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> list[T]:
         raise NotImplementedError
 
@@ -101,7 +103,7 @@ class MarshmallowSerializer(Serializer):
 
     def dump[T](
         self,
-        schema_class: type[T],
+        cls: type[T],
         obj: T,
         naming_case: mr.NamingCase | None = None,
         none_value_handling: mr.NoneValueHandling | None = None,
@@ -109,51 +111,45 @@ class MarshmallowSerializer(Serializer):
         encoding: str = "utf-8",
     ) -> bytes:
         result = mr.dump(
-            schema_class,
-            obj,
-            naming_case=naming_case,
-            none_value_handling=none_value_handling,
-            decimal_places=decimal_places,
+            cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
         return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def dump_many[T](
         self,
-        schema_class: type[T],
-        objs: list[T],
+        cls: type[T],
+        obj: list[T],
         naming_case: mr.NamingCase | None = None,
         none_value_handling: mr.NoneValueHandling | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> bytes:
         result = mr.dump_many(
-            schema_class,
-            objs,
-            naming_case=naming_case,
-            none_value_handling=none_value_handling,
-            decimal_places=decimal_places,
+            cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
-        return json.dumps(result, separators=(",", ":")).encode()
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def load[T](
         self,
-        schema_class: type[T],
+        cls: type[T],
         data: bytes,
         naming_case: mr.NamingCase | None = None,
         decimal_places: int | None = mr.MISSING,
         encoding: str = "utf-8",
     ) -> T:
-        return mr.load(
-            schema_class, json.loads(data.decode(encoding)), naming_case=naming_case, decimal_places=decimal_places
-        )
+        data_json = json.loads(data.decode(encoding))
+        return mr.load(cls, data_json, naming_case=naming_case, decimal_places=decimal_places)
 
     def load_many[T](
         self,
-        schema_class: type[T],
+        cls: type[T],
         data: bytes,
         naming_case: mr.NamingCase | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> list[T]:
-        return mr.load_many(schema_class, json.loads(data), naming_case=naming_case, decimal_places=decimal_places)
+        data_json = json.loads(data.decode(encoding))
+        return mr.load_many(cls, data_json, naming_case=naming_case, decimal_places=decimal_places)
 
 
 class NukedSerializer(Serializer):
@@ -169,7 +165,7 @@ class NukedSerializer(Serializer):
 
     def dump[T](
         self,
-        schema_class: type[T],
+        cls: type[T],
         obj: T,
         naming_case: mr.NamingCase | None = None,
         none_value_handling: mr.NoneValueHandling | None = None,
@@ -177,7 +173,7 @@ class NukedSerializer(Serializer):
         encoding: str = "utf-8",
     ) -> bytes:
         result = mr.nuked.dump(
-            schema_class,
+            cls,
             obj,
             naming_case=naming_case,
             none_value_handling=none_value_handling,
@@ -187,15 +183,16 @@ class NukedSerializer(Serializer):
 
     def load[T](
         self,
-        schema_class: type[T],
+        cls: type[T],
         data: bytes,
         naming_case: mr.NamingCase | None = None,
         decimal_places: int | None = mr.MISSING,
         encoding: str = "utf-8",
     ) -> T:
+        data_json = json.loads(data.decode(encoding))
         return mr.nuked.load(
-            schema_class,
-            json.loads(data.decode(encoding)),
+            cls,
+            data_json,
             naming_case=naming_case,
             decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
         )
@@ -218,7 +215,7 @@ class NukedSchemaSerializer(Serializer):
 
     def dump[T](
         self,
-        schema_class: type[T],
+        cls: type[T],
         obj: T,
         naming_case: mr.NamingCase | None = None,
         none_value_handling: mr.NoneValueHandling | None = None,
@@ -226,7 +223,30 @@ class NukedSchemaSerializer(Serializer):
         encoding: str = "utf-8",
     ) -> bytes:
         s = mr.nuked.schema(
-            schema_class,
+            cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
+        )
+        if _MARSHMALLOW_VERSION_MAJOR < 3:
+            dumped = s.dump(obj)
+            assert hasattr(dumped, "data")
+            assert hasattr(dumped, "errors")
+            result = dumped.data  # type: ignore
+        else:
+            result = s.dump(obj)
+
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
+
+    def dump_many[T](
+        self,
+        cls: type[T],
+        obj: list[T],
+        naming_case: mr.NamingCase | None = None,
+        none_value_handling: mr.NoneValueHandling | None = None,
+        decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
+    ) -> bytes:
+        s = mr.nuked.schema(
+            cls,
+            many=True,
             naming_case=naming_case,
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
@@ -241,56 +261,43 @@ class NukedSchemaSerializer(Serializer):
 
         return json.dumps(result, separators=(",", ":")).encode(encoding)
 
-    def dump_many[T](
-        self,
-        schema_class: type[T],
-        objs: list[T],
-        naming_case: mr.NamingCase | None = None,
-        none_value_handling: mr.NoneValueHandling | None = None,
-        decimal_places: int | None = mr.MISSING,
-        encoding: str = "utf-8",
-    ) -> bytes:
-        s = mr.nuked.schema(
-            schema_class,
-            many=True,
-            naming_case=naming_case,
-            none_value_handling=none_value_handling,
-            decimal_places=decimal_places,
-        )
-        if _MARSHMALLOW_VERSION_MAJOR < 3:
-            dumped = s.dump(objs)
-            assert hasattr(dumped, "data")
-            assert hasattr(dumped, "errors")
-            result = dumped.data  # type: ignore
-        else:
-            result = s.dump(objs)
-
-        return json.dumps(result, separators=(",", ":")).encode(encoding)
-
     def load[T](
         self,
-        schema_class: type[T],
+        cls: type[T],
         data: bytes,
         naming_case: mr.NamingCase | None = None,
         decimal_places: int | None = mr.MISSING,
         encoding: str = "utf-8",
     ) -> T:
-        result = mr.nuked.schema(schema_class, naming_case=naming_case, decimal_places=decimal_places).load(
-            json.loads(data.decode(encoding))
-        )
-        return result[0] if _MARSHMALLOW_VERSION_MAJOR < 3 else result  # type: ignore[return-value]
+        data_json = json.loads(data.decode(encoding))
+        schema = mr.nuked.schema(cls, naming_case=naming_case, decimal_places=decimal_places)
+        if _MARSHMALLOW_VERSION_MAJOR < 3:
+            dumped = schema.load(data_json)
+            assert hasattr(dumped, "data")
+            assert hasattr(dumped, "errors")
+            result = dumped.data  # type: ignore
+        else:
+            result = schema.load(data_json)
+        return result  # type: ignore[return-value]
 
     def load_many[T](
         self,
-        schema_class: type[T],
+        cls: type[T],
         data: bytes,
         naming_case: mr.NamingCase | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> list[T]:
-        result = mr.nuked.schema(schema_class, many=True, naming_case=naming_case, decimal_places=decimal_places).load(
-            json.loads(data)
-        )
-        return result[0] if _MARSHMALLOW_VERSION_MAJOR < 3 else result  # type: ignore[return-value]
+        data_json = json.loads(data.decode(encoding))
+        schema = mr.nuked.schema(cls, many=True, naming_case=naming_case, decimal_places=decimal_places)
+        if _MARSHMALLOW_VERSION_MAJOR < 3:
+            dumped = schema.load(data_json)
+            assert hasattr(dumped, "data")
+            assert hasattr(dumped, "errors")
+            result = dumped.data  # type: ignore
+        else:
+            result = schema.load(data_json)
+        return result  # type: ignore[return-value]
 
 
 @pytest.fixture(
