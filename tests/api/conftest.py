@@ -231,9 +231,15 @@ class NukedSchemaSerializer(Serializer):
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
         )
-        result = s.dump(obj)
-        dumped = result[0] if _MARSHMALLOW_VERSION_MAJOR < 3 else result
-        return json.dumps(dumped, separators=(",", ":")).encode(encoding)
+        if _MARSHMALLOW_VERSION_MAJOR < 3:
+            dumped = s.dump(obj)
+            assert hasattr(dumped, "data")
+            assert hasattr(dumped, "errors")
+            result = dumped.data  # type: ignore
+        else:
+            result = s.dump(obj)
+
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def dump_many[T](
         self,
@@ -242,6 +248,7 @@ class NukedSchemaSerializer(Serializer):
         naming_case: mr.NamingCase | None = None,
         none_value_handling: mr.NoneValueHandling | None = None,
         decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
     ) -> bytes:
         s = mr.nuked.schema(
             schema_class,
@@ -250,9 +257,15 @@ class NukedSchemaSerializer(Serializer):
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
         )
-        result = s.dump(objs)
-        dumped = result[0] if _MARSHMALLOW_VERSION_MAJOR < 3 else result
-        return json.dumps(dumped, separators=(",", ":")).encode()
+        if _MARSHMALLOW_VERSION_MAJOR < 3:
+            dumped = s.dump(objs)
+            assert hasattr(dumped, "data")
+            assert hasattr(dumped, "errors")
+            result = dumped.data  # type: ignore
+        else:
+            result = s.dump(objs)
+
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def load[T](
         self,
