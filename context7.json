@@ -69,7 +69,9 @@
     "NUKED SCHEMA: Supports many=True — mr.nuked.schema(Class, many=True).load(list_data) for batch loading",
     "NUKED SCHEMA: Accepts same parameters as mr.schema() — naming_case, none_value_handling, decimal_places",
     "NUKED SCHEMA: Cached per (cls, many, naming_case, none_value_handling, decimal_places) — same instance returned for same args",
-    "NUKED SCHEMA: Does NOT support pre_load hooks or cyclic references (same limitations as mr.nuked.load())"
+    "NUKED SCHEMA: Does NOT support pre_load hooks or cyclic references (same limitations as mr.nuked.load())",
+    "NUKED ROOT COLLECTIONS: mr.nuked.dump(dict[str, T], data) and mr.nuked.load(dict[str, T], data) work with any T — primitives (str, int, float, bool, datetime, date, time, Decimal, UUID), enums, dataclasses, nested collections, optionals, and Any",
+    "NUKED ROOT COLLECTIONS: No dataclass wrapper needed — pass bare dict/list types directly as root type"
   ],
   "previousVersions": []
 }
