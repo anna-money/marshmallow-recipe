@@ -53,6 +53,33 @@ loaded = mr.nuked.load(dict[str, dict[str, int]], dumped)
 assert loaded == nested
 ```
 
+## Non-String Dict Keys
+
+Any primitive type can be used as a dict key. Keys are stringified in JSON and deserialized back on load.
+
+```python
+# dict[int, str]
+data = {1: "first", 2: "second"}
+dumped = mr.nuked.dump(dict[int, str], data)
+# {"1": "first", "2": "second"}
+loaded = mr.nuked.load(dict[int, str], dumped)
+assert loaded == data
+
+# dict[uuid.UUID, str]
+uid = uuid.UUID("550e8400-e29b-41d4-a716-446655440000")
+data = {uid: "user"}
+dumped = mr.nuked.dump(dict[uuid.UUID, str], data)
+loaded = mr.nuked.load(dict[uuid.UUID, str], dumped)
+assert loaded == data
+
+# dict[datetime.date, decimal.Decimal]
+data = {datetime.date(2024, 1, 1): decimal.Decimal("100.00")}
+dumped = mr.nuked.dump(dict[datetime.date, decimal.Decimal], data)
+# {"2024-01-01": "100.00"}
+loaded = mr.nuked.load(dict[datetime.date, decimal.Decimal], dumped)
+assert loaded == data
+```
+
 ## Enums and Dataclasses
 
 ```python

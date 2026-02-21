@@ -176,6 +176,17 @@ def _wrap_metadata_validators(metadata: Metadata) -> Metadata:
     return Metadata({**metadata, "validate": wrap_validators(validate)})
 
 
+_COLLECTION_ORIGINS: set[type] = {list, dict, set, frozenset, tuple, collections.abc.Sequence, collections.abc.Mapping}
+
+
+def _validate_dict_key_type(key_type: TypeLike) -> None:
+    key_origin = get_origin(key_type) or key_type
+    if key_origin in _COLLECTION_ORIGINS:
+        raise TypeError(f"Unsupported dict key type: {key_type}. Collections are not allowed as dict keys.")
+    if inspect.isclass(key_origin) and dataclasses.is_dataclass(key_origin):
+        raise TypeError(f"Unsupported dict key type: {key_type}. Dataclasses are not allowed as dict keys.")
+
+
 def _get_field_for(
     t: TypeLike,
     *,
@@ -341,6 +352,7 @@ def _get_field_for(
             )
 
         if origin is dict or origin is collections.abc.Mapping:
+            _validate_dict_key_type(arguments[0])
             keys_field = (
                 None
                 if arguments[0] is str

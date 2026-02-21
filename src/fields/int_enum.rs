@@ -17,6 +17,15 @@ pub fn load_from_py(
                 return Ok(member.clone_ref(py));
             }
         }
+    } else if let Ok(s) = value.cast::<PyString>()
+        && let Ok(int_val) = s.to_str().unwrap_or("").parse::<i64>()
+    {
+        let int_obj = int_val.into_pyobject(py).unwrap().into_any();
+        for (k, member) in &data.values {
+            if int_obj.eq(k.bind(py)).unwrap_or(false) {
+                return Ok(member.clone_ref(py));
+            }
+        }
     }
 
     Err(SerializationError::Single(invalid_error.clone_ref(py)))
