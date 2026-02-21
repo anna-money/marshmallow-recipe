@@ -416,3 +416,91 @@ class TestDictLoad:
         assert exc.value.messages == {
             "data": {"a": {"value": ["Not a valid integer."]}, "b": {"value": ["Not a valid integer."]}}
         }
+
+
+class TestRootDictDump:
+    @pytest.mark.parametrize(
+        ("schema_type", "obj", "expected"),
+        [
+            (dict[str, str], {"a": "x", "b": "y"}, b'{"a":"x","b":"y"}'),
+            (dict[str, int], {"a": 1, "b": 2}, b'{"a":1,"b":2}'),
+            (dict[str, float], {"a": 1.5, "b": 2.5}, b'{"a":1.5,"b":2.5}'),
+            (dict[str, bool], {"a": True, "b": False}, b'{"a":true,"b":false}'),
+            (dict[str, decimal.Decimal], {"a": decimal.Decimal("1.23")}, b'{"a":"1.23"}'),
+            (
+                dict[str, uuid.UUID],
+                {"a": uuid.UUID("12345678-1234-5678-1234-567812345678")},
+                b'{"a":"12345678-1234-5678-1234-567812345678"}',
+            ),
+            (
+                dict[str, datetime.datetime],
+                {"a": datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)},
+                b'{"a":"2024-01-15T10:30:00+00:00"}',
+            ),
+            (dict[str, datetime.date], {"a": datetime.date(2024, 1, 15)}, b'{"a":"2024-01-15"}'),
+            (dict[str, datetime.time], {"a": datetime.time(10, 30, 0)}, b'{"a":"10:30:00"}'),
+            (dict[str, Status], {"a": Status.ACTIVE, "b": Status.PENDING}, b'{"a":"active","b":"pending"}'),
+            (dict[str, Priority], {"a": Priority.LOW, "b": Priority.HIGH}, b'{"a":1,"b":3}'),
+            (
+                dict[str, Address],
+                {"home": Address(street="Main St", city="NYC", zip_code="10001")},
+                b'{"home":{"street":"Main St","city":"NYC","zip_code":"10001"}}',
+            ),
+            (dict[str, list[int]], {"a": [1, 2], "b": [3, 4]}, b'{"a":[1,2],"b":[3,4]}'),
+            (dict[str, dict[str, int]], {"a": {"x": 1}, "b": {"y": 2}}, b'{"a":{"x":1},"b":{"y":2}}'),
+            (dict[str, int | None], {"a": 1, "b": None}, b'{"a":1,"b":null}'),
+            (dict[str, Any], {"a": 1, "b": "two", "c": None}, b'{"a":1,"b":"two","c":null}'),
+            (dict[str, int], {}, b"{}"),
+        ],
+    )
+    def test_value(self, impl: Serializer, schema_type: type, obj: object, expected: bytes) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.dump(schema_type, obj)
+            return
+        result = impl.dump(schema_type, obj)
+        assert result == expected
+
+
+class TestRootDictLoad:
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "expected"),
+        [
+            (dict[str, str], b'{"a":"x","b":"y"}', {"a": "x", "b": "y"}),
+            (dict[str, int], b'{"a":1,"b":2}', {"a": 1, "b": 2}),
+            (dict[str, float], b'{"a":1.5,"b":2.5}', {"a": 1.5, "b": 2.5}),
+            (dict[str, bool], b'{"a":true,"b":false}', {"a": True, "b": False}),
+            (dict[str, decimal.Decimal], b'{"a":"1.23"}', {"a": decimal.Decimal("1.23")}),
+            (
+                dict[str, uuid.UUID],
+                b'{"a":"12345678-1234-5678-1234-567812345678"}',
+                {"a": uuid.UUID("12345678-1234-5678-1234-567812345678")},
+            ),
+            (
+                dict[str, datetime.datetime],
+                b'{"a":"2024-01-15T10:30:00+00:00"}',
+                {"a": datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)},
+            ),
+            (dict[str, datetime.date], b'{"a":"2024-01-15"}', {"a": datetime.date(2024, 1, 15)}),
+            (dict[str, datetime.time], b'{"a":"10:30:00"}', {"a": datetime.time(10, 30, 0)}),
+            (dict[str, Status], b'{"a":"active","b":"pending"}', {"a": Status.ACTIVE, "b": Status.PENDING}),
+            (dict[str, Priority], b'{"a":1,"b":3}', {"a": Priority.LOW, "b": Priority.HIGH}),
+            (
+                dict[str, Address],
+                b'{"home":{"street":"Main St","city":"NYC","zip_code":"10001"}}',
+                {"home": Address(street="Main St", city="NYC", zip_code="10001")},
+            ),
+            (dict[str, list[int]], b'{"a":[1,2],"b":[3,4]}', {"a": [1, 2], "b": [3, 4]}),
+            (dict[str, dict[str, int]], b'{"a":{"x":1},"b":{"y":2}}', {"a": {"x": 1}, "b": {"y": 2}}),
+            (dict[str, int | None], b'{"a":1,"b":null}', {"a": 1, "b": None}),
+            (dict[str, Any], b'{"a":1,"b":"two","c":null}', {"a": 1, "b": "two", "c": None}),
+            (dict[str, int], b"{}", {}),
+        ],
+    )
+    def test_value(self, impl: Serializer, schema_type: type, data: bytes, expected: object) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.load(schema_type, data)
+            return
+        result = impl.load(schema_type, data)
+        assert result == expected

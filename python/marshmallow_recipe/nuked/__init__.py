@@ -223,7 +223,8 @@ class _BuildContext:
                 opts = _analyze_dataclass_options(cls, naming_case)
                 slots = _analyze_slot_strategy(opts.cls)
                 return self.__build_dataclass_type(cls, naming_case, opts, slots, visited)
-            raise TypeError(f"Unsupported root type: {cls}")
+            field_handle = self.__build_item_field(cls, naming_case, visited)
+            return self.__builder.type_primitive(field_handle)
 
         if origin is list or origin is Sequence:
             item_type = args[0] if args else Any

@@ -1,3 +1,8 @@
+## v0.0.79 (2026-02-21)
+
+* Support primitive types in root-level collections for nuked dump/load (e.g., `dict[str, datetime.datetime]`, `list[int]`)
+
+
 ## v0.0.78 (2026-02-20)
 
 * [Fix marshmallow 2.x compatibility for nuked schema load/dump](https://github.com/anna-money/marshmallow-recipe/pull/261)

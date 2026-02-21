@@ -378,3 +378,91 @@ class TestListLoad:
         data = b'{"items":["hello","world"]}'
         result = impl.load(WithListPostLoad, data)
         assert result == WithListPostLoad(items=["HELLO", "WORLD"])
+
+
+class TestRootListDump:
+    @pytest.mark.parametrize(
+        ("schema_type", "obj", "expected"),
+        [
+            (list[str], ["a", "b"], b'["a","b"]'),
+            (list[int], [1, 2, 3], b"[1,2,3]"),
+            (list[float], [1.5, 2.5], b"[1.5,2.5]"),
+            (list[bool], [True, False], b"[true,false]"),
+            (list[decimal.Decimal], [decimal.Decimal("1.23")], b'["1.23"]'),
+            (
+                list[uuid.UUID],
+                [uuid.UUID("12345678-1234-5678-1234-567812345678")],
+                b'["12345678-1234-5678-1234-567812345678"]',
+            ),
+            (
+                list[datetime.datetime],
+                [datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)],
+                b'["2024-01-15T10:30:00+00:00"]',
+            ),
+            (list[datetime.date], [datetime.date(2024, 1, 15)], b'["2024-01-15"]'),
+            (list[datetime.time], [datetime.time(10, 30, 0)], b'["10:30:00"]'),
+            (list[Status], [Status.ACTIVE, Status.PENDING], b'["active","pending"]'),
+            (list[Priority], [Priority.LOW, Priority.HIGH], b"[1,3]"),
+            (
+                list[Address],
+                [Address(street="Main St", city="NYC", zip_code="10001")],
+                b'[{"street":"Main St","city":"NYC","zip_code":"10001"}]',
+            ),
+            (list[list[int]], [[1, 2], [3, 4]], b"[[1,2],[3,4]]"),
+            (list[dict[str, int]], [{"a": 1}, {"b": 2}], b'[{"a":1},{"b":2}]'),
+            (list[int | None], [1, None, 2], b"[1,null,2]"),
+            (list[Any], [1, "two", None], b'[1,"two",null]'),
+            (list[int], [], b"[]"),
+        ],
+    )
+    def test_value(self, impl: Serializer, schema_type: type, obj: object, expected: bytes) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.dump(schema_type, obj)
+            return
+        result = impl.dump(schema_type, obj)
+        assert result == expected
+
+
+class TestRootListLoad:
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "expected"),
+        [
+            (list[str], b'["a","b"]', ["a", "b"]),
+            (list[int], b"[1,2,3]", [1, 2, 3]),
+            (list[float], b"[1.5,2.5]", [1.5, 2.5]),
+            (list[bool], b"[true,false]", [True, False]),
+            (list[decimal.Decimal], b'["1.23"]', [decimal.Decimal("1.23")]),
+            (
+                list[uuid.UUID],
+                b'["12345678-1234-5678-1234-567812345678"]',
+                [uuid.UUID("12345678-1234-5678-1234-567812345678")],
+            ),
+            (
+                list[datetime.datetime],
+                b'["2024-01-15T10:30:00+00:00"]',
+                [datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)],
+            ),
+            (list[datetime.date], b'["2024-01-15"]', [datetime.date(2024, 1, 15)]),
+            (list[datetime.time], b'["10:30:00"]', [datetime.time(10, 30, 0)]),
+            (list[Status], b'["active","pending"]', [Status.ACTIVE, Status.PENDING]),
+            (list[Priority], b"[1,3]", [Priority.LOW, Priority.HIGH]),
+            (
+                list[Address],
+                b'[{"street":"Main St","city":"NYC","zip_code":"10001"}]',
+                [Address(street="Main St", city="NYC", zip_code="10001")],
+            ),
+            (list[list[int]], b"[[1,2],[3,4]]", [[1, 2], [3, 4]]),
+            (list[dict[str, int]], b'[{"a":1},{"b":2}]', [{"a": 1}, {"b": 2}]),
+            (list[int | None], b"[1,null,2]", [1, None, 2]),
+            (list[Any], b'[1,"two",null]', [1, "two", None]),
+            (list[int], b"[]", []),
+        ],
+    )
+    def test_value(self, impl: Serializer, schema_type: type, data: bytes, expected: object) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.load(schema_type, data)
+            return
+        result = impl.load(schema_type, data)
+        assert result == expected

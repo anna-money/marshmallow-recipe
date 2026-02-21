@@ -38,6 +38,10 @@ class Serializer(abc.ABC):
         return True
 
     @property
+    def supports_root_non_dataclasses(self) -> bool:
+        return False
+
+    @property
     def supports_proper_validation_errors_on_dump(self) -> bool:
         return True
 
@@ -158,6 +162,10 @@ class NukedSerializer(Serializer):
     @property
     def supports_pre_load(self) -> bool:
         return False
+
+    @property
+    def supports_root_non_dataclasses(self) -> bool:
+        return True
 
     @property
     def supports_cyclic(self) -> bool:
