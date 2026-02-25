@@ -167,6 +167,16 @@ class TestOptionsDecimalPlacesDump:
         result = impl.dump(Level1, obj)
         assert result == b'{"level2":{"level3":{"value":"123.4"}}}'
 
+    def test_decimal_places_none_in_options(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        @mr.options(decimal_places=None)
+        class Container:
+            value: decimal.Decimal
+
+        obj = Container(value=decimal.Decimal("1.23456789"))
+        result = impl.dump(Container, obj)
+        assert result == b'{"value":"1.23456789"}'
+
 
 class TestOptionsDecimalPlacesLoad:
     def test_options_decimal_places_negative_raises(self) -> None:
@@ -216,6 +226,16 @@ class TestOptionsDecimalPlacesLoad:
         data = b'{"inner":{"value":"123.456"}}'
         result = impl.load(Outer, data, decimal_places=3)
         assert result == Outer(inner=Inner(value=decimal.Decimal("123.456")))
+
+    def test_decimal_places_none_in_options(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        @mr.options(decimal_places=None)
+        class Container:
+            value: decimal.Decimal
+
+        data = b'{"value":"1.23456789"}'
+        result = impl.load(Container, data)
+        assert result == Container(value=decimal.Decimal("1.23456789"))
 
 
 class TestOptionsNoneValueHandlingDump:
