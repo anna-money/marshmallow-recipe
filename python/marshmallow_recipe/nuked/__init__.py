@@ -117,8 +117,8 @@ class _SlotStrategy:
 def build_container(
     cls: Any, naming_case: NamingCase | None, none_value_handling: NoneValueHandling | None, decimal_places: int | None
 ) -> Any:
-    builder = nuked.ContainerBuilder(decimal_places=decimal_places)
-    ctx = _BuildContext(builder, none_value_handling)
+    builder = nuked.ContainerBuilder(decimal_places=decimal_places if decimal_places is not MISSING else None)
+    ctx = _BuildContext(builder, none_value_handling, decimal_places)
     type_handle = ctx.build_root_type(cls, naming_case, set())
     return builder.build(type_handle)
 
@@ -172,11 +172,11 @@ def _analyze_dataclass_options(cls: Any, naming_case: NamingCase | None) -> _Dat
 
     options = try_get_options_for(origin)
 
-    cls_decimal_places: int | None = None
+    cls_decimal_places: int | None = MISSING
     cls_none_value_handling: NoneValueHandling | None = None
     effective_naming_case = naming_case
     if options:
-        if options.decimal_places is not MISSING and options.decimal_places is not None:
+        if options.decimal_places is not MISSING:
             cls_decimal_places = options.decimal_places
         if options.none_value_handling is not None:
             cls_none_value_handling = options.none_value_handling
@@ -204,11 +204,12 @@ def _analyze_slot_strategy(cls: type) -> _SlotStrategy:
 
 
 class _BuildContext:
-    __slots__ = ("__builder", "__none_value_handling")
+    __slots__ = ("__builder", "__decimal_places", "__none_value_handling")
 
-    def __init__(self, builder: Any, none_value_handling: NoneValueHandling | None) -> None:
+    def __init__(self, builder: Any, none_value_handling: NoneValueHandling | None, decimal_places: int | None) -> None:
         self.__builder = builder
         self.__none_value_handling = none_value_handling
+        self.__decimal_places = decimal_places
 
     def __resolve_ignore_none(self, opts: _DataclassOptions) -> bool:
         effective = self.__none_value_handling or opts.none_value_handling
@@ -304,7 +305,9 @@ class _BuildContext:
                 default_value=default_value,
                 default_factory=default_factory,
                 field_init=field.init,
-                default_decimal_places=opts.decimal_places,
+                default_decimal_places=opts.decimal_places
+                if self.__decimal_places is MISSING
+                else self.__decimal_places,
                 nested_naming_case=naming_case,
                 visited=visited,
             )
@@ -363,7 +366,7 @@ class _BuildContext:
         default_value: Any = dataclasses.MISSING,
         default_factory: Callable[[], Any] | None = None,
         field_init: bool = True,
-        default_decimal_places: int | None = None,
+        default_decimal_places: int | None = MISSING,
         nested_naming_case: NamingCase | None = None,
         visited: set[type] | None = None,
     ) -> tuple[Any, str | None]:
@@ -625,7 +628,7 @@ class _BuildContext:
             if field_metadata.decimal_places_explicitly_set:
                 if field_metadata.decimal_places is not MISSING:
                     kwargs["decimal_places"] = field_metadata.decimal_places
-            elif default_decimal_places is not None:
+            elif default_decimal_places is not MISSING:
                 kwargs["decimal_places"] = default_decimal_places
             if field_metadata.decimal_rounding is not None:
                 kwargs["rounding"] = field_metadata.decimal_rounding
@@ -680,13 +683,29 @@ class _BuildContext:
 
     def __build_item_field(self, field_type: Any, naming_case: NamingCase | None, visited: set[type]) -> Any:
         field_handle, _ = self.__build_field(
-            None, "", field_type, None, naming_case, False, nested_naming_case=naming_case, visited=visited
+            None,
+            "",
+            field_type,
+            None,
+            naming_case,
+            False,
+            default_decimal_places=self.__decimal_places,
+            nested_naming_case=naming_case,
+            visited=visited,
         )
         return field_handle
 
     def __build_value_field(self, field_type: Any, naming_case: NamingCase | None, visited: set[type]) -> Any:
         field_handle, _ = self.__build_field(
-            None, "value", field_type, None, naming_case, False, nested_naming_case=naming_case, visited=visited
+            None,
+            "value",
+            field_type,
+            None,
+            naming_case,
+            False,
+            default_decimal_places=self.__decimal_places,
+            nested_naming_case=naming_case,
+            visited=visited,
         )
         return field_handle
 
@@ -722,7 +741,7 @@ def dump[T](
     *,
     naming_case: NamingCase | None = None,
     none_value_handling: NoneValueHandling | None = None,
-    decimal_places: int | None = None,
+    decimal_places: int | None = MISSING,
 ) -> Any:
     validate_decimal_places(decimal_places)
 
@@ -730,7 +749,9 @@ def dump[T](
     return container.dump(data)
 
 
-def load[T](cls: type[T], data: Any, *, naming_case: NamingCase | None = None, decimal_places: int | None = None) -> T:
+def load[T](
+    cls: type[T], data: Any, *, naming_case: NamingCase | None = None, decimal_places: int | None = MISSING
+) -> T:
     validate_decimal_places(decimal_places)
 
     container = _get_container(cls, naming_case, NoneValueHandling.IGNORE, decimal_places)
@@ -774,9 +795,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         schema_cls = bake_schema(
             cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
-        container = _get_container(
-            cls, naming_case, none_value_handling, decimal_places if decimal_places is not MISSING else None
-        )
+        container = _get_container(cls, naming_case, none_value_handling, decimal_places)
 
         class _NukedSchema(schema_cls):  # type: ignore[misc]
             __slots__ = ()
@@ -823,9 +842,7 @@ else:
         schema_cls = bake_schema(
             cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
-        container = _get_container(
-            cls, naming_case, none_value_handling, decimal_places if decimal_places is not MISSING else None
-        )
+        container = _get_container(cls, naming_case, none_value_handling, decimal_places)
 
         class _NukedSchema(schema_cls):  # type: ignore[misc]
             __slots__ = ()

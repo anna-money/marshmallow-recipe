@@ -181,11 +181,7 @@ class NukedSerializer(Serializer):
         encoding: str = "utf-8",
     ) -> bytes:
         result = mr.nuked.dump(
-            cls,
-            obj,
-            naming_case=naming_case,
-            none_value_handling=none_value_handling,
-            decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
+            cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
         return json.dumps(result, separators=(",", ":")).encode(encoding)
 
@@ -198,12 +194,7 @@ class NukedSerializer(Serializer):
         encoding: str = "utf-8",
     ) -> T:
         data_json = json.loads(data.decode(encoding))
-        return mr.nuked.load(
-            cls,
-            data_json,
-            naming_case=naming_case,
-            decimal_places=decimal_places if decimal_places is not mr.MISSING else None,
-        )
+        return mr.nuked.load(cls, data_json, naming_case=naming_case, decimal_places=decimal_places)
 
 
 class NukedSchemaSerializer(Serializer):

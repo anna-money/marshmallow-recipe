@@ -1276,6 +1276,36 @@ class TestDecimalMetadata:
         with pytest.raises(ValueError, match="gt and gte are mutually exclusive"):
             mr.decimal_meta(gt=0, gte=0)
 
+
+class TestDecimalPlacesNoneDump:
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            (WithDecimal(value=decimal.Decimal("1.234")), b'{"value":"1.234"}'),
+            (WithDecimal(value=decimal.Decimal("1.23456789")), b'{"value":"1.23456789"}'),
+            (WithDecimal(value=decimal.Decimal("100")), b'{"value":"100"}'),
+            (WithDecimal(value=decimal.Decimal("0.001")), b'{"value":"0.001"}'),
+        ],
+    )
+    def test_dump_decimal_places_none(self, impl: Serializer, obj: WithDecimal, expected: bytes) -> None:
+        result = impl.dump(WithDecimal, obj, decimal_places=None)
+        assert result == expected
+
+
+class TestDecimalPlacesNoneLoad:
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            (b'{"value":"1.234"}', WithDecimal(value=decimal.Decimal("1.234"))),
+            (b'{"value":"1.23456789"}', WithDecimal(value=decimal.Decimal("1.23456789"))),
+            (b'{"value":"100"}', WithDecimal(value=decimal.Decimal("100"))),
+            (b'{"value":"0.001"}', WithDecimal(value=decimal.Decimal("0.001"))),
+        ],
+    )
+    def test_load_decimal_places_none(self, impl: Serializer, data: bytes, expected: WithDecimal) -> None:
+        result = impl.load(WithDecimal, data, decimal_places=None)
+        assert result == expected
+
     def test_lt_and_lte_mutually_exclusive(self) -> None:
         with pytest.raises(ValueError, match="lt and lte are mutually exclusive"):
             mr.decimal_meta(lt=100, lte=100)
