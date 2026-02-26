@@ -1,3 +1,8 @@
+## v0.0.80 (2026-02-26)
+
+* [Fix `decimal_places=None` for nuked](https://github.com/anna-money/marshmallow-recipe/pull/264)
+
+
 ## v0.0.79 (2026-02-21)
 
 * Support primitive types in root-level collections for nuked dump/load (e.g., `dict[str, datetime.datetime]`, `list[int]`)
