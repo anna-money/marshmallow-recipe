@@ -122,12 +122,12 @@ impl DataclassContainer {
                     match unsafe { crate::slots::get_slot_value_direct(py, value, offset) } {
                         Some(v) => v,
                         None => value
-                            .getattr(dc_field.name.as_str())
+                            .getattr(dc_field.name_interned.bind(py))
                             .map_err(|e| SerializationError::simple(py, &e.to_string()))?,
                     }
                 }
                 None => value
-                    .getattr(dc_field.name.as_str())
+                    .getattr(dc_field.name_interned.bind(py))
                     .map_err(|e| SerializationError::simple(py, &e.to_string()))?,
             };
 
