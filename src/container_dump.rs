@@ -20,12 +20,19 @@ impl FieldContainer {
         let common = self.common();
         match self {
             Self::Str {
-                strip_whitespaces, ..
+                strip_whitespaces,
+                min_length,
+                max_length,
+                regexp,
+                ..
             } => str_type::dump_to_py(
                 value,
                 *strip_whitespaces,
                 common.optional,
                 &common.invalid_error,
+                min_length.as_ref(),
+                max_length.as_ref(),
+                regexp.as_ref(),
             ),
             Self::Int { .. } => int_type::dump_to_py(value, &common.invalid_error),
             Self::Float { .. } => float_type::dump_to_py(value, &common.invalid_error),

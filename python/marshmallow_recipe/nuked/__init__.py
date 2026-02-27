@@ -98,6 +98,12 @@ class _FieldMetadata:
     decimal_lte_error: str | None = None
     datetime_format: str | None = None
     item_validators: list[Callable] | None = None
+    str_min_length: int | None = None
+    str_min_length_error: str | None = None
+    str_max_length: int | None = None
+    str_max_length_error: str | None = None
+    str_regexp: str | None = None
+    str_regexp_error: str | None = None
 
 
 @dataclasses.dataclass(slots=True, kw_only=True)
@@ -487,6 +493,20 @@ class _BuildContext:
         if validators:
             kwargs["validator"] = build_combined_validator(validators)
 
+        str_min_length: int | None = None
+        str_min_length_error: str | None = None
+        str_max_length: int | None = None
+        str_max_length_error: str | None = None
+        str_regexp: str | None = None
+        str_regexp_error: str | None = None
+        if metadata:
+            str_min_length = metadata.get("min_length")
+            str_min_length_error = metadata.get("min_length_error")
+            str_max_length = metadata.get("max_length")
+            str_max_length_error = metadata.get("max_length_error")
+            str_regexp = metadata.get("regexp")
+            str_regexp_error = metadata.get("regexp_error")
+
         field_metadata = _FieldMetadata(
             strip_whitespaces=strip_whitespaces,
             decimal_places=decimal_places,
@@ -502,6 +522,12 @@ class _BuildContext:
             decimal_lte_error=decimal_lte_error,
             datetime_format=datetime_format,
             item_validators=item_validators,
+            str_min_length=str_min_length,
+            str_min_length_error=str_min_length_error,
+            str_max_length=str_max_length,
+            str_max_length_error=str_max_length_error,
+            str_regexp=str_regexp,
+            str_regexp_error=str_regexp_error,
         )
 
         field_handle = self.__build_field_by_type(
@@ -617,6 +643,18 @@ class _BuildContext:
         if field_type is str:
             if field_metadata.strip_whitespaces:
                 kwargs["strip_whitespaces"] = True
+            if field_metadata.str_min_length is not None:
+                kwargs["min_length"] = field_metadata.str_min_length
+            if field_metadata.str_min_length_error is not None:
+                kwargs["min_length_error"] = field_metadata.str_min_length_error
+            if field_metadata.str_max_length is not None:
+                kwargs["max_length"] = field_metadata.str_max_length
+            if field_metadata.str_max_length_error is not None:
+                kwargs["max_length_error"] = field_metadata.str_max_length_error
+            if field_metadata.str_regexp is not None:
+                kwargs["regexp"] = field_metadata.str_regexp
+            if field_metadata.str_regexp_error is not None:
+                kwargs["regexp_error"] = field_metadata.str_regexp_error
             return self.__builder.str_field(name, optional, **kwargs)
         if field_type is int:
             return self.__builder.int_field(name, optional, **kwargs)
