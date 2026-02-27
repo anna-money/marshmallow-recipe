@@ -1,3 +1,8 @@
+## unreleased
+
+* Bump rust dependencies
+
+
 ## v0.0.80 (2026-02-26)
 
 * [Fix `decimal_places=None` for nuked](https://github.com/anna-money/marshmallow-recipe/pull/264)
