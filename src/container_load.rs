@@ -54,21 +54,13 @@ impl FieldContainer {
                 strip_whitespaces,
                 post_load,
                 ..
-            } => {
-                let result = str_type::load_from_py(
-                    value,
-                    *strip_whitespaces,
-                    common.optional,
-                    &common.invalid_error,
-                )?;
-                if let Some(post_load_fn) = post_load {
-                    post_load_fn
-                        .call1(py, (&result,))
-                        .map_err(|e| SerializationError::simple(py, &e.to_string()))
-                } else {
-                    Ok(result)
-                }
-            }
+            } => str_type::load_from_py(
+                value,
+                *strip_whitespaces,
+                common.optional,
+                &common.invalid_error,
+                post_load.as_ref(),
+            ),
             Self::Int { .. } => int_type::load_from_py(value, &common.invalid_error),
             Self::Float { .. } => float_type::load_from_py(value, &common.invalid_error),
             Self::Bool { .. } => bool_type::load_from_py(value, &common.invalid_error),

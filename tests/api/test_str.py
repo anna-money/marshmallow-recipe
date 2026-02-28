@@ -7,6 +7,7 @@ from .conftest import (
     OptionalValueOf,
     Serializer,
     ValueOf,
+    WithOptionalPostLoadAndStrip,
     WithOptionalStrStripWhitespace,
     WithPostLoadAndStrip,
     WithPostLoadTransform,
@@ -91,6 +92,19 @@ class TestStrDump:
         obj = WithPostLoadAndStrip(value="WORLD")
         result = impl.dump(WithPostLoadAndStrip, obj)
         assert result == b'{"value":"WORLD"}'
+
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            pytest.param(WithOptionalPostLoadAndStrip(value="WORLD"), b'{"value":"WORLD"}', id="value"),
+            pytest.param(WithOptionalPostLoadAndStrip(value=None), b"{}", id="none"),
+        ],
+    )
+    def test_optional_post_load_with_strip(
+        self, impl: Serializer, obj: WithOptionalPostLoadAndStrip, expected: bytes
+    ) -> None:
+        result = impl.dump(WithOptionalPostLoadAndStrip, obj)
+        assert result == expected
 
     def test_missing(self, impl: Serializer) -> None:
         obj = WithStrMissing()
@@ -243,6 +257,22 @@ class TestStrLoad:
         data = b'{"value":"  HELLO  "}'
         result = impl.load(WithPostLoadAndStrip, data)
         assert result == WithPostLoadAndStrip(value="hello")
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b'{"value":"   "}', WithOptionalPostLoadAndStrip(value=None), id="whitespace_only"),
+            pytest.param(
+                b'{"value":"  HELLO  "}', WithOptionalPostLoadAndStrip(value="hello"), id="strip_and_post_load"
+            ),
+            pytest.param(b'{"value":null}', WithOptionalPostLoadAndStrip(value=None), id="null"),
+        ],
+    )
+    def test_optional_post_load_with_strip(
+        self, impl: Serializer, data: bytes, expected: WithOptionalPostLoadAndStrip
+    ) -> None:
+        result = impl.load(WithOptionalPostLoadAndStrip, data)
+        assert result == expected
 
     def test_missing(self, impl: Serializer) -> None:
         data = b"{}"
