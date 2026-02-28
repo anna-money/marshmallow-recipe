@@ -9,6 +9,7 @@ pub fn load_from_py(
     strip_whitespaces: bool,
     allow_none: bool,
     invalid_error: &Py<PyString>,
+    post_load: Option<&Py<PyAny>>,
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
 
@@ -16,7 +17,7 @@ pub fn load_from_py(
         .cast::<PyString>()
         .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
 
-    if strip_whitespaces {
+    let result = if strip_whitespaces {
         let s = py_str
             .to_str()
             .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
@@ -25,13 +26,22 @@ pub fn load_from_py(
             return Ok(py.None());
         }
         if trimmed.len() == s.len() {
-            return Ok(value.clone().unbind());
+            value.clone().unbind()
+        } else {
+            trimmed
+                .into_py_any(py)
+                .map_err(|e| SerializationError::simple(py, &e.to_string()))?
         }
-        trimmed
-            .into_py_any(py)
+    } else {
+        value.clone().unbind()
+    };
+
+    if let Some(post_load_fn) = post_load {
+        post_load_fn
+            .call1(py, (&result,))
             .map_err(|e| SerializationError::simple(py, &e.to_string()))
     } else {
-        Ok(value.clone().unbind())
+        Ok(result)
     }
 }
 

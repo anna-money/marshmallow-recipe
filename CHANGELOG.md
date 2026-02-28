@@ -1,5 +1,6 @@
 ## unreleased
 
+* [Fix `post_load` called on `None` for optional str fields with `strip_whitespaces=True`](https://github.com/anna-money/marshmallow-recipe/pull/270)
 * Bump rust dependencies
 * [Use interned PyString for getattr in dump path](https://github.com/anna-money/marshmallow-recipe/pull/267)
 * [Make data_key and data_key_interned non-optional in DataclassField](https://github.com/anna-money/marshmallow-recipe/pull/268)

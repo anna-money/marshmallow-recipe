@@ -631,6 +631,13 @@ class WithPostLoadAndStrip:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalPostLoadAndStrip:
+    value: str | None = dataclasses.field(
+        default=None, metadata=mr.str_meta(strip_whitespaces=True, post_load=str.lower)
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithDecimalNoPlaces:
     value: decimal.Decimal = dataclasses.field(metadata=mr.decimal_meta(places=None))
 
