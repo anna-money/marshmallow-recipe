@@ -1,4 +1,4 @@
-## unreleased
+## v0.0.81 (2026-02-28)
 
 * [Fix `post_load` called on `None` for optional str fields with `strip_whitespaces=True`](https://github.com/anna-money/marshmallow-recipe/pull/270)
 * Bump rust dependencies
