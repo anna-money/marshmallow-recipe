@@ -10,10 +10,12 @@ pub enum SerializationError {
 }
 
 impl SerializationError {
+    #[cold]
     pub fn simple(py: Python<'_>, msg: &str) -> Self {
         Self::Single(PyString::new(py, msg).unbind())
     }
 
+    #[cold]
     pub fn collect_list(py: Python<'_>, errors: Vec<Self>) -> Self {
         let items: Vec<Py<PyAny>> = errors
             .into_iter()
@@ -22,6 +24,7 @@ impl SerializationError {
         Self::List(PyList::new(py, items).expect("valid items").unbind())
     }
 
+    #[cold]
     pub fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         match self {
             Self::Single(s) => {
@@ -33,6 +36,7 @@ impl SerializationError {
         }
     }
 
+    #[cold]
     pub fn to_validation_err(&self, py: Python<'_>) -> PyErr {
         let cls = get_validation_error_cls(py);
         if let Ok(cls) = cls
@@ -68,6 +72,7 @@ impl std::fmt::Debug for SerializationError {
     }
 }
 
+#[cold]
 pub fn accumulate_error<'py, K: IntoPyObject<'py>>(
     py: Python<'py>,
     errors: &mut Option<Bound<'py, PyDict>>,
@@ -78,11 +83,13 @@ pub fn accumulate_error<'py, K: IntoPyObject<'py>>(
     let _ = err_dict.set_item(key, error.to_py_value(py).unwrap_or_else(|_| py.None()));
 }
 
+#[cold]
 pub fn pyerrors_to_serialization_error(py: Python<'_>, errors: &Py<PyAny>) -> SerializationError {
     let error = pyany_to_serialization_error(py, errors.bind(py));
     maybe_wrap_nested_error(py, error)
 }
 
+#[cold]
 fn pyany_to_serialization_error(py: Python<'_>, value: &Bound<'_, PyAny>) -> SerializationError {
     if let Ok(s) = value.extract::<String>() {
         return SerializationError::simple(py, &s);
@@ -126,6 +133,7 @@ fn pyany_to_serialization_error(py: Python<'_>, value: &Bound<'_, PyAny>) -> Ser
     SerializationError::simple(py, &value.to_string())
 }
 
+#[cold]
 fn maybe_wrap_nested_error(py: Python<'_>, e: SerializationError) -> SerializationError {
     match e {
         SerializationError::Dict(d) => {

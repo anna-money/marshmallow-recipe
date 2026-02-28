@@ -4,6 +4,7 @@
 * Bump rust dependencies
 * [Use interned PyString for getattr in dump path](https://github.com/anna-money/marshmallow-recipe/pull/267)
 * [Make data_key and data_key_interned non-optional in DataclassField](https://github.com/anna-money/marshmallow-recipe/pull/268)
+* Add #[cold] annotations to error-handling functions for better instruction cache locality
 
 
 ## v0.0.80 (2026-02-26)
