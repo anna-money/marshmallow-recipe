@@ -69,8 +69,8 @@ impl TypeHandle {
 struct BuilderField {
     name: String,
     name_interned: Py<PyString>,
-    data_key: Option<String>,
-    data_key_interned: Option<Py<PyString>>,
+    data_key: String,
+    data_key_interned: Py<PyString>,
     slot_offset: Option<isize>,
     field_init: bool,
     container: FieldContainer,
@@ -194,8 +194,9 @@ fn build_builder_field(
     container: FieldContainer,
 ) -> PyResult<BuilderField> {
     let name_interned = PyString::intern(py, name).unbind();
-    let data_key = extract_optional_string(kwargs, "data_key")?;
-    let data_key_interned = data_key.as_ref().map(|k| PyString::intern(py, k).unbind());
+    let data_key_opt = extract_optional_string(kwargs, "data_key")?;
+    let data_key = data_key_opt.unwrap_or_else(|| name.to_string());
+    let data_key_interned = PyString::intern(py, &data_key).unbind();
 
     let slot_offset: Option<isize> =
         extract_optional_isize(kwargs, "slot_offset")?.filter(|&offset: &isize| {
@@ -733,10 +734,7 @@ impl ContainerBuilder {
                 name: builder_field.name.clone(),
                 name_interned: builder_field.name_interned.clone_ref(py),
                 data_key: builder_field.data_key.clone(),
-                data_key_interned: builder_field
-                    .data_key_interned
-                    .as_ref()
-                    .map(|v| v.clone_ref(py)),
+                data_key_interned: builder_field.data_key_interned.clone_ref(py),
                 slot_offset: builder_field.slot_offset,
                 field_init: builder_field.field_init,
                 field: builder_field.container.clone(),
