@@ -26,6 +26,8 @@ from .conftest import (
     WithDictValidation,
 )
 
+_TEST_UUID = uuid.UUID("12345678-1234-5678-1234-567812345678")
+
 
 class TestDictDump:
     @pytest.mark.parametrize(
@@ -62,6 +64,28 @@ class TestDictDump:
                 DictOf[str, datetime.time](data={"a": datetime.time(10, 30, 0)}),
                 b'{"data":{"a":"10:30:00"}}',
             ),
+            (DictOf[int, str], DictOf[int, str](data={1: "a", 2: "b"}), b'{"data":{"1":"a","2":"b"}}'),
+            (DictOf[float, str], DictOf[float, str](data={1.5: "a"}), b'{"data":{"1.5":"a"}}'),
+            (
+                DictOf[uuid.UUID, str],
+                DictOf[uuid.UUID, str](data={_TEST_UUID: "a"}),
+                b'{"data":{"12345678-1234-5678-1234-567812345678":"a"}}',
+            ),
+            (
+                DictOf[datetime.date, str],
+                DictOf[datetime.date, str](data={datetime.date(2024, 1, 15): "a"}),
+                b'{"data":{"2024-01-15":"a"}}',
+            ),
+            (
+                DictOf[datetime.time, str],
+                DictOf[datetime.time, str](data={datetime.time(10, 30): "a"}),
+                b'{"data":{"10:30:00":"a"}}',
+            ),
+            (
+                DictOf[decimal.Decimal, str],
+                DictOf[decimal.Decimal, str](data={decimal.Decimal("1.23"): "a"}),
+                b'{"data":{"1.23":"a"}}',
+            ),
         ],
     )
     def test_value(self, impl: Serializer, schema_type: type, obj: object, expected: bytes) -> None:
@@ -81,6 +105,8 @@ class TestDictDump:
                 DictOf[str, Priority](data={"a": Priority.LOW, "b": Priority.HIGH}),
                 b'{"data":{"a":1,"b":3}}',
             ),
+            (DictOf[Status, str], DictOf[Status, str](data={Status.ACTIVE: "a"}), b'{"data":{"active":"a"}}'),
+            (DictOf[Priority, str], DictOf[Priority, str](data={Priority.LOW: "a"}), b'{"data":{"1":"a"}}'),
         ],
     )
     def test_enum(self, impl: Serializer, schema_type: type, obj: object, expected: bytes) -> None:
@@ -167,6 +193,10 @@ class TestDictDump:
         result = impl.dump(CollectionHolder[dict], obj)
         assert result == b'{"items":{"a":1,"b":"va"}}'
 
+    def test_non_str_key_build_error(self, impl: Serializer) -> None:
+        with pytest.raises((TypeError, NotImplementedError)):
+            impl.dump(DictOf[list[int], str], DictOf[list[int], str](data={1: "a"}))  # type: ignore[arg-type]
+
     @pytest.mark.parametrize(
         "obj",
         [
@@ -249,6 +279,28 @@ class TestDictLoad:
                 b'{"data":{"a":"10:30:00"}}',
                 DictOf[str, datetime.time](data={"a": datetime.time(10, 30, 0)}),
             ),
+            (DictOf[int, str], b'{"data":{"1":"a","2":"b"}}', DictOf[int, str](data={1: "a", 2: "b"})),
+            (DictOf[float, str], b'{"data":{"1.5":"a"}}', DictOf[float, str](data={1.5: "a"})),
+            (
+                DictOf[uuid.UUID, str],
+                b'{"data":{"12345678-1234-5678-1234-567812345678":"a"}}',
+                DictOf[uuid.UUID, str](data={_TEST_UUID: "a"}),
+            ),
+            (
+                DictOf[datetime.date, str],
+                b'{"data":{"2024-01-15":"a"}}',
+                DictOf[datetime.date, str](data={datetime.date(2024, 1, 15): "a"}),
+            ),
+            (
+                DictOf[datetime.time, str],
+                b'{"data":{"10:30:00":"a"}}',
+                DictOf[datetime.time, str](data={datetime.time(10, 30): "a"}),
+            ),
+            (
+                DictOf[decimal.Decimal, str],
+                b'{"data":{"1.23":"a"}}',
+                DictOf[decimal.Decimal, str](data={decimal.Decimal("1.23"): "a"}),
+            ),
         ],
     )
     def test_value(self, impl: Serializer, schema_type: type, data: bytes, expected: object) -> None:
@@ -268,6 +320,8 @@ class TestDictLoad:
                 b'{"data":{"a":1,"b":3}}',
                 DictOf[str, Priority](data={"a": Priority.LOW, "b": Priority.HIGH}),
             ),
+            (DictOf[Status, str], b'{"data":{"active":"a"}}', DictOf[Status, str](data={Status.ACTIVE: "a"})),
+            (DictOf[Priority, str], b'{"data":{"1":"a"}}', DictOf[Priority, str](data={Priority.LOW: "a"})),
         ],
     )
     def test_enum(self, impl: Serializer, schema_type: type, data: bytes, expected: object) -> None:
@@ -403,6 +457,10 @@ class TestDictLoad:
         result = impl.load(WithDictMissing, data)
         assert result == expected
 
+    def test_non_str_key_build_error(self, impl: Serializer) -> None:
+        with pytest.raises((TypeError, NotImplementedError)):
+            impl.load(DictOf[list[int], str], b'{"data":{"1":"a"}}')
+
     def test_nested_value_wrong_type(self, impl: Serializer) -> None:
         data = b'{"data":{"home":"not_a_dict"}}'
         with pytest.raises(marshmallow.ValidationError) as exc:
@@ -451,6 +509,14 @@ class TestRootDictDump:
             (dict[str, int | None], {"a": 1, "b": None}, b'{"a":1,"b":null}'),
             (dict[str, Any], {"a": 1, "b": "two", "c": None}, b'{"a":1,"b":"two","c":null}'),
             (dict[str, int], {}, b"{}"),
+            (dict[int, str], {1: "a", 2: "b"}, b'{"1":"a","2":"b"}'),
+            (dict[float, str], {1.5: "a"}, b'{"1.5":"a"}'),
+            (dict[uuid.UUID, str], {_TEST_UUID: "a"}, b'{"12345678-1234-5678-1234-567812345678":"a"}'),
+            (dict[datetime.date, str], {datetime.date(2024, 1, 15): "a"}, b'{"2024-01-15":"a"}'),
+            (dict[datetime.time, str], {datetime.time(10, 30): "a"}, b'{"10:30:00":"a"}'),
+            (dict[decimal.Decimal, str], {decimal.Decimal("1.23"): "a"}, b'{"1.23":"a"}'),
+            (dict[Status, str], {Status.ACTIVE: "a"}, b'{"active":"a"}'),
+            (dict[Priority, str], {Priority.LOW: "a"}, b'{"1":"a"}'),
         ],
     )
     def test_value(self, impl: Serializer, schema_type: type, obj: object, expected: bytes) -> None:
@@ -460,6 +526,10 @@ class TestRootDictDump:
             return
         result = impl.dump(schema_type, obj)
         assert result == expected
+
+    def test_non_str_key_build_error(self, impl: Serializer) -> None:
+        with pytest.raises((TypeError, NotImplementedError, ValueError)):
+            impl.dump(dict[list[int], str], {1: "a"})  # type: ignore[arg-type]
 
 
 class TestRootDictLoad:
@@ -495,6 +565,14 @@ class TestRootDictLoad:
             (dict[str, int | None], b'{"a":1,"b":null}', {"a": 1, "b": None}),
             (dict[str, Any], b'{"a":1,"b":"two","c":null}', {"a": 1, "b": "two", "c": None}),
             (dict[str, int], b"{}", {}),
+            (dict[int, str], b'{"1":"a","2":"b"}', {1: "a", 2: "b"}),
+            (dict[float, str], b'{"1.5":"a"}', {1.5: "a"}),
+            (dict[uuid.UUID, str], b'{"12345678-1234-5678-1234-567812345678":"a"}', {_TEST_UUID: "a"}),
+            (dict[datetime.date, str], b'{"2024-01-15":"a"}', {datetime.date(2024, 1, 15): "a"}),
+            (dict[datetime.time, str], b'{"10:30:00":"a"}', {datetime.time(10, 30): "a"}),
+            (dict[decimal.Decimal, str], b'{"1.23":"a"}', {decimal.Decimal("1.23"): "a"}),
+            (dict[Status, str], b'{"active":"a"}', {Status.ACTIVE: "a"}),
+            (dict[Priority, str], b'{"1":"a"}', {Priority.LOW: "a"}),
         ],
     )
     def test_value(self, impl: Serializer, schema_type: type, data: bytes, expected: object) -> None:

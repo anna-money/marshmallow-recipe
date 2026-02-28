@@ -1,3 +1,8 @@
+## unreleased
+
+* Support non-string dict keys in `dict[K, V]` and `Mapping[K, V]` — any primitive type (int, float, UUID, date, time, Decimal, enums) can be used as K. Keys are stringified on dump and deserialized back on load.
+
+
 ## v0.0.81 (2026-02-28)
 
 * [Fix `post_load` called on `None` for optional str fields with `strip_whitespaces=True`](https://github.com/anna-money/marshmallow-recipe/pull/270)

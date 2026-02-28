@@ -21,6 +21,17 @@ from ..utils import validate_decimal_places
 
 __all__ = ("dump", "load", "schema")
 
+_COLLECTION_ORIGINS: set[type] = {list, dict, set, frozenset, tuple, Sequence, Mapping}
+
+
+def _validate_dict_key_type(key_type: Any) -> None:
+    key_origin = get_origin(key_type) or key_type
+    if key_origin in _COLLECTION_ORIGINS:
+        raise TypeError(f"Unsupported dict key type: {key_type}. Collections are not allowed as dict keys.")
+    if isinstance(key_origin, type) and dataclasses.is_dataclass(key_origin):
+        raise TypeError(f"Unsupported dict key type: {key_type}. Dataclasses are not allowed as dict keys.")
+
+
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 
@@ -233,9 +244,14 @@ class _BuildContext:
             return self.__builder.type_list(item_handle)
 
         if origin is dict or origin is Mapping:
+            key_type = args[0] if args else str
+            _validate_dict_key_type(key_type)
             value_type = args[1] if len(args) > 1 else Any
             value_handle = self.build_root_type(value_type, naming_case, visited)
-            return self.__builder.type_dict(value_handle)
+            if key_type is str:
+                return self.__builder.type_dict(value_handle)
+            key_handle = self.__build_key_type(key_type, naming_case, visited)
+            return self.__builder.type_dict(value_handle, key=key_handle)
 
         if origin is set:
             item_type = args[0] if args else Any
@@ -550,9 +566,14 @@ class _BuildContext:
             return self.__builder.list_field(name, optional, item_handle, **kwargs)
 
         if origin is dict:
+            key_type = args[0] if args else str
+            _validate_dict_key_type(key_type)
             value_type = args[1] if len(args) > 1 else Any
             value_handle = self.__build_value_field(value_type, nested_naming_case, visited)
-            return self.__builder.dict_field(name, optional, value_handle, **kwargs)
+            if key_type is str:
+                return self.__builder.dict_field(name, optional, value_handle, **kwargs)
+            key_handle = self.__build_item_field(key_type, nested_naming_case, visited)
+            return self.__builder.dict_field(name, optional, value_handle, key=key_handle, **kwargs)
 
         if origin is set:
             item_type = args[0] if args else Any
@@ -576,9 +597,14 @@ class _BuildContext:
             return self.__builder.list_field(name, optional, item_handle, **kwargs)
 
         if origin is Mapping:
+            key_type = args[0] if args else str
+            _validate_dict_key_type(key_type)
             value_type = args[1] if len(args) > 1 else Any
             value_handle = self.__build_value_field(value_type, nested_naming_case, visited)
-            return self.__builder.dict_field(name, optional, value_handle, **kwargs)
+            if key_type is str:
+                return self.__builder.dict_field(name, optional, value_handle, **kwargs)
+            key_handle = self.__build_item_field(key_type, nested_naming_case, visited)
+            return self.__builder.dict_field(name, optional, value_handle, key=key_handle, **kwargs)
 
         if origin is tuple:
             if len(args) == 2 and args[1] is ...:
@@ -694,6 +720,10 @@ class _BuildContext:
             visited=visited,
         )
         return field_handle
+
+    def __build_key_type(self, field_type: Any, naming_case: NamingCase | None, visited: set[type]) -> Any:
+        field_handle = self.__build_item_field(field_type, naming_case, visited)
+        return self.__builder.type_primitive(field_handle)
 
     def __build_value_field(self, field_type: Any, naming_case: NamingCase | None, visited: set[type]) -> Any:
         field_handle, _ = self.__build_field(

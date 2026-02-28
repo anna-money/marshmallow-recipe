@@ -112,11 +112,13 @@ impl FieldContainer {
                 &common.invalid_error,
             ),
             Self::Dict {
+                key: key_schema,
                 value: value_schema,
                 value_validator,
                 ..
             } => dict::load_from_py(
                 value,
+                key_schema.as_deref(),
                 value_schema,
                 value_validator.as_ref(),
                 &common.invalid_error,
@@ -401,6 +403,7 @@ impl TypeContainer {
                 Ok(result.into_any().unbind())
             }
             Self::Dict {
+                key: key_container,
                 value: value_container,
             } => {
                 let dict = value.cast::<PyDict>().map_err(|_| {
@@ -410,16 +413,25 @@ impl TypeContainer {
                 let mut errors: Option<Bound<'_, PyDict>> = None;
 
                 for (k, v) in dict.iter() {
-                    let key_str = k
-                        .cast::<PyString>()
-                        .ok()
-                        .and_then(|s| s.to_str().ok())
-                        .unwrap_or("");
+                    let key_str = k.str().map(|s| s.to_string()).unwrap_or_default();
+
+                    let loaded_key = if let Some(kc) = key_container {
+                        match kc.load_from_py(py, &k) {
+                            Ok(lk) => lk,
+                            Err(ref e) => {
+                                accumulate_error(py, &mut errors, &key_str, e);
+                                continue;
+                            }
+                        }
+                    } else {
+                        k.unbind()
+                    };
+
                     match value_container.load_from_py(py, &v) {
                         Ok(py_val) => {
-                            let _ = result.set_item(k, py_val);
+                            let _ = result.set_item(&loaded_key, py_val);
                         }
-                        Err(ref e) => accumulate_error(py, &mut errors, key_str, e),
+                        Err(ref e) => accumulate_error(py, &mut errors, &key_str, e),
                     }
                 }
 

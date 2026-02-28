@@ -158,6 +158,7 @@ pub enum FieldContainer {
     },
     Dict {
         common: FieldCommon,
+        key: Option<Box<FieldContainer>>,
         value: Box<FieldContainer>,
         value_validator: Option<Py<PyAny>>,
     },
@@ -172,6 +173,7 @@ pub enum FieldContainer {
 }
 
 impl Clone for FieldContainer {
+    #[allow(clippy::too_many_lines)]
     fn clone(&self) -> Self {
         Python::attach(|py| match self {
             Self::Str {
@@ -256,10 +258,12 @@ impl Clone for FieldContainer {
             },
             Self::Dict {
                 common,
+                key,
                 value,
                 value_validator,
             } => Self::Dict {
                 common: common.clone(),
+                key: key.clone(),
                 value: value.clone(),
                 value_validator: value_validator.as_ref().map(|v| v.clone_ref(py)),
             },
@@ -405,13 +409,28 @@ impl Clone for PrimitiveContainer {
 pub enum TypeContainer {
     Dataclass(DataclassContainer),
     Primitive(PrimitiveContainer),
-    List { item: Box<Self> },
-    Dict { value: Box<Self> },
-    Optional { inner: Box<Self> },
-    Set { item: Box<Self> },
-    FrozenSet { item: Box<Self> },
-    Tuple { item: Box<Self> },
-    Union { variants: Vec<Self> },
+    List {
+        item: Box<Self>,
+    },
+    Dict {
+        key: Option<Box<Self>>,
+        value: Box<Self>,
+    },
+    Optional {
+        inner: Box<Self>,
+    },
+    Set {
+        item: Box<Self>,
+    },
+    FrozenSet {
+        item: Box<Self>,
+    },
+    Tuple {
+        item: Box<Self>,
+    },
+    Union {
+        variants: Vec<Self>,
+    },
 }
 
 impl Clone for TypeContainer {
@@ -420,7 +439,8 @@ impl Clone for TypeContainer {
             Self::Dataclass(dc) => Self::Dataclass(dc.clone()),
             Self::Primitive(p) => Self::Primitive(p.clone()),
             Self::List { item } => Self::List { item: item.clone() },
-            Self::Dict { value } => Self::Dict {
+            Self::Dict { key, value } => Self::Dict {
+                key: key.clone(),
                 value: value.clone(),
             },
             Self::Optional { inner } => Self::Optional {

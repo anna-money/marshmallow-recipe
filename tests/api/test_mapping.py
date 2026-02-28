@@ -26,6 +26,8 @@ from .conftest import (
     WithMappingValidation,
 )
 
+_TEST_UUID = uuid.UUID("12345678-1234-5678-1234-567812345678")
+
 
 class TestMappingDump:
     @pytest.mark.parametrize(
@@ -66,6 +68,28 @@ class TestMappingDump:
                 MappingOf[str, datetime.time](data={"a": datetime.time(10, 30, 0)}),
                 b'{"data":{"a":"10:30:00"}}',
             ),
+            (MappingOf[int, str], MappingOf[int, str](data={1: "a", 2: "b"}), b'{"data":{"1":"a","2":"b"}}'),
+            (MappingOf[float, str], MappingOf[float, str](data={1.5: "a"}), b'{"data":{"1.5":"a"}}'),
+            (
+                MappingOf[uuid.UUID, str],
+                MappingOf[uuid.UUID, str](data={_TEST_UUID: "a"}),
+                b'{"data":{"12345678-1234-5678-1234-567812345678":"a"}}',
+            ),
+            (
+                MappingOf[datetime.date, str],
+                MappingOf[datetime.date, str](data={datetime.date(2024, 1, 15): "a"}),
+                b'{"data":{"2024-01-15":"a"}}',
+            ),
+            (
+                MappingOf[datetime.time, str],
+                MappingOf[datetime.time, str](data={datetime.time(10, 30): "a"}),
+                b'{"data":{"10:30:00":"a"}}',
+            ),
+            (
+                MappingOf[decimal.Decimal, str],
+                MappingOf[decimal.Decimal, str](data={decimal.Decimal("1.23"): "a"}),
+                b'{"data":{"1.23":"a"}}',
+            ),
         ],
     )
     def test_value(self, impl: Serializer, schema_type: type, obj: object, expected: bytes) -> None:
@@ -85,6 +109,8 @@ class TestMappingDump:
                 MappingOf[str, Priority](data={"a": Priority.LOW, "b": Priority.HIGH}),
                 b'{"data":{"a":1,"b":3}}',
             ),
+            (MappingOf[Status, str], MappingOf[Status, str](data={Status.ACTIVE: "a"}), b'{"data":{"active":"a"}}'),
+            (MappingOf[Priority, str], MappingOf[Priority, str](data={Priority.LOW: "a"}), b'{"data":{"1":"a"}}'),
         ],
     )
     def test_enum(self, impl: Serializer, schema_type: type, obj: object, expected: bytes) -> None:
@@ -174,6 +200,10 @@ class TestMappingDump:
         result = impl.dump(CollectionHolder[Mapping], obj)
         assert result == b'{"items":{"a":1,"b":"va"}}'
 
+    def test_non_str_key_build_error(self, impl: Serializer) -> None:
+        with pytest.raises((TypeError, NotImplementedError)):
+            impl.dump(MappingOf[list[int], str], MappingOf[list[int], str](data={1: "a"}))  # type: ignore[arg-type]
+
     def test_custom_invalid_error(self, impl: Serializer) -> None:
         obj = WithMappingInvalidError(**{"data": "not a mapping"})  # type: ignore[arg-type]
         with pytest.raises(marshmallow.ValidationError) as exc:
@@ -221,6 +251,28 @@ class TestMappingLoad:
                 b'{"data":{"a":"10:30:00"}}',
                 MappingOf[str, datetime.time](data={"a": datetime.time(10, 30, 0)}),
             ),
+            (MappingOf[int, str], b'{"data":{"1":"a","2":"b"}}', MappingOf[int, str](data={1: "a", 2: "b"})),
+            (MappingOf[float, str], b'{"data":{"1.5":"a"}}', MappingOf[float, str](data={1.5: "a"})),
+            (
+                MappingOf[uuid.UUID, str],
+                b'{"data":{"12345678-1234-5678-1234-567812345678":"a"}}',
+                MappingOf[uuid.UUID, str](data={_TEST_UUID: "a"}),
+            ),
+            (
+                MappingOf[datetime.date, str],
+                b'{"data":{"2024-01-15":"a"}}',
+                MappingOf[datetime.date, str](data={datetime.date(2024, 1, 15): "a"}),
+            ),
+            (
+                MappingOf[datetime.time, str],
+                b'{"data":{"10:30:00":"a"}}',
+                MappingOf[datetime.time, str](data={datetime.time(10, 30): "a"}),
+            ),
+            (
+                MappingOf[decimal.Decimal, str],
+                b'{"data":{"1.23":"a"}}',
+                MappingOf[decimal.Decimal, str](data={decimal.Decimal("1.23"): "a"}),
+            ),
         ],
     )
     def test_value(self, impl: Serializer, schema_type: type, data: bytes, expected: object) -> None:
@@ -240,6 +292,8 @@ class TestMappingLoad:
                 b'{"data":{"a":1,"b":3}}',
                 MappingOf[str, Priority](data={"a": Priority.LOW, "b": Priority.HIGH}),
             ),
+            (MappingOf[Status, str], b'{"data":{"active":"a"}}', MappingOf[Status, str](data={Status.ACTIVE: "a"})),
+            (MappingOf[Priority, str], b'{"data":{"1":"a"}}', MappingOf[Priority, str](data={Priority.LOW: "a"})),
         ],
     )
     def test_enum(self, impl: Serializer, schema_type: type, data: bytes, expected: object) -> None:
@@ -369,6 +423,10 @@ class TestMappingLoad:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(schema_type, data)
         assert exc.value.messages == error_messages
+
+    def test_non_str_key_build_error(self, impl: Serializer) -> None:
+        with pytest.raises((TypeError, NotImplementedError)):
+            impl.load(MappingOf[list[int], str], b'{"data":{"1":"a"}}')
 
     @pytest.mark.parametrize(
         ("data", "expected"),

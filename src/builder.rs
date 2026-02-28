@@ -627,13 +627,14 @@ impl ContainerBuilder {
         )
     }
 
-    #[pyo3(signature = (name, optional, value, **kwargs))]
+    #[pyo3(signature = (name, optional, value, key=None, **kwargs))]
     fn dict_field(
         &mut self,
         py: Python<'_>,
         name: &str,
         optional: bool,
         value: FieldHandle,
+        key: Option<FieldHandle>,
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
@@ -642,9 +643,13 @@ impl ContainerBuilder {
         let common = build_field_common(optional, &kwargs, invalid_error)?;
         let value_validator = extract_optional_py(&kwargs, "value_validator");
         let value_container = self.__resolve_field_handle(value)?;
+        let key_container = key
+            .map(|k| self.__resolve_field_handle(k).map(Box::new))
+            .transpose()?;
 
         let container = FieldContainer::Dict {
             common,
+            key: key_container,
             value: Box::new(value_container),
             value_validator,
         };
@@ -768,9 +773,14 @@ impl ContainerBuilder {
         }))
     }
 
-    fn type_dict(&mut self, value: TypeHandle) -> PyResult<TypeHandle> {
+    #[pyo3(signature = (value, key=None))]
+    fn type_dict(&mut self, value: TypeHandle, key: Option<TypeHandle>) -> PyResult<TypeHandle> {
         let resolved = self.__resolve_type_handle(value)?;
+        let key_resolved = key
+            .map(|k| self.__resolve_type_handle(k).map(Box::new))
+            .transpose()?;
         Ok(self.__push_type(TypeContainer::Dict {
+            key: key_resolved,
             value: Box::new(resolved),
         }))
     }

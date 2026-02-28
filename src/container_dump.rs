@@ -78,11 +78,13 @@ impl FieldContainer {
                 &common.invalid_error,
             ),
             Self::Dict {
+                key: key_schema,
                 value: value_schema,
                 value_validator,
                 ..
             } => dict::dump_to_py(
                 value,
+                key_schema.as_deref(),
                 value_schema,
                 value_validator.as_ref(),
                 &common.invalid_error,
@@ -212,6 +214,7 @@ impl TypeContainer {
                 Ok(result.into_any().unbind())
             }
             Self::Dict {
+                key: key_container,
                 value: value_container,
             } => {
                 let dict = value.cast::<PyDict>().map_err(|_| {
@@ -221,14 +224,31 @@ impl TypeContainer {
                 let mut errors: Option<Bound<'_, PyDict>> = None;
 
                 for (k, v) in dict.iter() {
+                    let (out_key, key_str) = if let Some(kc) = key_container {
+                        match kc.dump_to_py(&k) {
+                            Ok(dk) => {
+                                let s =
+                                    dk.bind(py).str().map(|s| s.to_string()).unwrap_or_default();
+                                (dk, s)
+                            }
+                            Err(ref e) => {
+                                let s = k.str().map(|s| s.to_string()).unwrap_or_default();
+                                accumulate_error(py, &mut errors, s, e);
+                                continue;
+                            }
+                        }
+                    } else {
+                        let s = k.str().map(|s| s.to_string()).unwrap_or_default();
+                        (k.unbind(), s)
+                    };
+
                     match value_container.dump_to_py(&v) {
                         Ok(dumped) => {
                             result
-                                .set_item(k, dumped)
+                                .set_item(out_key, dumped)
                                 .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
                         }
                         Err(ref e) => {
-                            let key_str = k.str().map(|s| s.to_string()).unwrap_or_default();
                             accumulate_error(py, &mut errors, key_str, e);
                         }
                     }

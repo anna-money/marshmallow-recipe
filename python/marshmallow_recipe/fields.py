@@ -1274,6 +1274,11 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             try:
                 return self.enum_type(value)
             except (ValueError, KeyError):
+                if issubclass(self.enum_type, int) and isinstance(value, str):
+                    try:
+                        return self.enum_type(int(value))
+                    except (ValueError, KeyError):
+                        pass
                 raise self.make_error("invalid")
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
@@ -1655,6 +1660,11 @@ else:
             try:
                 return self.enum_type(value)
             except (ValueError, KeyError):
+                if issubclass(self.enum_type, int) and isinstance(value, str):
+                    try:
+                        return self.enum_type(int(value))
+                    except (ValueError, KeyError):
+                        pass
                 self.fail("invalid")
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:

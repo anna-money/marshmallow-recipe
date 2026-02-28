@@ -106,19 +106,48 @@ product_dict = mr.dump(product)
 loaded_product = mr.load(Product, product_dict)
 ```
 
-## Dictionary with Complex Keys
+## Dictionary with Non-String Keys
 
-Date keys are automatically converted:
+Any primitive type can be used as a dict key. On dump, keys are stringified for JSON compatibility. On load, string keys are deserialized back to the target type.
+
+Supported key types: `str`, `int`, `float`, `bool`, `uuid.UUID`, `datetime.datetime`, `datetime.date`, `datetime.time`, `decimal.Decimal`, `str` enums, `int` enums.
 
 ```python
-# Serialisation: datetime.date → str
+import enum
+
+
+class Priority(int, enum.Enum):
+    LOW = 1
+    MEDIUM = 2
+    HIGH = 3
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Metrics:
+    scores_by_date: dict[datetime.date, decimal.Decimal]
+    labels_by_id: dict[int, str]
+    names_by_priority: dict[Priority, str]
+
+
+metrics = Metrics(
+    scores_by_date={
+        datetime.date(2024, 1, 1): decimal.Decimal("100.00"),
+        datetime.date(2024, 2, 1): decimal.Decimal("150.50"),
+    },
+    labels_by_id={1: "first", 2: "second"},
+    names_by_priority={Priority.LOW: "low-priority", Priority.HIGH: "high-priority"},
+)
+
+dumped = mr.dump(metrics)
+# Keys become strings in JSON:
 # {
-#     "2024-01-01": "100.00",
-#     "2024-02-01": "150.50"
+#     "scores_by_date": {"2024-01-01": "100.00", "2024-02-01": "150.50"},
+#     "labels_by_id": {"1": "first", "2": "second"},
+#     "names_by_priority": {"1": "low-priority", "3": "high-priority"}
 # }
 
-# Deserialisation: str → datetime.date
-# Automatic conversion both ways
+loaded = mr.load(Metrics, dumped)
+assert loaded == metrics
 ```
 
 ## collections.abc Types
