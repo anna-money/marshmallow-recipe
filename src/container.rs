@@ -34,8 +34,8 @@ impl Clone for FieldCommon {
 pub struct DataclassField {
     pub name: String,
     pub name_interned: Py<PyString>,
-    pub data_key: Option<String>,
-    pub data_key_interned: Option<Py<PyString>>,
+    pub data_key: String,
+    pub data_key_interned: Py<PyString>,
     pub slot_offset: Option<isize>,
     pub field_init: bool,
     pub field: FieldContainer,
@@ -47,7 +47,7 @@ impl Clone for DataclassField {
             name: self.name.clone(),
             name_interned: self.name_interned.clone_ref(py),
             data_key: self.data_key.clone(),
-            data_key_interned: self.data_key_interned.as_ref().map(|v| v.clone_ref(py)),
+            data_key_interned: self.data_key_interned.clone_ref(py),
             slot_offset: self.slot_offset,
             field_init: self.field_init,
             field: self.field.clone(),
@@ -375,8 +375,7 @@ impl DataclassContainer {
 
     pub fn add_field(&mut self, field: DataclassField) {
         let idx = self.fields.len();
-        let key = field.data_key.as_ref().unwrap_or(&field.name).clone();
-        self.field_lookup.insert(key, idx);
+        self.field_lookup.insert(field.data_key.clone(), idx);
         self.fields.push(field);
     }
 }

@@ -143,14 +143,9 @@ impl DataclassContainer {
                 continue;
             }
 
-            let key_interned = dc_field
-                .data_key_interned
-                .as_ref()
-                .unwrap_or(&dc_field.name_interned);
-
             if py_value.is_none() {
                 result
-                    .set_item(key_interned.bind(py), py.None())
+                    .set_item(dc_field.data_key_interned.bind(py), py.None())
                     .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
             } else {
                 match dc_field.field.dump_to_py(&py_value) {
@@ -159,7 +154,7 @@ impl DataclassContainer {
                             continue;
                         }
                         result
-                            .set_item(key_interned.bind(py), dumped)
+                            .set_item(dc_field.data_key_interned.bind(py), dumped)
                             .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
                     }
                     Err(ref e) => {
