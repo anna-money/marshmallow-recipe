@@ -1,3 +1,6 @@
+import dataclasses
+from typing import Literal
+
 import marshmallow
 import pytest
 
@@ -450,3 +453,29 @@ class TestBoolLiteralLoad:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithBoolLiteralInvalidError, data)
         assert exc.value.messages == {"value": ["Custom invalid message"]}
+
+
+class TestUnsupportedLiterals:
+    def test_literal_with_none_value(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class WithLiteralNone:
+            value: Literal["a", "b", None]
+
+        with pytest.raises(ValueError, match="Unsupported Literal values"):
+            impl.dump(WithLiteralNone, WithLiteralNone(value="a"))
+
+    def test_literal_with_mixed_types(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class WithMixedLiteral:
+            value: Literal[1, "hello"]
+
+        with pytest.raises(ValueError, match="Unsupported Literal values"):
+            impl.dump(WithMixedLiteral, WithMixedLiteral(value=1))
+
+    def test_literal_with_bytes(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class WithBytesLiteral:
+            value: Literal[b"hello"]
+
+        with pytest.raises(ValueError, match="Unsupported Literal values"):
+            impl.dump(WithBytesLiteral, WithBytesLiteral(value=b"hello"))

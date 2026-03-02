@@ -416,6 +416,7 @@ def _get_field_for(
             )
 
         if origin is Literal:
+            _validate_literal_values(arguments)
             return literal_field(values=arguments, required=required, allow_none=allow_none, **metadata)
 
     if t in _SIMPLE_TYPE_FIELD_FACTORIES:
@@ -433,6 +434,18 @@ def _get_field_for(
         return with_type_checks_on_serialize(field, type_guards=t)
 
     raise ValueError(f"Unsupported {t=}")
+
+
+def _validate_literal_values(values: tuple[Any, ...]) -> None:
+    if not values:
+        raise ValueError("Literal must have at least one value")
+    if all(isinstance(v, str) for v in values):
+        return
+    if all(isinstance(v, bool) for v in values):
+        return
+    if all(isinstance(v, int) and not isinstance(v, bool) for v in values):
+        return
+    raise ValueError(f"Unsupported Literal values: {values}. All values must be the same type (str, int, or bool)")
 
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:

@@ -685,6 +685,9 @@ class _BuildContext:
         raise NotImplementedError(f"Unsupported enum type: {field_type} (must inherit from str or int)")
 
     def __build_literal_field(self, name: str, values: tuple[Any, ...], optional: bool, kwargs: dict[str, Any]) -> Any:
+        if not values:
+            raise ValueError("Literal must have at least one value")
+
         if "invalid_error" not in kwargs:
             kwargs["invalid_error"] = f"Not a valid value. Allowed values: {list(values)}"
 
@@ -697,7 +700,7 @@ class _BuildContext:
         if all(isinstance(v, int) and not isinstance(v, bool) for v in values):
             return self.__builder.int_literal_field(name, optional, list(values), **kwargs)
 
-        raise NotImplementedError(f"Unsupported literal values: {values} (must be all str, all bool, or all int)")
+        raise ValueError(f"Unsupported Literal values: {values}. All values must be the same type (str, int, or bool)")
 
     def __build_item_field(self, field_type: Any, naming_case: NamingCase | None, visited: set[type]) -> Any:
         field_handle, _ = self.__build_field(
