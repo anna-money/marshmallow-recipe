@@ -712,3 +712,30 @@ def test_literal_types() -> None:
         },
         "required": ["str_literal", "int_literal", "bool_literal"],
     }
+
+
+type StrAlias = str
+type OptionalIntAlias = int | None
+type UnionAlias = str | int
+
+
+def test_type_alias() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class WithTypeAliases:
+        name: StrAlias
+        count: OptionalIntAlias = None
+        value: UnionAlias = "default"
+
+    schema = mr.json_schema(WithTypeAliases)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "WithTypeAliases",
+        "properties": {
+            "name": {"type": "string"},
+            "count": {"type": "integer", "default": None},
+            "value": {"anyOf": [{"type": "string"}, {"type": "integer"}], "default": "default"},
+        },
+        "required": ["name"],
+    }

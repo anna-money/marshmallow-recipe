@@ -1,3 +1,8 @@
+## v0.0.83 (2026-03-03)
+
+* Add PEP 695 `type` alias (`TypeAliasType`) support — works as field types, in `dump`/`load`/`dump_many`/`load_many`, and in `nuked`
+
+
 ## v0.0.82 (2026-03-02)
 
 * [Add `Literal` type support (`Literal["a", "b"]`, `Literal[1, 2, 3]`, `Literal[True, False]`) with validation on dump and load](https://github.com/anna-money/marshmallow-recipe/pull/271)

@@ -42,6 +42,10 @@ class Serializer(abc.ABC):
         return False
 
     @property
+    def supports_root_type_alias_union(self) -> bool:
+        return True
+
+    @property
     def supports_proper_validation_errors_on_dump(self) -> bool:
         return True
 
@@ -211,6 +215,10 @@ class NukedSchemaSerializer(Serializer):
     @property
     def supports_many(self) -> bool:
         return True
+
+    @property
+    def supports_root_type_alias_union(self) -> bool:
+        return False
 
     def dump[T](
         self,
@@ -1594,3 +1602,44 @@ class WithBoolLiteralNoneError:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithBoolLiteralInvalidError:
     value: Literal[True, False] = dataclasses.field(metadata=mr.meta(invalid_error="Custom invalid message"))
+
+
+type StrAlias = str
+type IntAlias = int
+type OptionalStrAlias = str | None
+type UnionAlias = str | int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrTypeAlias:
+    value: StrAlias
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntTypeAlias:
+    value: IntAlias
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalStrTypeAlias:
+    value: OptionalStrAlias = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithUnionTypeAlias:
+    value: UnionAlias
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class UserMsg:
+    text: str
+    role: Literal["user"] = "user"
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class AssistantMsg:
+    text: str
+    role: Literal["assistant"] = "assistant"
+
+
+type Msg = UserMsg | AssistantMsg

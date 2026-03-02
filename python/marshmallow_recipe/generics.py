@@ -2,7 +2,7 @@ import dataclasses
 import types
 import typing
 from collections.abc import Mapping
-from typing import Annotated, Any, Generic, NewType, TypeVar, Union, get_args, get_origin
+from typing import Annotated, Any, Generic, NewType, TypeAliasType, TypeVar, Union, get_args, get_origin
 
 _GenericAlias: type[typing._GenericAlias] = typing._GenericAlias  # type: ignore
 
@@ -15,7 +15,22 @@ type ClassTypeVarMap = dict[TypeLike, TypeVarMap]
 type FieldsTypeVarMap = dict[str, TypeVarMap]
 
 
+def unwrap_type_alias(cls: Any) -> Any:
+    while isinstance(cls, TypeAliasType):
+        cls = cls.__value__
+    return cls
+
+
+def is_union_type(t: Any) -> bool:
+    return isinstance(t, types.UnionType) or get_origin(t) is Union
+
+
 def extract_type(data: Any, cls: type | None) -> type:
+    if cls is not None:
+        cls = unwrap_type_alias(cls)
+        if is_union_type(cls):
+            cls = None
+
     data_type = _get_orig_class(data) or type(data)
 
     if not _is_unsubscripted_type(data_type):

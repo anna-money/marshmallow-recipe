@@ -7,7 +7,19 @@ import importlib.metadata
 import inspect
 import types
 import uuid
-from typing import Annotated, Any, Literal, NamedTuple, NewType, Protocol, Union, cast, get_args, get_origin
+from typing import (
+    Annotated,
+    Any,
+    Literal,
+    NamedTuple,
+    NewType,
+    Protocol,
+    TypeAliasType,
+    Union,
+    cast,
+    get_args,
+    get_origin,
+)
 
 import marshmallow as m
 
@@ -188,6 +200,9 @@ def _get_field_for(
     decimal_places: int | None,
 ) -> m.fields.Field:
     metadata = _wrap_metadata_validators(metadata)
+
+    if isinstance(t, TypeAliasType):
+        t = t.__value__
 
     if t is Any:
         return raw_field(**metadata)

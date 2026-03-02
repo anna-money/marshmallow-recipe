@@ -7,7 +7,7 @@ import importlib.metadata
 import types
 import uuid
 from collections.abc import Callable, Mapping, Sequence
-from typing import Annotated, Any, ClassVar, Literal, NewType, Union, get_args, get_origin
+from typing import Annotated, Any, ClassVar, Literal, NewType, TypeAliasType, Union, get_args, get_origin
 
 import marshmallow
 
@@ -216,6 +216,9 @@ class _BuildContext:
         return (effective or NoneValueHandling.IGNORE) == NoneValueHandling.IGNORE
 
     def build_root_type(self, cls: Any, naming_case: NamingCase | None, visited: set[type]) -> Any:
+        if isinstance(cls, TypeAliasType):
+            cls = cls.__value__
+
         origin = get_origin(cls)
         args = get_args(cls)
 
@@ -422,6 +425,9 @@ class _BuildContext:
             if validate_item is not None:
                 item_validators = list(validate_item) if isinstance(validate_item, list | tuple) else [validate_item]
 
+        if isinstance(field_type, TypeAliasType):
+            field_type = field_type.__value__
+
         origin = get_origin(field_type)
         args = get_args(field_type)
 
@@ -532,6 +538,11 @@ class _BuildContext:
         visited: set[type],
         kwargs: dict[str, Any],
     ) -> Any:
+        if isinstance(field_type, TypeAliasType):
+            field_type = field_type.__value__
+            origin = get_origin(field_type)
+            args = get_args(field_type)
+
         if isinstance(field_type, NewType):
             field_type = field_type.__supertype__
             origin = get_origin(field_type)
