@@ -7,7 +7,7 @@ import importlib.metadata
 import inspect
 import types
 import uuid
-from typing import Annotated, Any, NamedTuple, NewType, Protocol, Union, cast, get_args, get_origin
+from typing import Annotated, Any, Literal, NamedTuple, NewType, Protocol, Union, cast, get_args, get_origin
 
 import marshmallow as m
 
@@ -22,6 +22,7 @@ from .fields import (
     frozen_set_field,
     int_field,
     list_field,
+    literal_field,
     nested_field,
     raw_field,
     set_field,
@@ -413,6 +414,9 @@ def _get_field_for(
                 field_decimal_places=field_decimal_places,
                 decimal_places=decimal_places,
             )
+
+        if origin is Literal:
+            return literal_field(values=arguments, required=required, allow_none=allow_none, **metadata)
 
     if t in _SIMPLE_TYPE_FIELD_FACTORIES:
         field_factory = _SIMPLE_TYPE_FIELD_FACTORIES[t]

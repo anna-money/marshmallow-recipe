@@ -7,7 +7,7 @@ import importlib.metadata
 import json
 import uuid
 from collections.abc import Mapping, Sequence
-from typing import Annotated, Any, NewType
+from typing import Annotated, Any, Literal, NewType
 
 import marshmallow
 import pytest
@@ -1484,3 +1484,33 @@ class WithListPostLoad:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithUnionDictDataclass:
     value: dict[str, Inner] | str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrLiteral:
+    value: Literal["a", "b", "c"]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntLiteral:
+    value: Literal[1, 2, 3]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalStrLiteral:
+    value: Literal["x", "y"] | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrLiteralDefault:
+    value: Literal["a", "b"] = "a"
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrLiteralMissing:
+    value: Literal["a", "b"] = mr.MISSING
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntLiteralMissing:
+    value: Literal[1, 2] = mr.MISSING
