@@ -1373,8 +1373,6 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         def _validated(self, value: Any) -> Any:
             if value is None:
                 return None
-            if isinstance(value, bool):
-                raise self.make_error("invalid")
             for v in self.values:
                 if type(value) is type(v) and value == v:
                     return value
@@ -1795,9 +1793,6 @@ else:
 
         def _validated(self, value: Any) -> Any:
             if value is None:
-                return None
-            if isinstance(value, bool):
-                self.fail("invalid")
                 return None
             for v in self.values:
                 if type(value) is type(v) and value == v:

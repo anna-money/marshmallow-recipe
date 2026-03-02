@@ -186,6 +186,8 @@ def __convert_field_to_json_schema(
         literal_values = get_args(field_type)
         if literal_values and all(isinstance(v, str) for v in literal_values):
             schema["type"] = "string"
+        elif literal_values and all(isinstance(v, bool) for v in literal_values):
+            schema["type"] = "boolean"
         elif literal_values and all(isinstance(v, int) and not isinstance(v, bool) for v in literal_values):
             schema["type"] = "integer"
         schema["enum"] = list(literal_values)
@@ -201,6 +203,8 @@ def __convert_field_to_json_schema(
                 literal_values = get_args(field_type)
                 if literal_values and all(isinstance(v, str) for v in literal_values):
                     schema["type"] = "string"
+                elif literal_values and all(isinstance(v, bool) for v in literal_values):
+                    schema["type"] = "boolean"
                 elif literal_values and all(isinstance(v, int) and not isinstance(v, bool) for v in literal_values):
                     schema["type"] = "integer"
                 schema["enum"] = list(literal_values)

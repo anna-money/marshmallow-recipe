@@ -1,6 +1,6 @@
 ## v0.0.82 (2026-03-01)
 
-* Add `Literal` type support (`Literal["a", "b"]`, `Literal[1, 2, 3]`) with validation on dump and load
+* Add `Literal` type support (`Literal["a", "b"]`, `Literal[1, 2, 3]`, `Literal[True, False]`) with validation on dump and load
 
 
 ## v0.0.81 (2026-02-28)

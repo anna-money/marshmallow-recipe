@@ -691,10 +691,13 @@ class _BuildContext:
         if all(isinstance(v, str) for v in values):
             return self.__builder.str_literal_field(name, optional, list(values), **kwargs)
 
+        if all(isinstance(v, bool) for v in values):
+            return self.__builder.bool_literal_field(name, optional, list(values), **kwargs)
+
         if all(isinstance(v, int) and not isinstance(v, bool) for v in values):
             return self.__builder.int_literal_field(name, optional, list(values), **kwargs)
 
-        raise NotImplementedError(f"Unsupported literal values: {values} (must be all str or all int)")
+        raise NotImplementedError(f"Unsupported literal values: {values} (must be all str, all bool, or all int)")
 
     def __build_item_field(self, field_type: Any, naming_case: NamingCase | None, visited: set[type]) -> Any:
         field_handle, _ = self.__build_field(

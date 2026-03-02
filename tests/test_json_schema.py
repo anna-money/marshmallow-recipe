@@ -691,7 +691,10 @@ def test_literal_types() -> None:
     class WithLiterals:
         str_literal: Literal["a", "b", "c"]
         int_literal: Literal[1, 2, 3]
+        bool_literal: Literal[True, False]
         optional_str_literal: Literal["x", "y"] | None = None
+        optional_int_literal: Literal[1, 2] | None = None
+        optional_bool_literal: Literal[True] | None = None
 
     schema = mr.json_schema(WithLiterals)
 
@@ -702,7 +705,10 @@ def test_literal_types() -> None:
         "properties": {
             "str_literal": {"type": "string", "enum": ["a", "b", "c"]},
             "int_literal": {"type": "integer", "enum": [1, 2, 3]},
+            "bool_literal": {"type": "boolean", "enum": [True, False]},
             "optional_str_literal": {"type": "string", "enum": ["x", "y"], "default": None},
+            "optional_int_literal": {"type": "integer", "enum": [1, 2], "default": None},
+            "optional_bool_literal": {"type": "boolean", "enum": [True], "default": None},
         },
-        "required": ["str_literal", "int_literal"],
+        "required": ["str_literal", "int_literal", "bool_literal"],
     }

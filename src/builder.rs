@@ -3,9 +3,9 @@ use pyo3::prelude::*;
 use pyo3::types::{PyList, PyString, PyTuple};
 
 use crate::container::{
-    DataclassContainer, DataclassField, EnumDumperData, FieldCommon, FieldContainer,
-    IntEnumLoaderData, IntLiteralData, PrimitiveContainer, StrEnumLoaderData, StrLiteralData,
-    TypeContainer,
+    BoolLiteralData, DataclassContainer, DataclassField, EnumDumperData, FieldCommon,
+    FieldContainer, IntEnumLoaderData, IntLiteralData, PrimitiveContainer, StrEnumLoaderData,
+    StrLiteralData, TypeContainer,
 };
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::parse_datetime_format;
@@ -597,6 +597,33 @@ impl ContainerBuilder {
         let container = FieldContainer::IntLiteral {
             common,
             data: Box::new(IntLiteralData { values }),
+        };
+        let builder_field = build_builder_field(py, name, &kwargs, container)?;
+
+        let idx = self.fields.len();
+        self.fields.push(builder_field);
+        Ok(FieldHandle(idx))
+    }
+
+    #[pyo3(signature = (name, optional, literal_values, **kwargs))]
+    fn bool_literal_field(
+        &mut self,
+        py: Python<'_>,
+        name: &str,
+        optional: bool,
+        literal_values: Vec<bool>,
+        kwargs: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<FieldHandle> {
+        let kwargs = get_kwargs(py, kwargs);
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid value.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
+
+        let container = FieldContainer::BoolLiteral {
+            common,
+            data: Box::new(BoolLiteralData {
+                values: literal_values,
+            }),
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
