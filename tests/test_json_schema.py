@@ -5,7 +5,7 @@ import datetime
 import decimal
 import enum
 import uuid
-from typing import Annotated, Generic, TypeVar
+from typing import Annotated, Generic, Literal, TypeVar
 
 import pytest
 
@@ -683,4 +683,32 @@ def test_generic_with_multiple_type_vars() -> None:
         "title": "Pair[str, int]",
         "properties": {"key": {"type": "string"}, "value": {"type": "integer"}},
         "required": ["key", "value"],
+    }
+
+
+def test_literal_types() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class WithLiterals:
+        str_literal: Literal["a", "b", "c"]
+        int_literal: Literal[1, 2, 3]
+        bool_literal: Literal[True, False]
+        optional_str_literal: Literal["x", "y"] | None = None
+        optional_int_literal: Literal[1, 2] | None = None
+        optional_bool_literal: Literal[True] | None = None
+
+    schema = mr.json_schema(WithLiterals)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "WithLiterals",
+        "properties": {
+            "str_literal": {"type": "string", "enum": ["a", "b", "c"]},
+            "int_literal": {"type": "integer", "enum": [1, 2, 3]},
+            "bool_literal": {"type": "boolean", "enum": [True, False]},
+            "optional_str_literal": {"type": "string", "enum": ["x", "y"], "default": None},
+            "optional_int_literal": {"type": "integer", "enum": [1, 2], "default": None},
+            "optional_bool_literal": {"type": "boolean", "enum": [True], "default": None},
+        },
+        "required": ["str_literal", "int_literal", "bool_literal"],
     }

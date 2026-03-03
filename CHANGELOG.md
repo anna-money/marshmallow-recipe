@@ -1,3 +1,8 @@
+## v0.0.82 (2026-03-02)
+
+* [Add `Literal` type support (`Literal["a", "b"]`, `Literal[1, 2, 3]`, `Literal[True, False]`) with validation on dump and load](https://github.com/anna-money/marshmallow-recipe/pull/271)
+
+
 ## v0.0.81 (2026-02-28)
 
 * [Fix `post_load` called on `None` for optional str fields with `strip_whitespaces=True`](https://github.com/anna-money/marshmallow-recipe/pull/270)

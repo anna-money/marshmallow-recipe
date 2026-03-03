@@ -906,6 +906,61 @@ def enum_field(
     )
 
 
+def literal_field(
+    values: tuple[Any, ...],
+    *,
+    required: bool,
+    allow_none: bool,
+    name: str | None = None,
+    default: Any = dataclasses.MISSING,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
+    description: str | None = None,
+    **_: Any,
+) -> m.fields.Field:
+    if default is m.missing:
+        return LiteralField(
+            values=values,
+            allow_none=allow_none,
+            validate=validate,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+            **description_fields(description),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
+        )
+
+    if required:
+        if default is None:
+            raise ValueError("Default value cannot be none")
+        return LiteralField(
+            values=values,
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            **data_key_fields(name),
+            **description_fields(description),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
+        )
+
+    return LiteralField(
+        values=values,
+        allow_none=allow_none,
+        validate=validate,
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
+        **data_key_fields(name),
+        **description_fields(description),
+        error_messages=build_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
+    )
+
+
 def raw_field(
     *,
     default: Any = dataclasses.MISSING,
@@ -988,6 +1043,7 @@ DateTimeField: type[m.fields.Field]
 DateField: type[m.fields.Date]
 DecimalField: type[m.fields.Decimal]
 EnumField: type[m.fields.Field]
+LiteralField: type[m.fields.Field]
 DictField: type[m.fields.Field]
 SetField: type[m.fields.List]
 FrozenSetField: type[m.fields.List]
@@ -1285,6 +1341,52 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             return self._validated(value)
 
     EnumField = EnumFieldV3
+
+    class LiteralFieldV3(m.fields.Field):
+        default_error_messages = {"invalid": "Not a valid value."}  # noqa: RUF012
+
+        def __init__(
+            self,
+            *,
+            values: tuple[Any, ...],
+            error_messages: dict[str, str] | None = None,
+            metadata: dict[str, str] | None = None,
+            allow_none: bool = False,
+            **kwargs: Any,
+        ):
+            self.values = values
+            if error_messages is None or "invalid" not in error_messages:
+                error_messages = {
+                    **(error_messages or {}),
+                    "invalid": f"Not a valid value. Allowed values: {list(values)}",
+                }
+            enum_values: list[Any] = list(values)
+            if allow_none:
+                enum_values.append(None)
+            super().__init__(
+                error_messages=error_messages,
+                metadata={**(metadata or {}), "enum": enum_values},
+                allow_none=allow_none,
+                **kwargs,
+            )
+
+        def _validated(self, value: Any) -> Any:
+            if value is None:
+                return None
+            for v in self.values:
+                if type(value) is type(v) and value == v:
+                    return value
+            raise self.make_error("invalid")
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            if value is None:
+                return None
+            return self._validated(value)
+
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            return self._validated(value)
+
+    LiteralField = LiteralFieldV3
 
     class DictFieldV3(m.fields.Dict):
         default_error_messages = {"invalid": "Not a valid dict."}  # noqa: RUF012
@@ -1666,6 +1768,47 @@ else:
             return self._validated(value)
 
     EnumField = EnumFieldV2
+
+    class LiteralFieldV2(m.fields.Field):
+        default_error_messages = {"invalid": "Not a valid value."}  # noqa: RUF012
+
+        def __init__(
+            self,
+            *,
+            values: tuple[Any, ...],
+            error_messages: dict[str, str] | None = None,
+            allow_none: bool = False,
+            **kwargs: Any,
+        ):
+            self.values = values
+            if error_messages is None or "invalid" not in error_messages:
+                error_messages = {
+                    **(error_messages or {}),
+                    "invalid": f"Not a valid value. Allowed values: {list(values)}",
+                }
+            enum_values: list[Any] = list(values)
+            if allow_none:
+                enum_values.append(None)
+            super().__init__(error_messages=error_messages, allow_none=allow_none, **kwargs, enum=enum_values)
+
+        def _validated(self, value: Any) -> Any:
+            if value is None:
+                return None
+            for v in self.values:
+                if type(value) is type(v) and value == v:
+                    return value
+            self.fail("invalid")
+            return None
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            if value is None:
+                return None
+            return self._validated(value)
+
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            return self._validated(value)
+
+    LiteralField = LiteralFieldV2
 
     class TypedDict(m.fields.Field):
         default_error_messages = {"invalid": "Not a valid dict."}  # noqa: RUF012

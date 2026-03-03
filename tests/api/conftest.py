@@ -7,7 +7,7 @@ import importlib.metadata
 import json
 import uuid
 from collections.abc import Mapping, Sequence
-from typing import Annotated, Any, NewType
+from typing import Annotated, Any, Literal, NewType
 
 import marshmallow
 import pytest
@@ -1484,3 +1484,113 @@ class WithListPostLoad:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithUnionDictDataclass:
     value: dict[str, Inner] | str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrLiteral:
+    value: Literal["a", "b", "c"]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntLiteral:
+    value: Literal[1, 2, 3]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalStrLiteral:
+    value: Literal["x", "y"] | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrLiteralDefault:
+    value: Literal["a", "b"] = "a"
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrLiteralMissing:
+    value: Literal["a", "b"] = mr.MISSING
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalIntLiteral:
+    value: Literal[1, 2, 3] | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntLiteralDefault:
+    value: Literal[1, 2, 3] = 1
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntLiteralMissing:
+    value: Literal[1, 2] = mr.MISSING
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBoolLiteral:
+    value: Literal[True, False]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBoolLiteralTrue:
+    value: Literal[True]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalBoolLiteral:
+    value: Literal[True, False] | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBoolLiteralDefault:
+    value: Literal[True, False] = True
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBoolLiteralMissing:
+    value: Literal[True, False] = mr.MISSING
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrLiteralRequiredError:
+    value: Literal["a", "b"] = dataclasses.field(metadata=mr.meta(required_error="Custom required message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrLiteralNoneError:
+    value: Literal["a", "b"] = dataclasses.field(metadata=mr.meta(none_error="Custom none message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrLiteralInvalidError:
+    value: Literal["a", "b"] = dataclasses.field(metadata=mr.meta(invalid_error="Custom invalid message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntLiteralRequiredError:
+    value: Literal[1, 2] = dataclasses.field(metadata=mr.meta(required_error="Custom required message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntLiteralNoneError:
+    value: Literal[1, 2] = dataclasses.field(metadata=mr.meta(none_error="Custom none message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntLiteralInvalidError:
+    value: Literal[1, 2] = dataclasses.field(metadata=mr.meta(invalid_error="Custom invalid message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBoolLiteralRequiredError:
+    value: Literal[True, False] = dataclasses.field(metadata=mr.meta(required_error="Custom required message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBoolLiteralNoneError:
+    value: Literal[True, False] = dataclasses.field(metadata=mr.meta(none_error="Custom none message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBoolLiteralInvalidError:
+    value: Literal[True, False] = dataclasses.field(metadata=mr.meta(invalid_error="Custom invalid message"))

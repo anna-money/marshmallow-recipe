@@ -87,6 +87,42 @@ impl Clone for IntEnumLoaderData {
     }
 }
 
+pub struct StrLiteralData {
+    pub values: Vec<String>,
+}
+
+impl Clone for StrLiteralData {
+    fn clone(&self) -> Self {
+        Self {
+            values: self.values.clone(),
+        }
+    }
+}
+
+pub struct IntLiteralData {
+    pub values: Vec<Py<PyAny>>,
+}
+
+impl Clone for IntLiteralData {
+    fn clone(&self) -> Self {
+        Python::attach(|py| Self {
+            values: self.values.iter().map(|v| v.clone_ref(py)).collect(),
+        })
+    }
+}
+
+pub struct BoolLiteralData {
+    pub values: Vec<bool>,
+}
+
+impl Clone for BoolLiteralData {
+    fn clone(&self) -> Self {
+        Self {
+            values: self.values.clone(),
+        }
+    }
+}
+
 pub struct EnumDumperData {
     pub enum_cls: Py<PyAny>,
 }
@@ -147,6 +183,18 @@ pub enum FieldContainer {
         loader_data: Box<IntEnumLoaderData>,
         dumper_data: Box<EnumDumperData>,
     },
+    StrLiteral {
+        common: FieldCommon,
+        data: Box<StrLiteralData>,
+    },
+    IntLiteral {
+        common: FieldCommon,
+        data: Box<IntLiteralData>,
+    },
+    BoolLiteral {
+        common: FieldCommon,
+        data: Box<BoolLiteralData>,
+    },
     Any {
         common: FieldCommon,
     },
@@ -172,6 +220,7 @@ pub enum FieldContainer {
 }
 
 impl Clone for FieldContainer {
+    #[allow(clippy::too_many_lines)]
     fn clone(&self) -> Self {
         Python::attach(|py| match self {
             Self::Str {
@@ -240,6 +289,18 @@ impl Clone for FieldContainer {
                 loader_data: loader_data.clone(),
                 dumper_data: dumper_data.clone(),
             },
+            Self::StrLiteral { common, data } => Self::StrLiteral {
+                common: common.clone(),
+                data: data.clone(),
+            },
+            Self::IntLiteral { common, data } => Self::IntLiteral {
+                common: common.clone(),
+                data: data.clone(),
+            },
+            Self::BoolLiteral { common, data } => Self::BoolLiteral {
+                common: common.clone(),
+                data: data.clone(),
+            },
             Self::Any { common } => Self::Any {
                 common: common.clone(),
             },
@@ -290,6 +351,9 @@ impl FieldContainer {
             | Self::Uuid { common }
             | Self::StrEnum { common, .. }
             | Self::IntEnum { common, .. }
+            | Self::StrLiteral { common, .. }
+            | Self::IntLiteral { common, .. }
+            | Self::BoolLiteral { common, .. }
             | Self::Any { common }
             | Self::Collection { common, .. }
             | Self::Dict { common, .. }
@@ -323,6 +387,9 @@ impl std::fmt::Debug for FieldContainer {
             Self::Uuid { .. } => write!(f, "Uuid"),
             Self::StrEnum { .. } => write!(f, "StrEnum"),
             Self::IntEnum { .. } => write!(f, "IntEnum"),
+            Self::StrLiteral { .. } => write!(f, "StrLiteral"),
+            Self::IntLiteral { .. } => write!(f, "IntLiteral"),
+            Self::BoolLiteral { .. } => write!(f, "BoolLiteral"),
             Self::Any { .. } => write!(f, "Any"),
             Self::Collection { kind, .. } => {
                 f.debug_struct("Collection").field("kind", kind).finish()

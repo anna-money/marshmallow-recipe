@@ -6,8 +6,8 @@ use smallbitvec::SmallBitVec;
 use crate::container::{DataclassContainer, FieldCommon, FieldContainer, TypeContainer};
 use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
 use crate::fields::{
-    any, bool_type, collection, date, datetime, decimal, dict, float_type, int_enum, int_type,
-    str_enum, str_type, time, union, uuid,
+    any, bool_literal, bool_type, collection, date, datetime, decimal, dict, float_type, int_enum,
+    int_literal, int_type, str_enum, str_literal, str_type, time, union, uuid,
 };
 use crate::slots::set_slot_value_direct;
 use crate::utils::{call_validator, extract_error_args, get_object_cls, new_presized_list};
@@ -98,6 +98,15 @@ impl FieldContainer {
                 loader_data,
                 ..
             } => int_enum::load_from_py(value, loader_data, &common.invalid_error),
+            Self::StrLiteral { common, data } => {
+                str_literal::load_from_py(value, data, &common.invalid_error)
+            }
+            Self::IntLiteral { common, data } => {
+                int_literal::load_from_py(value, data, &common.invalid_error)
+            }
+            Self::BoolLiteral { common, data } => {
+                bool_literal::load_from_py(value, data, &common.invalid_error)
+            }
             Self::Any { .. } => Ok(any::load_from_py(value)),
             Self::Collection {
                 kind,

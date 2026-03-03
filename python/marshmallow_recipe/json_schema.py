@@ -5,7 +5,7 @@ import decimal
 import enum
 import types
 import uuid
-from typing import Annotated, Any, ClassVar, Protocol, cast, get_args, get_origin
+from typing import Annotated, Any, ClassVar, Literal, Protocol, cast, get_args, get_origin
 
 from .generics import TypeLike, get_fields_type_map
 from .metadata import EMPTY_METADATA, Metadata, build_metadata
@@ -182,11 +182,33 @@ def __convert_field_to_json_schema(
             merged_metadata = Metadata(dict(metadata, **annotated_metadata))
             return __convert_field_to_json_schema(underlying_type, merged_metadata, context)
 
+    if origin is Literal:
+        literal_values = get_args(field_type)
+        if literal_values and all(isinstance(v, str) for v in literal_values):
+            schema["type"] = "string"
+        elif literal_values and all(isinstance(v, bool) for v in literal_values):
+            schema["type"] = "boolean"
+        elif literal_values and all(isinstance(v, int) and not isinstance(v, bool) for v in literal_values):
+            schema["type"] = "integer"
+        schema["enum"] = list(literal_values)
+        return schema
+
     underlying_union_types = __try_get_underlying_types_from_union(field_type)
     if underlying_union_types is not None:
         non_none_types = [t for t in underlying_union_types if t is not types.NoneType]
         if len(non_none_types) == 1:
             field_type = non_none_types[0]
+            origin = get_origin(field_type)
+            if origin is Literal:
+                literal_values = get_args(field_type)
+                if literal_values and all(isinstance(v, str) for v in literal_values):
+                    schema["type"] = "string"
+                elif literal_values and all(isinstance(v, bool) for v in literal_values):
+                    schema["type"] = "boolean"
+                elif literal_values and all(isinstance(v, int) and not isinstance(v, bool) for v in literal_values):
+                    schema["type"] = "integer"
+                schema["enum"] = list(literal_values)
+                return schema
         elif len(non_none_types) > 1:
             schemas = [__convert_field_to_json_schema(t, EMPTY_METADATA, context) for t in non_none_types]
             schema["anyOf"] = schemas

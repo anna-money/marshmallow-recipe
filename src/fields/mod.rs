@@ -1,4 +1,5 @@
 pub mod any;
+pub mod bool_literal;
 pub mod bool_type;
 pub mod collection;
 pub mod date;
@@ -7,8 +8,10 @@ pub mod decimal;
 pub mod dict;
 pub mod float_type;
 pub mod int_enum;
+pub mod int_literal;
 pub mod int_type;
 pub mod str_enum;
+pub mod str_literal;
 pub mod str_type;
 pub mod time;
 pub mod union;

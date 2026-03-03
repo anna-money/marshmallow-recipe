@@ -7,7 +7,7 @@ import importlib.metadata
 import types
 import uuid
 from collections.abc import Callable, Mapping, Sequence
-from typing import Annotated, Any, ClassVar, NewType, Union, get_args, get_origin
+from typing import Annotated, Any, ClassVar, Literal, NewType, Union, get_args, get_origin
 
 import marshmallow
 
@@ -537,6 +537,9 @@ class _BuildContext:
             origin = get_origin(field_type)
             args = get_args(field_type)
 
+        if origin is Literal:
+            return self.__build_literal_field(name, args, optional, kwargs)
+
         if origin is None:
             return self.__build_primitive_field(
                 name, field_type, optional, field_metadata, default_decimal_places, nested_naming_case, visited, kwargs
@@ -680,6 +683,24 @@ class _BuildContext:
             return self.__builder.int_enum_field(name, optional, field_type, enum_values, **kwargs)
 
         raise NotImplementedError(f"Unsupported enum type: {field_type} (must inherit from str or int)")
+
+    def __build_literal_field(self, name: str, values: tuple[Any, ...], optional: bool, kwargs: dict[str, Any]) -> Any:
+        if not values:
+            raise ValueError("Literal must have at least one value")
+
+        if "invalid_error" not in kwargs:
+            kwargs["invalid_error"] = f"Not a valid value. Allowed values: {list(values)}"
+
+        if all(isinstance(v, str) for v in values):
+            return self.__builder.str_literal_field(name, optional, list(values), **kwargs)
+
+        if all(isinstance(v, bool) for v in values):
+            return self.__builder.bool_literal_field(name, optional, list(values), **kwargs)
+
+        if all(isinstance(v, int) and not isinstance(v, bool) for v in values):
+            return self.__builder.int_literal_field(name, optional, list(values), **kwargs)
+
+        raise ValueError(f"Unsupported Literal values: {values}. All values must be the same type (str, int, or bool)")
 
     def __build_item_field(self, field_type: Any, naming_case: NamingCase | None, visited: set[type]) -> Any:
         field_handle, _ = self.__build_field(
