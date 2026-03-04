@@ -1643,3 +1643,10 @@ class AssistantMsg:
 
 
 type Msg = UserMsg | AssistantMsg
+
+type ChainedStrAlias = StrAlias
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithChainedTypeAlias:
+    value: ChainedStrAlias

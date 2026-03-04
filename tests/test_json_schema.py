@@ -717,6 +717,7 @@ def test_literal_types() -> None:
 type StrAlias = str
 type OptionalIntAlias = int | None
 type UnionAlias = str | int
+type ChainedStrAlias = StrAlias
 
 
 def test_type_alias() -> None:
@@ -737,5 +738,20 @@ def test_type_alias() -> None:
             "count": {"type": "integer", "default": None},
             "value": {"anyOf": [{"type": "string"}, {"type": "integer"}], "default": "default"},
         },
+        "required": ["name"],
+    }
+
+
+def test_type_alias_chained() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class WithChainedAlias:
+        name: ChainedStrAlias
+
+    schema = mr.json_schema(WithChainedAlias)
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "WithChainedAlias",
+        "properties": {"name": {"type": "string"}},
         "required": ["name"],
     }
