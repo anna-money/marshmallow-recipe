@@ -131,7 +131,7 @@ class TestTypeAliasLoad:
             pytest.skip("does not support root type alias union")
         data = b'{"text":"hi","role":"unknown"}'
         with pytest.raises(Exception):
-            impl.load(Msg, data)
+            impl.load(Msg, data)  # type: ignore[arg-type]
 
     def test_discriminated_union_load_many(self, impl: Serializer) -> None:
         if not impl.supports_many:
