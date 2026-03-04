@@ -1645,8 +1645,14 @@ class AssistantMsg:
 type Msg = UserMsg | AssistantMsg
 
 type ChainedStrAlias = StrAlias
+type UnionOfAliases = StrAlias | IntAlias
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithChainedTypeAlias:
     value: ChainedStrAlias
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithUnionOfAliases:
+    value: UnionOfAliases

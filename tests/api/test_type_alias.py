@@ -11,6 +11,7 @@ from .conftest import (
     WithIntTypeAlias,
     WithOptionalStrTypeAlias,
     WithStrTypeAlias,
+    WithUnionOfAliases,
     WithUnionTypeAlias,
 )
 
@@ -38,15 +39,18 @@ class TestTypeAliasDump:
         result = impl.dump(WithOptionalStrTypeAlias, obj)
         assert result == b'{"value":"hello"}'
 
-    def test_union_alias_str(self, impl: Serializer) -> None:
-        obj = WithUnionTypeAlias(value="hello")
-        result = impl.dump(WithUnionTypeAlias, obj)
-        assert result == b'{"value":"hello"}'
-
-    def test_union_alias_int(self, impl: Serializer) -> None:
-        obj = WithUnionTypeAlias(value=42)
-        result = impl.dump(WithUnionTypeAlias, obj)
-        assert result == b'{"value":42}'
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            pytest.param(WithUnionTypeAlias(value="hello"), b'{"value":"hello"}', id="str"),
+            pytest.param(WithUnionTypeAlias(value=42), b'{"value":42}', id="int"),
+            pytest.param(WithUnionOfAliases(value="hello"), b'{"value":"hello"}', id="union_of_aliases_str"),
+            pytest.param(WithUnionOfAliases(value=42), b'{"value":42}', id="union_of_aliases_int"),
+        ],
+    )
+    def test_union_alias(self, impl: Serializer, obj: object, expected: bytes) -> None:
+        result = impl.dump(type(obj), obj)
+        assert result == expected
 
     def test_discriminated_union_user(self, impl: Serializer) -> None:
         if not impl.supports_root_type_alias_union:
@@ -102,15 +106,20 @@ class TestTypeAliasLoad:
         result = impl.load(WithOptionalStrTypeAlias, data)
         assert result == WithOptionalStrTypeAlias(value=None)
 
-    def test_union_alias_str(self, impl: Serializer) -> None:
-        data = b'{"value":"hello"}'
-        result = impl.load(WithUnionTypeAlias, data)
-        assert result == WithUnionTypeAlias(value="hello")
-
-    def test_union_alias_int(self, impl: Serializer) -> None:
-        data = b'{"value":42}'
-        result = impl.load(WithUnionTypeAlias, data)
-        assert result == WithUnionTypeAlias(value=42)
+    @pytest.mark.parametrize(
+        ("cls", "data", "expected"),
+        [
+            pytest.param(WithUnionTypeAlias, b'{"value":"hello"}', WithUnionTypeAlias(value="hello"), id="str"),
+            pytest.param(WithUnionTypeAlias, b'{"value":42}', WithUnionTypeAlias(value=42), id="int"),
+            pytest.param(
+                WithUnionOfAliases, b'{"value":"hello"}', WithUnionOfAliases(value="hello"), id="union_of_aliases_str"
+            ),
+            pytest.param(WithUnionOfAliases, b'{"value":42}', WithUnionOfAliases(value=42), id="union_of_aliases_int"),
+        ],
+    )
+    def test_union_alias(self, impl: Serializer, cls: type, data: bytes, expected: object) -> None:
+        result = impl.load(cls, data)
+        assert result == expected
 
     def test_discriminated_union_user(self, impl: Serializer) -> None:
         if not impl.supports_root_type_alias_union:
