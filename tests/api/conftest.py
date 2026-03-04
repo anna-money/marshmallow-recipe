@@ -1653,6 +1653,24 @@ class WithChainedTypeAlias:
     value: ChainedStrAlias
 
 
+type InnerAlias = Inner
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithUnionOfAliases:
     value: UnionOfAliases
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithListOfAlias:
+    items: list[StrAlias]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDictOfAlias:
+    data: dict[str, IntAlias]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithNestedAlias:
+    child: InnerAlias

@@ -4,11 +4,15 @@ import pytest
 
 from .conftest import (
     AssistantMsg,
+    Inner,
     Msg,
     Serializer,
     UserMsg,
     WithChainedTypeAlias,
+    WithDictOfAlias,
     WithIntTypeAlias,
+    WithListOfAlias,
+    WithNestedAlias,
     WithOptionalStrTypeAlias,
     WithStrTypeAlias,
     WithUnionOfAliases,
@@ -23,6 +27,9 @@ class TestTypeAliasDump:
             pytest.param(WithStrTypeAlias(value="hello"), b'{"value":"hello"}', id="str"),
             pytest.param(WithChainedTypeAlias(value="hello"), b'{"value":"hello"}', id="chained_str"),
             pytest.param(WithIntTypeAlias(value=42), b'{"value":42}', id="int"),
+            pytest.param(WithListOfAlias(items=["a", "b"]), b'{"items":["a","b"]}', id="list_of_alias"),
+            pytest.param(WithDictOfAlias(data={"x": 1}), b'{"data":{"x":1}}', id="dict_of_alias"),
+            pytest.param(WithNestedAlias(child=Inner(x=1)), b'{"child":{"x":1}}', id="nested_alias"),
         ],
     )
     def test_simple_alias(self, impl: Serializer, obj: object, expected: bytes) -> None:
@@ -85,6 +92,11 @@ class TestTypeAliasLoad:
                 WithChainedTypeAlias, b'{"value":"hello"}', WithChainedTypeAlias(value="hello"), id="chained_str"
             ),
             pytest.param(WithIntTypeAlias, b'{"value":42}', WithIntTypeAlias(value=42), id="int"),
+            pytest.param(
+                WithListOfAlias, b'{"items":["a","b"]}', WithListOfAlias(items=["a", "b"]), id="list_of_alias"
+            ),
+            pytest.param(WithDictOfAlias, b'{"data":{"x":1}}', WithDictOfAlias(data={"x": 1}), id="dict_of_alias"),
+            pytest.param(WithNestedAlias, b'{"child":{"x":1}}', WithNestedAlias(child=Inner(x=1)), id="nested_alias"),
         ],
     )
     def test_simple_alias(self, impl: Serializer, cls: type, data: bytes, expected: object) -> None:
