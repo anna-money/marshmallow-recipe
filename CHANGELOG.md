@@ -1,6 +1,6 @@
-## v0.0.83 (2026-03-03)
+## v0.0.83 (2026-03-04)
 
-* Add PEP 695 `type` alias (`TypeAliasType`) support — works as field types, in `dump`/`load`/`dump_many`/`load_many`, and in `nuked`
+* [Add TypeAliasType support](https://github.com/anna-money/marshmallow-recipe/pull/272)
 
 
 ## v0.0.82 (2026-03-02)
