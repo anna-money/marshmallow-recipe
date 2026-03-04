@@ -201,7 +201,7 @@ def _get_field_for(
 ) -> m.fields.Field:
     metadata = _wrap_metadata_validators(metadata)
 
-    if isinstance(t, TypeAliasType):
+    while isinstance(t, TypeAliasType):
         t = t.__value__
 
     if t is Any:

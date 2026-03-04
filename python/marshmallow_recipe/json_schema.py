@@ -173,7 +173,7 @@ def __convert_field_to_json_schema(
     if metadata.get("description"):
         schema["description"] = metadata["description"]
 
-    if isinstance(field_type, TypeAliasType):
+    while isinstance(field_type, TypeAliasType):
         field_type = field_type.__value__
 
     origin = get_origin(field_type)

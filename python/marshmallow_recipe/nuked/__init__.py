@@ -216,7 +216,7 @@ class _BuildContext:
         return (effective or NoneValueHandling.IGNORE) == NoneValueHandling.IGNORE
 
     def build_root_type(self, cls: Any, naming_case: NamingCase | None, visited: set[type]) -> Any:
-        if isinstance(cls, TypeAliasType):
+        while isinstance(cls, TypeAliasType):
             cls = cls.__value__
 
         origin = get_origin(cls)
@@ -425,7 +425,7 @@ class _BuildContext:
             if validate_item is not None:
                 item_validators = list(validate_item) if isinstance(validate_item, list | tuple) else [validate_item]
 
-        if isinstance(field_type, TypeAliasType):
+        while isinstance(field_type, TypeAliasType):
             field_type = field_type.__value__
 
         origin = get_origin(field_type)
@@ -539,7 +539,8 @@ class _BuildContext:
         kwargs: dict[str, Any],
     ) -> Any:
         if isinstance(field_type, TypeAliasType):
-            field_type = field_type.__value__
+            while isinstance(field_type, TypeAliasType):
+                field_type = field_type.__value__
             origin = get_origin(field_type)
             args = get_args(field_type)
 
