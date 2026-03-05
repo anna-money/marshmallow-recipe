@@ -714,6 +714,26 @@ def test_literal_types() -> None:
     }
 
 
+def test_bytes_field() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class WithBytes:
+        data: bytes
+        optional_data: bytes | None = None
+
+    schema = mr.json_schema(WithBytes)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "WithBytes",
+        "properties": {
+            "data": {"type": "string", "format": "byte"},
+            "optional_data": {"type": "string", "format": "byte", "default": None},
+        },
+        "required": ["data"],
+    }
+
+
 type StrAlias = str
 type OptionalIntAlias = int | None
 type UnionAlias = str | int

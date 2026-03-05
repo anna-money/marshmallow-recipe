@@ -8,8 +8,8 @@ use crate::container::{
 };
 use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
 use crate::fields::{
-    any, bool_literal, bool_type, collection, date, datetime, decimal, dict, float_type, int_enum,
-    int_literal, int_type, str_enum, str_literal, str_type, time, union, uuid,
+    any, bool_literal, bool_type, bytes, collection, date, datetime, decimal, dict, float_type,
+    int_enum, int_literal, int_type, str_enum, str_literal, str_type, time, union, uuid,
 };
 use crate::slots::set_slot_value_direct;
 use crate::utils::{call_validator, extract_error_args, get_object_cls, new_presized_list};
@@ -94,6 +94,7 @@ impl FieldContainer {
                 datetime::load_from_py(value, format, &common.invalid_error)
             }
             Self::Uuid { .. } => uuid::load_from_py(value, &common.invalid_error),
+            Self::Bytes { .. } => bytes::load_from_py(value, &common.invalid_error),
             Self::StrEnum {
                 common,
                 loader_data,

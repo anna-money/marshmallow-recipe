@@ -5,8 +5,8 @@ use pyo3::types::{PyDict, PyList};
 use crate::container::{DataclassContainer, DataclassRegistry, FieldContainer, TypeContainer};
 use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
 use crate::fields::{
-    any, bool_literal, bool_type, collection, date, datetime, decimal, dict, float_type, int_enum,
-    int_literal, int_type, str_enum, str_literal, str_type, time, union, uuid,
+    any, bool_literal, bool_type, bytes, collection, date, datetime, decimal, dict, float_type,
+    int_enum, int_literal, int_type, str_enum, str_literal, str_type, time, union, uuid,
 };
 use crate::utils::{call_validator, new_presized_list};
 
@@ -58,6 +58,7 @@ impl FieldContainer {
                 datetime::dump_to_py(value, format, &common.invalid_error)
             }
             Self::Uuid { .. } => uuid::dump_to_py(value, &common.invalid_error),
+            Self::Bytes { .. } => bytes::dump_to_py(value, &common.invalid_error),
             Self::IntEnum {
                 common,
                 dumper_data,

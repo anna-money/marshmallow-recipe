@@ -173,6 +173,9 @@ pub enum FieldContainer {
     Uuid {
         common: FieldCommon,
     },
+    Bytes {
+        common: FieldCommon,
+    },
     StrEnum {
         common: FieldCommon,
         loader_data: Box<StrEnumLoaderData>,
@@ -270,6 +273,9 @@ impl Clone for FieldContainer {
             Self::Uuid { common } => Self::Uuid {
                 common: common.clone(),
             },
+            Self::Bytes { common } => Self::Bytes {
+                common: common.clone(),
+            },
             Self::StrEnum {
                 common,
                 loader_data,
@@ -351,6 +357,7 @@ impl FieldContainer {
             | Self::Time { common }
             | Self::DateTime { common, .. }
             | Self::Uuid { common }
+            | Self::Bytes { common }
             | Self::StrEnum { common, .. }
             | Self::IntEnum { common, .. }
             | Self::StrLiteral { common, .. }
@@ -387,6 +394,7 @@ impl std::fmt::Debug for FieldContainer {
                 f.debug_struct("DateTime").field("format", format).finish()
             }
             Self::Uuid { .. } => write!(f, "Uuid"),
+            Self::Bytes { .. } => write!(f, "Bytes"),
             Self::StrEnum { .. } => write!(f, "StrEnum"),
             Self::IntEnum { .. } => write!(f, "IntEnum"),
             Self::StrLiteral { .. } => write!(f, "StrLiteral"),
