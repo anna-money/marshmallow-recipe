@@ -5,7 +5,7 @@ import decimal
 import enum
 import types
 import uuid
-from typing import Annotated, Any, ClassVar, Literal, Protocol, cast, get_args, get_origin
+from typing import Annotated, Any, ClassVar, Literal, Protocol, TypeAliasType, cast, get_args, get_origin
 
 from .generics import TypeLike, get_fields_type_map
 from .metadata import EMPTY_METADATA, Metadata, build_metadata
@@ -172,6 +172,9 @@ def __convert_field_to_json_schema(
 
     if metadata.get("description"):
         schema["description"] = metadata["description"]
+
+    while isinstance(field_type, TypeAliasType):
+        field_type = field_type.__value__
 
     origin = get_origin(field_type)
     if origin is Annotated:

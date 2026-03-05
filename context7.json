@@ -8,7 +8,7 @@
   "rules": [
     "Works with both marshmallow v2 and v3 - no version-specific code needed",
     "Basic usage: mr.dump(obj) to serialize, mr.load(Class, data) to deserialize",
-    "All Python types supported: str, int, float, bool, decimal.Decimal, datetime.datetime, datetime.date, datetime.time, uuid.UUID, enums, Any",
+    "All Python types supported: str, int, float, bool, decimal.Decimal, datetime.datetime, datetime.date, datetime.time, uuid.UUID, enums, Literal, Any",
     "Collections: list[T], set[T], frozenset[T], tuple[T, ...], dict[K, V] - all work automatically",
     "Nested dataclasses work automatically without special configuration",
     "Optional types with T | None - None values excluded from output by default",
@@ -53,6 +53,7 @@
     "JSON Schema: All Python types automatically mapped - str→string, int→integer, float→number, bool→boolean, etc.",
     "JSON Schema: DateTime types include format - datetime→date-time, date→date, time→time, uuid.UUID→uuid",
     "JSON Schema: Enums include enum values - Status(str, Enum) → {\"type\": \"string\", \"enum\": [values]}",
+    "JSON Schema: Literal types include allowed values - Literal['a', 'b'] → {\"type\": \"string\", \"enum\": [\"a\", \"b\"]}",
     "JSON Schema: Collections mapped - list→array, set→array with uniqueItems, dict→object with additionalProperties",
     "JSON Schema: Union types (str | int) mapped to anyOf - {\"anyOf\": [{\"type\": \"string\"}, {\"type\": \"integer\"}]}",
     "JSON Schema: Optional fields (T | None) not in required array, but type is not anyOf with null",
@@ -74,7 +75,14 @@
     "NUKED SCHEMA: Cached per (cls, many, naming_case, none_value_handling, decimal_places) — same instance returned for same args",
     "NUKED SCHEMA: Does NOT support pre_load hooks or cyclic references (same limitations as mr.nuked.load())",
     "NUKED ROOT COLLECTIONS: mr.nuked.dump(dict[str, T], data) and mr.nuked.load(dict[str, T], data) work with any T — primitives (str, int, float, bool, datetime, date, time, Decimal, UUID), enums, dataclasses, nested collections, optionals, and Any",
-    "NUKED ROOT COLLECTIONS: No dataclass wrapper needed — pass bare dict/list types directly as root type"
+    "NUKED ROOT COLLECTIONS: No dataclass wrapper needed — pass bare dict/list types directly as root type",
+    "Literal types: Literal['a', 'b'] restricts field to specific str or int values — validated on both dump and load",
+    "Literal types: Supports Optional (Literal['x'] | None), defaults, and mr.MISSING",
+    "Literal types: Values must be homogeneous — all str or all int, bools rejected for int literals",
+    "PEP 695 type aliases: type X = str | int works transparently as field types — unwrapped automatically",
+    "PEP 695 type aliases: Works in dump/load/dump_many/load_many — type Message = UserMessage | AssistantMessage; mr.dump(Message, obj), mr.load(Message, data), mr.dump_many(Message, objs), mr.load_many(Message, data)",
+    "PEP 695 type aliases: Works in nuked — mr.nuked.dump(Message, obj), mr.nuked.load(Message, data), mr.nuked.dump(list[Message], objs), mr.nuked.load(list[Message], data)",
+    "PEP 695 type aliases: Discriminated unions with Literal fields — type Message = UserMsg | AssistantMsg where role: Literal['user'] vs role: Literal['assistant'] enables correct dispatch on load"
   ],
   "previousVersions": []
 }

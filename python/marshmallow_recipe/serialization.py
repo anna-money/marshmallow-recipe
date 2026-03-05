@@ -1,11 +1,11 @@
 import dataclasses
 import importlib.metadata
-from typing import Any, ClassVar, Protocol, overload
+from typing import Any, ClassVar, Protocol, get_args, overload
 
 import marshmallow as m
 
 from .bake import bake_schema
-from .generics import extract_type
+from .generics import extract_type, is_union_type, unwrap_type_alias
 from .missing import MISSING
 from .naming_case import NamingCase
 from .options import NoneValueHandling
@@ -69,10 +69,42 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         decimal_places: int | None = MISSING,
     ) -> T:
         validate_decimal_places(decimal_places)
+        unwrapped = unwrap_type_alias(cls)
+        if is_union_type(unwrapped):
+            return _load_union_v3(
+                unwrapped,
+                data,
+                naming_case=naming_case,
+                none_value_handling=none_value_handling,
+                decimal_places=decimal_places,
+            )  # type: ignore
         schema = schema_v3(
-            cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
+            unwrapped, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
         return schema.load(data)  # type: ignore
+
+    def _load_union_v3(
+        union_type: Any,
+        data: dict[str, Any],
+        *,
+        naming_case: NamingCase | None,
+        none_value_handling: NoneValueHandling | None,
+        decimal_places: int | None,
+    ) -> Any:
+        members = [a for a in get_args(union_type) if a is not type(None)]
+        last_error: Exception | None = None
+        for member in members:
+            try:
+                return load_v3(
+                    member,
+                    data,
+                    naming_case=naming_case,
+                    none_value_handling=none_value_handling,
+                    decimal_places=decimal_places,
+                )
+            except (m.ValidationError, ValueError) as e:
+                last_error = e
+        raise last_error  # type: ignore
 
     load = load_v3
 
@@ -86,8 +118,20 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         decimal_places: int | None = MISSING,
     ) -> list[T]:
         validate_decimal_places(decimal_places)
+        unwrapped = unwrap_type_alias(cls)
+        if is_union_type(unwrapped):
+            return [
+                _load_union_v3(
+                    unwrapped,
+                    item,
+                    naming_case=naming_case,
+                    none_value_handling=none_value_handling,
+                    decimal_places=decimal_places,
+                )
+                for item in data
+            ]  # type: ignore
         schema = schema_v3(
-            cls,
+            unwrapped,
             many=True,
             naming_case=naming_case,
             none_value_handling=none_value_handling,
@@ -132,8 +176,20 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         validate_decimal_places(decimal_places)
         if not data:
             return []
+        unwrapped = unwrap_type_alias(cls) if cls is not None else None
+        if unwrapped is not None and is_union_type(unwrapped):
+            return [
+                dump_v3(
+                    None,
+                    item,
+                    naming_case=naming_case,
+                    none_value_handling=none_value_handling,
+                    decimal_places=decimal_places,
+                )
+                for item in data
+            ]
         data_schema = schema_v3(
-            extract_type(data[0], cls),
+            extract_type(data[0], unwrapped),
             many=True,
             naming_case=naming_case,
             none_value_handling=none_value_handling,
@@ -187,11 +243,43 @@ else:
         decimal_places: int | None = MISSING,
     ) -> T:
         validate_decimal_places(decimal_places)
+        unwrapped = unwrap_type_alias(cls)
+        if is_union_type(unwrapped):
+            return _load_union_v2(
+                unwrapped,
+                data,
+                naming_case=naming_case,
+                none_value_handling=none_value_handling,
+                decimal_places=decimal_places,
+            )  # type: ignore
         schema = schema_v2(
-            cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
+            unwrapped, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
         loaded, _ = schema.load(data)  # type: ignore
         return loaded  # type: ignore[return-value]
+
+    def _load_union_v2(
+        union_type: Any,
+        data: dict[str, Any],
+        *,
+        naming_case: NamingCase | None,
+        none_value_handling: NoneValueHandling | None,
+        decimal_places: int | None,
+    ) -> Any:
+        members = [a for a in get_args(union_type) if a is not type(None)]
+        last_error: Exception | None = None
+        for member in members:
+            try:
+                return load_v2(
+                    member,
+                    data,
+                    naming_case=naming_case,
+                    none_value_handling=none_value_handling,
+                    decimal_places=decimal_places,
+                )
+            except (m.ValidationError, ValueError) as e:
+                last_error = e
+        raise last_error  # type: ignore
 
     load = load_v2
 
@@ -205,8 +293,20 @@ else:
         decimal_places: int | None = MISSING,
     ) -> list[T]:
         validate_decimal_places(decimal_places)
+        unwrapped = unwrap_type_alias(cls)
+        if is_union_type(unwrapped):
+            return [
+                _load_union_v2(
+                    unwrapped,
+                    item,
+                    naming_case=naming_case,
+                    none_value_handling=none_value_handling,
+                    decimal_places=decimal_places,
+                )
+                for item in data
+            ]  # type: ignore
         schema = schema_v2(
-            cls,
+            unwrapped,
             many=True,
             naming_case=naming_case,
             none_value_handling=none_value_handling,
@@ -254,8 +354,20 @@ else:
         validate_decimal_places(decimal_places)
         if not data:
             return []
+        unwrapped = unwrap_type_alias(cls) if cls is not None else None
+        if unwrapped is not None and is_union_type(unwrapped):
+            return [
+                dump_v2(
+                    None,
+                    item,
+                    naming_case=naming_case,
+                    none_value_handling=none_value_handling,
+                    decimal_places=decimal_places,
+                )
+                for item in data
+            ]
         data_schema = schema_v2(
-            extract_type(data[0], cls),
+            extract_type(data[0], unwrapped),
             many=True,
             naming_case=naming_case,
             none_value_handling=none_value_handling,
