@@ -1235,10 +1235,18 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     class BytesFieldV3(m.fields.Field):
         default_error_messages = {"invalid": "Not valid base64-encoded bytes."}  # noqa: RUF012
 
-        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+        def _validated(self, value: Any) -> Any:
             if value is None:
                 return None
-            return base64.b64encode(value).decode("ascii")
+            if not isinstance(value, bytes):
+                raise self.make_error("invalid")
+            return value
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            validated = self._validated(value)
+            if validated is None:
+                return None
+            return base64.b64encode(validated).decode("ascii")
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             if isinstance(value, bytes):
@@ -1630,10 +1638,18 @@ else:
     class BytesFieldV2(m.fields.Field):
         default_error_messages = {"invalid": "Not valid base64-encoded bytes."}  # noqa: RUF012
 
-        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+        def _validated(self, value: Any) -> Any:
             if value is None:
                 return None
-            return base64.b64encode(value).decode("ascii")
+            if not isinstance(value, bytes):
+                self.fail("invalid")
+            return value
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            validated = self._validated(value)
+            if validated is None:
+                return None
+            return base64.b64encode(validated).decode("ascii")
 
         def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
             if isinstance(value, bytes):
