@@ -314,14 +314,21 @@ class _BuildContext:
 
     def __ensure_dataclass(
         self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, slots: _SlotStrategy
-    ) -> tuple[Any, list[tuple[str, str | None]]]:
+    ) -> Any:
         if opts.cls in self.__dataclass_handles:
-            return self.__dataclass_handles[opts.cls], []
+            return self.__dataclass_handles[opts.cls]
 
         handle = self.__builder.reserve_dataclass()
         self.__dataclass_handles[opts.cls] = handle
 
         field_handles, field_data_keys = self.__build_dataclass_core(cls, naming_case, opts)
+
+        for name, data_key in field_data_keys:
+            if data_key is None:
+                continue
+            for other_name, _ in field_data_keys:
+                if name != other_name and data_key == other_name:
+                    raise ValueError(f"Invalid name={data_key} in metadata for field={name}")
 
         self.__builder.finalize_dataclass(
             handle,
@@ -331,27 +338,18 @@ class _BuildContext:
             has_post_init=slots.has_post_init,
             ignore_none=self.__resolve_ignore_none(opts),
         )
-        return handle, field_data_keys
+        return handle
 
     def __build_dataclass_type(
         self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, slots: _SlotStrategy
     ) -> Any:
-        handle, field_data_keys = self.__ensure_dataclass(cls, naming_case, opts, slots)
-
-        for name, data_key in field_data_keys:
-            if data_key is None:
-                continue
-            for other_name, _ in field_data_keys:
-                if name != other_name and data_key == other_name:
-                    raise ValueError(f"Invalid name={data_key} in metadata for field={name}")
-
+        handle = self.__ensure_dataclass(cls, naming_case, opts, slots)
         return self.__builder.type_dataclass(handle)
 
     def __build_nested_dataclass(self, cls: Any, naming_case: NamingCase | None) -> Any:
         opts = _analyze_dataclass_options(cls, naming_case)
         slots = _analyze_slot_strategy(opts.cls)
-        handle, _ = self.__ensure_dataclass(cls, naming_case, opts, slots)
-        return handle
+        return self.__ensure_dataclass(cls, naming_case, opts, slots)
 
     def __build_field(
         self,
