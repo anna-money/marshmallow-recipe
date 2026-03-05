@@ -211,7 +211,7 @@ pub enum FieldContainer {
     },
     Nested {
         common: FieldCommon,
-        container: Box<DataclassContainer>,
+        dataclass_index: usize,
     },
     Union {
         common: FieldCommon,
@@ -220,7 +220,6 @@ pub enum FieldContainer {
 }
 
 impl Clone for FieldContainer {
-    #[allow(clippy::too_many_lines)]
     fn clone(&self) -> Self {
         Python::attach(|py| match self {
             Self::Str {
@@ -324,9 +323,12 @@ impl Clone for FieldContainer {
                 value: value.clone(),
                 value_validator: value_validator.as_ref().map(|v| v.clone_ref(py)),
             },
-            Self::Nested { common, container } => Self::Nested {
+            Self::Nested {
+                common,
+                dataclass_index,
+            } => Self::Nested {
                 common: common.clone(),
-                container: container.clone(),
+                dataclass_index: *dataclass_index,
             },
             Self::Union { common, variants } => Self::Union {
                 common: common.clone(),
@@ -456,6 +458,20 @@ impl std::fmt::Debug for DataclassContainer {
     }
 }
 
+pub struct DataclassRegistry {
+    containers: Vec<DataclassContainer>,
+}
+
+impl DataclassRegistry {
+    pub const fn new(containers: Vec<DataclassContainer>) -> Self {
+        Self { containers }
+    }
+
+    pub fn get(&self, index: usize) -> &DataclassContainer {
+        &self.containers[index]
+    }
+}
+
 pub struct PrimitiveContainer {
     pub field: FieldContainer,
 }
@@ -470,7 +486,7 @@ impl Clone for PrimitiveContainer {
 
 #[allow(clippy::use_self)]
 pub enum TypeContainer {
-    Dataclass(DataclassContainer),
+    Dataclass(usize),
     Primitive(PrimitiveContainer),
     List { item: Box<Self> },
     Dict { value: Box<Self> },
@@ -484,7 +500,7 @@ pub enum TypeContainer {
 impl Clone for TypeContainer {
     fn clone(&self) -> Self {
         match self {
-            Self::Dataclass(dc) => Self::Dataclass(dc.clone()),
+            Self::Dataclass(idx) => Self::Dataclass(*idx),
             Self::Primitive(p) => Self::Primitive(p.clone()),
             Self::List { item } => Self::List { item: item.clone() },
             Self::Dict { value } => Self::Dict {
@@ -506,7 +522,7 @@ impl Clone for TypeContainer {
 impl std::fmt::Debug for TypeContainer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Dataclass(dc) => f.debug_tuple("Dataclass").field(dc).finish(),
+            Self::Dataclass(idx) => f.debug_tuple("Dataclass").field(idx).finish(),
             Self::Primitive(_) => write!(f, "Primitive"),
             Self::List { .. } => write!(f, "List"),
             Self::Dict { .. } => write!(f, "Dict"),

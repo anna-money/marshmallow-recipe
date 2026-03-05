@@ -1,11 +1,13 @@
+use std::collections::HashMap;
+
 use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::{PyList, PyString, PyTuple};
 
 use crate::container::{
-    BoolLiteralData, DataclassContainer, DataclassField, EnumDumperData, FieldCommon,
-    FieldContainer, IntEnumLoaderData, IntLiteralData, PrimitiveContainer, StrEnumLoaderData,
-    StrLiteralData, TypeContainer,
+    BoolLiteralData, DataclassContainer, DataclassField, DataclassRegistry, EnumDumperData,
+    FieldCommon, FieldContainer, IntEnumLoaderData, IntLiteralData, PrimitiveContainer,
+    StrEnumLoaderData, StrLiteralData, TypeContainer,
 };
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::parse_datetime_format;
@@ -14,19 +16,20 @@ use crate::fields::decimal::{RangeBound, get_decimal_cls};
 #[pyclass]
 pub struct Container {
     inner: TypeContainer,
+    registry: DataclassRegistry,
 }
 
 #[pymethods]
 impl Container {
     fn load(&self, py: Python<'_>, data: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
         self.inner
-            .load_from_py(py, data)
+            .load_from_py(py, &self.registry, data)
             .map_err(|e| e.to_validation_err(py))
     }
 
     fn dump(&self, py: Python<'_>, obj: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
         self.inner
-            .dump_to_py(obj)
+            .dump_to_py(&self.registry, obj)
             .map_err(|e| e.to_validation_err(py))
     }
 }
@@ -80,7 +83,8 @@ struct BuilderField {
 #[pyclass]
 pub struct ContainerBuilder {
     fields: Vec<BuilderField>,
-    dataclasses: Vec<DataclassContainer>,
+    dataclasses: HashMap<usize, DataclassContainer>,
+    next_dataclass_index: usize,
     types: Vec<TypeContainer>,
     global_decimal_places: Option<i32>,
 }
@@ -223,10 +227,11 @@ fn build_builder_field(
 impl ContainerBuilder {
     #[new]
     #[pyo3(signature = (*, decimal_places=None))]
-    const fn new(decimal_places: Option<i32>) -> Self {
+    fn new(decimal_places: Option<i32>) -> Self {
         Self {
             fields: Vec::new(),
-            dataclasses: Vec::new(),
+            dataclasses: HashMap::new(),
+            next_dataclass_index: 0,
             types: Vec::new(),
             global_decimal_places: decimal_places,
         }
@@ -473,7 +478,6 @@ impl ContainerBuilder {
     }
 
     #[pyo3(signature = (name, optional, enum_cls, enum_values, **kwargs))]
-    #[allow(clippy::too_many_arguments)]
     fn str_enum_field(
         &mut self,
         py: Python<'_>,
@@ -511,7 +515,6 @@ impl ContainerBuilder {
     }
 
     #[pyo3(signature = (name, optional, enum_cls, enum_values, **kwargs))]
-    #[allow(clippy::too_many_arguments)]
     fn int_enum_field(
         &mut self,
         py: Python<'_>,
@@ -752,11 +755,10 @@ impl ContainerBuilder {
         let kwargs = get_kwargs(py, kwargs);
         let invalid_error = intern!(py, "").clone().unbind();
         let common = build_field_common(optional, &kwargs, invalid_error)?;
-        let nested_container = self.__resolve_dataclass_handle(nested)?;
 
         let container = FieldContainer::Nested {
             common,
-            container: Box::new(nested_container),
+            dataclass_index: nested.0,
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
@@ -794,47 +796,37 @@ impl ContainerBuilder {
         Ok(FieldHandle(idx))
     }
 
-    #[pyo3(signature = (cls, fields, *, can_use_direct_slots=false, has_post_init=false, ignore_none=true))]
-    fn dataclass(
+    const fn reserve_dataclass(&mut self) -> DataclassHandle {
+        let idx = self.next_dataclass_index;
+        self.next_dataclass_index += 1;
+        DataclassHandle(idx)
+    }
+
+    #[pyo3(signature = (handle, cls, fields, *, can_use_direct_slots=false, has_post_init=false, ignore_none=true))]
+    fn finalize_dataclass(
         &mut self,
         py: Python<'_>,
+        handle: DataclassHandle,
         cls: Py<PyAny>,
         fields: Vec<FieldHandle>,
         can_use_direct_slots: bool,
         has_post_init: bool,
         ignore_none: bool,
-    ) -> PyResult<DataclassHandle> {
-        let mut container =
-            DataclassContainer::new(cls, can_use_direct_slots, has_post_init, ignore_none);
-
-        for handle in fields {
-            let builder_field = self.fields.get(handle.0).ok_or_else(|| {
-                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                    "Invalid FieldHandle: {}",
-                    handle.0
-                ))
-            })?;
-
-            let dc_field = DataclassField {
-                name: builder_field.name.clone(),
-                name_interned: builder_field.name_interned.clone_ref(py),
-                data_key: builder_field.data_key.clone(),
-                data_key_interned: builder_field.data_key_interned.clone_ref(py),
-                slot_offset: builder_field.slot_offset,
-                field_init: builder_field.field_init,
-                field: builder_field.container.clone(),
-            };
-            container.add_field(dc_field);
-        }
-
-        let idx = self.dataclasses.len();
-        self.dataclasses.push(container);
-        Ok(DataclassHandle(idx))
+    ) -> PyResult<()> {
+        let container = self.__build_dataclass_container(
+            py,
+            cls,
+            fields,
+            can_use_direct_slots,
+            has_post_init,
+            ignore_none,
+        )?;
+        self.dataclasses.insert(handle.0, container);
+        Ok(())
     }
 
-    fn type_dataclass(&mut self, dc: DataclassHandle) -> PyResult<TypeHandle> {
-        let container = self.__resolve_dataclass_handle(dc)?;
-        Ok(self.__push_type(TypeContainer::Dataclass(container)))
+    fn type_dataclass(&mut self, dc: DataclassHandle) -> TypeHandle {
+        self.__push_type(TypeContainer::Dataclass(dc.0))
     }
 
     fn type_primitive(&mut self, field: FieldHandle) -> PyResult<TypeHandle> {
@@ -900,7 +892,18 @@ impl ContainerBuilder {
 
     fn build(&mut self, type_handle: TypeHandle) -> PyResult<Container> {
         let inner = self.__resolve_type_handle(type_handle)?;
-        Ok(Container { inner })
+        let mut dataclasses = std::mem::take(&mut self.dataclasses);
+        let mut containers = Vec::with_capacity(self.next_dataclass_index);
+        for i in 0..self.next_dataclass_index {
+            let container = dataclasses.remove(&i).ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Unfinalized DataclassHandle: {i}",
+                ))
+            })?;
+            containers.push(container);
+        }
+        let registry = DataclassRegistry::new(containers);
+        Ok(Container { inner, registry })
     }
 }
 
@@ -941,6 +944,41 @@ impl ContainerBuilder {
         TypeHandle(idx)
     }
 
+    fn __build_dataclass_container(
+        &self,
+        py: Python<'_>,
+        cls: Py<PyAny>,
+        fields: Vec<FieldHandle>,
+        can_use_direct_slots: bool,
+        has_post_init: bool,
+        ignore_none: bool,
+    ) -> PyResult<DataclassContainer> {
+        let mut container =
+            DataclassContainer::new(cls, can_use_direct_slots, has_post_init, ignore_none);
+
+        for handle in fields {
+            let builder_field = self.fields.get(handle.0).ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Invalid FieldHandle: {}",
+                    handle.0
+                ))
+            })?;
+
+            let dc_field = DataclassField {
+                name: builder_field.name.clone(),
+                name_interned: builder_field.name_interned.clone_ref(py),
+                data_key: builder_field.data_key.clone(),
+                data_key_interned: builder_field.data_key_interned.clone_ref(py),
+                slot_offset: builder_field.slot_offset,
+                field_init: builder_field.field_init,
+                field: builder_field.container.clone(),
+            };
+            container.add_field(dc_field);
+        }
+
+        Ok(container)
+    }
+
     fn __resolve_field_handle(&self, handle: FieldHandle) -> PyResult<FieldContainer> {
         self.fields
             .get(handle.0)
@@ -953,16 +991,6 @@ impl ContainerBuilder {
             })
     }
 
-    fn __resolve_dataclass_handle(&self, handle: DataclassHandle) -> PyResult<DataclassContainer> {
-        self.dataclasses.get(handle.0).cloned().ok_or_else(|| {
-            PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                "Invalid DataclassHandle: {}",
-                handle.0
-            ))
-        })
-    }
-
-    #[allow(clippy::too_many_arguments)]
     fn __build_collection_field(
         &mut self,
         py: Python<'_>,

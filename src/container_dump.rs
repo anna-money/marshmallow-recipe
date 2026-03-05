@@ -2,7 +2,7 @@ use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 
-use crate::container::{DataclassContainer, FieldContainer, TypeContainer};
+use crate::container::{DataclassContainer, DataclassRegistry, FieldContainer, TypeContainer};
 use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
 use crate::fields::{
     any, bool_literal, bool_type, collection, date, datetime, decimal, dict, float_type, int_enum,
@@ -12,7 +12,11 @@ use crate::utils::{call_validator, new_presized_list};
 
 #[allow(clippy::cast_sign_loss, clippy::unused_self)]
 impl FieldContainer {
-    pub fn dump_to_py(&self, value: &Bound<'_, PyAny>) -> Result<Py<PyAny>, SerializationError> {
+    pub fn dump_to_py(
+        &self,
+        registry: &DataclassRegistry,
+        value: &Bound<'_, PyAny>,
+    ) -> Result<Py<PyAny>, SerializationError> {
         if value.is_none() {
             return Ok(value.py().None());
         }
@@ -80,6 +84,7 @@ impl FieldContainer {
                 item_validator,
                 ..
             } => collection::dump_to_py(
+                registry,
                 value,
                 *kind,
                 item,
@@ -91,19 +96,26 @@ impl FieldContainer {
                 value_validator,
                 ..
             } => dict::dump_to_py(
+                registry,
                 value,
                 value_schema,
                 value_validator.as_ref(),
                 &common.invalid_error,
             ),
-            Self::Nested { container, .. } => container.dump_to_py(value),
-            Self::Union { variants, .. } => union::dump_to_py(value, variants),
+            Self::Nested {
+                dataclass_index, ..
+            } => registry.get(*dataclass_index).dump_to_py(registry, value),
+            Self::Union { variants, .. } => union::dump_to_py(registry, value, variants),
         }
     }
 }
 
 impl DataclassContainer {
-    pub fn dump_to_py(&self, value: &Bound<'_, PyAny>) -> Result<Py<PyAny>, SerializationError> {
+    pub fn dump_to_py(
+        &self,
+        registry: &DataclassRegistry,
+        value: &Bound<'_, PyAny>,
+    ) -> Result<Py<PyAny>, SerializationError> {
         let py = value.py();
 
         if !value.is_instance(self.cls.bind(py)).unwrap_or(false) {
@@ -157,7 +169,7 @@ impl DataclassContainer {
                     .set_item(dc_field.data_key_interned.bind(py), py.None())
                     .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
             } else {
-                match dc_field.field.dump_to_py(&py_value) {
+                match dc_field.field.dump_to_py(registry, &py_value) {
                     Ok(dumped) => {
                         if dumped.is_none(py) && self.ignore_none {
                             continue;
@@ -182,17 +194,20 @@ impl DataclassContainer {
 }
 
 impl TypeContainer {
-    #[allow(clippy::too_many_lines)]
-    pub fn dump_to_py(&self, value: &Bound<'_, PyAny>) -> Result<Py<PyAny>, SerializationError> {
+    pub fn dump_to_py(
+        &self,
+        registry: &DataclassRegistry,
+        value: &Bound<'_, PyAny>,
+    ) -> Result<Py<PyAny>, SerializationError> {
         let py = value.py();
 
         match self {
-            Self::Dataclass(dc) => dc.dump_to_py(value),
+            Self::Dataclass(idx) => registry.get(*idx).dump_to_py(registry, value),
             Self::Primitive(p) => {
                 if value.is_none() {
                     return Ok(py.None());
                 }
-                p.field.dump_to_py(value)
+                p.field.dump_to_py(registry, value)
             }
             Self::List { item } => {
                 let list = value.cast::<PyList>().map_err(|_| {
@@ -202,7 +217,7 @@ impl TypeContainer {
                 let mut errors: Option<Bound<'_, PyDict>> = None;
 
                 for (idx, v) in list.iter().enumerate() {
-                    match item.dump_to_py(&v) {
+                    match item.dump_to_py(registry, &v) {
                         Ok(dumped) => unsafe {
                             pyo3::ffi::PyList_SET_ITEM(
                                 result.as_ptr(),
@@ -230,7 +245,7 @@ impl TypeContainer {
                 let mut errors: Option<Bound<'_, PyDict>> = None;
 
                 for (k, v) in dict.iter() {
-                    match value_container.dump_to_py(&v) {
+                    match value_container.dump_to_py(registry, &v) {
                         Ok(dumped) => {
                             result
                                 .set_item(k, dumped)
@@ -253,7 +268,7 @@ impl TypeContainer {
                 if value.is_none() {
                     Ok(py.None())
                 } else {
-                    inner.dump_to_py(value)
+                    inner.dump_to_py(registry, value)
                 }
             }
             Self::Set { item } | Self::FrozenSet { item } | Self::Tuple { item } => {
@@ -267,7 +282,7 @@ impl TypeContainer {
                 for (idx, item_result) in iter.enumerate() {
                     let v =
                         item_result.map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-                    match item.dump_to_py(&v) {
+                    match item.dump_to_py(registry, &v) {
                         Ok(dumped) => items.push(dumped),
                         Err(ref e) => accumulate_error(py, &mut errors, idx, e),
                     }
@@ -283,7 +298,7 @@ impl TypeContainer {
             }
             Self::Union { variants } => {
                 for variant in variants {
-                    if let Ok(result) = variant.dump_to_py(value) {
+                    if let Ok(result) = variant.dump_to_py(registry, value) {
                         return Ok(result);
                     }
                 }

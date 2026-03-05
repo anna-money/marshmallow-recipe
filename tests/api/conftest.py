@@ -34,10 +34,6 @@ class Serializer(abc.ABC):
         return True
 
     @property
-    def supports_cyclic(self) -> bool:
-        return True
-
-    @property
     def supports_root_non_dataclasses(self) -> bool:
         return False
 
@@ -171,10 +167,6 @@ class NukedSerializer(Serializer):
     def supports_root_non_dataclasses(self) -> bool:
         return True
 
-    @property
-    def supports_cyclic(self) -> bool:
-        return False
-
     def dump[T](
         self,
         cls: type[T],
@@ -206,10 +198,6 @@ class NukedSchemaSerializer(Serializer):
 
     @property
     def supports_pre_load(self) -> bool:
-        return False
-
-    @property
-    def supports_cyclic(self) -> bool:
         return False
 
     @property
@@ -1457,6 +1445,12 @@ class CyclicParent:
 class CyclicChild:
     marker: str
     parent: CyclicParent | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class CyclicList:
+    marker: str
+    children: list["CyclicList"] = dataclasses.field(default_factory=list)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

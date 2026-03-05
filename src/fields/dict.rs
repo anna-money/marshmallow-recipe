@@ -2,11 +2,12 @@ use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyString};
 
-use crate::container::FieldContainer;
+use crate::container::{DataclassRegistry, FieldContainer};
 use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
 use crate::utils::call_validator;
 
 pub fn load_from_py(
+    registry: &DataclassRegistry,
     value: &Bound<'_, PyAny>,
     value_schema: &FieldContainer,
     value_validator: Option<&Py<PyAny>>,
@@ -32,7 +33,7 @@ pub fn load_from_py(
             let _ = result.set_item(k, py.None());
             continue;
         }
-        match value_schema.load_from_py(&v) {
+        match value_schema.load_from_py(registry, &v) {
             Ok(py_val) => {
                 if let Some(validator) = value_validator
                     && let Ok(Some(err_list)) = call_validator(py, validator, py_val.bind(py))
@@ -61,6 +62,7 @@ pub fn load_from_py(
 }
 
 pub fn dump_to_py(
+    registry: &DataclassRegistry,
     value: &Bound<'_, PyAny>,
     value_schema: &FieldContainer,
     value_validator: Option<&Py<PyAny>>,
@@ -94,7 +96,7 @@ pub fn dump_to_py(
             continue;
         }
 
-        match value_schema.dump_to_py(&v) {
+        match value_schema.dump_to_py(registry, &v) {
             Ok(dumped) => {
                 result
                     .set_item(k, dumped)
