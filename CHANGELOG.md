@@ -1,3 +1,8 @@
+## v0.0.84 (2026-03-05)
+
+* [Add cyclic dataclass support via DataclassRegistry](https://github.com/anna-money/marshmallow-recipe/pull/273)
+
+
 ## v0.0.83 (2026-03-04)
 
 * [Add TypeAliasType support](https://github.com/anna-money/marshmallow-recipe/pull/272)
