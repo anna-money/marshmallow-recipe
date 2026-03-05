@@ -6,6 +6,7 @@ from .conftest import (
     Company,
     Cyclic,
     CyclicChild,
+    CyclicList,
     CyclicParent,
     Department,
     Person,
@@ -157,88 +158,107 @@ class TestNestedLoad:
         result = impl.load(WithNestedDefault, data)
         assert result == WithNestedDefault()
 
+
+class TestCyclicLoad:
     def test_cyclic_self_reference_none(self, impl: Serializer) -> None:
-        if impl.supports_cyclic:
-            data = b'{"marker":"level 1"}'
-            result = impl.load(Cyclic, data)
-            assert result == Cyclic(marker="level 1", child=None)
-        else:
-            with pytest.raises(NotImplementedError, match="Cyclic dataclass references are not supported"):
-                impl.load(Cyclic, b'{"marker":"level 1"}')
+        data = b'{"marker":"level 1"}'
+        result = impl.load(Cyclic, data)
+        assert result == Cyclic(marker="level 1", child=None)
 
     def test_cyclic_self_reference_nested(self, impl: Serializer) -> None:
-        if impl.supports_cyclic:
-            data = b'{"marker":"level 1","child":{"marker":"level 2"}}'
-            result = impl.load(Cyclic, data)
-            assert result == Cyclic(marker="level 1", child=Cyclic(marker="level 2", child=None))
-        else:
-            with pytest.raises(NotImplementedError, match="Cyclic dataclass references are not supported"):
-                impl.load(Cyclic, b'{"marker":"level 1","child":{"marker":"level 2"}}')
+        data = b'{"marker":"level 1","child":{"marker":"level 2"}}'
+        result = impl.load(Cyclic, data)
+        assert result == Cyclic(marker="level 1", child=Cyclic(marker="level 2", child=None))
+
+    def test_cyclic_self_reference_deeply_nested(self, impl: Serializer) -> None:
+        data = b'{"marker":"level 1","child":{"marker":"level 2","child":{"marker":"level 3"}}}'
+        result = impl.load(Cyclic, data)
+        assert result == Cyclic(
+            marker="level 1", child=Cyclic(marker="level 2", child=Cyclic(marker="level 3", child=None))
+        )
 
     def test_cyclic_indirect_reference(self, impl: Serializer) -> None:
-        if impl.supports_cyclic:
-            data = b'{"marker":"level 1","child":{"marker":"level 2"}}'
-            result = impl.load(CyclicParent, data)
-            assert result == CyclicParent(marker="level 1", child=CyclicChild(marker="level 2", parent=None))
-        else:
-            with pytest.raises(NotImplementedError, match="Cyclic dataclass references are not supported"):
-                impl.load(CyclicParent, b'{"marker":"level 1","child":{"marker":"level 2"}}')
+        data = b'{"marker":"level 1","child":{"marker":"level 2"}}'
+        result = impl.load(CyclicParent, data)
+        assert result == CyclicParent(marker="level 1", child=CyclicChild(marker="level 2", parent=None))
+
+    def test_cyclic_indirect_deeply_nested(self, impl: Serializer) -> None:
+        data = b'{"marker":"level 1","child":{"marker":"level 2","parent":{"marker":"level 3","child":{"marker":"level 4"}}}}'
+        result = impl.load(CyclicParent, data)
+        assert result == CyclicParent(
+            marker="level 1",
+            child=CyclicChild(
+                marker="level 2",
+                parent=CyclicParent(marker="level 3", child=CyclicChild(marker="level 4", parent=None)),
+            ),
+        )
+
+    def test_cyclic_list_empty(self, impl: Serializer) -> None:
+        data = b'{"marker":"root"}'
+        result = impl.load(CyclicList, data)
+        assert result == CyclicList(marker="root", children=[])
+
+    def test_cyclic_list_nested(self, impl: Serializer) -> None:
+        data = b'{"marker":"root","children":[{"marker":"child1"},{"marker":"child2","children":[{"marker":"grandchild"}]}]}'
+        result = impl.load(CyclicList, data)
+        assert result == CyclicList(
+            marker="root",
+            children=[
+                CyclicList(marker="child1", children=[]),
+                CyclicList(marker="child2", children=[CyclicList(marker="grandchild", children=[])]),
+            ],
+        )
 
 
 class TestCyclicDump:
     def test_cyclic_self_reference_none(self, impl: Serializer) -> None:
-        if impl.supports_cyclic:
-            obj = Cyclic(marker="level 1", child=None)
-            result = impl.dump(Cyclic, obj)
-            assert result == b'{"marker":"level 1"}'
-        else:
-            with pytest.raises(NotImplementedError, match="Cyclic dataclass references are not supported"):
-                impl.dump(Cyclic, Cyclic(marker="level 1", child=None))
+        obj = Cyclic(marker="level 1", child=None)
+        result = impl.dump(Cyclic, obj)
+        assert result == b'{"marker":"level 1"}'
 
     def test_cyclic_self_reference_nested(self, impl: Serializer) -> None:
-        if impl.supports_cyclic:
-            obj = Cyclic(marker="level 1", child=Cyclic(marker="level 2", child=None))
-            result = impl.dump(Cyclic, obj)
-            assert result == b'{"marker":"level 1","child":{"marker":"level 2"}}'
-        else:
-            with pytest.raises(NotImplementedError, match="Cyclic dataclass references are not supported"):
-                impl.dump(Cyclic, Cyclic(marker="level 1", child=Cyclic(marker="level 2", child=None)))
+        obj = Cyclic(marker="level 1", child=Cyclic(marker="level 2", child=None))
+        result = impl.dump(Cyclic, obj)
+        assert result == b'{"marker":"level 1","child":{"marker":"level 2"}}'
+
+    def test_cyclic_self_reference_deeply_nested(self, impl: Serializer) -> None:
+        obj = Cyclic(marker="level 1", child=Cyclic(marker="level 2", child=Cyclic(marker="level 3", child=None)))
+        result = impl.dump(Cyclic, obj)
+        assert result == b'{"marker":"level 1","child":{"marker":"level 2","child":{"marker":"level 3"}}}'
 
     def test_cyclic_indirect_reference(self, impl: Serializer) -> None:
-        if impl.supports_cyclic:
-            obj = CyclicParent(marker="level 1", child=CyclicChild(marker="level 2", parent=None))
-            result = impl.dump(CyclicParent, obj)
-            assert result == b'{"marker":"level 1","child":{"marker":"level 2"}}'
-        else:
-            with pytest.raises(NotImplementedError, match="Cyclic dataclass references are not supported"):
-                impl.dump(
-                    CyclicParent, CyclicParent(marker="level 1", child=CyclicChild(marker="level 2", parent=None))
-                )
+        obj = CyclicParent(marker="level 1", child=CyclicChild(marker="level 2", parent=None))
+        result = impl.dump(CyclicParent, obj)
+        assert result == b'{"marker":"level 1","child":{"marker":"level 2"}}'
 
     def test_cyclic_indirect_deeply_nested(self, impl: Serializer) -> None:
-        if impl.supports_cyclic:
-            obj = CyclicParent(
-                marker="level 1",
-                child=CyclicChild(
-                    marker="level 2",
-                    parent=CyclicParent(marker="level 3", child=CyclicChild(marker="level 4", parent=None)),
-                ),
-            )
-            result = impl.dump(CyclicParent, obj)
-            expected = b'{"marker":"level 1","child":{"marker":"level 2","parent":{"marker":"level 3","child":{"marker":"level 4"}}}}'
-            assert result == expected
-        else:
-            with pytest.raises(NotImplementedError, match="Cyclic dataclass references are not supported"):
-                impl.dump(
-                    CyclicParent,
-                    CyclicParent(
-                        marker="level 1",
-                        child=CyclicChild(
-                            marker="level 2",
-                            parent=CyclicParent(marker="level 3", child=CyclicChild(marker="level 4", parent=None)),
-                        ),
-                    ),
-                )
+        obj = CyclicParent(
+            marker="level 1",
+            child=CyclicChild(
+                marker="level 2",
+                parent=CyclicParent(marker="level 3", child=CyclicChild(marker="level 4", parent=None)),
+            ),
+        )
+        result = impl.dump(CyclicParent, obj)
+        expected = b'{"marker":"level 1","child":{"marker":"level 2","parent":{"marker":"level 3","child":{"marker":"level 4"}}}}'
+        assert result == expected
+
+    def test_cyclic_list_empty(self, impl: Serializer) -> None:
+        obj = CyclicList(marker="root", children=[])
+        result = impl.dump(CyclicList, obj)
+        assert result == b'{"marker":"root","children":[]}'
+
+    def test_cyclic_list_nested(self, impl: Serializer) -> None:
+        obj = CyclicList(
+            marker="root",
+            children=[
+                CyclicList(marker="child1", children=[]),
+                CyclicList(marker="child2", children=[CyclicList(marker="grandchild", children=[])]),
+            ],
+        )
+        result = impl.dump(CyclicList, obj)
+        expected = b'{"marker":"root","children":[{"marker":"child1","children":[]},{"marker":"child2","children":[{"marker":"grandchild","children":[]}]}]}'
+        assert result == expected
 
 
 class TestNestedDumpInvalidType:

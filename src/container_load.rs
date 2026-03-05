@@ -3,7 +3,9 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyFrozenSet, PyList, PySet, PyString, PyTuple};
 use smallbitvec::SmallBitVec;
 
-use crate::container::{DataclassContainer, FieldCommon, FieldContainer, TypeContainer};
+use crate::container::{
+    DataclassContainer, DataclassRegistry, FieldCommon, FieldContainer, TypeContainer,
+};
 use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
 use crate::fields::{
     any, bool_literal, bool_type, collection, date, datetime, decimal, dict, float_type, int_enum,
@@ -31,7 +33,11 @@ fn call_validator_with_error(
 
 #[allow(clippy::cast_sign_loss)]
 impl FieldContainer {
-    pub fn load_from_py(&self, value: &Bound<'_, PyAny>) -> Result<Py<PyAny>, SerializationError> {
+    pub fn load_from_py(
+        &self,
+        registry: &DataclassRegistry,
+        value: &Bound<'_, PyAny>,
+    ) -> Result<Py<PyAny>, SerializationError> {
         let py = value.py();
         let common = self.common();
 
@@ -114,6 +120,7 @@ impl FieldContainer {
                 item_validator,
                 ..
             } => collection::load_from_py(
+                registry,
                 value,
                 *kind,
                 item,
@@ -125,19 +132,26 @@ impl FieldContainer {
                 value_validator,
                 ..
             } => dict::load_from_py(
+                registry,
                 value,
                 value_schema,
                 value_validator.as_ref(),
                 &common.invalid_error,
             ),
-            Self::Nested { container, .. } => container.load_from_py(value),
-            Self::Union { variants, .. } => union::load_from_py(value, variants),
+            Self::Nested {
+                dataclass_index, ..
+            } => registry.get(*dataclass_index).load_from_py(registry, value),
+            Self::Union { variants, .. } => union::load_from_py(registry, value, variants),
         }
     }
 }
 
 impl DataclassContainer {
-    pub fn load_from_py(&self, value: &Bound<'_, PyAny>) -> Result<Py<PyAny>, SerializationError> {
+    pub fn load_from_py(
+        &self,
+        registry: &DataclassRegistry,
+        value: &Bound<'_, PyAny>,
+    ) -> Result<Py<PyAny>, SerializationError> {
         let py = value.py();
         let dict = value.cast::<PyDict>().map_err(|_| {
             let err_dict = PyDict::new(py);
@@ -149,14 +163,15 @@ impl DataclassContainer {
         })?;
 
         if self.can_use_direct_slots {
-            self.load_from_py_direct_slots(dict)
+            self.load_from_py_direct_slots(registry, dict)
         } else {
-            self.load_from_py_kwargs(dict)
+            self.load_from_py_kwargs(registry, dict)
         }
     }
 
     fn load_from_py_kwargs(
         &self,
+        registry: &DataclassRegistry,
         dict: &Bound<'_, PyDict>,
     ) -> Result<Py<PyAny>, SerializationError> {
         let py = dict.py();
@@ -180,7 +195,7 @@ impl DataclassContainer {
                     continue;
                 }
 
-                match dc_field.field.load_from_py(&v) {
+                match dc_field.field.load_from_py(registry, &v) {
                     Ok(py_val) => match apply_validate(py, py_val, common.validator.as_ref()) {
                         Ok(validated) => {
                             let _ = kwargs.set_item(dc_field.name_interned.bind(py), validated);
@@ -238,9 +253,9 @@ impl DataclassContainer {
             .map_err(|e| SerializationError::simple(py, &e.to_string()))
     }
 
-    #[allow(clippy::too_many_lines)]
     fn load_from_py_direct_slots(
         &self,
+        registry: &DataclassRegistry,
         dict: &Bound<'_, PyDict>,
     ) -> Result<Py<PyAny>, SerializationError> {
         let py = dict.py();
@@ -265,7 +280,7 @@ impl DataclassContainer {
                 let dc_field = &self.fields[idx];
                 let common = dc_field.field.common();
 
-                match dc_field.field.load_from_py(&v) {
+                match dc_field.field.load_from_py(registry, &v) {
                     Ok(py_val) => match apply_validate(py, py_val, common.validator.as_ref()) {
                         Ok(validated) => {
                             field_values[idx] = Some(validated);
@@ -369,19 +384,19 @@ fn apply_validate(
 }
 
 impl TypeContainer {
-    #[allow(clippy::too_many_lines)]
     pub fn load_from_py(
         &self,
         py: Python<'_>,
+        registry: &DataclassRegistry,
         value: &Bound<'_, PyAny>,
     ) -> Result<Py<PyAny>, SerializationError> {
         match self {
-            Self::Dataclass(dc) => dc.load_from_py(value),
+            Self::Dataclass(idx) => registry.get(*idx).load_from_py(registry, value),
             Self::Primitive(p) => {
                 if value.is_none() {
                     return Ok(py.None());
                 }
-                p.field.load_from_py(value)
+                p.field.load_from_py(registry, value)
             }
             Self::List { item } => {
                 let list = value.cast::<PyList>().map_err(|_| {
@@ -391,7 +406,7 @@ impl TypeContainer {
                 let mut errors: Option<Bound<'_, PyDict>> = None;
 
                 for (idx, v) in list.iter().enumerate() {
-                    match item.load_from_py(py, &v) {
+                    match item.load_from_py(py, registry, &v) {
                         Ok(py_val) => unsafe {
                             pyo3::ffi::PyList_SET_ITEM(
                                 result.as_ptr(),
@@ -424,7 +439,7 @@ impl TypeContainer {
                         .ok()
                         .and_then(|s| s.to_str().ok())
                         .unwrap_or("");
-                    match value_container.load_from_py(py, &v) {
+                    match value_container.load_from_py(py, registry, &v) {
                         Ok(py_val) => {
                             let _ = result.set_item(k, py_val);
                         }
@@ -442,7 +457,7 @@ impl TypeContainer {
                 if value.is_none() {
                     Ok(py.None())
                 } else {
-                    inner.load_from_py(py, value)
+                    inner.load_from_py(py, registry, value)
                 }
             }
             Self::Set { item } | Self::FrozenSet { item } | Self::Tuple { item } => {
@@ -469,7 +484,7 @@ impl TypeContainer {
                 for (idx, item_result) in iter.enumerate() {
                     let v =
                         item_result.map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-                    match item.load_from_py(py, &v) {
+                    match item.load_from_py(py, registry, &v) {
                         Ok(py_val) => items.push(py_val),
                         Err(ref e) => accumulate_error(py, &mut errors, idx, e),
                     }
@@ -494,7 +509,7 @@ impl TypeContainer {
             Self::Union { variants } => {
                 let mut errors = Vec::new();
                 for variant in variants {
-                    match variant.load_from_py(py, value) {
+                    match variant.load_from_py(py, registry, value) {
                         Ok(result) => return Ok(result),
                         Err(e) => errors.push(e),
                     }

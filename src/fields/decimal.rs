@@ -66,7 +66,6 @@ fn quantize_decimal<'py>(
     value.call_method1(intern!(py, "quantize"), (&exp, rounding.bind(py)))
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn load_from_py(
     value: &Bound<'_, PyAny>,
     decimal_places: Option<i32>,
@@ -132,7 +131,6 @@ pub fn load_from_py(
     Err(SerializationError::Single(invalid_error.clone_ref(py)))
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn dump_to_py(
     value: &Bound<'_, PyAny>,
     decimal_places: Option<i32>,

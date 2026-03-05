@@ -119,7 +119,7 @@ def build_container(
 ) -> Any:
     builder = nuked.ContainerBuilder(decimal_places=decimal_places if decimal_places is not MISSING else None)
     ctx = _BuildContext(builder, none_value_handling, decimal_places)
-    type_handle = ctx.build_root_type(cls, naming_case, set())
+    type_handle = ctx.build_root_type(cls, naming_case)
     return builder.build(type_handle)
 
 
@@ -204,10 +204,11 @@ def _analyze_slot_strategy(cls: type) -> _SlotStrategy:
 
 
 class _BuildContext:
-    __slots__ = ("__builder", "__decimal_places", "__none_value_handling")
+    __slots__ = ("__builder", "__dataclass_handles", "__decimal_places", "__none_value_handling")
 
     def __init__(self, builder: Any, none_value_handling: NoneValueHandling | None, decimal_places: int | None) -> None:
         self.__builder = builder
+        self.__dataclass_handles: dict[type, Any] = {}
         self.__none_value_handling = none_value_handling
         self.__decimal_places = decimal_places
 
@@ -215,10 +216,9 @@ class _BuildContext:
         effective = self.__none_value_handling or opts.none_value_handling
         return (effective or NoneValueHandling.IGNORE) == NoneValueHandling.IGNORE
 
-    def build_root_type(self, cls: Any, naming_case: NamingCase | None, visited: set[type]) -> Any:
+    def build_root_type(self, cls: Any, naming_case: NamingCase | None) -> Any:
         while isinstance(cls, TypeAliasType):
             cls = cls.__value__
-
         origin = get_origin(cls)
         args = get_args(cls)
 
@@ -226,63 +226,57 @@ class _BuildContext:
             if dataclasses.is_dataclass(cls):
                 opts = _analyze_dataclass_options(cls, naming_case)
                 slots = _analyze_slot_strategy(opts.cls)
-                return self.__build_dataclass_type(cls, naming_case, opts, slots, visited)
-            field_handle = self.__build_item_field(cls, naming_case, visited)
+                return self.__build_dataclass_type(cls, naming_case, opts, slots)
+            field_handle = self.__build_item_field(cls, naming_case)
             return self.__builder.type_primitive(field_handle)
 
         if origin is list or origin is Sequence:
             item_type = args[0] if args else Any
-            item_handle = self.build_root_type(item_type, naming_case, visited)
+            item_handle = self.build_root_type(item_type, naming_case)
             return self.__builder.type_list(item_handle)
 
         if origin is dict or origin is Mapping:
             value_type = args[1] if len(args) > 1 else Any
-            value_handle = self.build_root_type(value_type, naming_case, visited)
+            value_handle = self.build_root_type(value_type, naming_case)
             return self.__builder.type_dict(value_handle)
 
         if origin is set:
             item_type = args[0] if args else Any
-            item_handle = self.build_root_type(item_type, naming_case, visited)
+            item_handle = self.build_root_type(item_type, naming_case)
             return self.__builder.type_set(item_handle)
 
         if origin is frozenset:
             item_type = args[0] if args else Any
-            item_handle = self.build_root_type(item_type, naming_case, visited)
+            item_handle = self.build_root_type(item_type, naming_case)
             return self.__builder.type_frozenset(item_handle)
 
         if origin is tuple:
             if len(args) == 2 and args[1] is ...:
                 item_type = args[0]
-                item_handle = self.build_root_type(item_type, naming_case, visited)
+                item_handle = self.build_root_type(item_type, naming_case)
                 return self.__builder.type_tuple(item_handle)
             raise NotImplementedError("Only homogeneous tuple[T, ...] is supported at root level")
 
         if origin is types.UnionType or origin is Union:
             non_none_args = [a for a in args if a is not type(None)]
             if len(non_none_args) == 1 and type(None) in args:
-                inner_handle = self.build_root_type(non_none_args[0], naming_case, visited)
+                inner_handle = self.build_root_type(non_none_args[0], naming_case)
                 return self.__builder.type_optional(inner_handle)
             if len(non_none_args) > 1:
-                variant_handles = [self.build_root_type(a, naming_case, visited) for a in non_none_args]
+                variant_handles = [self.build_root_type(a, naming_case) for a in non_none_args]
                 return self.__builder.type_union(variant_handles)
 
         if dataclasses.is_dataclass(origin):
             opts = _analyze_dataclass_options(origin, naming_case)
             slots = _analyze_slot_strategy(opts.cls)
-            return self.__build_dataclass_type(cls, naming_case, opts, slots, visited)
+            return self.__build_dataclass_type(cls, naming_case, opts, slots)
 
         raise TypeError(f"Unsupported root type: {cls}")
 
     def __build_dataclass_core(
-        self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, visited: set[type]
+        self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions
     ) -> tuple[list[Any], list[tuple[str, str | None]]]:
         origin: type = get_origin(cls) or cls  # type: ignore[assignment]
-
-        if origin in visited:
-            raise NotImplementedError(
-                f"Cyclic dataclass references are not supported in nuked: {origin.__name__} references itself"
-            )
-        visited = visited | {origin}
 
         if get_pre_loads(origin):
             raise TypeError(f"pre_load hooks are not supported in nuked: {origin.__name__} has pre_load hooks defined")
@@ -312,22 +306,37 @@ class _BuildContext:
                 if self.__decimal_places is MISSING
                 else self.__decimal_places,
                 nested_naming_case=naming_case,
-                visited=visited,
             )
             field_handles.append(field_handle)
             field_data_keys.append((field.name, data_key))
 
         return field_handles, field_data_keys
 
+    def __ensure_dataclass(
+        self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, slots: _SlotStrategy
+    ) -> tuple[Any, list[tuple[str, str | None]]]:
+        if opts.cls in self.__dataclass_handles:
+            return self.__dataclass_handles[opts.cls], []
+
+        handle = self.__builder.reserve_dataclass()
+        self.__dataclass_handles[opts.cls] = handle
+
+        field_handles, field_data_keys = self.__build_dataclass_core(cls, naming_case, opts)
+
+        self.__builder.finalize_dataclass(
+            handle,
+            opts.cls,
+            field_handles,
+            can_use_direct_slots=slots.can_use_direct_slots,
+            has_post_init=slots.has_post_init,
+            ignore_none=self.__resolve_ignore_none(opts),
+        )
+        return handle, field_data_keys
+
     def __build_dataclass_type(
-        self,
-        cls: Any,
-        naming_case: NamingCase | None,
-        opts: _DataclassOptions,
-        slots: _SlotStrategy,
-        visited: set[type],
+        self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, slots: _SlotStrategy
     ) -> Any:
-        field_handles, field_data_keys = self.__build_dataclass_core(cls, naming_case, opts, visited)
+        handle, field_data_keys = self.__ensure_dataclass(cls, naming_case, opts, slots)
 
         for name, data_key in field_data_keys:
             if data_key is None:
@@ -336,27 +345,13 @@ class _BuildContext:
                 if name != other_name and data_key == other_name:
                     raise ValueError(f"Invalid name={data_key} in metadata for field={name}")
 
-        dc = self.__builder.dataclass(
-            opts.cls,
-            field_handles,
-            can_use_direct_slots=slots.can_use_direct_slots,
-            has_post_init=slots.has_post_init,
-            ignore_none=self.__resolve_ignore_none(opts),
-        )
-        return self.__builder.type_dataclass(dc)
+        return self.__builder.type_dataclass(handle)
 
-    def __build_nested_dataclass(self, cls: Any, naming_case: NamingCase | None, visited: set[type]) -> Any:
+    def __build_nested_dataclass(self, cls: Any, naming_case: NamingCase | None) -> Any:
         opts = _analyze_dataclass_options(cls, naming_case)
         slots = _analyze_slot_strategy(opts.cls)
-        field_handles, _ = self.__build_dataclass_core(cls, naming_case, opts, visited)
-
-        return self.__builder.dataclass(
-            opts.cls,
-            field_handles,
-            can_use_direct_slots=slots.can_use_direct_slots,
-            has_post_init=slots.has_post_init,
-            ignore_none=self.__resolve_ignore_none(opts),
-        )
+        handle, _ = self.__ensure_dataclass(cls, naming_case, opts, slots)
+        return handle
 
     def __build_field(
         self,
@@ -371,11 +366,7 @@ class _BuildContext:
         field_init: bool = True,
         default_decimal_places: int | None = MISSING,
         nested_naming_case: NamingCase | None = None,
-        visited: set[type] | None = None,
     ) -> tuple[Any, str | None]:
-        if visited is None:
-            visited = set()
-
         optional = has_default
         data_key = None
         strip_whitespaces = False
@@ -511,16 +502,7 @@ class _BuildContext:
         )
 
         field_handle = self.__build_field_by_type(
-            name,
-            field_type,
-            origin,
-            args,
-            optional,
-            field_metadata,
-            default_decimal_places,
-            nested_naming_case,
-            visited,
-            kwargs,
+            name, field_type, origin, args, optional, field_metadata, default_decimal_places, nested_naming_case, kwargs
         )
 
         return field_handle, data_key
@@ -535,7 +517,6 @@ class _BuildContext:
         field_metadata: _FieldMetadata,
         default_decimal_places: int | None,
         nested_naming_case: NamingCase | None,
-        visited: set[type],
         kwargs: dict[str, Any],
     ) -> Any:
         if isinstance(field_type, TypeAliasType):
@@ -554,51 +535,51 @@ class _BuildContext:
 
         if origin is None:
             return self.__build_primitive_field(
-                name, field_type, optional, field_metadata, default_decimal_places, nested_naming_case, visited, kwargs
+                name, field_type, optional, field_metadata, default_decimal_places, nested_naming_case, kwargs
             )
 
         if origin is list:
             item_type = args[0] if args else Any
-            item_handle = self.__build_item_field(item_type, nested_naming_case, visited)
+            item_handle = self.__build_item_field(item_type, nested_naming_case)
             if field_metadata.item_validators:
                 kwargs["item_validator"] = build_combined_validator(field_metadata.item_validators)
             return self.__builder.list_field(name, optional, item_handle, **kwargs)
 
         if origin is dict:
             value_type = args[1] if len(args) > 1 else Any
-            value_handle = self.__build_value_field(value_type, nested_naming_case, visited)
+            value_handle = self.__build_value_field(value_type, nested_naming_case)
             return self.__builder.dict_field(name, optional, value_handle, **kwargs)
 
         if origin is set:
             item_type = args[0] if args else Any
-            item_handle = self.__build_item_field(item_type, nested_naming_case, visited)
+            item_handle = self.__build_item_field(item_type, nested_naming_case)
             if field_metadata.item_validators:
                 kwargs["item_validator"] = build_combined_validator(field_metadata.item_validators)
             return self.__builder.set_field(name, optional, item_handle, **kwargs)
 
         if origin is frozenset:
             item_type = args[0] if args else Any
-            item_handle = self.__build_item_field(item_type, nested_naming_case, visited)
+            item_handle = self.__build_item_field(item_type, nested_naming_case)
             if field_metadata.item_validators:
                 kwargs["item_validator"] = build_combined_validator(field_metadata.item_validators)
             return self.__builder.frozenset_field(name, optional, item_handle, **kwargs)
 
         if origin is Sequence:
             item_type = args[0] if args else Any
-            item_handle = self.__build_item_field(item_type, nested_naming_case, visited)
+            item_handle = self.__build_item_field(item_type, nested_naming_case)
             if field_metadata.item_validators:
                 kwargs["item_validator"] = build_combined_validator(field_metadata.item_validators)
             return self.__builder.list_field(name, optional, item_handle, **kwargs)
 
         if origin is Mapping:
             value_type = args[1] if len(args) > 1 else Any
-            value_handle = self.__build_value_field(value_type, nested_naming_case, visited)
+            value_handle = self.__build_value_field(value_type, nested_naming_case)
             return self.__builder.dict_field(name, optional, value_handle, **kwargs)
 
         if origin is tuple:
             if len(args) == 2 and args[1] is ...:
                 item_type = args[0]
-                item_handle = self.__build_item_field(item_type, nested_naming_case, visited)
+                item_handle = self.__build_item_field(item_type, nested_naming_case)
                 if field_metadata.item_validators:
                     kwargs["item_validator"] = build_combined_validator(field_metadata.item_validators)
                 return self.__builder.tuple_field(name, optional, item_handle, **kwargs)
@@ -607,11 +588,11 @@ class _BuildContext:
         if origin is types.UnionType or origin is Union:
             non_none_args = [a for a in args if a is not type(None)]
             if len(non_none_args) > 1:
-                variant_handles = [self.__build_item_field(a, nested_naming_case, visited) for a in non_none_args]
+                variant_handles = [self.__build_item_field(a, nested_naming_case) for a in non_none_args]
                 return self.__builder.union_field(name, optional, variant_handles, **kwargs)
 
         if dataclasses.is_dataclass(origin):
-            dc_handle = self.__build_nested_dataclass(field_type, nested_naming_case, visited)
+            dc_handle = self.__build_nested_dataclass(field_type, nested_naming_case)
             return self.__builder.nested_field(name, optional, dc_handle, **kwargs)
 
         raise NotImplementedError(f"Unsupported generic type: {origin}[{args}]")
@@ -624,7 +605,6 @@ class _BuildContext:
         field_metadata: _FieldMetadata,
         default_decimal_places: int | None,
         nested_naming_case: NamingCase | None,
-        visited: set[type],
         kwargs: dict[str, Any],
     ) -> Any:
         if field_type is Any:
@@ -677,7 +657,7 @@ class _BuildContext:
         if isinstance(field_type, type) and issubclass(field_type, enum.Enum):
             return self.__build_enum_field(name, field_type, optional, kwargs)
         if dataclasses.is_dataclass(field_type):
-            dc_handle = self.__build_nested_dataclass(field_type, nested_naming_case, visited)
+            dc_handle = self.__build_nested_dataclass(field_type, nested_naming_case)
             return self.__builder.nested_field(name, optional, dc_handle, **kwargs)
 
         raise NotImplementedError(f"Unsupported type: {field_type}")
@@ -714,7 +694,7 @@ class _BuildContext:
 
         raise ValueError(f"Unsupported Literal values: {values}. All values must be the same type (str, int, or bool)")
 
-    def __build_item_field(self, field_type: Any, naming_case: NamingCase | None, visited: set[type]) -> Any:
+    def __build_item_field(self, field_type: Any, naming_case: NamingCase | None) -> Any:
         field_handle, _ = self.__build_field(
             None,
             "",
@@ -724,11 +704,10 @@ class _BuildContext:
             False,
             default_decimal_places=self.__decimal_places,
             nested_naming_case=naming_case,
-            visited=visited,
         )
         return field_handle
 
-    def __build_value_field(self, field_type: Any, naming_case: NamingCase | None, visited: set[type]) -> Any:
+    def __build_value_field(self, field_type: Any, naming_case: NamingCase | None) -> Any:
         field_handle, _ = self.__build_field(
             None,
             "value",
@@ -738,7 +717,6 @@ class _BuildContext:
             False,
             default_decimal_places=self.__decimal_places,
             nested_naming_case=naming_case,
-            visited=visited,
         )
         return field_handle
 

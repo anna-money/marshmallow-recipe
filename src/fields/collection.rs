@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyFrozenSet, PyList, PySet, PyString, PyTuple};
 
-use crate::container::FieldContainer;
+use crate::container::{DataclassRegistry, FieldContainer};
 use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
 use crate::utils::{call_validator, new_presized_list};
 
@@ -25,6 +25,7 @@ impl CollectionKind {
 }
 
 pub fn load_from_py(
+    registry: &DataclassRegistry,
     value: &Bound<'_, PyAny>,
     kind: CollectionKind,
     item: &FieldContainer,
@@ -54,7 +55,7 @@ pub fn load_from_py(
             items.push(py.None());
             continue;
         }
-        match item.load_from_py(&v) {
+        match item.load_from_py(registry, &v) {
             Ok(py_val) => {
                 if let Some(validator) = item_validator
                     && let Ok(Some(err_list)) = call_validator(py, validator, py_val.bind(py))
@@ -90,6 +91,7 @@ pub fn load_from_py(
 }
 
 pub fn dump_to_py(
+    registry: &DataclassRegistry,
     value: &Bound<'_, PyAny>,
     kind: CollectionKind,
     item: &FieldContainer,
@@ -125,7 +127,7 @@ pub fn dump_to_py(
             continue;
         }
 
-        match item.dump_to_py(&item_value) {
+        match item.dump_to_py(registry, &item_value) {
             Ok(dumped) => unsafe {
                 pyo3::ffi::PyList_SET_ITEM(result.as_ptr(), idx.cast_signed(), dumped.into_ptr());
             },
