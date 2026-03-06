@@ -206,4 +206,3 @@ Pre-load hooks are useful for:
 4. **Multiple hooks**: Multiple `@mr.pre_load` decorators work together
 5. **Programmatic addition**: Use `mr.add_pre_load(cls, func)` to add hooks at runtime
 6. **Before validation**: Hooks run **before** field validation, allowing cleanup before checks
-7. **All backends**: Pre-load hooks work with both `mr.load()` (marshmallow-based) and `mr.nuked.load()` (Rust-accelerated)
