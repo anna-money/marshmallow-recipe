@@ -1,6 +1,6 @@
 ## v0.0.85 (2026-03-05)
 
-* Add `bytes` type support with base64 serialization
+* [Add `bytes` type support with base64 serialization](https://github.com/anna-money/marshmallow-recipe/pull/274)
 
 
 ## v0.0.84 (2026-03-05)
