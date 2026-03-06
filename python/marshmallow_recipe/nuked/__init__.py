@@ -275,11 +275,10 @@ class _BuildContext:
 
     def __build_dataclass_core(
         self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions
-    ) -> tuple[list[Any], list[tuple[str, str | None]]]:
+    ) -> tuple[list[Any], list[tuple[str, str | None]], list[Any]]:
         origin: type = get_origin(cls) or cls  # type: ignore[assignment]
 
-        if get_pre_loads(origin):
-            raise TypeError(f"pre_load hooks are not supported in nuked: {origin.__name__} has pre_load hooks defined")
+        pre_loads = get_pre_loads(origin)
 
         type_hints = get_fields_type_map(cls)
 
@@ -310,7 +309,7 @@ class _BuildContext:
             field_handles.append(field_handle)
             field_data_keys.append((field.name, data_key))
 
-        return field_handles, field_data_keys
+        return field_handles, field_data_keys, pre_loads
 
     def __ensure_dataclass(
         self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, slots: _SlotStrategy
@@ -321,7 +320,7 @@ class _BuildContext:
         handle = self.__builder.reserve_dataclass()
         self.__dataclass_handles[opts.cls] = handle
 
-        field_handles, field_data_keys = self.__build_dataclass_core(cls, naming_case, opts)
+        field_handles, field_data_keys, pre_loads = self.__build_dataclass_core(cls, naming_case, opts)
 
         for name, data_key in field_data_keys:
             if data_key is None:
@@ -337,6 +336,7 @@ class _BuildContext:
             can_use_direct_slots=slots.can_use_direct_slots,
             has_post_init=slots.has_post_init,
             ignore_none=self.__resolve_ignore_none(opts),
+            pre_loads=pre_loads,
         )
         return handle
 

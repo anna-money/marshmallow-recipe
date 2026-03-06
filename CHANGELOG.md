@@ -1,3 +1,8 @@
+## v0.0.86 (2026-03-06)
+
+* Add `pre_load` hook support in nuked
+
+
 ## v0.0.85 (2026-03-05)
 
 * [Add `bytes` type support with base64 serialization](https://github.com/anna-money/marshmallow-recipe/pull/274)
