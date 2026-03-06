@@ -1,3 +1,4 @@
+import base64
 import collections
 import collections.abc
 import dataclasses
@@ -355,6 +356,57 @@ def uuid_field(
         **data_key_fields(name),
         **description_fields(description),
         error_messages=build_uuid_error_messages(
+            required_error=required_error, none_error=none_error, invalid_error=invalid_error
+        ),
+    )
+
+
+def bytes_field(
+    *,
+    required: bool,
+    allow_none: bool,
+    default: Any = dataclasses.MISSING,
+    name: str | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
+    description: str | None = None,
+    **_: Any,
+) -> m.fields.Field:
+    if default is m.missing:
+        return BytesField(
+            allow_none=allow_none,
+            validate=validate,
+            **default_fields(m.missing),
+            **data_key_fields(name),
+            **description_fields(description),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
+        )
+
+    if required:
+        if default is None:
+            raise ValueError("Default value cannot be none")
+        return BytesField(
+            required=True,
+            allow_none=allow_none,
+            validate=validate,
+            **data_key_fields(name),
+            **description_fields(description),
+            error_messages=build_error_messages(
+                required_error=required_error, none_error=none_error, invalid_error=invalid_error
+            ),
+        )
+
+    return BytesField(
+        allow_none=allow_none,
+        validate=validate,
+        **(default_fields(None) if default is dataclasses.MISSING else {}),
+        **data_key_fields(name),
+        **description_fields(description),
+        error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
     )
@@ -1180,6 +1232,34 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     StrField = StrFieldV3
 
+    class BytesFieldV3(m.fields.Field):
+        default_error_messages = {"invalid": "Not valid base64-encoded bytes."}  # noqa: RUF012
+
+        def _validated(self, value: Any) -> Any:
+            if value is None:
+                return None
+            if not isinstance(value, bytes):
+                raise self.make_error("invalid")
+            return value
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            validated = self._validated(value)
+            if validated is None:
+                return None
+            return base64.b64encode(validated).decode("ascii")
+
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            if isinstance(value, bytes):
+                return value
+            if not isinstance(value, str):
+                raise self.make_error("invalid")
+            try:
+                return base64.b64decode(value)
+            except Exception:
+                raise self.make_error("invalid")
+
+    BytesField = BytesFieldV3
+
     class FloatFieldV3(m.fields.Float):
         default_error_messages = {"special": "Not a valid number."}  # noqa: RUF012
 
@@ -1554,6 +1634,34 @@ else:
             super()._validate(value)
 
     StrField = StrFieldV2
+
+    class BytesFieldV2(m.fields.Field):
+        default_error_messages = {"invalid": "Not valid base64-encoded bytes."}  # noqa: RUF012
+
+        def _validated(self, value: Any) -> Any:
+            if value is None:
+                return None
+            if not isinstance(value, bytes):
+                self.fail("invalid")
+            return value
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            validated = self._validated(value)
+            if validated is None:
+                return None
+            return base64.b64encode(validated).decode("ascii")
+
+        def _deserialize(self, value: Any, attr: Any, data: Any, **kwargs: Any) -> Any:
+            if isinstance(value, bytes):
+                return value
+            if not isinstance(value, str):
+                self.fail("invalid")
+            try:
+                return base64.b64decode(value)
+            except Exception:
+                self.fail("invalid")
+
+    BytesField = BytesFieldV2
 
     class FloatFieldV2(m.fields.Float):
         def _validated(self, value: Any) -> float:

@@ -25,6 +25,7 @@ import marshmallow as m
 
 from .fields import (
     bool_field,
+    bytes_field,
     date_field,
     datetime_field,
     decimal_field,
@@ -546,6 +547,7 @@ _SIMPLE_TYPE_FIELD_FACTORIES: dict[type, _FieldFactory] = {
     int: int_field,
     float: float_field,
     uuid.UUID: uuid_field,
+    bytes: bytes_field,
     datetime.datetime: datetime_field,
     datetime.date: date_field,
     datetime.time: time_field,

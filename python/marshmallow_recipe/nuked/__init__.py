@@ -644,6 +644,8 @@ class _BuildContext:
             return self.__builder.decimal_field(name, optional, **kwargs)
         if field_type is uuid.UUID:
             return self.__builder.uuid_field(name, optional, **kwargs)
+        if field_type is bytes:
+            return self.__builder.bytes_field(name, optional, **kwargs)
         if field_type is datetime.datetime:
             if field_metadata.datetime_format is not None:
                 kwargs["datetime_format"] = field_metadata.datetime_format

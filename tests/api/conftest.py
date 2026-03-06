@@ -1668,3 +1668,35 @@ class WithDictOfAlias:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithNestedAlias:
     child: InnerAlias
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBytesValidation:
+    value: bytes = dataclasses.field(metadata=mr.meta(validate=lambda x: len(x) <= 10))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBytesTwoValidators:
+    value: bytes = dataclasses.field(
+        metadata=mr.meta(validate=[lambda x: len(x) <= 10, lambda x: x.startswith(b"\x00")])
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBytesRequiredError:
+    value: bytes = dataclasses.field(metadata=mr.meta(required_error="Custom required message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBytesNoneError:
+    value: bytes = dataclasses.field(metadata=mr.meta(none_error="Custom none message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBytesInvalidError:
+    value: bytes = dataclasses.field(metadata=mr.meta(invalid_error="Custom invalid message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBytesMissing:
+    value: bytes = mr.MISSING

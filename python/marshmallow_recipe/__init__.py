@@ -3,6 +3,7 @@ from importlib.metadata import version as _get_version
 
 from .bake import bake_schema, get_field_for
 from .fields import (
+    BytesField,
     DateField,
     DateTimeField,
     DecimalField,
@@ -72,6 +73,7 @@ __all__: tuple[str, ...] = (
     "EMPTY_METADATA",
     "MISSING",
     "UPPER_SNAKE_CASE",
+    "BytesField",
     "CamelCase",
     "CapitalCamelCase",
     "Dataclass",

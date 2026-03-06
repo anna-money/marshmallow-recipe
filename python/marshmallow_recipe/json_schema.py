@@ -237,6 +237,9 @@ def __convert_field_to_json_schema(
     elif field_type is uuid.UUID:
         schema["type"] = "string"
         schema["format"] = "uuid"
+    elif field_type is bytes:
+        schema["type"] = "string"
+        schema["format"] = "byte"
     elif field_type is decimal.Decimal:
         schema["type"] = "string"
         if metadata.get("gt") is not None:

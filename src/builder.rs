@@ -459,6 +459,26 @@ impl ContainerBuilder {
     }
 
     #[pyo3(signature = (name, optional, **kwargs))]
+    fn bytes_field(
+        &mut self,
+        py: Python<'_>,
+        name: &str,
+        optional: bool,
+        kwargs: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<FieldHandle> {
+        self.__build_field(
+            py,
+            name,
+            optional,
+            intern!(py, "Not valid base64-encoded bytes.")
+                .clone()
+                .unbind(),
+            |common| FieldContainer::Bytes { common },
+            kwargs,
+        )
+    }
+
+    #[pyo3(signature = (name, optional, **kwargs))]
     fn any_field(
         &mut self,
         py: Python<'_>,

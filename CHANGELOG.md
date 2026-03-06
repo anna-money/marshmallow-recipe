@@ -1,3 +1,8 @@
+## v0.0.85 (2026-03-05)
+
+* [Add `bytes` type support with base64 serialization](https://github.com/anna-money/marshmallow-recipe/pull/274)
+
+
 ## v0.0.84 (2026-03-05)
 
 * [Add cyclic dataclass support via DataclassRegistry](https://github.com/anna-money/marshmallow-recipe/pull/273)
