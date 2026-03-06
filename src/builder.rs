@@ -822,7 +822,7 @@ impl ContainerBuilder {
         DataclassHandle(idx)
     }
 
-    #[pyo3(signature = (handle, cls, fields, *, can_use_direct_slots=false, has_post_init=false, ignore_none=true))]
+    #[pyo3(signature = (handle, cls, fields, *, can_use_direct_slots=false, has_post_init=false, ignore_none=true, pre_loads=vec![]))]
     fn finalize_dataclass(
         &mut self,
         py: Python<'_>,
@@ -832,6 +832,7 @@ impl ContainerBuilder {
         can_use_direct_slots: bool,
         has_post_init: bool,
         ignore_none: bool,
+        pre_loads: Vec<Py<PyAny>>,
     ) -> PyResult<()> {
         let container = self.__build_dataclass_container(
             py,
@@ -840,6 +841,7 @@ impl ContainerBuilder {
             can_use_direct_slots,
             has_post_init,
             ignore_none,
+            pre_loads,
         )?;
         self.dataclasses.insert(handle.0, container);
         Ok(())
@@ -972,9 +974,15 @@ impl ContainerBuilder {
         can_use_direct_slots: bool,
         has_post_init: bool,
         ignore_none: bool,
+        pre_loads: Vec<Py<PyAny>>,
     ) -> PyResult<DataclassContainer> {
-        let mut container =
-            DataclassContainer::new(cls, can_use_direct_slots, has_post_init, ignore_none);
+        let mut container = DataclassContainer::new(
+            cls,
+            can_use_direct_slots,
+            has_post_init,
+            ignore_none,
+            pre_loads,
+        );
 
         for handle in fields {
             let builder_field = self.fields.get(handle.0).ok_or_else(|| {

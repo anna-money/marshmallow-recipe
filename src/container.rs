@@ -418,6 +418,7 @@ pub struct DataclassContainer {
     pub can_use_direct_slots: bool,
     pub has_post_init: bool,
     pub ignore_none: bool,
+    pub pre_loads: Vec<Py<PyAny>>,
 }
 
 impl Clone for DataclassContainer {
@@ -429,6 +430,7 @@ impl Clone for DataclassContainer {
             can_use_direct_slots: self.can_use_direct_slots,
             has_post_init: self.has_post_init,
             ignore_none: self.ignore_none,
+            pre_loads: self.pre_loads.iter().map(|f| f.clone_ref(py)).collect(),
         })
     }
 }
@@ -439,6 +441,7 @@ impl DataclassContainer {
         can_use_direct_slots: bool,
         has_post_init: bool,
         ignore_none: bool,
+        pre_loads: Vec<Py<PyAny>>,
     ) -> Self {
         Self {
             cls,
@@ -447,6 +450,7 @@ impl DataclassContainer {
             can_use_direct_slots,
             has_post_init,
             ignore_none,
+            pre_loads,
         }
     }
 

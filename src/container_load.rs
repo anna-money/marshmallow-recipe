@@ -163,10 +163,11 @@ impl DataclassContainer {
             SerializationError::Dict(err_dict.unbind())
         })?;
 
+        let dict = apply_pre_loads(py, dict, &self.pre_loads)?;
         if self.can_use_direct_slots {
-            self.load_from_py_direct_slots(registry, dict)
+            self.load_from_py_direct_slots(registry, &dict)
         } else {
-            self.load_from_py_kwargs(registry, dict)
+            self.load_from_py_kwargs(registry, &dict)
         }
     }
 
@@ -354,6 +355,33 @@ impl DataclassContainer {
 
         Ok(instance.unbind())
     }
+}
+
+fn apply_pre_loads<'py>(
+    py: Python<'py>,
+    dict: &Bound<'py, PyDict>,
+    pre_loads: &[Py<PyAny>],
+) -> Result<Bound<'py, PyDict>, SerializationError> {
+    let Some((first, rest)) = pre_loads.split_first() else {
+        return Ok(dict.clone());
+    };
+    let mut current = call_pre_load(py, dict, first)?;
+    for hook in rest {
+        current = call_pre_load(py, &current, hook)?;
+    }
+    Ok(current)
+}
+
+fn call_pre_load<'py>(
+    py: Python<'py>,
+    dict: &Bound<'py, PyDict>,
+    hook: &Py<PyAny>,
+) -> Result<Bound<'py, PyDict>, SerializationError> {
+    hook.call1(py, (dict,))
+        .map_err(|e| SerializationError::simple(py, &e.to_string()))?
+        .into_bound(py)
+        .cast_into::<PyDict>()
+        .map_err(|_| SerializationError::simple(py, "pre_load hook must return a dict"))
 }
 
 fn get_default_value(

@@ -21,11 +21,6 @@ class Serializer(abc.ABC):
     __slots__ = ()
 
     @property
-    @abc.abstractmethod
-    def supports_pre_load(self) -> bool:
-        raise NotImplementedError
-
-    @property
     def supports_many(self) -> bool:
         return False
 
@@ -94,10 +89,6 @@ class MarshmallowSerializer(Serializer):
     __slots__ = ()
 
     @property
-    def supports_pre_load(self) -> bool:
-        return True
-
-    @property
     def supports_many(self) -> bool:
         return True
 
@@ -160,10 +151,6 @@ class NukedSerializer(Serializer):
     __slots__ = ()
 
     @property
-    def supports_pre_load(self) -> bool:
-        return False
-
-    @property
     def supports_root_non_dataclasses(self) -> bool:
         return True
 
@@ -195,10 +182,6 @@ class NukedSerializer(Serializer):
 
 class NukedSchemaSerializer(Serializer):
     __slots__ = ()
-
-    @property
-    def supports_pre_load(self) -> bool:
-        return False
 
     @property
     def supports_many(self) -> bool:
