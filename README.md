@@ -10,20 +10,23 @@ this library has evolved into a powerful tool offering a more concise approach t
 It can be seamlessly integrated into any codebase, providing the following benefits:
 
 1. Automatic schema generation: Marshmallow schemas are generated and cached automatically, while still being accessible when needed
-2. Comprehensive Generics support with full nesting and inheritance capabilities
-3. Nested cyclic references support
-4. Flexible field configuration through `dataclass.field(meta)` or `Annotated[T, meta]`
-5. Customizable case formatting support, including built-in `camelCase` and `CamelCase`, via dataclass decorators
-6. Configurable None value handling through dataclass decorators
-7. PATCH operation support via mr.MISSING value
+2. High-performance Rust backend (`mr.nuked`) for accelerated serialization/deserialization
+3. JSON Schema Draft 2020-12 generation via `mr.json_schema()`
+4. Comprehensive Generics support with full nesting and inheritance capabilities
+5. Nested cyclic references support
+6. Flexible field configuration through `dataclass.field(meta)` or `Annotated[T, meta]`
+7. Customizable case formatting support, including built-in `camelCase` and `CamelCase`, via dataclass decorators
+8. Configurable None value handling through dataclass decorators
+9. PATCH operation support via `mr.MISSING` value
+10. Pre-load hooks via `@mr.pre_load` decorator
 
 ## Supported Types
 
-**Simple types:** `str`, `bool`, `int`, `float`, `decimal.Decimal`, `datetime.datetime`, `datetime.date`, `datetime.time`, `uuid.UUID`, `enum.StrEnum`, `enum.IntEnum`, `typing.Any`
+**Simple types:** `str`, `bool`, `int`, `float`, `decimal.Decimal`, `datetime.datetime`, `datetime.date`, `datetime.time`, `uuid.UUID`, `bytes`, `enum.StrEnum`, `enum.IntEnum`, `typing.Any`
 
 **Collections:** `list[T]`, `set[T]`, `frozenset[T]`, `tuple[T, ...]`, `dict[K, V]`, `Sequence[T]`, `Set[T]`, `Mapping[K, V]`
 
-**Advanced:** `T | None`, `Optional[T]`, `Generic[T]`, `Annotated[T, ...]`, `NewType('Name', T)`
+**Advanced:** `T | None`, `Optional[T]`, `Generic[T]`, `Annotated[T, ...]`, `NewType('Name', T)`, `Literal["a", "b"]`, `TypeAliasType` (PEP 695)
 
 **Features:** Nested dataclasses, cyclic references, generics with full inheritance
 
@@ -217,3 +220,9 @@ The [examples/](https://github.com/anna-money/marshmallow-recipe/tree/main/examp
 - **[10_cyclic_references.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/10_cyclic_references.md)** - Cyclic and self-referencing structures
 - **[11_pre_load_hooks.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/11_pre_load_hooks.md)** - @mr.pre_load hooks, add_pre_load()
 - **[12_validation_errors.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/12_validation_errors.md)** - get_validation_field_errors(), error handling
+- **[13_json_schema_generation.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/13_json_schema_generation.md)** - JSON Schema Draft 2020-12 generation
+- **[14_nuked_schema.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/14_nuked_schema.md)** - High-performance Rust backend (nuked)
+- **[15_root_level_collections.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/15_root_level_collections.md)** - Root-level list/dict/set serialization
+- **[16_literal_types.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/16_literal_types.md)** - Literal type support with validation
+- **[17_type_aliases.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/17_type_aliases.md)** - PEP 695 type aliases
+- **[18_bytes.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/18_bytes.md)** - bytes with base64 encoding

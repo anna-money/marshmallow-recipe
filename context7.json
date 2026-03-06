@@ -1,7 +1,7 @@
 {
   "$schema": "https://context7.com/schema/context7.json",
   "projectTitle": "marshmallow-recipe",
-  "description": "Convenient serialization/deserialization of Python dataclasses using marshmallow. Supports both marshmallow v2 and v3 simultaneously with automatic schema generation. Features include Generic types, cyclic references, flexible field configuration, naming case conversion, PATCH operations with mr.MISSING, validation, and decimal precision control.",
+  "description": "Convenient serialization/deserialization of Python dataclasses using marshmallow. Supports both marshmallow v2 and v3 simultaneously with automatic schema generation. Includes high-performance Rust backend (mr.nuked), JSON Schema Draft 2020-12 generation, Generic types, cyclic references, Literal types, PEP 695 type aliases, bytes with base64, flexible field configuration, naming case conversion, PATCH operations with mr.MISSING, validation, and decimal precision control.",
   "folders": ["examples"],
   "excludeFolders": ["tests", ".github", "benchmarks"],
   "excludeFiles": [],
@@ -76,8 +76,6 @@
     "NUKED SCHEMA: Does NOT support pre_load hooks or cyclic references (same limitations as mr.nuked.load())",
     "NUKED ROOT COLLECTIONS: mr.nuked.dump(dict[str, T], data) and mr.nuked.load(dict[str, T], data) work with any T — primitives (str, int, float, bool, datetime, date, time, Decimal, UUID), enums, dataclasses, nested collections, optionals, and Any",
     "NUKED ROOT COLLECTIONS: No dataclass wrapper needed — pass bare dict/list types directly as root type",
-    "Literal types: Literal['a', 'b'] restricts field to specific str or int values — validated on both dump and load",
-    "Literal types: Supports Optional (Literal['x'] | None), defaults, and mr.MISSING",
     "Literal types: Values must be homogeneous — all str or all int, bools rejected for int literals",
     "PEP 695 type aliases: type X = str | int works transparently as field types — unwrapped automatically",
     "PEP 695 type aliases: Works in dump/load/dump_many/load_many — type Message = UserMessage | AssistantMessage; mr.dump(Message, obj), mr.load(Message, data), mr.dump_many(Message, objs), mr.load_many(Message, data)",
