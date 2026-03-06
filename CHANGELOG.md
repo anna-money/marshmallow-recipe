@@ -1,6 +1,6 @@
 ## v0.0.86 (2026-03-06)
 
-* Add `pre_load` hook support in nuked
+* [Add `pre_load` hook support in nuked](https://github.com/anna-money/marshmallow-recipe/pull/276)
 
 
 ## v0.0.85 (2026-03-05)
