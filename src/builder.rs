@@ -188,8 +188,9 @@ fn extract_int_range_bound(
         )));
     }
     if !bound_ref.is_instance_of::<pyo3::types::PyInt>() {
+        let type_name = bound_ref.get_type().name()?;
         return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-            "{bound_key} must be int"
+            "{bound_key} must be int, got {type_name}"
         )));
     }
     let error = if let Some(custom_error) = extract_optional_py_string(kwargs, error_key)? {
@@ -224,8 +225,9 @@ fn extract_float_range_bound(
     if !bound_ref.is_instance_of::<pyo3::types::PyInt>()
         && !bound_ref.is_instance_of::<pyo3::types::PyFloat>()
     {
+        let type_name = bound_ref.get_type().name()?;
         return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-            "{bound_key} must be float or int"
+            "{bound_key} must be float or int, got {type_name}"
         )));
     }
     let error = if let Some(custom_error) = extract_optional_py_string(kwargs, error_key)? {
