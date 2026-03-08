@@ -170,6 +170,76 @@ fn extract_range_bound(
     }))
 }
 
+fn extract_int_range_bound(
+    py: Python<'_>,
+    kwargs: &Bound<'_, PyAny>,
+    bound_key: &str,
+    error_key: &str,
+    default_error_prefix: &str,
+) -> PyResult<Option<RangeBound>> {
+    let bound_value = extract_optional_py(kwargs, bound_key);
+    let Some(bound_value) = bound_value else {
+        return Ok(None);
+    };
+    let bound_ref = bound_value.bind(py);
+    if bound_ref.is_instance_of::<pyo3::types::PyBool>() {
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+            "{bound_key} must be int, got bool"
+        )));
+    }
+    if !bound_ref.is_instance_of::<pyo3::types::PyInt>() {
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+            "{bound_key} must be int"
+        )));
+    }
+    let error = if let Some(custom_error) = extract_optional_py_string(kwargs, error_key)? {
+        custom_error
+    } else {
+        let value_str = bound_ref.str()?.to_string();
+        PyString::new(py, &format!("{default_error_prefix}{value_str}.")).unbind()
+    };
+    Ok(Some(RangeBound {
+        value: bound_value,
+        error,
+    }))
+}
+
+fn extract_float_range_bound(
+    py: Python<'_>,
+    kwargs: &Bound<'_, PyAny>,
+    bound_key: &str,
+    error_key: &str,
+    default_error_prefix: &str,
+) -> PyResult<Option<RangeBound>> {
+    let bound_value = extract_optional_py(kwargs, bound_key);
+    let Some(bound_value) = bound_value else {
+        return Ok(None);
+    };
+    let bound_ref = bound_value.bind(py);
+    if bound_ref.is_instance_of::<pyo3::types::PyBool>() {
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+            "{bound_key} must be float or int, got bool"
+        )));
+    }
+    if !bound_ref.is_instance_of::<pyo3::types::PyInt>()
+        && !bound_ref.is_instance_of::<pyo3::types::PyFloat>()
+    {
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+            "{bound_key} must be float or int"
+        )));
+    }
+    let error = if let Some(custom_error) = extract_optional_py_string(kwargs, error_key)? {
+        custom_error
+    } else {
+        let value_str = bound_ref.str()?.to_string();
+        PyString::new(py, &format!("{default_error_prefix}{value_str}.")).unbind()
+    };
+    Ok(Some(RangeBound {
+        value: bound_value,
+        error,
+    }))
+}
+
 fn build_field_common(
     optional: bool,
     kwargs: &Bound<'_, PyAny>,
@@ -271,14 +341,40 @@ impl ContainerBuilder {
         optional: bool,
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
-        self.__build_field(
+        let kwargs = get_kwargs(py, kwargs);
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid integer.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
+
+        let gt = extract_int_range_bound(py, &kwargs, "gt", "gt_error", "Must be greater than ")?;
+        let gte = extract_int_range_bound(
             py,
-            name,
-            optional,
-            intern!(py, "Not a valid integer.").clone().unbind(),
-            |common| FieldContainer::Int { common },
-            kwargs,
-        )
+            &kwargs,
+            "gte",
+            "gte_error",
+            "Must be greater than or equal to ",
+        )?;
+        let lt = extract_int_range_bound(py, &kwargs, "lt", "lt_error", "Must be less than ")?;
+        let lte = extract_int_range_bound(
+            py,
+            &kwargs,
+            "lte",
+            "lte_error",
+            "Must be less than or equal to ",
+        )?;
+
+        let container = FieldContainer::Int {
+            common,
+            gt,
+            gte,
+            lt,
+            lte,
+        };
+        let builder_field = build_builder_field(py, name, &kwargs, container)?;
+
+        let idx = self.fields.len();
+        self.fields.push(builder_field);
+        Ok(FieldHandle(idx))
     }
 
     #[pyo3(signature = (name, optional, **kwargs))]
@@ -289,14 +385,40 @@ impl ContainerBuilder {
         optional: bool,
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
-        self.__build_field(
+        let kwargs = get_kwargs(py, kwargs);
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid number.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
+
+        let gt = extract_float_range_bound(py, &kwargs, "gt", "gt_error", "Must be greater than ")?;
+        let gte = extract_float_range_bound(
             py,
-            name,
-            optional,
-            intern!(py, "Not a valid number.").clone().unbind(),
-            |common| FieldContainer::Float { common },
-            kwargs,
-        )
+            &kwargs,
+            "gte",
+            "gte_error",
+            "Must be greater than or equal to ",
+        )?;
+        let lt = extract_float_range_bound(py, &kwargs, "lt", "lt_error", "Must be less than ")?;
+        let lte = extract_float_range_bound(
+            py,
+            &kwargs,
+            "lte",
+            "lte_error",
+            "Must be less than or equal to ",
+        )?;
+
+        let container = FieldContainer::Float {
+            common,
+            gt,
+            gte,
+            lt,
+            lte,
+        };
+        let builder_field = build_builder_field(py, name, &kwargs, container)?;
+
+        let idx = self.fields.len();
+        self.fields.push(builder_field);
+        Ok(FieldHandle(idx))
     }
 
     #[pyo3(signature = (name, optional, **kwargs))]

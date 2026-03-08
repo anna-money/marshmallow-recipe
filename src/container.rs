@@ -144,9 +144,17 @@ pub enum FieldContainer {
     },
     Int {
         common: FieldCommon,
+        gt: Option<RangeBound>,
+        gte: Option<RangeBound>,
+        lt: Option<RangeBound>,
+        lte: Option<RangeBound>,
     },
     Float {
         common: FieldCommon,
+        gt: Option<RangeBound>,
+        gte: Option<RangeBound>,
+        lt: Option<RangeBound>,
+        lte: Option<RangeBound>,
     },
     Bool {
         common: FieldCommon,
@@ -234,11 +242,31 @@ impl Clone for FieldContainer {
                 strip_whitespaces: *strip_whitespaces,
                 post_load: post_load.as_ref().map(|v| v.clone_ref(py)),
             },
-            Self::Int { common } => Self::Int {
+            Self::Int {
+                common,
+                gt,
+                gte,
+                lt,
+                lte,
+            } => Self::Int {
                 common: common.clone(),
+                gt: gt.clone(),
+                gte: gte.clone(),
+                lt: lt.clone(),
+                lte: lte.clone(),
             },
-            Self::Float { common } => Self::Float {
+            Self::Float {
+                common,
+                gt,
+                gte,
+                lt,
+                lte,
+            } => Self::Float {
                 common: common.clone(),
+                gt: gt.clone(),
+                gte: gte.clone(),
+                lt: lt.clone(),
+                lte: lte.clone(),
             },
             Self::Bool { common } => Self::Bool {
                 common: common.clone(),
@@ -349,7 +377,7 @@ impl FieldContainer {
     pub fn common(&self) -> &FieldCommon {
         match self {
             Self::Str { common, .. }
-            | Self::Int { common }
+            | Self::Int { common, .. }
             | Self::Float { common, .. }
             | Self::Bool { common }
             | Self::Decimal { common, .. }

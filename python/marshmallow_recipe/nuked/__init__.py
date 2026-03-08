@@ -96,6 +96,22 @@ class _FieldMetadata:
     decimal_lt_error: str | None = None
     decimal_lte: decimal.Decimal | None = None
     decimal_lte_error: str | None = None
+    int_gt: int | None = None
+    int_gt_error: str | None = None
+    int_gte: int | None = None
+    int_gte_error: str | None = None
+    int_lt: int | None = None
+    int_lt_error: str | None = None
+    int_lte: int | None = None
+    int_lte_error: str | None = None
+    float_gt: float | int | None = None
+    float_gt_error: str | None = None
+    float_gte: float | int | None = None
+    float_gte_error: str | None = None
+    float_lt: float | int | None = None
+    float_lt_error: str | None = None
+    float_lte: float | int | None = None
+    float_lte_error: str | None = None
     datetime_format: str | None = None
     item_validators: list[Callable] | None = None
 
@@ -386,6 +402,22 @@ class _BuildContext:
         decimal_lt_error: str | None = None
         decimal_lte: decimal.Decimal | None = None
         decimal_lte_error: str | None = None
+        int_gt: int | None = None
+        int_gt_error: str | None = None
+        int_gte: int | None = None
+        int_gte_error: str | None = None
+        int_lt: int | None = None
+        int_lt_error: str | None = None
+        int_lte: int | None = None
+        int_lte_error: str | None = None
+        float_gt: float | int | None = None
+        float_gt_error: str | None = None
+        float_gte: float | int | None = None
+        float_gte_error: str | None = None
+        float_lt: float | int | None = None
+        float_lt_error: str | None = None
+        float_lte: float | int | None = None
+        float_lte_error: str | None = None
 
         if metadata:
             data_key = metadata.get("name")
@@ -402,6 +434,22 @@ class _BuildContext:
             decimal_lt_error = metadata.get("lt_error")
             decimal_lte = metadata.get("lte")
             decimal_lte_error = metadata.get("lte_error")
+            int_gt = metadata.get("gt")
+            int_gt_error = metadata.get("gt_error")
+            int_gte = metadata.get("gte")
+            int_gte_error = metadata.get("gte_error")
+            int_lt = metadata.get("lt")
+            int_lt_error = metadata.get("lt_error")
+            int_lte = metadata.get("lte")
+            int_lte_error = metadata.get("lte_error")
+            float_gt = metadata.get("gt")
+            float_gt_error = metadata.get("gt_error")
+            float_gte = metadata.get("gte")
+            float_gte_error = metadata.get("gte_error")
+            float_lt = metadata.get("lt")
+            float_lt_error = metadata.get("lt_error")
+            float_lte = metadata.get("lte")
+            float_lte_error = metadata.get("lte_error")
             datetime_format = metadata.get("format")
             post_load_callback = metadata.get("post_load")
             required_error_msg = metadata.get("required_error")
@@ -433,6 +481,38 @@ class _BuildContext:
                         decimal_places_explicitly_set = True
                     if "rounding" in arg:
                         decimal_rounding = arg["rounding"]
+                    if "gt" in arg:
+                        decimal_gt = arg["gt"]
+                        int_gt = arg["gt"]
+                        float_gt = arg["gt"]
+                    if "gt_error" in arg:
+                        decimal_gt_error = arg["gt_error"]
+                        int_gt_error = arg["gt_error"]
+                        float_gt_error = arg["gt_error"]
+                    if "gte" in arg:
+                        decimal_gte = arg["gte"]
+                        int_gte = arg["gte"]
+                        float_gte = arg["gte"]
+                    if "gte_error" in arg:
+                        decimal_gte_error = arg["gte_error"]
+                        int_gte_error = arg["gte_error"]
+                        float_gte_error = arg["gte_error"]
+                    if "lt" in arg:
+                        decimal_lt = arg["lt"]
+                        int_lt = arg["lt"]
+                        float_lt = arg["lt"]
+                    if "lt_error" in arg:
+                        decimal_lt_error = arg["lt_error"]
+                        int_lt_error = arg["lt_error"]
+                        float_lt_error = arg["lt_error"]
+                    if "lte" in arg:
+                        decimal_lte = arg["lte"]
+                        int_lte = arg["lte"]
+                        float_lte = arg["lte"]
+                    if "lte_error" in arg:
+                        decimal_lte_error = arg["lte_error"]
+                        int_lte_error = arg["lte_error"]
+                        float_lte_error = arg["lte_error"]
                     if "format" in arg:
                         datetime_format = arg["format"]
                     if "post_load" in arg:
@@ -495,6 +575,22 @@ class _BuildContext:
             decimal_lt_error=decimal_lt_error,
             decimal_lte=decimal_lte,
             decimal_lte_error=decimal_lte_error,
+            int_gt=int_gt,
+            int_gt_error=int_gt_error,
+            int_gte=int_gte,
+            int_gte_error=int_gte_error,
+            int_lt=int_lt,
+            int_lt_error=int_lt_error,
+            int_lte=int_lte,
+            int_lte_error=int_lte_error,
+            float_gt=float_gt,
+            float_gt_error=float_gt_error,
+            float_gte=float_gte,
+            float_gte_error=float_gte_error,
+            float_lt=float_lt,
+            float_lt_error=float_lt_error,
+            float_lte=float_lte,
+            float_lte_error=float_lte_error,
             datetime_format=datetime_format,
             item_validators=item_validators,
         )
@@ -612,8 +708,40 @@ class _BuildContext:
                 kwargs["strip_whitespaces"] = True
             return self.__builder.str_field(name, optional, **kwargs)
         if field_type is int:
+            if field_metadata.int_gt is not None:
+                kwargs["gt"] = field_metadata.int_gt
+            if field_metadata.int_gt_error is not None:
+                kwargs["gt_error"] = field_metadata.int_gt_error
+            if field_metadata.int_gte is not None:
+                kwargs["gte"] = field_metadata.int_gte
+            if field_metadata.int_gte_error is not None:
+                kwargs["gte_error"] = field_metadata.int_gte_error
+            if field_metadata.int_lt is not None:
+                kwargs["lt"] = field_metadata.int_lt
+            if field_metadata.int_lt_error is not None:
+                kwargs["lt_error"] = field_metadata.int_lt_error
+            if field_metadata.int_lte is not None:
+                kwargs["lte"] = field_metadata.int_lte
+            if field_metadata.int_lte_error is not None:
+                kwargs["lte_error"] = field_metadata.int_lte_error
             return self.__builder.int_field(name, optional, **kwargs)
         if field_type is float:
+            if field_metadata.float_gt is not None:
+                kwargs["gt"] = field_metadata.float_gt
+            if field_metadata.float_gt_error is not None:
+                kwargs["gt_error"] = field_metadata.float_gt_error
+            if field_metadata.float_gte is not None:
+                kwargs["gte"] = field_metadata.float_gte
+            if field_metadata.float_gte_error is not None:
+                kwargs["gte_error"] = field_metadata.float_gte_error
+            if field_metadata.float_lt is not None:
+                kwargs["lt"] = field_metadata.float_lt
+            if field_metadata.float_lt_error is not None:
+                kwargs["lt_error"] = field_metadata.float_lt_error
+            if field_metadata.float_lte is not None:
+                kwargs["lte"] = field_metadata.float_lte
+            if field_metadata.float_lte_error is not None:
+                kwargs["lte_error"] = field_metadata.float_lte_error
             return self.__builder.float_field(name, optional, **kwargs)
         if field_type is bool:
             return self.__builder.bool_field(name, optional, **kwargs)

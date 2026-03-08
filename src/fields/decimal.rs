@@ -206,7 +206,7 @@ fn finalize_decimal(
     }
 }
 
-fn validate_range(
+pub fn validate_range(
     value: &Bound<'_, PyAny>,
     gt: Option<&RangeBound>,
     gte: Option<&RangeBound>,
