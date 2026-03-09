@@ -11,7 +11,8 @@ use crate::container::{
 };
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::parse_datetime_format;
-use crate::fields::decimal::{RangeBound, get_decimal_cls};
+use crate::fields::decimal::get_decimal_cls;
+use crate::fields::range::RangeBound;
 
 #[pyclass]
 pub struct Container {

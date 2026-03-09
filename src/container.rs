@@ -5,7 +5,7 @@ use pyo3::types::PyString;
 
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::DateTimeFormat;
-use crate::fields::decimal::RangeBound;
+use crate::fields::range::RangeBound;
 
 pub struct FieldCommon {
     pub optional: bool,

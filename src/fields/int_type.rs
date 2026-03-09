@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyInt, PyString};
 
 use crate::error::SerializationError;
-use crate::fields::decimal::{RangeBound, validate_range};
+use crate::fields::range::{RangeBound, validate_range};
 use crate::utils::get_int_cls;
 
 pub fn load_from_py(
