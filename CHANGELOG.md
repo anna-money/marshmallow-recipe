@@ -1,3 +1,8 @@
+## v0.0.87 (2026-03-10)
+
+* [Fix segfault when dumping MagicMock objects via direct slot access](https://github.com/anna-money/marshmallow-recipe/pull/278)
+
+
 ## v0.0.86 (2026-03-06)
 
 * [Add `pre_load` hook support in nuked](https://github.com/anna-money/marshmallow-recipe/pull/276)
