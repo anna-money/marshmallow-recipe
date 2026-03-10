@@ -148,6 +148,11 @@ impl DataclassContainer {
             ));
         }
 
+        let use_direct_slots = value
+            .get_type()
+            .is_subclass(self.cls.bind(py))
+            .unwrap_or(false);
+
         let missing_sentinel = crate::utils::get_missing_sentinel(py)
             .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
 
@@ -158,7 +163,7 @@ impl DataclassContainer {
             let common = dc_field.field.common();
 
             let py_value = match dc_field.slot_offset {
-                Some(offset) => {
+                Some(offset) if use_direct_slots => {
                     match unsafe { crate::slots::get_slot_value_direct(py, value, offset) } {
                         Some(v) => v,
                         None => value
@@ -166,7 +171,7 @@ impl DataclassContainer {
                             .map_err(|e| SerializationError::simple(py, &e.to_string()))?,
                     }
                 }
-                None => value
+                _ => value
                     .getattr(dc_field.name_interned.bind(py))
                     .map_err(|e| SerializationError::simple(py, &e.to_string()))?,
             };

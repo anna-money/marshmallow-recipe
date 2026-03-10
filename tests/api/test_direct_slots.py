@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from unittest.mock import MagicMock
 
 from .conftest import Serializer
 
@@ -127,6 +128,23 @@ class TestDirectSlotsDump:
         )
         result = json.loads(impl.dump(WithNestedList, obj))
         assert result == {"name": "container", "items": [{"id": 1, "label": "first"}, {"id": 2, "label": "second"}]}
+
+    def test_mock_with_spec(self, nuked_impl: Serializer) -> None:
+        real = BasicSlots(name="test", value=123)
+        mock = MagicMock(spec=BasicSlots)
+        for f in dataclasses.fields(BasicSlots):
+            setattr(mock, f.name, getattr(real, f.name))
+        result = json.loads(nuked_impl.dump(BasicSlots, mock))
+        assert result == {"name": "test", "value": 123}
+
+    def test_mock_with_spec_nested(self, nuked_impl: Serializer) -> None:
+        real_item = NestedItem(id=1, label="first")
+        real = WithNestedList(name="container", items=[real_item])
+        mock = MagicMock(spec=WithNestedList)
+        for f in dataclasses.fields(WithNestedList):
+            setattr(mock, f.name, getattr(real, f.name))
+        result = json.loads(nuked_impl.dump(WithNestedList, mock))
+        assert result == {"name": "container", "items": [{"id": 1, "label": "first"}]}
 
 
 class TestDirectSlotsLoad:
