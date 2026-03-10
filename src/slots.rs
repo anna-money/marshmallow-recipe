@@ -3,10 +3,16 @@ use pyo3::prelude::*;
 // These functions provide direct memory access to Python object slots,
 // bypassing the normal attribute access mechanism for better performance.
 //
-// SAFETY: The offset must be properly aligned for pointer access.
-// This is guaranteed by filtering out unaligned offsets when extracting
-// slot_offset in cache.rs and types.rs. We use debug_assert! to catch
-// any misuse during development.
+// SAFETY:
+// 1. The offset must be properly aligned for pointer access.
+//    This is guaranteed by filtering out unaligned offsets when extracting
+//    slot_offset in cache.rs and types.rs. We use debug_assert! to catch
+//    any misuse during development.
+// 2. The offset must be within the object's tp_basicsize.
+//    This is validated at runtime to prevent out-of-bounds reads on objects
+//    whose memory layout differs from the expected dataclass (e.g. mocks).
+//    If the offset is out of bounds, these functions return None/false,
+//    causing callers to fall back to safe getattr/setattr.
 //
 // The cast_ptr_alignment warning is suppressed because:
 // 1. Python objects are allocated via malloc, which returns aligned pointers
@@ -30,6 +36,13 @@ pub unsafe fn get_slot_value_direct<'py>(
     if obj_ptr.is_null() {
         return None;
     }
+
+    let basicsize = unsafe { (*(*obj_ptr).ob_type).tp_basicsize }.cast_unsigned();
+    let end = offset.cast_unsigned() + std::mem::size_of::<*mut pyo3::ffi::PyObject>();
+    if end > basicsize {
+        return None;
+    }
+
     unsafe {
         let slot_ptr = (obj_ptr as *const u8)
             .offset(offset)
@@ -56,6 +69,13 @@ pub unsafe fn set_slot_value_direct(
     if obj_ptr.is_null() {
         return false;
     }
+
+    let basicsize = unsafe { (*(*obj_ptr).ob_type).tp_basicsize }.cast_unsigned();
+    let end = offset.cast_unsigned() + std::mem::size_of::<*mut pyo3::ffi::PyObject>();
+    if end > basicsize {
+        return false;
+    }
+
     unsafe {
         let slot_ptr = obj_ptr
             .cast::<u8>()
