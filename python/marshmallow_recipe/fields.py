@@ -214,6 +214,14 @@ def int_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
+    gt: int | None = None,
+    gt_error: str | None = None,
+    gte: int | None = None,
+    gte_error: str | None = None,
+    lt: int | None = None,
+    lt_error: str | None = None,
+    lte: int | None = None,
+    lte_error: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     required_error: str | None = None,
     none_error: str | None = None,
@@ -221,6 +229,14 @@ def int_field(
     description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    if gt is not None:
+        validate = combine_validators(validate, Range(min=gt, min_inclusive=False, error=gt_error))
+    if gte is not None:
+        validate = combine_validators(validate, Range(min=gte, min_inclusive=True, error=gte_error))
+    if lt is not None:
+        validate = combine_validators(validate, Range(max=lt, max_inclusive=False, error=lt_error))
+    if lte is not None:
+        validate = combine_validators(validate, Range(max=lte, max_inclusive=True, error=lte_error))
     if default is m.missing:
         field = m.fields.Int(
             allow_none=allow_none,
@@ -265,6 +281,14 @@ def float_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
+    gt: float | int | None = None,
+    gt_error: str | None = None,
+    gte: float | int | None = None,
+    gte_error: str | None = None,
+    lt: float | int | None = None,
+    lt_error: str | None = None,
+    lte: float | int | None = None,
+    lte_error: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     required_error: str | None = None,
     none_error: str | None = None,
@@ -272,6 +296,14 @@ def float_field(
     description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    if gt is not None:
+        validate = combine_validators(validate, Range(min=gt, min_inclusive=False, error=gt_error))
+    if gte is not None:
+        validate = combine_validators(validate, Range(min=gte, min_inclusive=True, error=gte_error))
+    if lt is not None:
+        validate = combine_validators(validate, Range(max=lt, max_inclusive=False, error=lt_error))
+    if lte is not None:
+        validate = combine_validators(validate, Range(max=lte, max_inclusive=True, error=lte_error))
     if default is m.missing:
         return FloatField(
             allow_none=allow_none,

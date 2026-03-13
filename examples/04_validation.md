@@ -163,6 +163,89 @@ class Invoice:
     ]
 ```
 
+## Int Range Validation
+
+Range validation for integer fields using `mr.int_meta()`:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Pagination:
+    # Page number: must be greater than or equal to 1
+    page: Annotated[
+        int,
+        mr.int_meta(gte=1),
+    ]
+
+    # Page size: must be between 1 and 100 (inclusive)
+    page_size: Annotated[
+        int,
+        mr.int_meta(gte=1, lte=100),
+    ]
+
+    # Offset: must be greater than or equal to 0
+    offset: Annotated[
+        int,
+        mr.int_meta(gte=0),
+    ]
+
+
+pagination = Pagination(page=1, page_size=25, offset=0)
+
+pagination_dict = mr.dump(pagination)
+loaded_pagination = mr.load(Pagination, pagination_dict)
+```
+
+Custom error messages for int range validation:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class AgeRestriction:
+    age: Annotated[
+        int,
+        mr.int_meta(
+            gte=18,
+            gte_error="Must be at least 18 years old",
+            lte=120,
+            lte_error="Age cannot exceed 120",
+        ),
+    ]
+```
+
+## Float Range Validation
+
+Range validation for float fields using `mr.float_meta()`:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class SensorReading:
+    # Temperature: between -273.15 and 1000.0
+    temperature: Annotated[
+        float,
+        mr.float_meta(gte=-273.15, lt=1000.0),
+    ]
+
+    # Humidity: between 0 and 100 (inclusive)
+    humidity: Annotated[
+        float,
+        mr.float_meta(gte=0, lte=100),
+    ]
+
+    # Pressure: must be positive (int bounds also accepted)
+    pressure: Annotated[
+        float,
+        mr.float_meta(gt=0),
+    ]
+
+
+reading = SensorReading(temperature=22.5, humidity=65.0, pressure=1013.25)
+
+reading_dict = mr.dump(reading)
+loaded_reading = mr.load(SensorReading, reading_dict)
+```
+
+Range operators: `gt` (>), `gte` (>=), `lt` (<), `lte` (<=).
+Bounds accept both `int` and `float` values.
+
 ## Custom Error Messages
 
 Using `mr.validate()` helper for readable error messages:

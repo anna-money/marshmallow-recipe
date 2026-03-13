@@ -221,8 +221,24 @@ def __convert_field_to_json_schema(
         schema["type"] = "string"
     elif field_type is int:
         schema["type"] = "integer"
+        if metadata.get("gt") is not None:
+            schema["exclusiveMinimum"] = metadata["gt"]
+        if metadata.get("gte") is not None:
+            schema["minimum"] = metadata["gte"]
+        if metadata.get("lt") is not None:
+            schema["exclusiveMaximum"] = metadata["lt"]
+        if metadata.get("lte") is not None:
+            schema["maximum"] = metadata["lte"]
     elif field_type is float:
         schema["type"] = "number"
+        if metadata.get("gt") is not None:
+            schema["exclusiveMinimum"] = metadata["gt"]
+        if metadata.get("gte") is not None:
+            schema["minimum"] = metadata["gte"]
+        if metadata.get("lt") is not None:
+            schema["exclusiveMaximum"] = metadata["lt"]
+        if metadata.get("lte") is not None:
+            schema["maximum"] = metadata["lte"]
     elif field_type is bool:
         schema["type"] = "boolean"
     elif field_type is datetime.datetime:

@@ -3,7 +3,14 @@ import decimal
 from typing import Any, TypeGuard, final
 
 from .missing import MISSING
-from .utils import validate_datetime_format, validate_decimal_bound, validate_decimal_places, validate_decimal_rounding
+from .utils import (
+    validate_datetime_format,
+    validate_decimal_bound,
+    validate_decimal_places,
+    validate_decimal_rounding,
+    validate_float_bound,
+    validate_int_bound,
+)
 from .validation import ValidationFunc
 
 
@@ -180,6 +187,136 @@ def decimal_metadata(
         values.update(lte=lte_value)
     if lte_error is not None:
         values.update(lte_error=lte_error.format(max=lte_value))
+    if validate is not None:
+        values.update(validate=validate)
+    if required_error is not None:
+        values.update(required_error=required_error)
+    if none_error is not None:
+        values.update(none_error=none_error)
+    if invalid_error is not None:
+        values.update(invalid_error=invalid_error)
+    return Metadata(values)
+
+
+def int_metadata(
+    *,
+    name: str = MISSING,
+    description: str | None = None,
+    gt: int | None = None,
+    gt_error: str | None = None,
+    gte: int | None = None,
+    gte_error: str | None = None,
+    lt: int | None = None,
+    lt_error: str | None = None,
+    lte: int | None = None,
+    lte_error: str | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
+) -> Metadata:
+    validate_int_bound(gt, "gt")
+    validate_int_bound(gte, "gte")
+    validate_int_bound(lt, "lt")
+    validate_int_bound(lte, "lte")
+    if gt is not None and gte is not None:
+        raise ValueError("gt and gte are mutually exclusive")
+    if lt is not None and lte is not None:
+        raise ValueError("lt and lte are mutually exclusive")
+    lower = gt if gt is not None else gte
+    upper = lt if lt is not None else lte
+    if lower is not None and upper is not None:
+        if gte is not None and lte is not None:
+            if lower > upper:
+                raise ValueError(f"lower bound {lower} must be less than or equal to upper bound {upper}")
+        elif lower >= upper:
+            raise ValueError(f"lower bound {lower} must be less than upper bound {upper}")
+    values = dict[str, Any]()
+    if name is not MISSING:
+        values.update(name=name)
+    if description is not None:
+        values.update(description=description)
+    if gt is not None:
+        values.update(gt=gt)
+    if gt_error is not None:
+        values.update(gt_error=gt_error.format(min=gt))
+    if gte is not None:
+        values.update(gte=gte)
+    if gte_error is not None:
+        values.update(gte_error=gte_error.format(min=gte))
+    if lt is not None:
+        values.update(lt=lt)
+    if lt_error is not None:
+        values.update(lt_error=lt_error.format(max=lt))
+    if lte is not None:
+        values.update(lte=lte)
+    if lte_error is not None:
+        values.update(lte_error=lte_error.format(max=lte))
+    if validate is not None:
+        values.update(validate=validate)
+    if required_error is not None:
+        values.update(required_error=required_error)
+    if none_error is not None:
+        values.update(none_error=none_error)
+    if invalid_error is not None:
+        values.update(invalid_error=invalid_error)
+    return Metadata(values)
+
+
+def float_metadata(
+    *,
+    name: str = MISSING,
+    description: str | None = None,
+    gt: float | int | None = None,
+    gt_error: str | None = None,
+    gte: float | int | None = None,
+    gte_error: str | None = None,
+    lt: float | int | None = None,
+    lt_error: str | None = None,
+    lte: float | int | None = None,
+    lte_error: str | None = None,
+    validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    required_error: str | None = None,
+    none_error: str | None = None,
+    invalid_error: str | None = None,
+) -> Metadata:
+    validate_float_bound(gt, "gt")
+    validate_float_bound(gte, "gte")
+    validate_float_bound(lt, "lt")
+    validate_float_bound(lte, "lte")
+    if gt is not None and gte is not None:
+        raise ValueError("gt and gte are mutually exclusive")
+    if lt is not None and lte is not None:
+        raise ValueError("lt and lte are mutually exclusive")
+    lower = gt if gt is not None else gte
+    upper = lt if lt is not None else lte
+    if lower is not None and upper is not None:
+        if gte is not None and lte is not None:
+            if lower > upper:
+                raise ValueError(f"lower bound {lower} must be less than or equal to upper bound {upper}")
+        elif lower >= upper:
+            raise ValueError(f"lower bound {lower} must be less than upper bound {upper}")
+    values = dict[str, Any]()
+    if name is not MISSING:
+        values.update(name=name)
+    if description is not None:
+        values.update(description=description)
+    if gt is not None:
+        values.update(gt=gt)
+    if gt_error is not None:
+        values.update(gt_error=gt_error.format(min=gt))
+    if gte is not None:
+        values.update(gte=gte)
+    if gte_error is not None:
+        values.update(gte_error=gte_error.format(min=gte))
+    if lt is not None:
+        values.update(lt=lt)
+    if lt_error is not None:
+        values.update(lt_error=lt_error.format(max=lt))
+    if lte is not None:
+        values.update(lte=lte)
+    if lte_error is not None:
+        values.update(lte_error=lte_error.format(max=lte))
     if validate is not None:
         values.update(validate=validate)
     if required_error is not None:
@@ -378,3 +515,5 @@ frozenset_meta = frozenset_metadata
 sequence_meta = sequence_metadata
 str_meta = str_metadata
 tuple_meta = tuple_metadata
+int_meta = int_metadata
+float_meta = float_metadata

@@ -31,8 +31,26 @@ impl FieldContainer {
                 common.optional,
                 &common.invalid_error,
             ),
-            Self::Int { .. } => int_type::dump_to_py(value, &common.invalid_error),
-            Self::Float { .. } => float_type::dump_to_py(value, &common.invalid_error),
+            Self::Int {
+                gt, gte, lt, lte, ..
+            } => int_type::dump_to_py(
+                value,
+                &common.invalid_error,
+                gt.as_ref(),
+                gte.as_ref(),
+                lt.as_ref(),
+                lte.as_ref(),
+            ),
+            Self::Float {
+                gt, gte, lt, lte, ..
+            } => float_type::dump_to_py(
+                value,
+                &common.invalid_error,
+                gt.as_ref(),
+                gte.as_ref(),
+                lt.as_ref(),
+                lte.as_ref(),
+            ),
             Self::Bool { .. } => bool_type::dump_to_py(value, &common.invalid_error),
             Self::Decimal {
                 decimal_places,

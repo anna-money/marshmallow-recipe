@@ -36,6 +36,32 @@ def validate_decimal_bound(value: decimal.Decimal | int | None, name: str) -> No
         return
     if isinstance(value, bool):
         raise TypeError(f"{name} must be Decimal or int, got bool")
+    if not isinstance(value, decimal.Decimal | int):  # type: ignore[reportUnnecessaryIsInstance]
+        raise TypeError(f"{name} must be Decimal or int, got {type(value).__name__}")
+
+
+def validate_int_bound(value: int | None, name: str) -> None:
+    if value is None:
+        return
+    if isinstance(value, bool):
+        raise TypeError(f"{name} must be int, got bool")
+    if not isinstance(value, int):  # type: ignore[reportUnnecessaryIsInstance]
+        raise TypeError(f"{name} must be int, got {type(value).__name__}")
+
+
+def validate_float_bound(value: float | int | None, name: str) -> None:
+    if value is None:
+        return
+    if isinstance(value, bool):
+        raise TypeError(f"{name} must be float or int, got bool")
+    if isinstance(value, float):
+        import math
+
+        if math.isnan(value) or math.isinf(value):
+            raise ValueError(f"{name} must be a finite number, got {value!r}")
+        return
+    if not isinstance(value, int):  # type: ignore[reportUnnecessaryIsInstance]
+        raise TypeError(f"{name} must be float or int, got {type(value).__name__}")
 
 
 SUPPORTED_DATETIME_FORMATS: frozenset[str] = frozenset({"iso", "timestamp"})

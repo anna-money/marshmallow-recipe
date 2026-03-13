@@ -1272,6 +1272,11 @@ class TestDecimalMetadata:
         with pytest.raises(TypeError, match=f"{bound_name} must be Decimal or int, got bool"):
             mr.decimal_meta(**{bound_name: True})  # type: ignore[reportArgumentType]
 
+    @pytest.mark.parametrize("bound_name", ["gt", "gte", "lt", "lte"])
+    def test_str_bound_raises(self, bound_name: str) -> None:
+        with pytest.raises(TypeError, match=f"{bound_name} must be Decimal or int, got str"):
+            mr.decimal_meta(**{bound_name: "1"})  # type: ignore[reportArgumentType]
+
     def test_gt_and_gte_mutually_exclusive(self) -> None:
         with pytest.raises(ValueError, match="gt and gte are mutually exclusive"):
             mr.decimal_meta(gt=0, gte=0)

@@ -510,6 +510,62 @@ def test_decimal_types() -> None:
     }
 
 
+def test_int_range_types() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Limits:
+        plain: int
+        val_gt: Annotated[int, mr.int_meta(gt=0)]
+        val_gte: Annotated[int, mr.int_meta(gte=0)]
+        val_lt: Annotated[int, mr.int_meta(lt=100)]
+        val_lte: Annotated[int, mr.int_meta(lte=100)]
+        val_range: Annotated[int, mr.int_meta(gte=1, lte=99)]
+
+    schema = mr.json_schema(Limits)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "Limits",
+        "properties": {
+            "plain": {"type": "integer"},
+            "val_gt": {"type": "integer", "exclusiveMinimum": 0},
+            "val_gte": {"type": "integer", "minimum": 0},
+            "val_lt": {"type": "integer", "exclusiveMaximum": 100},
+            "val_lte": {"type": "integer", "maximum": 100},
+            "val_range": {"type": "integer", "minimum": 1, "maximum": 99},
+        },
+        "required": ["plain", "val_gt", "val_gte", "val_lt", "val_lte", "val_range"],
+    }
+
+
+def test_float_range_types() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class Measurements:
+        plain: float
+        val_gt: Annotated[float, mr.float_meta(gt=0.0)]
+        val_gte: Annotated[float, mr.float_meta(gte=0)]
+        val_lt: Annotated[float, mr.float_meta(lt=100.5)]
+        val_lte: Annotated[float, mr.float_meta(lte=100)]
+        val_range: Annotated[float, mr.float_meta(gte=0.01, lte=99.99)]
+
+    schema = mr.json_schema(Measurements)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "Measurements",
+        "properties": {
+            "plain": {"type": "number"},
+            "val_gt": {"type": "number", "exclusiveMinimum": 0.0},
+            "val_gte": {"type": "number", "minimum": 0},
+            "val_lt": {"type": "number", "exclusiveMaximum": 100.5},
+            "val_lte": {"type": "number", "maximum": 100},
+            "val_range": {"type": "number", "minimum": 0.01, "maximum": 99.99},
+        },
+        "required": ["plain", "val_gt", "val_gte", "val_lt", "val_lte", "val_range"],
+    }
+
+
 def test_set_and_frozenset_types() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class UniqueItems:

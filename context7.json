@@ -82,7 +82,13 @@
     "PEP 695 type aliases: Works in nuked — mr.nuked.dump(Message, obj), mr.nuked.load(Message, data), mr.nuked.dump(list[Message], objs), mr.nuked.load(list[Message], data)",
     "PEP 695 type aliases: Discriminated unions with Literal fields — type Message = UserMsg | AssistantMsg where role: Literal['user'] vs role: Literal['assistant'] enables correct dispatch on load",
     "Bytes type: bytes fields automatically encoded to base64 string on dump, decoded from base64 string on load",
-    "Bytes type: JSON Schema maps bytes to {\"type\": \"string\", \"format\": \"byte\"} (OpenAPI standard for base64)"
+    "Bytes type: JSON Schema maps bytes to {\"type\": \"string\", \"format\": \"byte\"} (OpenAPI standard for base64)",
+    "For int range validation: Annotated[int, mr.int_meta(gt=0, lte=100)] - operators: gt (>), gte (>=), lt (<), lte (<=); bounds must be int",
+    "For int range custom errors: mr.int_meta(gte=1, gte_error='Must be at least 1') - each operator has a corresponding _error param",
+    "For float range validation: Annotated[float, mr.float_meta(gt=0.0, lte=100.5)] - operators: gt (>), gte (>=), lt (<), lte (<=); bounds accept both int and float",
+    "For float range custom errors: mr.float_meta(gte=0.0, gte_error='Must be non-negative') - each operator has a corresponding _error param",
+    "JSON Schema: Int range constraints emitted - gt→exclusiveMinimum, gte→minimum, lt→exclusiveMaximum, lte→maximum (values as numbers)",
+    "JSON Schema: Float range constraints emitted - gt→exclusiveMinimum, gte→minimum, lt→exclusiveMaximum, lte→maximum (values as numbers)"
   ],
   "previousVersions": []
 }
