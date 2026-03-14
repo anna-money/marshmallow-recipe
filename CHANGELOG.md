@@ -1,5 +1,6 @@
 ## unreleased
 
+* Add `min_length`, `max_length`, and `regexp` parameters to `str_meta()` for built-in string validation with Rust acceleration
 * Add `int_meta`/`float_meta` with range validation (`gt`, `gte`, `lt`, `lte`) support
 
 
