@@ -581,6 +581,21 @@ class TestStrMetadata:
             impl.load(WithInvalidRegexp, b'{"value":"test"}')
 
     @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            pytest.param({"min_length": True}, "min_length must be int, got bool", id="min_length_bool"),
+            pytest.param({"max_length": False}, "max_length must be int, got bool", id="max_length_bool"),
+            pytest.param({"min_length": 1.5}, "min_length must be int, got float", id="min_length_float"),
+            pytest.param({"max_length": "3"}, "max_length must be int, got str", id="max_length_str"),
+            pytest.param({"regexp": 123}, "regexp must be str, got int", id="regexp_int"),
+            pytest.param({"regexp": True}, "regexp must be str, got bool", id="regexp_bool"),
+        ],
+    )
+    def test_invalid_types(self, kwargs: dict, match: str) -> None:
+        with pytest.raises(TypeError, match=match):
+            mr.str_meta(**kwargs)
+
+    @pytest.mark.parametrize(
         "params",
         [
             pytest.param({"min_length": 0}, id="zero_min_length"),

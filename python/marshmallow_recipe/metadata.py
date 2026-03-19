@@ -10,6 +10,8 @@ from .utils import (
     validate_decimal_rounding,
     validate_float_bound,
     validate_int_bound,
+    validate_str_length,
+    validate_str_regexp,
 )
 from .validation import ValidationFunc
 
@@ -107,6 +109,9 @@ def str_metadata(
     none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
+    validate_str_length(min_length, "min_length")
+    validate_str_length(max_length, "max_length")
+    validate_str_regexp(regexp)
     if min_length is not None and min_length < 0:
         raise ValueError(f"min_length must be a non-negative integer, got {min_length}")
     if max_length is not None and max_length < 0:
