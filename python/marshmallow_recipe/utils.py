@@ -40,6 +40,22 @@ def validate_decimal_bound(value: decimal.Decimal | int | None, name: str) -> No
         raise TypeError(f"{name} must be Decimal or int, got {type(value).__name__}")
 
 
+def validate_str_length(value: int | None, name: str) -> None:
+    if value is None:
+        return
+    if isinstance(value, bool):
+        raise TypeError(f"{name} must be int, got bool")
+    if not isinstance(value, int):  # type: ignore[reportUnnecessaryIsInstance]
+        raise TypeError(f"{name} must be int, got {type(value).__name__}")
+
+
+def validate_str_regexp(value: str | None) -> None:
+    if value is None:
+        return
+    if not isinstance(value, str):  # type: ignore[reportUnnecessaryIsInstance]
+        raise TypeError(f"regexp must be str, got {type(value).__name__}")
+
+
 def validate_int_bound(value: int | None, name: str) -> None:
     if value is None:
         return
