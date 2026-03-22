@@ -275,12 +275,16 @@ class _BuildContext:
 
         if origin is types.UnionType or origin is Union:
             non_none_args = [a for a in args if a is not type(None)]
-            if len(non_none_args) == 1 and type(None) in args:
+            has_none = type(None) in args
+            if len(non_none_args) == 1 and has_none:
                 inner_handle = self.build_root_type(non_none_args[0], naming_case)
                 return self.__builder.type_optional(inner_handle)
             if len(non_none_args) > 1:
                 variant_handles = [self.build_root_type(a, naming_case) for a in non_none_args]
-                return self.__builder.type_union(variant_handles)
+                union_handle = self.__builder.type_union(variant_handles)
+                if has_none:
+                    return self.__builder.type_optional(union_handle)
+                return union_handle
 
         if dataclasses.is_dataclass(origin):
             opts = _analyze_dataclass_options(origin, naming_case)
@@ -529,8 +533,9 @@ class _BuildContext:
                 raise ValueError(
                     "Any type cannot be used in Optional or Union (Any | None, Optional[Any], Union[Any, ...] are invalid)"
                 )
-            if len(non_none_args) == 1 and type(None) in args:
+            if type(None) in args:
                 optional = True
+            if len(non_none_args) == 1:
                 field_type = non_none_args[0]
                 origin = get_origin(field_type)
                 args = get_args(field_type)

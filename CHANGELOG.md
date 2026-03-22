@@ -1,6 +1,7 @@
 ## unreleased
 
 * Add `int_meta`/`float_meta` with range validation (`gt`, `gte`, `lt`, `lte`) support
+* Fix `None` handling in multi-type unions (e.g. `dict | str | None`) in nuked
 
 
 ## v0.0.86 (2026-03-06)

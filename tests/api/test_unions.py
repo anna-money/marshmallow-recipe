@@ -1,16 +1,21 @@
 import marshmallow
 import pytest
 
+import marshmallow_recipe as mr
+
 from .conftest import (
     Inner,
     Serializer,
     WithUnion,
     WithUnionDictDataclass,
     WithUnionDictStr,
+    WithUnionDictStrOptional,
     WithUnionFloatInt,
     WithUnionIntFloat,
+    WithUnionIntStrOptional,
     WithUnionMissing,
     WithUnionStrDict,
+    WithUnionStrDictOptional,
     WithUnionStrInt,
 )
 
@@ -90,6 +95,72 @@ class TestUnionDump:
         obj = WithUnionMissing(value="hello")
         result = impl.dump(WithUnionMissing, obj)
         assert result == b'{"value":"hello"}'
+
+    def test_optional_with_none_include(self, impl: Serializer) -> None:
+        obj = WithUnion(value=1, optional_value=None)
+        result = impl.dump(WithUnion, obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
+        assert result == b'{"value":1,"optional_value":null}'
+
+    @pytest.mark.parametrize(
+        "cls, obj, expected",
+        [
+            pytest.param(
+                WithUnionStrDictOptional,
+                WithUnionStrDictOptional(value="hello"),
+                b'{"value":"hello"}',
+                id="str_dict-str",
+            ),
+            pytest.param(
+                WithUnionStrDictOptional,
+                WithUnionStrDictOptional(value={"key": "value"}),
+                b'{"value":{"key":"value"}}',
+                id="str_dict-dict",
+            ),
+            pytest.param(
+                WithUnionDictStrOptional,
+                WithUnionDictStrOptional(value="hello"),
+                b'{"value":"hello"}',
+                id="dict_str-str",
+            ),
+            pytest.param(
+                WithUnionDictStrOptional,
+                WithUnionDictStrOptional(value={"key": "value"}),
+                b'{"value":{"key":"value"}}',
+                id="dict_str-dict",
+            ),
+            pytest.param(WithUnionIntStrOptional, WithUnionIntStrOptional(value=42), b'{"value":42}', id="int_str-int"),
+            pytest.param(
+                WithUnionIntStrOptional, WithUnionIntStrOptional(value="hello"), b'{"value":"hello"}', id="int_str-str"
+            ),
+        ],
+    )
+    def test_optional_union_with_value(self, impl: Serializer, cls: type, obj: object, expected: bytes) -> None:
+        result = impl.dump(cls, obj)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "cls, obj",
+        [
+            pytest.param(WithUnionStrDictOptional, WithUnionStrDictOptional(value=None), id="str_dict"),
+            pytest.param(WithUnionDictStrOptional, WithUnionDictStrOptional(value=None), id="dict_str"),
+            pytest.param(WithUnionIntStrOptional, WithUnionIntStrOptional(value=None), id="int_str"),
+        ],
+    )
+    def test_optional_union_with_none(self, impl: Serializer, cls: type, obj: object) -> None:
+        result = impl.dump(cls, obj)
+        assert result == b"{}"
+
+    @pytest.mark.parametrize(
+        "cls, obj",
+        [
+            pytest.param(WithUnionStrDictOptional, WithUnionStrDictOptional(value=None), id="str_dict"),
+            pytest.param(WithUnionDictStrOptional, WithUnionDictStrOptional(value=None), id="dict_str"),
+            pytest.param(WithUnionIntStrOptional, WithUnionIntStrOptional(value=None), id="int_str"),
+        ],
+    )
+    def test_optional_union_with_none_include(self, impl: Serializer, cls: type, obj: object) -> None:
+        result = impl.dump(cls, obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
+        assert result == b'{"value":null}'
 
 
 class TestUnionLoad:
@@ -211,6 +282,61 @@ class TestUnionLoad:
         data = b'{"value":"hello"}'
         result = impl.load(WithUnionMissing, data)
         assert result == WithUnionMissing(value="hello")
+
+    def test_optional_with_null(self, impl: Serializer) -> None:
+        data = b'{"value":1,"optional_value":null}'
+        result = impl.load(WithUnion, data)
+        assert result == WithUnion(value=1, optional_value=None)
+
+    @pytest.mark.parametrize(
+        "cls, data, expected",
+        [
+            pytest.param(
+                WithUnionStrDictOptional,
+                b'{"value":"hello"}',
+                WithUnionStrDictOptional(value="hello"),
+                id="str_dict-str",
+            ),
+            pytest.param(
+                WithUnionStrDictOptional,
+                b'{"value":{"key":"value"}}',
+                WithUnionStrDictOptional(value={"key": "value"}),
+                id="str_dict-dict",
+            ),
+            pytest.param(
+                WithUnionDictStrOptional,
+                b'{"value":"hello"}',
+                WithUnionDictStrOptional(value="hello"),
+                id="dict_str-str",
+            ),
+            pytest.param(
+                WithUnionDictStrOptional,
+                b'{"value":{"key":"value"}}',
+                WithUnionDictStrOptional(value={"key": "value"}),
+                id="dict_str-dict",
+            ),
+            pytest.param(WithUnionIntStrOptional, b'{"value":42}', WithUnionIntStrOptional(value=42), id="int_str-int"),
+            pytest.param(
+                WithUnionIntStrOptional, b'{"value":"hello"}', WithUnionIntStrOptional(value="hello"), id="int_str-str"
+            ),
+        ],
+    )
+    def test_optional_union_with_value(self, impl: Serializer, cls: type, data: bytes, expected: object) -> None:
+        result = impl.load(cls, data)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "cls, expected",
+        [
+            pytest.param(WithUnionStrDictOptional, WithUnionStrDictOptional(value=None), id="str_dict"),
+            pytest.param(WithUnionDictStrOptional, WithUnionDictStrOptional(value=None), id="dict_str"),
+            pytest.param(WithUnionIntStrOptional, WithUnionIntStrOptional(value=None), id="int_str"),
+        ],
+    )
+    def test_optional_union_with_null(self, impl: Serializer, cls: type, expected: object) -> None:
+        data = b'{"value":null}'
+        result = impl.load(cls, data)
+        assert result == expected
 
 
 class TestUnionErrors:
