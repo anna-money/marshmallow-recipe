@@ -1683,3 +1683,18 @@ class WithBytesInvalidError:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithBytesMissing:
     value: bytes = mr.MISSING
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithUnionStrDictOptional:
+    value: str | dict[str, Any] | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithUnionDictStrOptional:
+    value: dict[str, Any] | str | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithUnionIntStrOptional:
+    value: int | str | None

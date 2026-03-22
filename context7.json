@@ -12,6 +12,7 @@
     "Collections: list[T], set[T], frozenset[T], tuple[T, ...], dict[K, V] - all work automatically",
     "Nested dataclasses work automatically without special configuration",
     "Optional types with T | None - None values excluded from output by default",
+    "Multi-type optional unions: dict | str | None, int | str | None — None is correctly handled in both load and dump for all implementations",
     "For custom field names use: Annotated[T, mr.meta(name='newName')]",
     "For string transformations: Annotated[str, mr.str_meta(strip_whitespaces=True, post_load=func)]",
     "For decimal precision validation: Annotated[decimal.Decimal, mr.decimal_meta(places=N)] - validates max decimal places, raises ValidationError if exceeded",
