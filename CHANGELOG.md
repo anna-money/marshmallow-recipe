@@ -1,4 +1,4 @@
-## v0.0.087(2026-03-22)
+## v0.0.87(2026-03-22)
 
 * [Add `int_meta`/`float_meta` with range validation (`gt`, `gte`, `lt`, `lte`) support](https://github.com/anna-money/marshmallow-recipe/pull/277)
 * [Add string `"0"`/`"1"` support to nuked bool deserialization](https://github.com/anna-money/marshmallow-recipe/pull/280)
