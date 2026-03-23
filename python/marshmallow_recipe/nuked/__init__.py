@@ -19,7 +19,7 @@ from ..missing import MISSING
 from ..options import NoneValueHandling, try_get_options_for
 from ..utils import validate_decimal_places
 
-__all__ = ("dump", "load", "schema")
+__all__ = ("dump", "dump_to_bytes", "load", "load_from_bytes", "schema")
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
@@ -893,6 +893,20 @@ def dump[T](
     return container.dump(data)
 
 
+def dump_to_bytes[T](
+    cls: type[T],
+    data: T,
+    *,
+    naming_case: NamingCase | None = None,
+    none_value_handling: NoneValueHandling | None = None,
+    decimal_places: int | None = MISSING,
+) -> bytes:
+    validate_decimal_places(decimal_places)
+
+    container = _get_container(cls, naming_case, none_value_handling, decimal_places)
+    return container.dump_to_bytes(data)
+
+
 def load[T](
     cls: type[T], data: Any, *, naming_case: NamingCase | None = None, decimal_places: int | None = MISSING
 ) -> T:
@@ -900,6 +914,15 @@ def load[T](
 
     container = _get_container(cls, naming_case, NoneValueHandling.IGNORE, decimal_places)
     return container.load(data)  # type: ignore[return-value]
+
+
+def load_from_bytes[T](
+    cls: type[T], data: bytes, *, naming_case: NamingCase | None = None, decimal_places: int | None = MISSING
+) -> T:
+    validate_decimal_places(decimal_places)
+
+    container = _get_container(cls, naming_case, NoneValueHandling.IGNORE, decimal_places)
+    return container.load_from_bytes(data)  # type: ignore[return-value]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

@@ -1,0 +1,31 @@
+===========================================================================
+BASELINE: nuked dump/load (dict-based)
+===========================================================================
+nuked dump (single)                                      5.91 us/call  (10000 iterations)
+nuked load (single)                                      8.75 us/call  (10000 iterations)
+nuked dump (100 items)                                 324.79 us/call  (1000 iterations)
+nuked load (100 items)                                 463.52 us/call  (1000 iterations)
+
+===========================================================================
+BASELINE: nuked dump + json.dumps / json.loads + nuked load
+===========================================================================
+nuked dump + json.dumps (single)                        10.41 us/call  (10000 iterations)
+json.loads + nuked load (single)                        13.41 us/call  (10000 iterations)
+nuked dump + json.dumps (100)                          483.59 us/call  (1000 iterations)
+json.loads + nuked load (100)                          626.08 us/call  (1000 iterations)
+
+===========================================================================
+REFERENCE: pure json.dumps/json.loads overhead
+===========================================================================
+json.dumps (single dict)                                 4.30 us/call  (10000 iterations)
+json.loads (single bytes)                                4.19 us/call  (10000 iterations)
+json.dumps (100 dicts)                                 147.69 us/call  (1000 iterations)
+json.loads (100 bytes)                                 154.55 us/call  (1000 iterations)
+
+===========================================================================
+COMPARISON: marshmallow dump/load
+===========================================================================
+marshmallow dump (single)                              136.73 us/call  (10000 iterations)
+marshmallow load (single)                               83.39 us/call  (10000 iterations)
+marshmallow dump (100 items)                          6471.76 us/call  (1000 iterations)
+marshmallow load (100 items)                          4129.00 us/call  (1000 iterations)

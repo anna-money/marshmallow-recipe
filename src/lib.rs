@@ -4,6 +4,8 @@ mod container_dump;
 mod container_load;
 mod error;
 mod fields;
+mod json_reader;
+mod json_writer;
 mod slots;
 mod utils;
 

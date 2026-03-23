@@ -33,6 +33,25 @@ impl Container {
             .dump_to_py(&self.registry, obj)
             .map_err(|e| e.to_validation_err(py))
     }
+
+    fn dump_to_bytes(&self, py: Python<'_>, obj: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        let mut buf = Vec::with_capacity(256);
+        self.inner
+            .dump_to_json(&self.registry, obj, &mut buf)
+            .map_err(|e| e.to_validation_err(py))?;
+        Ok(pyo3::types::PyBytes::new(py, &buf).into_any().unbind())
+    }
+
+    fn load_from_bytes(&self, py: Python<'_>, data: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        let bytes: &[u8] = data
+            .extract()
+            .map_err(|_| pyo3::exceptions::PyTypeError::new_err("Expected bytes"))?;
+        let value: serde_json::Value = serde_json::from_slice(bytes)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        self.inner
+            .load_from_json(py, &self.registry, &value)
+            .map_err(|e| e.to_validation_err(py))
+    }
 }
 
 #[pyclass(from_py_object)]

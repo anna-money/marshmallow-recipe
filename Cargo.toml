@@ -15,6 +15,9 @@ uuid = { version = "1.11" }
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 arrayvec = "0.7"
 base64 = "0.22"
+serde_json = "1"
+itoa = "1"
+ryu = "1"
 
 [profile.release]
 lto = "fat"
