@@ -161,15 +161,6 @@ impl FieldContainer {
                         common.invalid_error.clone_ref(py),
                     ));
                 }
-                let is_finite: bool = value
-                    .call_method0(intern!(py, "is_finite"))
-                    .and_then(|v| v.extract())
-                    .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-                if !is_finite {
-                    return Err(SerializationError::Single(
-                        common.invalid_error.clone_ref(py),
-                    ));
-                }
                 let decimal = if let Some(places) = decimal_places {
                     if let Some(rounding) = rounding {
                         let exp =
@@ -197,6 +188,15 @@ impl FieldContainer {
                 let s = py_str
                     .to_str()
                     .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+                let bytes = s.as_bytes();
+                let is_numeric = bytes.first().is_some_and(|&b| b.is_ascii_digit())
+                    || (bytes.first() == Some(&b'-')
+                        && bytes.get(1).is_some_and(|&b| b.is_ascii_digit()));
+                if !is_numeric {
+                    return Err(SerializationError::Single(
+                        common.invalid_error.clone_ref(py),
+                    ));
+                }
                 if s.contains('E') || s.contains('e') {
                     let formatted = decimal
                         .call_method1(intern!(py, "__format__"), ("f",))
