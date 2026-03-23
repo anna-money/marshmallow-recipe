@@ -6,7 +6,10 @@ use base64::engine::general_purpose::STANDARD;
 use chrono::{DateTime, FixedOffset, NaiveDateTime};
 use pyo3::intern;
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyBytes, PyDict, PyFloat, PyInt, PyList, PyString};
+use pyo3::types::PyDateAccess;
+use pyo3::types::PyTimeAccess;
+use pyo3::types::PyTzInfoAccess;
+use pyo3::types::{PyBool, PyBytes, PyDateTime, PyDict, PyFloat, PyInt, PyList, PyString};
 
 use crate::container::{DataclassContainer, DataclassRegistry, FieldContainer, TypeContainer};
 use crate::error::SerializationError;
@@ -245,13 +248,23 @@ impl FieldContainer {
             }
             Self::DateTime { format, .. } => {
                 let py = value.py();
-                let dt = extract_datetime(value)
-                    .map_err(|_| SerializationError::Single(common.invalid_error.clone_ref(py)))?;
                 match format {
                     DateTimeFormat::Iso => {
-                        write_display_string::<40, _>(buf, &dt.format("%+"));
+                        if let Ok(pydt) = value.downcast::<PyDateTime>() {
+                            write_datetime_iso_fast(pydt, buf).map_err(|_| {
+                                SerializationError::Single(common.invalid_error.clone_ref(py))
+                            })?;
+                        } else {
+                            let dt = extract_datetime(value).map_err(|_| {
+                                SerializationError::Single(common.invalid_error.clone_ref(py))
+                            })?;
+                            write_display_string::<40, _>(buf, &dt.format("%+"));
+                        }
                     }
                     DateTimeFormat::Timestamp => {
+                        let dt = extract_datetime(value).map_err(|_| {
+                            SerializationError::Single(common.invalid_error.clone_ref(py))
+                        })?;
                         let micros = dt.timestamp_micros();
                         if micros < 0 {
                             return Err(SerializationError::Single(
@@ -263,6 +276,9 @@ impl FieldContainer {
                         buf.extend_from_slice(ryu::Buffer::new().format(ts).as_bytes());
                     }
                     DateTimeFormat::Strftime(chrono_fmt) => {
+                        let dt = extract_datetime(value).map_err(|_| {
+                            SerializationError::Single(common.invalid_error.clone_ref(py))
+                        })?;
                         let formatted = dt.format(chrono_fmt).to_string();
                         write_json_string(buf, &formatted);
                     }
@@ -627,6 +643,95 @@ impl TypeContainer {
             }
         }
     }
+}
+
+fn write_datetime_iso_fast(pydt: &Bound<'_, PyDateTime>, buf: &mut Vec<u8>) -> PyResult<()> {
+    let year = pydt.get_year();
+    let month = pydt.get_month();
+    let day = pydt.get_day();
+    let hour = pydt.get_hour();
+    let minute = pydt.get_minute();
+    let second = pydt.get_second();
+    let micro = pydt.get_microsecond();
+
+    buf.push(b'"');
+
+    let mut tmp = itoa::Buffer::new();
+    if year < 1000 {
+        if year < 10 {
+            buf.extend_from_slice(b"000");
+        } else if year < 100 {
+            buf.extend_from_slice(b"00");
+        } else {
+            buf.push(b'0');
+        }
+    }
+    buf.extend_from_slice(tmp.format(year).as_bytes());
+    buf.push(b'-');
+    if month < 10 {
+        buf.push(b'0');
+    }
+    buf.extend_from_slice(tmp.format(month).as_bytes());
+    buf.push(b'-');
+    if day < 10 {
+        buf.push(b'0');
+    }
+    buf.extend_from_slice(tmp.format(day).as_bytes());
+    buf.push(b'T');
+    if hour < 10 {
+        buf.push(b'0');
+    }
+    buf.extend_from_slice(tmp.format(hour).as_bytes());
+    buf.push(b':');
+    if minute < 10 {
+        buf.push(b'0');
+    }
+    buf.extend_from_slice(tmp.format(minute).as_bytes());
+    buf.push(b':');
+    if second < 10 {
+        buf.push(b'0');
+    }
+    buf.extend_from_slice(tmp.format(second).as_bytes());
+
+    if micro > 0 {
+        buf.push(b'.');
+        let micro_str = tmp.format(micro);
+        let padding = 6 - micro_str.len();
+        for _ in 0..padding {
+            buf.push(b'0');
+        }
+        buf.extend_from_slice(micro_str.as_bytes());
+    }
+
+    if let Some(tz) = pydt.get_tzinfo() {
+        let offset = tz
+            .call_method1(intern!(pydt.py(), "utcoffset"), (pydt,))?
+            .call_method0(intern!(pydt.py(), "total_seconds"))?
+            .extract::<f64>()?;
+        #[allow(clippy::cast_possible_truncation)]
+        let offset_secs = offset as i32;
+        if offset_secs == 0 {
+            buf.extend_from_slice(b"+00:00");
+        } else {
+            let sign = if offset_secs < 0 { b'-' } else { b'+' };
+            let abs_offset = offset_secs.unsigned_abs();
+            let offset_hours = abs_offset / 3600;
+            let offset_minutes = (abs_offset % 3600) / 60;
+            buf.push(sign);
+            if offset_hours < 10 {
+                buf.push(b'0');
+            }
+            buf.extend_from_slice(tmp.format(offset_hours).as_bytes());
+            buf.push(b':');
+            if offset_minutes < 10 {
+                buf.push(b'0');
+            }
+            buf.extend_from_slice(tmp.format(offset_minutes).as_bytes());
+        }
+    }
+
+    buf.push(b'"');
+    Ok(())
 }
 
 fn extract_datetime(value: &Bound<'_, PyAny>) -> PyResult<DateTime<FixedOffset>> {
