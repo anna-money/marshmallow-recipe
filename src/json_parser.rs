@@ -49,8 +49,17 @@ fn read_json_string<'a>(bytes: &'a [u8], pos: &mut usize) -> Option<std::borrow:
     }
     *pos += 1;
     let start = *pos;
-    let mut has_escape = false;
 
+    if let Some(end_offset) = memchr::memchr2(b'"', b'\\', &bytes[start..]) {
+        let end = start + end_offset;
+        if bytes[end] == b'"' {
+            let s = std::str::from_utf8(&bytes[start..end]).ok()?;
+            *pos = end + 1;
+            return Some(std::borrow::Cow::Borrowed(s));
+        }
+    }
+
+    let mut has_escape = false;
     while *pos < bytes.len() {
         match bytes[*pos] {
             b'"' => {

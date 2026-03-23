@@ -16,9 +16,21 @@ use crate::fields::decimal::get_decimal_cls;
 use crate::fields::range::validate_range;
 use crate::utils::call_validator;
 
+fn needs_escape(s: &[u8]) -> bool {
+    s.iter().any(|&b| b == b'"' || b == b'\\' || b < 0x20)
+}
+
 fn write_json_string(buf: &mut Vec<u8>, s: &str) {
+    let bytes = s.as_bytes();
+    if !needs_escape(bytes) {
+        buf.reserve(bytes.len() + 2);
+        buf.push(b'"');
+        buf.extend_from_slice(bytes);
+        buf.push(b'"');
+        return;
+    }
     buf.push(b'"');
-    for byte in s.bytes() {
+    for &byte in bytes {
         match byte {
             b'"' => buf.extend_from_slice(b"\\\""),
             b'\\' => buf.extend_from_slice(b"\\\\"),
@@ -41,7 +53,9 @@ fn write_json_string(buf: &mut Vec<u8>, s: &str) {
 fn write_display_string<const N: usize, T: std::fmt::Display>(buf: &mut Vec<u8>, value: &T) {
     let mut arr = ArrayString::<N>::new();
     write!(&mut arr, "{value}").expect("buffer overflow");
-    write_json_string(buf, &arr);
+    buf.push(b'"');
+    buf.extend_from_slice(arr.as_bytes());
+    buf.push(b'"');
 }
 
 #[allow(clippy::cast_sign_loss, clippy::unused_self)]

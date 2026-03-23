@@ -77,6 +77,7 @@ dependencies = [
  "base64",
  "chrono",
  "itoa",
+ "memchr",
  "pyo3",
  "ryu",
  "serde_json",
