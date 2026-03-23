@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 use pyo3::intern;
 use pyo3::prelude::*;
@@ -19,6 +20,7 @@ use crate::fields::range::RangeBound;
 pub struct Container {
     inner: TypeContainer,
     registry: DataclassRegistry,
+    json_buf: Mutex<Vec<u8>>,
 }
 
 #[pymethods]
@@ -36,7 +38,8 @@ impl Container {
     }
 
     fn dump_to_bytes(&self, py: Python<'_>, obj: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
-        let mut buf = Vec::with_capacity(512);
+        let mut buf = self.json_buf.lock().unwrap();
+        buf.clear();
         self.inner
             .dump_to_json(&self.registry, obj, &mut buf)
             .map_err(|e| e.to_validation_err(py))?;
@@ -1082,7 +1085,11 @@ impl ContainerBuilder {
             containers.push(container);
         }
         let registry = DataclassRegistry::new(containers);
-        Ok(Container { inner, registry })
+        Ok(Container {
+            inner,
+            registry,
+            json_buf: Mutex::new(Vec::with_capacity(512)),
+        })
     }
 }
 
