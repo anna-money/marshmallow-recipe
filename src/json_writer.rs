@@ -191,16 +191,26 @@ impl FieldContainer {
                     lt.as_ref(),
                     lte.as_ref(),
                 )?;
-                let formatted = decimal
-                    .call_method1(intern!(py, "__format__"), ("f",))
+                let py_str = decimal
+                    .str()
                     .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-                let s = formatted
-                    .cast::<PyString>()
-                    .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-                let s = s
+                let s = py_str
                     .to_str()
                     .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-                write_json_string(buf, s);
+                if s.contains('E') || s.contains('e') {
+                    let formatted = decimal
+                        .call_method1(intern!(py, "__format__"), ("f",))
+                        .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+                    let fs = formatted
+                        .cast::<PyString>()
+                        .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+                    let fs = fs
+                        .to_str()
+                        .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+                    write_json_string(buf, fs);
+                } else {
+                    write_json_string(buf, s);
+                }
                 Ok(())
             }
             Self::Date { .. } => {
@@ -315,11 +325,8 @@ impl FieldContainer {
                         common.invalid_error.clone_ref(py),
                     ));
                 }
-                let enum_value = value
-                    .getattr("value")
-                    .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-                let s = enum_value
-                    .cast::<PyString>()
+                let s = value
+                    .str()
                     .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
                 let s = s
                     .to_str()
@@ -492,9 +499,7 @@ impl DataclassContainer {
             }
             first = false;
 
-            write_json_string(buf, &dc_field.data_key);
-
-            buf.push(b':');
+            buf.extend_from_slice(&dc_field.data_key_json);
 
             if py_value.is_none() {
                 buf.extend_from_slice(b"null");

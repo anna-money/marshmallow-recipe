@@ -35,7 +35,7 @@ impl Container {
     }
 
     fn dump_to_bytes(&self, py: Python<'_>, obj: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
-        let mut buf = Vec::with_capacity(256);
+        let mut buf = Vec::with_capacity(512);
         self.inner
             .dump_to_json(&self.registry, obj, &mut buf)
             .map_err(|e| e.to_validation_err(py))?;
@@ -1136,11 +1136,13 @@ impl ContainerBuilder {
                 ))
             })?;
 
+            let data_key_json = build_json_key(&builder_field.data_key);
             let dc_field = DataclassField {
                 name: builder_field.name.clone(),
                 name_interned: builder_field.name_interned.clone_ref(py),
                 data_key: builder_field.data_key.clone(),
                 data_key_interned: builder_field.data_key_interned.clone_ref(py),
+                data_key_json,
                 slot_offset: builder_field.slot_offset,
                 field_init: builder_field.field_init,
                 field: builder_field.container.clone(),
@@ -1192,4 +1194,18 @@ impl ContainerBuilder {
         self.fields.push(builder_field);
         Ok(FieldHandle(idx))
     }
+}
+
+fn build_json_key(key: &str) -> Vec<u8> {
+    let mut buf = Vec::with_capacity(key.len() + 3);
+    buf.push(b'"');
+    for byte in key.bytes() {
+        match byte {
+            b'"' => buf.extend_from_slice(b"\\\""),
+            b'\\' => buf.extend_from_slice(b"\\\\"),
+            _ => buf.push(byte),
+        }
+    }
+    buf.extend_from_slice(b"\":");
+    buf
 }
