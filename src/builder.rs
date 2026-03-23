@@ -68,6 +68,20 @@ impl Container {
             .load_from_py(py, &self.registry, &py_data)
             .map_err(|e| e.to_validation_err(py))
     }
+
+    fn load_from_bytes_streaming(
+        &self,
+        py: Python<'_>,
+        data: &Bound<'_, PyAny>,
+    ) -> PyResult<Py<PyAny>> {
+        let bytes: &[u8] = data
+            .extract()
+            .map_err(|_| pyo3::exceptions::PyTypeError::new_err("Expected bytes"))?;
+        let mut pos = 0;
+        self.inner
+            .load_from_json_bytes(py, &self.registry, bytes, &mut pos)
+            .map_err(|e| e.to_validation_err(py))
+    }
 }
 
 #[pyclass(from_py_object)]
