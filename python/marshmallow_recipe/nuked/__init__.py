@@ -917,12 +917,16 @@ def load[T](
 
 
 def load_from_bytes[T](
-    cls: type[T], data: bytes, *, naming_case: NamingCase | None = None, decimal_places: int | None = MISSING
+    cls: type[T],
+    data: bytes,
+    *,
+    naming_case: NamingCase | None = None,
+    decimal_places: int | None = MISSING,
 ) -> T:
     validate_decimal_places(decimal_places)
 
     container = _get_container(cls, naming_case, NoneValueHandling.IGNORE, decimal_places)
-    return container.load_from_bytes(data)  # type: ignore[return-value]
+    return container.load_from_bytes_via_json(data)  # type: ignore[return-value]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use pyo3::intern;
 use pyo3::prelude::*;
+use pyo3::sync::PyOnceLock;
 use pyo3::types::{PyList, PyString, PyTuple};
 
 use crate::container::{
@@ -50,6 +51,18 @@ impl Container {
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
         self.inner
             .load_from_json(py, &self.registry, &value)
+            .map_err(|e| e.to_validation_err(py))
+    }
+
+    fn load_from_bytes_via_json(
+        &self,
+        py: Python<'_>,
+        data: &Bound<'_, PyAny>,
+    ) -> PyResult<Py<PyAny>> {
+        let json_loads = get_json_loads(py)?;
+        let py_data = json_loads.call1((data,))?;
+        self.inner
+            .load_from_py(py, &self.registry, &py_data)
             .map_err(|e| e.to_validation_err(py))
     }
 }
@@ -1194,6 +1207,16 @@ impl ContainerBuilder {
         self.fields.push(builder_field);
         Ok(FieldHandle(idx))
     }
+}
+
+fn get_json_loads(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>> {
+    static JSON_LOADS: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+    JSON_LOADS
+        .get_or_try_init(py, || {
+            let mod_ = py.import("json")?;
+            mod_.getattr("loads").map(Bound::unbind)
+        })
+        .map(|v| v.bind(py))
 }
 
 fn build_json_key(key: &str) -> Vec<u8> {
