@@ -3,6 +3,15 @@ revision = 3
 requires-python = ">=3.12"
 
 [[package]]
+name = "apispec"
+version = "3.3.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1f/41/55fcfb7f5e8ac178a32875f55dfd0f5568c3cd1022724d34d0434e32b47b/apispec-3.3.2.tar.gz", hash = "sha256:d23ebd5b71e541e031b02a19db10b5e6d5ef8452c552833e3e1afc836b40b1ad", size = 67794, upload-time = "2020-08-29T20:23:17.63Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/35/a2/80a82b22296c942a5298bb760e8e21c86ace3342de840ff3df8938af4272/apispec-3.3.2-py2.py3-none-any.whl", hash = "sha256:a1df9ec6b2cd0edf45039ef025abd7f0660808fa2edf737d3ba1cf5ef1a4625b", size = 27146, upload-time = "2020-08-29T20:23:16.072Z" },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -41,6 +50,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "apispec" },
     { name = "maturin" },
     { name = "pyperf" },
     { name = "pyright" },
@@ -51,6 +61,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "apispec", marker = "extra == 'dev'", specifier = ">=3.3.2,<4" },
     { name = "marshmallow", specifier = ">=2.20.5,<4" },
     { name = "maturin", marker = "extra == 'dev'", specifier = ">=1.9,<2.0" },
     { name = "pyperf", marker = "extra == 'dev'", specifier = ">=2.7" },

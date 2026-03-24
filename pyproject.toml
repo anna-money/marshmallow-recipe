@@ -39,6 +39,7 @@ dev = [
     "setuptools",
     "maturin>=1.9,<2.0",
     "pyperf>=2.7",
+    "apispec>=3.3.2,<4",
 ]
 
 [tool.maturin]
