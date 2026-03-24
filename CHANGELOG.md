@@ -1,3 +1,8 @@
+## v0.0.88 (2026-03-24)
+
+* [Fix `DateTimeFieldV2` base class for correct apispec OpenAPI type mapping](https://github.com/anna-money/marshmallow-recipe/pull/281)
+
+
 ## v0.0.87(2026-03-22)
 
 * [Add `int_meta`/`float_meta` with range validation (`gt`, `gte`, `lt`, `lte`) support](https://github.com/anna-money/marshmallow-recipe/pull/277)
