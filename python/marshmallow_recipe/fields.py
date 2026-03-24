@@ -1747,7 +1747,7 @@ else:
 
     DecimalField = DecimalFieldV2
 
-    class DateTimeFieldV2(m.fields.Field):
+    class DateTimeFieldV2(m.fields.DateTime):
         @staticmethod
         def __iso_serialize(v: datetime.datetime) -> str:  # type: ignore
             return datetime.datetime.isoformat(v)
