@@ -224,7 +224,7 @@ class _BuildContext:
 
     def __init__(self, builder: Any, none_value_handling: NoneValueHandling | None, decimal_places: int | None) -> None:
         self.__builder = builder
-        self.__dataclass_handles: dict[type, Any] = {}
+        self.__dataclass_handles: dict[Any, Any] = {}
         self.__none_value_handling = none_value_handling
         self.__decimal_places = decimal_places
 
@@ -334,11 +334,11 @@ class _BuildContext:
     def __ensure_dataclass(
         self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, slots: _SlotStrategy
     ) -> Any:
-        if opts.cls in self.__dataclass_handles:
-            return self.__dataclass_handles[opts.cls]
+        if cls in self.__dataclass_handles:
+            return self.__dataclass_handles[cls]
 
         handle = self.__builder.reserve_dataclass()
-        self.__dataclass_handles[opts.cls] = handle
+        self.__dataclass_handles[cls] = handle
 
         field_handles, field_data_keys, pre_loads = self.__build_dataclass_core(cls, naming_case, opts)
 
