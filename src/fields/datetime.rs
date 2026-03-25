@@ -7,6 +7,9 @@ use crate::error::SerializationError;
 use crate::utils::display_to_py;
 use crate::utils::{parse_datetime_with_format, python_to_chrono_format};
 
+const ISO_WITH_MICROS: &str = "%Y-%m-%dT%H:%M:%S%.6f%:z";
+const ISO_WITHOUT_MICROS: &str = "%Y-%m-%dT%H:%M:%S%:z";
+
 pub const FORMAT_ISO: &str = "iso";
 pub const FORMAT_TIMESTAMP: &str = "timestamp";
 
@@ -98,7 +101,14 @@ pub fn dump_to_py(
         .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
 
     match format {
-        DateTimeFormat::Iso => Ok(display_to_py::<40, _>(py, &dt.format("%+"))),
+        DateTimeFormat::Iso => {
+            let fmt = if dt.timestamp_subsec_micros() == 0 {
+                ISO_WITHOUT_MICROS
+            } else {
+                ISO_WITH_MICROS
+            };
+            Ok(display_to_py::<40, _>(py, &dt.format(fmt)))
+        }
         DateTimeFormat::Timestamp => {
             let ts = datetime_to_timestamp(&dt)
                 .ok_or_else(|| SerializationError::Single(invalid_error.clone_ref(py)))?;
