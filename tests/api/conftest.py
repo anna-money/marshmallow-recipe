@@ -1698,3 +1698,9 @@ class WithUnionDictStrOptional:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithUnionIntStrOptional:
     value: int | str | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithTwoGenericValues:
+    int_value: GenericValue[int]
+    str_value: GenericValue[str]

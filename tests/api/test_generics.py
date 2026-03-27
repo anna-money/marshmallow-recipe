@@ -15,6 +15,7 @@ from .conftest import (
     User,
     Value1,
     Value2,
+    WithTwoGenericValues,
 )
 
 
@@ -144,6 +145,11 @@ class TestGenericsDump:
         result = impl.dump(GenericWithAnnotated[str], obj)
         assert result == b'{"value":"hello","renamed_field":"world"}'
 
+    def test_two_generic_values(self, impl: Serializer) -> None:
+        obj = WithTwoGenericValues(int_value=GenericValue[int](value=42), str_value=GenericValue[str](value="hello"))
+        result = impl.dump(WithTwoGenericValues, obj)
+        assert result == b'{"int_value":{"value":42},"str_value":{"value":"hello"}}'
+
 
 class TestGenericsLoad:
     def test_container_int(self, impl: Serializer) -> None:
@@ -234,3 +240,10 @@ class TestGenericsLoad:
         data = b'{"value":"foo","renamed_field":"bar"}'
         result = impl.load(GenericWithAnnotated[str], data)
         assert result == GenericWithAnnotated[str](value="foo", custom_name="bar")
+
+    def test_two_generic_values(self, impl: Serializer) -> None:
+        data = b'{"int_value":{"value":99},"str_value":{"value":"world"}}'
+        result = impl.load(WithTwoGenericValues, data)
+        assert result == WithTwoGenericValues(
+            int_value=GenericValue[int](value=99), str_value=GenericValue[str](value="world")
+        )
