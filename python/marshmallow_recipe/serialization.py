@@ -1,4 +1,3 @@
-import dataclasses
 import importlib.metadata
 from typing import Any, ClassVar, Protocol, get_args, overload
 
@@ -18,16 +17,10 @@ class Dataclass(Protocol):
     __dataclass_fields__: ClassVar[dict[str, Any]]
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class _SchemaKey:
-    cls: type
-    many: bool
-    naming_case: NamingCase | None
-    none_value_handling: NoneValueHandling | None
-    decimal_places: int | None
+SchemaKey = tuple[type, bool, NamingCase | None, NoneValueHandling | None, int | None]
 
 
-_schemas: dict[_SchemaKey, m.Schema] = {}
+_schemas: dict[SchemaKey, m.Schema] = {}
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
@@ -41,13 +34,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         decimal_places: int | None = MISSING,
     ) -> m.Schema:
         validate_decimal_places(decimal_places)
-        key = _SchemaKey(
-            cls=cls,
-            many=many,
-            naming_case=naming_case,
-            none_value_handling=none_value_handling,
-            decimal_places=decimal_places,
-        )
+        key: SchemaKey = (cls, many, naming_case, none_value_handling, decimal_places)
         existent_schema = _schemas.get(key)
         if existent_schema is not None:
             return existent_schema
@@ -214,13 +201,7 @@ else:
         decimal_places: int | None = MISSING,
     ) -> m.Schema:
         validate_decimal_places(decimal_places)
-        key = _SchemaKey(
-            cls=cls,
-            many=many,
-            naming_case=naming_case,
-            none_value_handling=none_value_handling,
-            decimal_places=decimal_places,
-        )
+        key: SchemaKey = (cls, many, naming_case, none_value_handling, decimal_places)
         existent_schema = _schemas.get(key)
         if existent_schema is not None:
             return existent_schema

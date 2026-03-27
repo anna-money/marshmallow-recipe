@@ -854,13 +854,7 @@ class _BuildContext:
         return field_handle
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ContainerKey:
-    cls: type
-    naming_case: NamingCase | None
-    none_value_handling: NoneValueHandling | None
-    decimal_places: int | None
-
+ContainerKey = tuple[type, NamingCase | None, NoneValueHandling | None, int | None]
 
 _container_cache: dict[ContainerKey, Any] = {}
 
@@ -868,9 +862,7 @@ _container_cache: dict[ContainerKey, Any] = {}
 def _get_container(
     cls: type, naming_case: NamingCase | None, none_value_handling: NoneValueHandling | None, decimal_places: int | None
 ) -> Any:
-    key = ContainerKey(
-        cls=cls, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
-    )
+    key: ContainerKey = (cls, naming_case, none_value_handling, decimal_places)
 
     if key not in _container_cache:
         container = build_container(cls, naming_case, none_value_handling, decimal_places)
@@ -902,16 +894,9 @@ def load[T](
     return container.load(data)  # type: ignore[return-value]
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class _SchemaKey:
-    cls: type
-    many: bool
-    naming_case: NamingCase | None
-    none_value_handling: NoneValueHandling | None
-    decimal_places: int | None
+SchemaKey = tuple[type, bool, NamingCase | None, NoneValueHandling | None, int | None]
 
-
-_nuked_schemas: dict[_SchemaKey, marshmallow.Schema] = {}
+_nuked_schemas: dict[SchemaKey, marshmallow.Schema] = {}
 
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
@@ -925,13 +910,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         decimal_places: int | None = MISSING,
     ) -> marshmallow.Schema:
         validate_decimal_places(decimal_places)
-        key = _SchemaKey(
-            cls=cls,
-            many=many,
-            naming_case=naming_case,
-            none_value_handling=none_value_handling,
-            decimal_places=decimal_places,
-        )
+        key: SchemaKey = (cls, many, naming_case, none_value_handling, decimal_places)
         existent = _nuked_schemas.get(key)
         if existent is not None:
             return existent
@@ -972,13 +951,7 @@ else:
         decimal_places: int | None = MISSING,
     ) -> marshmallow.Schema:
         validate_decimal_places(decimal_places)
-        key = _SchemaKey(
-            cls=cls,
-            many=many,
-            naming_case=naming_case,
-            none_value_handling=none_value_handling,
-            decimal_places=decimal_places,
-        )
+        key: SchemaKey = (cls, many, naming_case, none_value_handling, decimal_places)
         existent = _nuked_schemas.get(key)
         if existent is not None:
             return existent
