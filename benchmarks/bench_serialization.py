@@ -616,6 +616,38 @@ def nuked_load_many_1000_validated() -> list[TransactionDataValidated]:
     return mr.nuked.load(list[TransactionDataValidated], DATA_MANY_1000_VALIDATED_DICT)
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class DataclassCacheKey:
+    cls: type
+    many: bool
+    naming_case: str | None
+    none_value_handling: str | None
+    decimal_places: int | None
+
+
+TupleCacheKey = tuple[type, bool, str | None, str | None, int | None]
+
+_dataclass_cache: dict[DataclassCacheKey, int] = {}
+_tuple_cache: dict[TupleCacheKey, int] = {}
+
+_dc_key = DataclassCacheKey(cls=TransactionData, many=False, naming_case=None, none_value_handling=None, decimal_places=None)
+_dataclass_cache[_dc_key] = 1
+_tuple_key: TupleCacheKey = (TransactionData, False, None, None, None)
+_tuple_cache[_tuple_key] = 1
+
+
+def cache_key_dataclass_lookup() -> int | None:
+    key = DataclassCacheKey(
+        cls=TransactionData, many=False, naming_case=None, none_value_handling=None, decimal_places=None
+    )
+    return _dataclass_cache.get(key)
+
+
+def cache_key_tuple_lookup() -> int | None:
+    key: TupleCacheKey = (TransactionData, False, None, None, None)
+    return _tuple_cache.get(key)
+
+
 if __name__ == "__main__":
     runner = pyperf.Runner()
     # Single item
@@ -692,3 +724,6 @@ if __name__ == "__main__":
     runner.bench_func("nuked_dump_many_1000_decimal_range", nuked_dump_many_1000_decimal_range)
     runner.bench_func("marshmallow_load_many_1000_decimal_range", marshmallow_load_many_1000_decimal_range)
     runner.bench_func("nuked_load_many_1000_decimal_range", nuked_load_many_1000_decimal_range)
+    # Cache key: dataclass vs tuple
+    runner.bench_func("cache_key_dataclass_lookup", cache_key_dataclass_lookup)
+    runner.bench_func("cache_key_tuple_lookup", cache_key_tuple_lookup)

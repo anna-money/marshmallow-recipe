@@ -54,18 +54,12 @@ from .naming_case import NamingCase
 from .options import NoneValueHandling, try_get_options_for
 from .validation import wrap_validators
 
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class _SchemaTypeKey:
-    cls: type
-    naming_case: NamingCase | None
-    none_value_handling: NoneValueHandling | None
-    decimal_places: int | None
+SchemaTypeKey = tuple[type, NamingCase | None, NoneValueHandling | None, int | None]
 
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
-_schema_types: dict[_SchemaTypeKey, type[m.Schema]] = {}
+_schema_types: dict[SchemaTypeKey, type[m.Schema]] = {}
 
 
 class _FieldDescription(NamedTuple):
@@ -111,12 +105,7 @@ def _bake_schema(
         cls_naming_case = naming_case
         cls_decimal_places = decimal_places
 
-    key = _SchemaTypeKey(
-        cls=cls,
-        naming_case=cls_naming_case,
-        none_value_handling=cls_none_value_handling,
-        decimal_places=cls_decimal_places,
-    )
+    key: SchemaTypeKey = (cls, cls_naming_case, cls_none_value_handling, cls_decimal_places)
     if result := _schema_types.get(key):
         return result
 

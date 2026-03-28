@@ -1,3 +1,8 @@
+## v0.0.89 (2026-03-27)
+
+* [Replace frozen dataclass cache keys with tuples for faster lookups](https://github.com/anna-money/marshmallow-recipe/pull/285)
+
+
 ## v0.0.88 (2026-03-24)
 
 * [Fix `DateTimeFieldV2` base class for correct apispec OpenAPI type mapping](https://github.com/anna-money/marshmallow-recipe/pull/281)
