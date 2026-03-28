@@ -1,6 +1,6 @@
 ## v0.0.90 (2026-03-28)
 
-* [Use intern! for enum getattr on dump path](https://github.com/anna-money/marshmallow-recipe/pull/XXX)
+* [Use intern! for enum getattr on dump path](https://github.com/anna-money/marshmallow-recipe/pull/286)
 
 ## v0.0.89 (2026-03-27)
 
