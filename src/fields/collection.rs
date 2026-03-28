@@ -34,7 +34,8 @@ pub fn load_from_py(
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
 
-    let is_valid_sequence = value.is_instance_of::<PyList>()
+    let is_valid_sequence = kind.is_valid_type(value)
+        || value.is_instance_of::<PyList>()
         || value.is_instance_of::<PyTuple>()
         || value.is_instance_of::<PySet>()
         || value.is_instance_of::<PyFrozenSet>();

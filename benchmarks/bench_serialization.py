@@ -705,6 +705,19 @@ def cache_lookup_new_pattern() -> int | None:
     return result
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class SetIntData:
+    values: frozenset[int]
+
+
+SET_INT_DATA = SetIntData(values=frozenset(range(50)))
+SET_INT_DATA_DICT = mr.nuked.dump(SetIntData, SET_INT_DATA)
+
+
+def nuked_load_set_int() -> SetIntData:
+    return mr.nuked.load(SetIntData, SET_INT_DATA_DICT)
+
+
 if __name__ == "__main__":
     runner = pyperf.Runner()
     # Single item
@@ -754,6 +767,8 @@ if __name__ == "__main__":
     runner.bench_func("nuked_load_list_int_500", nuked_load_list_int_500)
     runner.bench_func("nuked_dump_list_str_500", nuked_dump_list_str_500)
     runner.bench_func("nuked_load_list_str_500", nuked_load_list_str_500)
+    # Set field (demonstrates collection kind-first check benefit)
+    runner.bench_func("nuked_load_set_int", nuked_load_set_int)
     # Decimal range validation: lambda vs native
     runner.bench_func("marshmallow_dump_decimal_lambda", marshmallow_dump_decimal_lambda)
     runner.bench_func("nuked_dump_decimal_lambda", nuked_dump_decimal_lambda)
