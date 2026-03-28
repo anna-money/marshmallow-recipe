@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use pyo3::prelude::*;
 use pyo3::types::PyString;
@@ -88,7 +88,7 @@ impl Clone for IntEnumLoaderData {
 }
 
 pub struct StrLiteralData {
-    pub values: Vec<String>,
+    pub values: HashSet<String>,
 }
 
 impl Clone for StrLiteralData {
