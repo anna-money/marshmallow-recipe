@@ -713,7 +713,7 @@ impl ContainerBuilder {
         let container = FieldContainer::StrLiteral {
             common,
             data: Box::new(StrLiteralData {
-                values: literal_values,
+                values: literal_values.into_iter().collect(),
             }),
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;

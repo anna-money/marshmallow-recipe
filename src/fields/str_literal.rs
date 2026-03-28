@@ -13,12 +13,9 @@ pub fn load_from_py(
 
     if let Ok(py_str) = value.cast::<PyString>()
         && let Ok(s) = py_str.to_str()
+        && data.values.contains(s)
     {
-        for allowed in &data.values {
-            if allowed == s {
-                return Ok(value.clone().unbind());
-            }
-        }
+        return Ok(value.clone().unbind());
     }
 
     Err(SerializationError::Single(invalid_error.clone_ref(py)))
@@ -33,12 +30,9 @@ pub fn dump_to_py(
 
     if let Ok(py_str) = value.cast::<PyString>()
         && let Ok(s) = py_str.to_str()
+        && data.values.contains(s)
     {
-        for allowed in &data.values {
-            if allowed == s {
-                return Ok(value.clone().unbind());
-            }
-        }
+        return Ok(value.clone().unbind());
     }
 
     Err(SerializationError::Single(invalid_error.clone_ref(py)))

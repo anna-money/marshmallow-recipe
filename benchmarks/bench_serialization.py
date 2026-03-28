@@ -9,7 +9,7 @@ import datetime
 import decimal
 import enum
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 import pyperf
 
@@ -648,6 +648,33 @@ def cache_key_tuple_lookup() -> int | None:
     return _tuple_cache.get(key)
 
 
+LargeStrLiteral = Literal[
+    "v01", "v02", "v03", "v04", "v05", "v06", "v07", "v08", "v09", "v10",
+    "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20",
+]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class StrLiteralDataBench:
+    s1: LargeStrLiteral
+    s2: LargeStrLiteral
+    s3: LargeStrLiteral
+    s4: LargeStrLiteral
+    s5: LargeStrLiteral
+
+
+STR_LITERAL = StrLiteralDataBench(s1="v20", s2="v19", s3="v18", s4="v17", s5="v16")
+STR_LITERAL_DICT = mr.nuked.dump(StrLiteralDataBench, STR_LITERAL)
+
+
+def nuked_dump_str_literal() -> dict:
+    return mr.nuked.dump(StrLiteralDataBench, STR_LITERAL)
+
+
+def nuked_load_str_literal() -> StrLiteralDataBench:
+    return mr.nuked.load(StrLiteralDataBench, STR_LITERAL_DICT)
+
+
 if __name__ == "__main__":
     runner = pyperf.Runner()
     # Single item
@@ -724,6 +751,9 @@ if __name__ == "__main__":
     runner.bench_func("nuked_dump_many_1000_decimal_range", nuked_dump_many_1000_decimal_range)
     runner.bench_func("marshmallow_load_many_1000_decimal_range", marshmallow_load_many_1000_decimal_range)
     runner.bench_func("nuked_load_many_1000_decimal_range", nuked_load_many_1000_decimal_range)
+    # Str literal (20 values, worst-case)
+    runner.bench_func("nuked_dump_str_literal", nuked_dump_str_literal)
+    runner.bench_func("nuked_load_str_literal", nuked_load_str_literal)
     # Cache key: dataclass vs tuple
     runner.bench_func("cache_key_dataclass_lookup", cache_key_dataclass_lookup)
     runner.bench_func("cache_key_tuple_lookup", cache_key_tuple_lookup)
