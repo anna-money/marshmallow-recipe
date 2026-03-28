@@ -705,6 +705,28 @@ def cache_lookup_new_pattern() -> int | None:
     return result
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class DatetimeStrftime:
+    dt1: Annotated[datetime.datetime, mr.datetime_meta(format="%Y-%m-%d %H:%M:%S")]
+    dt2: Annotated[datetime.datetime, mr.datetime_meta(format="%Y-%m-%d %H:%M:%S")]
+    dt3: Annotated[datetime.datetime, mr.datetime_meta(format="%Y-%m-%d %H:%M:%S")]
+    dt4: Annotated[datetime.datetime, mr.datetime_meta(format="%Y-%m-%d %H:%M:%S")]
+    dt5: Annotated[datetime.datetime, mr.datetime_meta(format="%Y-%m-%d %H:%M:%S")]
+
+
+DATETIME_STRFTIME = DatetimeStrftime(
+    dt1=datetime.datetime(2024, 1, 15, 10, 30, 45, tzinfo=datetime.UTC),
+    dt2=datetime.datetime(2024, 2, 20, 14, 15, 30, tzinfo=datetime.UTC),
+    dt3=datetime.datetime(2024, 3, 25, 8, 45, 0, tzinfo=datetime.UTC),
+    dt4=datetime.datetime(2024, 4, 10, 16, 0, 15, tzinfo=datetime.UTC),
+    dt5=datetime.datetime(2024, 5, 5, 12, 30, 0, tzinfo=datetime.UTC),
+)
+
+
+def nuked_dump_datetime_strftime() -> dict:
+    return mr.nuked.dump(DatetimeStrftime, DATETIME_STRFTIME)
+
+
 if __name__ == "__main__":
     runner = pyperf.Runner()
     # Single item
@@ -742,6 +764,8 @@ if __name__ == "__main__":
     runner.bench_func("nuked_dump_datetime_non_utc", nuked_dump_datetime_non_utc)
     runner.bench_func("nuked_load_datetime_utc", nuked_load_datetime_utc)
     runner.bench_func("nuked_load_datetime_non_utc", nuked_load_datetime_non_utc)
+    # Datetime strftime (custom format, measures stack vs heap allocation)
+    runner.bench_func("nuked_dump_datetime_strftime", nuked_dump_datetime_strftime)
     # Dict field
     runner.bench_func("nuked_dump_dict", nuked_dump_dict)
     runner.bench_func("nuked_load_dict", nuked_load_dict)

@@ -2,6 +2,7 @@
 
 * [Use intern! for enum getattr on dump path](https://github.com/anna-money/marshmallow-recipe/pull/286)
 * [Optimize _get_container cache lookup from 3 probes to 1](https://github.com/anna-money/marshmallow-recipe/pull/287)
+* [Use stack-allocated buffer for datetime strftime dump](https://github.com/anna-money/marshmallow-recipe/pull/292)
 
 ## v0.0.89 (2026-03-27)
 

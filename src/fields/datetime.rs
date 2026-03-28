@@ -106,10 +106,7 @@ pub fn dump_to_py(
                 .map_err(|e| SerializationError::simple(py, &e.to_string()))
         }
         DateTimeFormat::Strftime(chrono_fmt) => {
-            let formatted = dt.format(chrono_fmt).to_string();
-            formatted
-                .into_py_any(py)
-                .map_err(|e| SerializationError::simple(py, &e.to_string()))
+            Ok(display_to_py::<128, _>(py, &dt.format(chrono_fmt)))
         }
     }
 }
