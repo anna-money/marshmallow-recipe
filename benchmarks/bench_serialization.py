@@ -683,6 +683,28 @@ def nuked_load_enum_only() -> EnumOnlyData:
     return mr.nuked.load(EnumOnlyData, ENUM_ONLY_DICT)
 
 
+_old_style_cache: dict[TupleCacheKey, int] = {}
+_old_style_cache[_tuple_key] = 1
+_new_style_cache: dict[TupleCacheKey, int] = {}
+_new_style_cache[_tuple_key] = 1
+
+
+def cache_lookup_old_pattern() -> int | None:
+    key: TupleCacheKey = (TransactionData, False, None, None, None)
+    if key not in _old_style_cache:
+        _old_style_cache[key] = 1
+    return _old_style_cache[key]
+
+
+def cache_lookup_new_pattern() -> int | None:
+    key: TupleCacheKey = (TransactionData, False, None, None, None)
+    result = _new_style_cache.get(key)
+    if result is None:
+        result = 1
+        _new_style_cache[key] = result
+    return result
+
+
 if __name__ == "__main__":
     runner = pyperf.Runner()
     # Single item
@@ -765,3 +787,6 @@ if __name__ == "__main__":
     # Cache key: dataclass vs tuple
     runner.bench_func("cache_key_dataclass_lookup", cache_key_dataclass_lookup)
     runner.bench_func("cache_key_tuple_lookup", cache_key_tuple_lookup)
+    # Cache lookup pattern: old (not-in + set + get) vs new (.get())
+    runner.bench_func("cache_lookup_old_pattern", cache_lookup_old_pattern)
+    runner.bench_func("cache_lookup_new_pattern", cache_lookup_new_pattern)
