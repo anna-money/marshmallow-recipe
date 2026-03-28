@@ -1,6 +1,6 @@
 ## v0.0.90 (2026-03-28)
 
-* [Replace StrEnumLoaderData Vec with HashMap for O(1) lookup](https://github.com/anna-money/marshmallow-recipe/pull/XXX)
+* [Replace StrEnumLoaderData Vec with HashMap for O(1) lookup](https://github.com/anna-money/marshmallow-recipe/pull/288)
 
 ## v0.0.89 (2026-03-27)
 
