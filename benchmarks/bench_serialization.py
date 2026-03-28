@@ -648,6 +648,41 @@ def cache_key_tuple_lookup() -> int | None:
     return _tuple_cache.get(key)
 
 
+class BenchEnumColor(enum.StrEnum):
+    RED = "red"
+    GREEN = "green"
+    BLUE = "blue"
+    YELLOW = "yellow"
+    BLACK = "black"
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class EnumOnlyData:
+    c1: BenchEnumColor
+    c2: BenchEnumColor
+    c3: BenchEnumColor
+    c4: BenchEnumColor
+    c5: BenchEnumColor
+
+
+ENUM_ONLY = EnumOnlyData(
+    c1=BenchEnumColor.RED,
+    c2=BenchEnumColor.GREEN,
+    c3=BenchEnumColor.BLUE,
+    c4=BenchEnumColor.YELLOW,
+    c5=BenchEnumColor.BLACK,
+)
+ENUM_ONLY_DICT = mr.nuked.dump(EnumOnlyData, ENUM_ONLY)
+
+
+def nuked_dump_enum_only() -> dict:
+    return mr.nuked.dump(EnumOnlyData, ENUM_ONLY)
+
+
+def nuked_load_enum_only() -> EnumOnlyData:
+    return mr.nuked.load(EnumOnlyData, ENUM_ONLY_DICT)
+
+
 if __name__ == "__main__":
     runner = pyperf.Runner()
     # Single item
@@ -724,6 +759,9 @@ if __name__ == "__main__":
     runner.bench_func("nuked_dump_many_1000_decimal_range", nuked_dump_many_1000_decimal_range)
     runner.bench_func("marshmallow_load_many_1000_decimal_range", marshmallow_load_many_1000_decimal_range)
     runner.bench_func("nuked_load_many_1000_decimal_range", nuked_load_many_1000_decimal_range)
+    # Enum-only (isolates enum field overhead)
+    runner.bench_func("nuked_dump_enum_only", nuked_dump_enum_only)
+    runner.bench_func("nuked_load_enum_only", nuked_load_enum_only)
     # Cache key: dataclass vs tuple
     runner.bench_func("cache_key_dataclass_lookup", cache_key_dataclass_lookup)
     runner.bench_func("cache_key_tuple_lookup", cache_key_tuple_lookup)

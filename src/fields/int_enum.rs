@@ -1,3 +1,4 @@
+use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyInt, PyString};
 
@@ -34,7 +35,7 @@ pub fn dump_to_py(
     }
 
     let enum_value = value
-        .getattr("value")
+        .getattr(intern!(py, "value"))
         .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
 
     Ok(enum_value.unbind())
