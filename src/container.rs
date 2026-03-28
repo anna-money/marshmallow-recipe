@@ -72,7 +72,7 @@ impl Clone for StrEnumLoaderData {
 }
 
 pub struct IntEnumLoaderData {
-    pub values: Vec<(Py<PyAny>, Py<PyAny>)>,
+    pub values: HashMap<i64, Py<PyAny>>,
 }
 
 impl Clone for IntEnumLoaderData {
@@ -81,7 +81,7 @@ impl Clone for IntEnumLoaderData {
             values: self
                 .values
                 .iter()
-                .map(|(k, v)| (k.clone_ref(py), v.clone_ref(py)))
+                .map(|(k, v)| (*k, v.clone_ref(py)))
                 .collect(),
         })
     }
