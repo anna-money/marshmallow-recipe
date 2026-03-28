@@ -11,12 +11,12 @@ pub fn load_from_py(
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
 
-    if value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>() {
-        for (k, member) in &data.values {
-            if value.eq(k.bind(py)).unwrap_or(false) {
-                return Ok(member.clone_ref(py));
-            }
-        }
+    if value.is_instance_of::<PyInt>()
+        && !value.is_instance_of::<PyBool>()
+        && let Ok(key) = value.extract::<i64>()
+        && let Some(member) = data.values.get(&key)
+    {
+        return Ok(member.clone_ref(py));
     }
 
     Err(SerializationError::Single(invalid_error.clone_ref(py)))

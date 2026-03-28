@@ -674,11 +674,11 @@ impl ContainerBuilder {
             .unwrap_or_else(|| intern!(py, "Not a valid enum.").clone().unbind());
         let common = build_field_common(optional, &kwargs, invalid_error)?;
 
-        let values: Vec<(Py<PyAny>, Py<PyAny>)> = enum_values
+        let values: HashMap<i64, Py<PyAny>> = enum_values
             .iter()
             .map(|item| {
                 let tuple: &Bound<'_, PyTuple> = item.cast()?;
-                let key: Py<PyAny> = tuple.get_item(0)?.extract()?;
+                let key: i64 = tuple.get_item(0)?.extract()?;
                 let member: Py<PyAny> = tuple.get_item(1)?.extract()?;
                 Ok((key, member))
             })

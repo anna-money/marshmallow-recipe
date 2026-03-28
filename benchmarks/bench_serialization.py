@@ -616,6 +616,52 @@ def nuked_load_many_1000_validated() -> list[TransactionDataValidated]:
     return mr.nuked.load(list[TransactionDataValidated], DATA_MANY_1000_VALIDATED_DICT)
 
 
+class LargeIntEnumBench(enum.IntEnum):
+    V01 = 1
+    V02 = 2
+    V03 = 3
+    V04 = 4
+    V05 = 5
+    V06 = 6
+    V07 = 7
+    V08 = 8
+    V09 = 9
+    V10 = 10
+    V11 = 11
+    V12 = 12
+    V13 = 13
+    V14 = 14
+    V15 = 15
+    V16 = 16
+    V17 = 17
+    V18 = 18
+    V19 = 19
+    V20 = 20
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class LargeIntEnumDataBench:
+    e1: LargeIntEnumBench
+    e2: LargeIntEnumBench
+    e3: LargeIntEnumBench
+    e4: LargeIntEnumBench
+    e5: LargeIntEnumBench
+
+
+LARGE_INT_ENUM = LargeIntEnumDataBench(
+    e1=LargeIntEnumBench.V20,
+    e2=LargeIntEnumBench.V19,
+    e3=LargeIntEnumBench.V18,
+    e4=LargeIntEnumBench.V17,
+    e5=LargeIntEnumBench.V16,
+)
+LARGE_INT_ENUM_DICT = mr.nuked.dump(LargeIntEnumDataBench, LARGE_INT_ENUM)
+
+
+def nuked_load_large_int_enum() -> LargeIntEnumDataBench:
+    return mr.nuked.load(LargeIntEnumDataBench, LARGE_INT_ENUM_DICT)
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class DataclassCacheKey:
     cls: type
@@ -724,6 +770,8 @@ if __name__ == "__main__":
     runner.bench_func("nuked_dump_many_1000_decimal_range", nuked_dump_many_1000_decimal_range)
     runner.bench_func("marshmallow_load_many_1000_decimal_range", marshmallow_load_many_1000_decimal_range)
     runner.bench_func("nuked_load_many_1000_decimal_range", nuked_load_many_1000_decimal_range)
+    # Large int enum (20 members, worst-case)
+    runner.bench_func("nuked_load_large_int_enum", nuked_load_large_int_enum)
     # Cache key: dataclass vs tuple
     runner.bench_func("cache_key_dataclass_lookup", cache_key_dataclass_lookup)
     runner.bench_func("cache_key_tuple_lookup", cache_key_tuple_lookup)
