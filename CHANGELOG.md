@@ -1,6 +1,7 @@
 ## v0.0.89 (2026-03-27)
 
 * [Replace frozen dataclass cache keys with tuples for faster lookups](https://github.com/anna-money/marshmallow-recipe/pull/285)
+* [Fix generic dataclass cache collision in nuked](https://github.com/anna-money/marshmallow-recipe/pull/284)
 
 
 ## v0.0.88 (2026-03-24)
