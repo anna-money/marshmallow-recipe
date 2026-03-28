@@ -1,6 +1,6 @@
 ## v0.0.90 (2026-03-28)
 
-* [Replace StrLiteralData Vec with HashSet for O(1) membership check](https://github.com/anna-money/marshmallow-recipe/pull/XXX)
+* [Replace StrLiteralData Vec with HashSet for O(1) membership check](https://github.com/anna-money/marshmallow-recipe/pull/290)
 
 ## v0.0.89 (2026-03-27)
 
