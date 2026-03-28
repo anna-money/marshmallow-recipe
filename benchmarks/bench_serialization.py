@@ -648,6 +648,52 @@ def cache_key_tuple_lookup() -> int | None:
     return _tuple_cache.get(key)
 
 
+class LargeStrEnumBench(enum.StrEnum):
+    V01 = "v01"
+    V02 = "v02"
+    V03 = "v03"
+    V04 = "v04"
+    V05 = "v05"
+    V06 = "v06"
+    V07 = "v07"
+    V08 = "v08"
+    V09 = "v09"
+    V10 = "v10"
+    V11 = "v11"
+    V12 = "v12"
+    V13 = "v13"
+    V14 = "v14"
+    V15 = "v15"
+    V16 = "v16"
+    V17 = "v17"
+    V18 = "v18"
+    V19 = "v19"
+    V20 = "v20"
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class LargeStrEnumDataBench:
+    e1: LargeStrEnumBench
+    e2: LargeStrEnumBench
+    e3: LargeStrEnumBench
+    e4: LargeStrEnumBench
+    e5: LargeStrEnumBench
+
+
+LARGE_STR_ENUM = LargeStrEnumDataBench(
+    e1=LargeStrEnumBench.V20,
+    e2=LargeStrEnumBench.V19,
+    e3=LargeStrEnumBench.V18,
+    e4=LargeStrEnumBench.V17,
+    e5=LargeStrEnumBench.V16,
+)
+LARGE_STR_ENUM_DICT = mr.nuked.dump(LargeStrEnumDataBench, LARGE_STR_ENUM)
+
+
+def nuked_load_large_str_enum() -> LargeStrEnumDataBench:
+    return mr.nuked.load(LargeStrEnumDataBench, LARGE_STR_ENUM_DICT)
+
+
 if __name__ == "__main__":
     runner = pyperf.Runner()
     # Single item
@@ -724,6 +770,8 @@ if __name__ == "__main__":
     runner.bench_func("nuked_dump_many_1000_decimal_range", nuked_dump_many_1000_decimal_range)
     runner.bench_func("marshmallow_load_many_1000_decimal_range", marshmallow_load_many_1000_decimal_range)
     runner.bench_func("nuked_load_many_1000_decimal_range", nuked_load_many_1000_decimal_range)
+    # Large str enum (20 members, worst-case linear scan)
+    runner.bench_func("nuked_load_large_str_enum", nuked_load_large_str_enum)
     # Cache key: dataclass vs tuple
     runner.bench_func("cache_key_dataclass_lookup", cache_key_dataclass_lookup)
     runner.bench_func("cache_key_tuple_lookup", cache_key_tuple_lookup)

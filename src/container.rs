@@ -56,7 +56,7 @@ impl Clone for DataclassField {
 }
 
 pub struct StrEnumLoaderData {
-    pub values: Vec<(String, Py<PyAny>)>,
+    pub values: HashMap<String, Py<PyAny>>,
 }
 
 impl Clone for StrEnumLoaderData {

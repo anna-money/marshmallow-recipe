@@ -1,3 +1,7 @@
+## v0.0.90 (2026-03-28)
+
+* [Replace StrEnumLoaderData Vec with HashMap for O(1) lookup](https://github.com/anna-money/marshmallow-recipe/pull/288)
+
 ## v0.0.89 (2026-03-27)
 
 * [Replace frozen dataclass cache keys with tuples for faster lookups](https://github.com/anna-money/marshmallow-recipe/pull/285)

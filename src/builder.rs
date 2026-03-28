@@ -637,7 +637,7 @@ impl ContainerBuilder {
             .unwrap_or_else(|| intern!(py, "Not a valid enum.").clone().unbind());
         let common = build_field_common(optional, &kwargs, invalid_error)?;
 
-        let values: Vec<(String, Py<PyAny>)> = enum_values
+        let values: HashMap<String, Py<PyAny>> = enum_values
             .iter()
             .map(|item| {
                 let tuple: &Bound<'_, PyTuple> = item.cast()?;

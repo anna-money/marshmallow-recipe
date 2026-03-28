@@ -13,12 +13,9 @@ pub fn load_from_py(
 
     if let Ok(py_str) = value.cast::<PyString>()
         && let Ok(s) = py_str.to_str()
+        && let Some(member) = data.values.get(s)
     {
-        for (k, member) in &data.values {
-            if k == s {
-                return Ok(member.clone_ref(py));
-            }
-        }
+        return Ok(member.clone_ref(py));
     }
 
     Err(SerializationError::Single(invalid_error.clone_ref(py)))
