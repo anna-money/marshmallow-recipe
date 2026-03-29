@@ -1,3 +1,7 @@
+## v0.0.90 (2026-03-28)
+
+* [Use intern! for enum getattr on dump path](https://github.com/anna-money/marshmallow-recipe/pull/286)
+
 ## v0.0.89 (2026-03-27)
 
 * [Replace frozen dataclass cache keys with tuples for faster lookups](https://github.com/anna-money/marshmallow-recipe/pull/285)
