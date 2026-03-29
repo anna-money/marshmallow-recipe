@@ -863,12 +863,11 @@ def _get_container(
     cls: type, naming_case: NamingCase | None, none_value_handling: NoneValueHandling | None, decimal_places: int | None
 ) -> Any:
     key: ContainerKey = (cls, naming_case, none_value_handling, decimal_places)
-
-    if key not in _container_cache:
+    container = _container_cache.get(key)
+    if container is None:
         container = build_container(cls, naming_case, none_value_handling, decimal_places)
         _container_cache[key] = container
-
-    return _container_cache[key]
+    return container
 
 
 def dump[T](
