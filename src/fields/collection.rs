@@ -34,11 +34,32 @@ pub fn load_from_py(
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
 
-    let is_valid_sequence = kind.is_valid_type(value)
-        || value.is_instance_of::<PyList>()
-        || value.is_instance_of::<PyTuple>()
-        || value.is_instance_of::<PySet>()
-        || value.is_instance_of::<PyFrozenSet>();
+    let is_valid_sequence = if kind.is_valid_type(value) {
+        true
+    } else {
+        match kind {
+            CollectionKind::List => {
+                value.is_instance_of::<PyTuple>()
+                    || value.is_instance_of::<PySet>()
+                    || value.is_instance_of::<PyFrozenSet>()
+            }
+            CollectionKind::Tuple => {
+                value.is_instance_of::<PyList>()
+                    || value.is_instance_of::<PySet>()
+                    || value.is_instance_of::<PyFrozenSet>()
+            }
+            CollectionKind::Set => {
+                value.is_instance_of::<PyList>()
+                    || value.is_instance_of::<PyTuple>()
+                    || value.is_instance_of::<PyFrozenSet>()
+            }
+            CollectionKind::FrozenSet => {
+                value.is_instance_of::<PyList>()
+                    || value.is_instance_of::<PyTuple>()
+                    || value.is_instance_of::<PySet>()
+            }
+        }
+    };
     if !is_valid_sequence {
         return Err(SerializationError::Single(invalid_error.clone_ref(py)));
     }
