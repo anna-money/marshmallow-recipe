@@ -155,6 +155,10 @@ impl DataclassContainer {
         let mut errors: Option<Bound<'_, PyDict>> = None;
 
         for dc_field in &self.fields {
+            if !dc_field.field_init {
+                continue;
+            }
+
             let common = dc_field.field.common();
 
             let py_value = match dc_field.slot_offset {

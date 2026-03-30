@@ -96,6 +96,16 @@ class TestDirectSlotsDump:
         result = json.loads(impl.dump(BasicSlots, obj))
         assert result == {"name": "test", "value": 123}
 
+    def test_with_post_init(self, impl: Serializer) -> None:
+        obj = WithPostInit(name="test", value=5)
+        result = json.loads(impl.dump(WithPostInit, obj))
+        assert result == {"name": "test", "value": 5}
+
+    def test_with_field_init_false(self, impl: Serializer) -> None:
+        obj = WithFieldInitFalse(name="test", value=123)
+        result = json.loads(impl.dump(WithFieldInitFalse, obj))
+        assert result == {"name": "test", "value": 123}
+
     def test_with_custom_init(self, impl: Serializer) -> None:
         obj = WithCustomInit(name="test", value=5)
         result = json.loads(impl.dump(WithCustomInit, obj))
@@ -143,8 +153,7 @@ class TestDirectSlotsLoad:
     def test_with_custom_init(self, impl: Serializer) -> None:
         data = b'{"name":"test","value":5}'
         result = impl.load(WithCustomInit, data)
-        assert result.name == "TEST"
-        assert result.value == 10
+        assert result == WithCustomInit(name="test", value=5)
 
     def test_with_field_init_false(self, impl: Serializer) -> None:
         data = b'{"name":"test","value":123}'
