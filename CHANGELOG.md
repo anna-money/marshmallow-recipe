@@ -1,8 +1,8 @@
 ## v0.0.91 (2026-03-30)
 
 * [Skip `init=False` fields in nuked](https://github.com/anna-money/marshmallow-recipe/pull/294)
-* Fix segfault when dumping MagicMock objects via direct slot access
-* Use `isinstance` in `extract_type` for marshmallow/nuked dump parity
+* [Fix segfault when dumping MagicMock objects via direct slot access](https://github.com/anna-money/marshmallow-recipe/pull/295)
+* [Use `isinstance` in `extract_type` for marshmallow/nuked dump parity](https://github.com/anna-money/marshmallow-recipe/pull/295)
 
 
 ## v0.0.90 (2026-03-29)
