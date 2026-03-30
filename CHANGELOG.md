@@ -1,6 +1,6 @@
 ## v0.0.91 (2026-03-30)
 
-* [Skip `init=False` fields in nuked dump path to match marshmallow behavior](https://github.com/anna-money/marshmallow-recipe/pull/294)
+* [Skip `init=False` fields in nuked](https://github.com/anna-money/marshmallow-recipe/pull/294)
 
 
 ## v0.0.90 (2026-03-29)
