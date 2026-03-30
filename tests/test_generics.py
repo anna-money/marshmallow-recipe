@@ -33,6 +33,11 @@ class NonGeneric:
 
 
 @dataclasses.dataclass()
+class DerivedNonGeneric(NonGeneric):
+    pass
+
+
+@dataclasses.dataclass()
 class RegularGeneric(Generic[T]):
     pass
 
@@ -59,6 +64,13 @@ def type_vars(type_var_map: dict[Any, Any]) -> set[Any]:
         (NonGeneric(), None, NonGeneric, does_not_raise()),
         (NonGeneric(), NonGeneric, NonGeneric, does_not_raise()),
         (NonGeneric(), OtherType, ANY, e("OtherType'> is invalid but can be removed, actual type is <class 'tests")),
+        (DerivedNonGeneric(), NonGeneric, NonGeneric, does_not_raise()),
+        (
+            DerivedNonGeneric(),
+            OtherType,
+            ANY,
+            e("OtherType'> is invalid but can be removed, actual type is <class 'tests"),
+        ),
         (RegularGeneric(), None, ANY, e("Explicit cls required for unsubscripted type <class 'tests")),
         (RegularGeneric(), RegularGeneric, ANY, e("RegularGeneric'> is not subscripted version of <class 'tests")),
         (RegularGeneric(), RegularGeneric[int], RegularGeneric[int], does_not_raise()),

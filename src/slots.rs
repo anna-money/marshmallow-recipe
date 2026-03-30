@@ -1,18 +1,5 @@
 use pyo3::prelude::*;
 
-// These functions provide direct memory access to Python object slots,
-// bypassing the normal attribute access mechanism for better performance.
-//
-// SAFETY: The offset must be properly aligned for pointer access.
-// This is guaranteed by filtering out unaligned offsets when extracting
-// slot_offset in cache.rs and types.rs. We use debug_assert! to catch
-// any misuse during development.
-//
-// The cast_ptr_alignment warning is suppressed because:
-// 1. Python objects are allocated via malloc, which returns aligned pointers
-// 2. We verify that offset is aligned before it reaches these functions
-// 3. Therefore (obj_ptr + offset) is guaranteed to be properly aligned
-
 #[allow(clippy::cast_ptr_alignment)]
 pub unsafe fn get_slot_value_direct<'py>(
     py: Python<'py>,
@@ -30,6 +17,16 @@ pub unsafe fn get_slot_value_direct<'py>(
     if obj_ptr.is_null() {
         return None;
     }
+
+    let basicsize = unsafe { (*(*obj_ptr).ob_type).tp_basicsize };
+    if basicsize <= 0 {
+        return None;
+    }
+    let end = offset.cast_unsigned() + std::mem::size_of::<*mut pyo3::ffi::PyObject>();
+    if end > basicsize.cast_unsigned() {
+        return None;
+    }
+
     unsafe {
         let slot_ptr = (obj_ptr as *const u8)
             .offset(offset)
@@ -56,6 +53,16 @@ pub unsafe fn set_slot_value_direct(
     if obj_ptr.is_null() {
         return false;
     }
+
+    let basicsize = unsafe { (*(*obj_ptr).ob_type).tp_basicsize };
+    if basicsize <= 0 {
+        return false;
+    }
+    let end = offset.cast_unsigned() + std::mem::size_of::<*mut pyo3::ffi::PyObject>();
+    if end > basicsize.cast_unsigned() {
+        return false;
+    }
+
     unsafe {
         let slot_ptr = obj_ptr
             .cast::<u8>()

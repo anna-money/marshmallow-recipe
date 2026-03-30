@@ -35,7 +35,9 @@ def extract_type(data: Any, cls: type | None) -> type:
 
     if not _is_unsubscripted_type(data_type):
         if cls and data_type != cls:
-            raise ValueError(f"{cls=} is invalid but can be removed, actual type is {data_type}")
+            if get_origin(data_type) is not None or not isinstance(data, get_origin(cls) or cls):
+                raise ValueError(f"{cls=} is invalid but can be removed, actual type is {data_type}")
+            return cls
         return data_type
 
     if not cls:
