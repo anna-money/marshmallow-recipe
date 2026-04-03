@@ -13,7 +13,9 @@ class SimpleData:
 
 class TestLoadNoneValueHandlingDeprecation:
     def test_load_warns(self) -> None:
-        with pytest.warns(DeprecationWarning, match="none_value_handling has no effect on load and will be removed after 2026-05-03"):
+        with pytest.warns(
+            DeprecationWarning, match="none_value_handling has no effect on load and will be removed after 2026-05-03"
+        ):
             result = mr.load(SimpleData, {"value": "test"}, none_value_handling=mr.NoneValueHandling.INCLUDE)
         assert result == SimpleData(value="test")
 
@@ -24,7 +26,10 @@ class TestLoadNoneValueHandlingDeprecation:
         assert result == SimpleData(value="test")
 
     def test_load_many_warns(self) -> None:
-        with pytest.warns(DeprecationWarning, match="none_value_handling has no effect on load_many and will be removed after 2026-05-03"):
+        with pytest.warns(
+            DeprecationWarning,
+            match="none_value_handling has no effect on load_many and will be removed after 2026-05-03",
+        ):
             result = mr.load_many(SimpleData, [{"value": "test"}], none_value_handling=mr.NoneValueHandling.INCLUDE)
         assert result == [SimpleData(value="test")]
 
