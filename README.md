@@ -226,3 +226,17 @@ The [examples/](https://github.com/anna-money/marshmallow-recipe/tree/main/examp
 - **[16_literal_types.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/16_literal_types.md)** - Literal type support with validation
 - **[17_type_aliases.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/17_type_aliases.md)** - PEP 695 type aliases
 - **[18_bytes.md](https://github.com/anna-money/marshmallow-recipe/blob/main/examples/18_bytes.md)** - bytes with base64 encoding
+
+## AI-Assisted Development
+
+### Claude Code
+
+Add to your project's `CLAUDE.md`:
+
+```
+When working with marshmallow-recipe (imported as `mr`), use the context7 MCP plugin to look up `/anna-money/marshmallow-recipe` documentation before writing serialization code.
+```
+
+### Other Tools
+
+Run `help(marshmallow_recipe)` in a Python shell for a complete API overview with lazy discovery links to detailed function documentation.

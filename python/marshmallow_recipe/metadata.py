@@ -74,6 +74,16 @@ def metadata(
     none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
+    """Configure field serialization. Use via ``Annotated`` type hints.
+
+    Args:
+        name: Override serialized field name.
+        description: Field description, used in JSON Schema generation.
+        validate: Validation function or list of functions applied on load.
+        required_error: Custom error message when required field is missing.
+        none_error: Custom error message when field is None but shouldn't be.
+        invalid_error: Custom error message when field value has invalid type.
+    """
     values = dict[str, Any]()
     if name is not MISSING:
         values.update(name=name)
@@ -101,6 +111,18 @@ def str_metadata(
     none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
+    """Configure string field serialization.
+
+    Args:
+        name: Override serialized field name.
+        description: Field description, used in JSON Schema generation.
+        validate: Validation function or list of functions applied on load.
+        strip_whitespaces: If True, strip leading/trailing whitespace on load.
+        post_load: Callable applied to the string value after deserialization.
+        required_error: Custom error message when required field is missing.
+        none_error: Custom error message when field is None but shouldn't be.
+        invalid_error: Custom error message when field value has invalid type.
+    """
     values = dict[str, Any]()
     if name is not MISSING:
         values.update(name=name)
@@ -140,6 +162,27 @@ def decimal_metadata(
     none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
+    """Configure decimal field serialization with precision and range validation.
+
+    Args:
+        name: Override serialized field name.
+        description: Field description, used in JSON Schema generation.
+        places: Maximum decimal places. Raises ValidationError if exceeded.
+        rounding: Rounding mode (e.g. ``decimal.ROUND_HALF_UP``).
+            When set, rounds to ``places`` instead of validating.
+        gt: Exclusive lower bound (>). Accepts Decimal or int.
+        gt_error: Custom error for gt violation. Supports ``{min}`` placeholder.
+        gte: Inclusive lower bound (>=). Accepts Decimal or int.
+        gte_error: Custom error for gte violation. Supports ``{min}`` placeholder.
+        lt: Exclusive upper bound (<). Accepts Decimal or int.
+        lt_error: Custom error for lt violation. Supports ``{max}`` placeholder.
+        lte: Inclusive upper bound (<=). Accepts Decimal or int.
+        lte_error: Custom error for lte violation. Supports ``{max}`` placeholder.
+        validate: Validation function or list of functions applied on load.
+        required_error: Custom error message when required field is missing.
+        none_error: Custom error message when field is None but shouldn't be.
+        invalid_error: Custom error message when field value has invalid type.
+    """
     validate_decimal_places(places)
     validate_decimal_rounding(rounding)
     validate_decimal_bound(gt, "gt")
@@ -215,6 +258,24 @@ def int_metadata(
     none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
+    """Configure integer field serialization with range validation.
+
+    Args:
+        name: Override serialized field name.
+        description: Field description, used in JSON Schema generation.
+        gt: Exclusive lower bound (>).
+        gt_error: Custom error for gt violation. Supports ``{min}`` placeholder.
+        gte: Inclusive lower bound (>=).
+        gte_error: Custom error for gte violation. Supports ``{min}`` placeholder.
+        lt: Exclusive upper bound (<).
+        lt_error: Custom error for lt violation. Supports ``{max}`` placeholder.
+        lte: Inclusive upper bound (<=).
+        lte_error: Custom error for lte violation. Supports ``{max}`` placeholder.
+        validate: Validation function or list of functions applied on load.
+        required_error: Custom error message when required field is missing.
+        none_error: Custom error message when field is None but shouldn't be.
+        invalid_error: Custom error message when field value has invalid type.
+    """
     validate_int_bound(gt, "gt")
     validate_int_bound(gte, "gte")
     validate_int_bound(lt, "lt")
@@ -280,6 +341,24 @@ def float_metadata(
     none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
+    """Configure float field serialization with range validation.
+
+    Args:
+        name: Override serialized field name.
+        description: Field description, used in JSON Schema generation.
+        gt: Exclusive lower bound (>). Accepts float or int.
+        gt_error: Custom error for gt violation. Supports ``{min}`` placeholder.
+        gte: Inclusive lower bound (>=). Accepts float or int.
+        gte_error: Custom error for gte violation. Supports ``{min}`` placeholder.
+        lt: Exclusive upper bound (<). Accepts float or int.
+        lt_error: Custom error for lt violation. Supports ``{max}`` placeholder.
+        lte: Inclusive upper bound (<=). Accepts float or int.
+        lte_error: Custom error for lte violation. Supports ``{max}`` placeholder.
+        validate: Validation function or list of functions applied on load.
+        required_error: Custom error message when required field is missing.
+        none_error: Custom error message when field is None but shouldn't be.
+        invalid_error: Custom error message when field value has invalid type.
+    """
     validate_float_bound(gt, "gt")
     validate_float_bound(gte, "gte")
     validate_float_bound(lt, "lt")
@@ -338,6 +417,17 @@ def datetime_metadata(
     none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
+    """Configure datetime field serialization with custom format.
+
+    Args:
+        name: Override serialized field name.
+        description: Field description, used in JSON Schema generation.
+        validate: Validation function or list of functions applied on load.
+        format: strftime/strptime format string for serialization.
+        required_error: Custom error message when required field is missing.
+        none_error: Custom error message when field is None but shouldn't be.
+        invalid_error: Custom error message when field value has invalid type.
+    """
     validate_datetime_format(format)
     values = dict[str, Any]()
     if name is not MISSING:
@@ -366,6 +456,16 @@ def time_metadata(
     none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
+    """Configure time field serialization.
+
+    Args:
+        name: Override serialized field name.
+        description: Field description, used in JSON Schema generation.
+        validate: Validation function or list of functions applied on load.
+        required_error: Custom error message when required field is missing.
+        none_error: Custom error message when field is None but shouldn't be.
+        invalid_error: Custom error message when field value has invalid type.
+    """
     values = dict[str, Any]()
     if name is not MISSING:
         values.update(name=name)
@@ -393,6 +493,18 @@ def list_metadata(
     none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
+    """Configure list field serialization with item validation.
+
+    Args:
+        name: Override serialized field name.
+        description: Field description, used in JSON Schema generation.
+        item_description: Description for list items, used in JSON Schema.
+        validate: Validation function or list of functions for the list itself.
+        validate_item: Validation function or list of functions applied to each item.
+        required_error: Custom error message when required field is missing.
+        none_error: Custom error message when field is None but shouldn't be.
+        invalid_error: Custom error message when field value has invalid type.
+    """
     values = dict[str, Any]()
     if name is not MISSING:
         values.update(name=name)
@@ -424,6 +536,18 @@ def set_metadata(
     none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
+    """Configure set field serialization with item validation.
+
+    Args:
+        name: Override serialized field name.
+        description: Field description, used in JSON Schema generation.
+        item_description: Description for set items, used in JSON Schema.
+        validate: Validation function or list of functions for the set itself.
+        validate_item: Validation function or list of functions applied to each item.
+        required_error: Custom error message when required field is missing.
+        none_error: Custom error message when field is None but shouldn't be.
+        invalid_error: Custom error message when field value has invalid type.
+    """
     values = dict[str, Any]()
     if name is not MISSING:
         values.update(name=name)
@@ -455,6 +579,18 @@ def tuple_metadata(
     none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
+    """Configure tuple field serialization with item validation.
+
+    Args:
+        name: Override serialized field name.
+        description: Field description, used in JSON Schema generation.
+        item_description: Description for tuple items, used in JSON Schema.
+        validate: Validation function or list of functions for the tuple itself.
+        validate_item: Validation function or list of functions applied to each item.
+        required_error: Custom error message when required field is missing.
+        none_error: Custom error message when field is None but shouldn't be.
+        invalid_error: Custom error message when field value has invalid type.
+    """
     values = dict[str, Any]()
     if name is not MISSING:
         values.update(name=name)
@@ -485,6 +621,17 @@ def frozenset_metadata(
     invalid_error: str | None = None,
     description: str | None = None,
 ) -> Metadata:
+    """Configure frozenset field serialization with item validation.
+
+    Args:
+        name: Override serialized field name.
+        validate: Validation function or list of functions for the frozenset itself.
+        validate_item: Validation function or list of functions applied to each item.
+        required_error: Custom error message when required field is missing.
+        none_error: Custom error message when field is None but shouldn't be.
+        invalid_error: Custom error message when field value has invalid type.
+        description: Field description, used in JSON Schema generation.
+    """
     values = dict[str, Any]()
     if name is not MISSING:
         values.update(name=name)

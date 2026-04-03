@@ -69,6 +69,7 @@
     "JSON Schema: Decimal range constraints emitted - gt→exclusiveMinimum, gte→minimum, lt→exclusiveMaximum, lte→maximum (values as strings)",
     "JSON Schema: Not cached (unlike mr.schema) - generates fresh dict each call, similar to mr.dump()",
     "JSON Schema: Override title per call - mr.json_schema(User, title='Custom') overrides @mr.options(title='...')",
+    "NUKED PERFORMANCE: mr.nuked is a drop-in replacement for mr with indicative improvement ~20x for dump, ~10x for load",
     "NUKED SCHEMA: mr.nuked.schema(Class) generates marshmallow Schema for introspection (apispec), delegates load() and dump() to Rust backend — automatic speedup without extra effort",
     "NUKED SCHEMA: Schema fields available for apispec/OpenAPI, but actual serialization runs through Rust — drop-in replacement for mr.schema() with speedup",
     "NUKED SCHEMA: Supports many=True — mr.nuked.schema(Class, many=True).load(list_data) for batch loading",
@@ -89,7 +90,9 @@
     "For float range validation: Annotated[float, mr.float_meta(gt=0.0, lte=100.5)] - operators: gt (>), gte (>=), lt (<), lte (<=); bounds accept both int and float",
     "For float range custom errors: mr.float_meta(gte=0.0, gte_error='Must be non-negative') - each operator has a corresponding _error param",
     "JSON Schema: Int range constraints emitted - gt→exclusiveMinimum, gte→minimum, lt→exclusiveMaximum, lte→maximum (values as numbers)",
-    "JSON Schema: Float range constraints emitted - gt→exclusiveMinimum, gte→minimum, lt→exclusiveMaximum, lte→maximum (values as numbers)"
+    "JSON Schema: Float range constraints emitted - gt→exclusiveMinimum, gte→minimum, lt→exclusiveMaximum, lte→maximum (values as numbers)",
+    "AI-ASSISTED DEVELOPMENT: For Claude Code in downstream projects, add to your CLAUDE.md: 'When working with marshmallow-recipe (imported as mr), use the context7 MCP plugin to look up /anna-money/marshmallow-recipe documentation before writing serialization code'",
+    "AI-ASSISTED DEVELOPMENT: Run help(marshmallow_recipe) or help(mr.dump) in Python for complete API documentation with lazy discovery links"
   ],
   "previousVersions": []
 }

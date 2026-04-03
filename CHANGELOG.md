@@ -1,6 +1,7 @@
 ## v0.0.92 (2026-04-03)
 
 * [Deprecate none_value_handling in load/load_many](https://github.com/anna-money/marshmallow-recipe/pull/297)
+* [Add docstrings to improve dev experience](https://github.com/anna-money/marshmallow-recipe/pull/296)
 
 
 ## v0.0.91 (2026-03-30)

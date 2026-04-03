@@ -36,6 +36,21 @@ def json_schema(
     decimal_places: int | None = MISSING,
     title: str | None = None,
 ) -> dict[str, Any]:
+    """Generate JSON Schema Draft 2020-12 from a dataclass.
+
+    Not cached (unlike ``mr.schema``). Handles nested and cyclic dataclasses.
+
+    Args:
+        cls: Dataclass type.
+        naming_case: Convert field names. Use ``mr.CAMEL_CASE``,
+            ``mr.CAPITAL_CAMEL_CASE``, or ``mr.UPPER_SNAKE_CASE``.
+        none_value_handling: Controls None field handling in schema.
+        decimal_places: Validate maximum decimal places for all Decimal fields.
+        title: Override schema title. Defaults to ``@mr.options(title=...)`` or class name.
+
+    Returns:
+        JSON Schema dict.
+    """
     origin: type = get_origin(cls) or cls
     if not dataclasses.is_dataclass(origin):
         raise ValueError(f"{origin} is not a dataclass")

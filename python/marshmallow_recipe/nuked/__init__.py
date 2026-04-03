@@ -1,3 +1,18 @@
+"""marshmallow-recipe high-performance Rust backend (nuked).
+
+Drop-in replacement for mr.dump/mr.load/mr.schema.
+Indicative improvement: ~20x for dump, ~10x for load.
+
+Core API:
+    mr.nuked.dump(cls, obj)         Serialize dataclass to dict.
+    mr.nuked.load(cls, data)        Deserialize dict to dataclass.
+    mr.nuked.schema(cls)            Get cached Schema with Rust-backed load/dump.
+
+    Use help(mr.nuked.dump), help(mr.nuked.load), help(mr.nuked.schema) for details.
+
+Also supports root-level collections: mr.nuked.dump(dict[str, T], data).
+"""
+
 import ctypes
 import dataclasses
 import datetime
@@ -878,6 +893,19 @@ def dump[T](
     none_value_handling: NoneValueHandling | None = None,
     decimal_places: int | None = MISSING,
 ) -> Any:
+    """Serialize to a JSON-compatible value using the Rust backend.
+
+    Returns a JSON-compatible value (dict, list, or primitive).
+
+    Args:
+        cls: Dataclass type or root collection type (e.g. ``list[User]``, ``dict[str, User]``).
+        data: Instance to serialize.
+        naming_case: Convert field names. Use ``mr.CAMEL_CASE``,
+            ``mr.CAPITAL_CAMEL_CASE``, or ``mr.UPPER_SNAKE_CASE``.
+        none_value_handling: Controls None field output.
+            ``mr.NoneValueHandling.INCLUDE`` keeps None fields, default excludes them.
+        decimal_places: Validate maximum decimal places for all Decimal fields.
+    """
     validate_decimal_places(decimal_places)
 
     container = _get_container(cls, naming_case, none_value_handling, decimal_places)
@@ -887,6 +915,17 @@ def dump[T](
 def load[T](
     cls: type[T], data: Any, *, naming_case: NamingCase | None = None, decimal_places: int | None = MISSING
 ) -> T:
+    """Deserialize from a JSON-compatible value using the Rust backend.
+
+    Accepts dict for dataclasses, list for collections.
+
+    Args:
+        cls: Dataclass type or root collection type (e.g. ``list[User]``, ``dict[str, User]``).
+        data: JSON-compatible value to deserialize.
+        naming_case: Convert field names. Use ``mr.CAMEL_CASE``,
+            ``mr.CAPITAL_CAMEL_CASE``, or ``mr.UPPER_SNAKE_CASE``.
+        decimal_places: Validate maximum decimal places for all Decimal fields.
+    """
     validate_decimal_places(decimal_places)
 
     container = _get_container(cls, naming_case, NoneValueHandling.IGNORE, decimal_places)
@@ -908,6 +947,24 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> marshmallow.Schema:
+        """Get a cached marshmallow Schema backed by the Rust backend.
+
+        Schema fields are available for introspection (e.g. apispec/OpenAPI),
+        but actual serialization runs through Rust.
+        Cached per (cls, many, naming_case, none_value_handling, decimal_places).
+
+        Args:
+            cls: Dataclass type.
+            many: If True, schema handles lists of objects.
+            naming_case: Convert field names. Use ``mr.CAMEL_CASE``,
+                ``mr.CAPITAL_CAMEL_CASE``, or ``mr.UPPER_SNAKE_CASE``.
+            none_value_handling: Controls None field output.
+                ``mr.NoneValueHandling.INCLUDE`` keeps None fields, default excludes them.
+            decimal_places: Validate maximum decimal places for all Decimal fields.
+
+        Returns:
+            Cached marshmallow Schema instance with Rust-backed load/dump.
+        """
         validate_decimal_places(decimal_places)
         key: SchemaKey = (cls, many, naming_case, none_value_handling, decimal_places)
         existent = _nuked_schemas.get(key)
