@@ -1,3 +1,8 @@
+## v0.0.92 (2026-04-03)
+
+* [Deprecate none_value_handling in load/load_many](https://github.com/anna-money/marshmallow-recipe/pull/297)
+
+
 ## v0.0.91 (2026-03-30)
 
 * [Skip `init=False` fields in nuked](https://github.com/anna-money/marshmallow-recipe/pull/294)
