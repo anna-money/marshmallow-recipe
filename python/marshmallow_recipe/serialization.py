@@ -34,6 +34,22 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> m.Schema:
+        """Get or create a cached marshmallow Schema for a dataclass.
+
+        Schemas are cached per (cls, many, naming_case, none_value_handling, decimal_places).
+
+        Args:
+            cls: Dataclass type.
+            many: If True, schema handles lists of objects.
+            naming_case: Convert field names. Use ``mr.CAMEL_CASE``,
+                ``mr.CAPITAL_CAMEL_CASE``, or ``mr.UPPER_SNAKE_CASE``.
+            none_value_handling: Controls None field output.
+                ``mr.NoneValueHandling.INCLUDE`` keeps None fields, default excludes them.
+            decimal_places: Validate maximum decimal places for all Decimal fields.
+
+        Returns:
+            Cached marshmallow Schema instance.
+        """
         validate_decimal_places(decimal_places)
         key: SchemaKey = (cls, many, naming_case, none_value_handling, decimal_places)
         existent_schema = _schemas.get(key)
@@ -56,6 +72,22 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> T:
+        """Deserialize a dict to a dataclass instance.
+
+        Args:
+            cls: Dataclass type to deserialize into.
+            data: Dict with serialized data.
+            naming_case: Convert field names. Use ``mr.CAMEL_CASE``,
+                ``mr.CAPITAL_CAMEL_CASE``, or ``mr.UPPER_SNAKE_CASE``.
+            none_value_handling: Controls None field handling on load.
+            decimal_places: Validate maximum decimal places for all Decimal fields.
+
+        Returns:
+            Dataclass instance.
+
+        Raises:
+            marshmallow.ValidationError: On invalid data.
+        """
         if none_value_handling is not None:
             warnings.warn(
                 "none_value_handling has no effect on load and will be removed after 2026-05-03",
@@ -111,6 +143,22 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> list[T]:
+        """Deserialize a list of dicts to a list of dataclass instances.
+
+        Args:
+            cls: Dataclass type to deserialize into.
+            data: List of dicts with serialized data.
+            naming_case: Convert field names. Use ``mr.CAMEL_CASE``,
+                ``mr.CAPITAL_CAMEL_CASE``, or ``mr.UPPER_SNAKE_CASE``.
+            none_value_handling: Controls None field handling on load.
+            decimal_places: Validate maximum decimal places for all Decimal fields.
+
+        Returns:
+            List of dataclass instances.
+
+        Raises:
+            marshmallow.ValidationError: On invalid data.
+        """
         if none_value_handling is not None:
             warnings.warn(
                 "none_value_handling has no effect on load_many and will be removed after 2026-05-03",
@@ -415,6 +463,23 @@ def dump[T](
 
 
 def dump(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    """Serialize a dataclass instance to a dict.
+
+    Args:
+        cls: Dataclass type. Required for generics, optional otherwise.
+        data: Dataclass instance to serialize.
+        naming_case: Convert field names. Use ``mr.CAMEL_CASE``,
+            ``mr.CAPITAL_CAMEL_CASE``, or ``mr.UPPER_SNAKE_CASE``.
+        none_value_handling: Controls None field output.
+            ``mr.NoneValueHandling.INCLUDE`` keeps None fields, default excludes them.
+        decimal_places: Validate maximum decimal places for all Decimal fields.
+
+    Returns:
+        Serialized dict.
+
+    Raises:
+        marshmallow.ValidationError: On invalid data.
+    """
     if len(args) == 1:
         return dump_impl(None, *args, **kwargs)
     return dump_impl(*args, **kwargs)
@@ -444,6 +509,23 @@ def dump_many[T](
 
 
 def dump_many(*args: Any, **kwargs: Any) -> list[dict[str, Any]]:
+    """Serialize a list of dataclass instances to a list of dicts.
+
+    Args:
+        cls: Dataclass type. Required for generics, optional otherwise.
+        data: List of dataclass instances to serialize.
+        naming_case: Convert field names. Use ``mr.CAMEL_CASE``,
+            ``mr.CAPITAL_CAMEL_CASE``, or ``mr.UPPER_SNAKE_CASE``.
+        none_value_handling: Controls None field output.
+            ``mr.NoneValueHandling.INCLUDE`` keeps None fields, default excludes them.
+        decimal_places: Validate maximum decimal places for all Decimal fields.
+
+    Returns:
+        List of serialized dicts.
+
+    Raises:
+        marshmallow.ValidationError: On invalid data.
+    """
     if len(args) == 1:
         return dump_many_impl(None, *args, **kwargs)
     return dump_many_impl(*args, **kwargs)

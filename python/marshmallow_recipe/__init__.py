@@ -1,3 +1,67 @@
+"""marshmallow-recipe: dataclass serialization powered by marshmallow.
+
+Automatically generates marshmallow schemas from Python dataclasses.
+Import convention: import marshmallow_recipe as mr
+
+Core API:
+    mr.dump(cls, obj)               Serialize dataclass to dict.
+    mr.load(Class, data)            Deserialize dict to dataclass.
+    mr.dump_many(cls, objects)      Serialize list of dataclasses.
+    mr.load_many(Class, data_list)  Deserialize list of dicts.
+    mr.schema(Class)                Get cached marshmallow Schema.
+
+    See help(mr.dump) for serialization details.
+    See help(mr.load) for deserialization details.
+
+Field configuration via typing.Annotated (from typing import Annotated):
+    Annotated[str, mr.meta(name='custom_name')]
+    Annotated[str, mr.str_meta(strip_whitespaces=True)]
+    Annotated[decimal.Decimal, mr.decimal_meta(places=2, gt=0)]
+
+    Type-specific metadata (use help(mr.<name>) for details):
+        mr.meta, mr.str_meta, mr.int_meta, mr.float_meta, mr.decimal_meta,
+        mr.datetime_meta, mr.time_metadata, mr.list_meta, mr.set_meta,
+        mr.tuple_meta, mr.frozenset_meta.
+
+Dataclass-level settings:
+    @mr.options(naming_case=mr.CAMEL_CASE)
+    @mr.options(none_value_handling=mr.NoneValueHandling.INCLUDE)
+
+    See help(mr.options) for all settings.
+
+High-performance Rust backend (drop-in replacement, 10-25x faster):
+    mr.nuked.dump(cls, obj)
+    mr.nuked.load(cls, data)
+    mr.nuked.schema(cls)
+
+    See help(mr.nuked) for details.
+
+Additional features:
+    mr.json_schema(Class)           JSON Schema Draft 2020-12 generation.
+    mr.pre_load                     Pre-load data transformation hook.
+    mr.validate                     Validation with custom error messages.
+    mr.regexp_validate              Regex-based validation.
+    mr.email_validate               Email validation.
+
+    See help(mr.json_schema), help(mr.validate) for details.
+
+Quick example::
+
+    import dataclasses
+    import marshmallow_recipe as mr
+
+    @dataclasses.dataclass
+    class User:
+        name: str
+        age: int
+
+    mr.dump(User, User(name='Alice', age=30))
+    # {'name': 'Alice', 'age': 30}
+
+    mr.load(User, {'name': 'Alice', 'age': 30})
+    # User(name='Alice', age=30)
+"""
+
 import sys
 from importlib.metadata import version as _get_version
 

@@ -38,10 +38,22 @@ def wrap_validators(
 
 
 def regexp_validate(regexp: re.Pattern | str, *, error: str | None = None) -> ValidationFunc:
+    """Create a regex validation function.
+
+    Args:
+        regexp: Regular expression pattern or compiled re.Pattern.
+        error: Custom error message on validation failure.
+    """
     return marshmallow.validate.Regexp(regexp, error=error)
 
 
 def email_validate(*, error: str | None = None) -> ValidationFunc:
+    """Create an email validation function.
+
+    Args:
+        error: Custom error message on validation failure.
+    """
+
     class Email(marshmallow.validate.Email):
         # RESTRICT QUOTED STRINGS: Prohibiting double-quotes (") in the local-part
         # (the part before the @) ensures compatibility with most major email systems,
@@ -52,6 +64,12 @@ def email_validate(*, error: str | None = None) -> ValidationFunc:
 
 
 def validate(validator: ValidationFunc, *, error: str | None = None) -> ValidationFunc:
+    """Create a validation function with optional custom error message.
+
+    Args:
+        validator: Callable that returns False for invalid values.
+        error: Custom error message. If None, uses default "Invalid value.".
+    """
     if error is None:
         return __wrap_validator(validator)
 
