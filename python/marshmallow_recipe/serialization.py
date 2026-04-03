@@ -1,4 +1,5 @@
 import importlib.metadata
+import warnings
 from typing import Any, ClassVar, Protocol, get_args, overload
 
 import marshmallow as m
@@ -55,6 +56,12 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> T:
+        if none_value_handling is not None:
+            warnings.warn(
+                "none_value_handling has no effect on load and will be removed after 2026-05-03",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         validate_decimal_places(decimal_places)
         unwrapped = unwrap_type_alias(cls)
         if is_union_type(unwrapped):
@@ -104,6 +111,12 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> list[T]:
+        if none_value_handling is not None:
+            warnings.warn(
+                "none_value_handling has no effect on load_many and will be removed after 2026-05-03",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         validate_decimal_places(decimal_places)
         unwrapped = unwrap_type_alias(cls)
         if is_union_type(unwrapped):
@@ -223,6 +236,12 @@ else:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> T:
+        if none_value_handling is not None:
+            warnings.warn(
+                "none_value_handling has no effect on load and will be removed after 2026-05-03",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         validate_decimal_places(decimal_places)
         unwrapped = unwrap_type_alias(cls)
         if is_union_type(unwrapped):
@@ -273,6 +292,12 @@ else:
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> list[T]:
+        if none_value_handling is not None:
+            warnings.warn(
+                "none_value_handling has no effect on load_many and will be removed after 2026-05-03",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         validate_decimal_places(decimal_places)
         unwrapped = unwrap_type_alias(cls)
         if is_union_type(unwrapped):
