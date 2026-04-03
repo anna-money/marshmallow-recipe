@@ -58,7 +58,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     ) -> T:
         if none_value_handling is not None:
             warnings.warn(
-                "none_value_handling has no effect on load and will be removed in a future version",
+                "none_value_handling has no effect on load and will be removed after 2026-05-03",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -113,7 +113,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     ) -> list[T]:
         if none_value_handling is not None:
             warnings.warn(
-                "none_value_handling has no effect on load_many and will be removed in a future version",
+                "none_value_handling has no effect on load_many and will be removed after 2026-05-03",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -238,7 +238,7 @@ else:
     ) -> T:
         if none_value_handling is not None:
             warnings.warn(
-                "none_value_handling has no effect on load and will be removed in a future version",
+                "none_value_handling has no effect on load and will be removed after 2026-05-03",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -294,7 +294,7 @@ else:
     ) -> list[T]:
         if none_value_handling is not None:
             warnings.warn(
-                "none_value_handling has no effect on load_many and will be removed in a future version",
+                "none_value_handling has no effect on load_many and will be removed after 2026-05-03",
                 DeprecationWarning,
                 stacklevel=2,
             )
