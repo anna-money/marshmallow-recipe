@@ -199,8 +199,12 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         decimal_places: int | None = MISSING,
     ) -> dict[str, Any]:
         validate_decimal_places(decimal_places)
+        try:
+            resolved_type = extract_type(data, cls)
+        except ValueError as e:
+            raise m.ValidationError(str(e)) from e
         data_schema = schema_v3(
-            extract_type(data, cls),
+            resolved_type,
             naming_case=naming_case,
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
@@ -236,8 +240,12 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 )
                 for item in data
             ]
+        try:
+            resolved_type = extract_type(data[0], unwrapped)
+        except ValueError as e:
+            raise m.ValidationError(str(e)) from e
         data_schema = schema_v3(
-            extract_type(data[0], unwrapped),
+            resolved_type,
             many=True,
             naming_case=naming_case,
             none_value_handling=none_value_handling,
@@ -381,8 +389,12 @@ else:
         decimal_places: int | None = MISSING,
     ) -> dict[str, Any]:
         validate_decimal_places(decimal_places)
+        try:
+            resolved_type = extract_type(data, cls)
+        except ValueError as e:
+            raise m.ValidationError(str(e)) from e
         data_schema = schema_v2(
-            extract_type(data, cls),
+            resolved_type,
             naming_case=naming_case,
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
@@ -420,8 +432,12 @@ else:
                 )
                 for item in data
             ]
+        try:
+            resolved_type = extract_type(data[0], unwrapped)
+        except ValueError as e:
+            raise m.ValidationError(str(e)) from e
         data_schema = schema_v2(
-            extract_type(data[0], unwrapped),
+            resolved_type,
             many=True,
             naming_case=naming_case,
             none_value_handling=none_value_handling,

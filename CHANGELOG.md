@@ -7,6 +7,7 @@
 ## v0.0.91 (2026-03-30)
 
 * [Skip `init=False` fields in nuked](https://github.com/anna-money/marshmallow-recipe/pull/294)
+* [Fix safe direct slot access and `extract_type` isinstance parity](https://github.com/anna-money/marshmallow-recipe/pull/295)
 
 
 ## v0.0.90 (2026-03-29)
