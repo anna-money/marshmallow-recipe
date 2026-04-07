@@ -5,6 +5,7 @@ use pyo3::types::PyString;
 
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::DateTimeFormat;
+use crate::fields::length::LengthBound;
 use crate::fields::range::RangeBound;
 
 pub struct FieldCommon {
@@ -214,10 +215,8 @@ pub enum FieldContainer {
         kind: CollectionKind,
         item: Box<FieldContainer>,
         item_validator: Option<Py<PyAny>>,
-        min_length: Option<usize>,
-        min_length_error: Option<Py<PyString>>,
-        max_length: Option<usize>,
-        max_length_error: Option<Py<PyString>>,
+        min_length: Option<LengthBound>,
+        max_length: Option<LengthBound>,
     },
     Dict {
         common: FieldCommon,
@@ -347,18 +346,14 @@ impl Clone for FieldContainer {
                 item,
                 item_validator,
                 min_length,
-                min_length_error,
                 max_length,
-                max_length_error,
             } => Self::Collection {
                 common: common.clone(),
                 kind: *kind,
                 item: item.clone(),
                 item_validator: item_validator.as_ref().map(|v| v.clone_ref(py)),
-                min_length: *min_length,
-                min_length_error: min_length_error.as_ref().map(|v| v.clone_ref(py)),
-                max_length: *max_length,
-                max_length_error: max_length_error.as_ref().map(|v| v.clone_ref(py)),
+                min_length: min_length.clone(),
+                max_length: max_length.clone(),
             },
             Self::Dict {
                 common,

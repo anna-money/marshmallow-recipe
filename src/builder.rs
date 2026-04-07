@@ -12,6 +12,7 @@ use crate::container::{
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::parse_datetime_format;
 use crate::fields::decimal::get_decimal_cls;
+use crate::fields::length::LengthBound;
 use crate::fields::range::RangeBound;
 
 #[pyclass]
@@ -138,13 +139,27 @@ fn extract_optional_isize(kwargs: &Bound<'_, PyAny>, key: &str) -> PyResult<Opti
     Ok(None)
 }
 
-fn extract_optional_usize(kwargs: &Bound<'_, PyAny>, key: &str) -> PyResult<Option<usize>> {
-    if let Ok(value) = kwargs.get_item(key)
+fn extract_length_bound(
+    py: Python<'_>,
+    kwargs: &Bound<'_, PyAny>,
+    bound_key: &str,
+    error_key: &str,
+    default_error_prefix: &str,
+) -> PyResult<Option<LengthBound>> {
+    let bound_value = if let Ok(value) = kwargs.get_item(bound_key)
         && !value.is_none()
     {
-        return Ok(Some(value.extract()?));
-    }
-    Ok(None)
+        value.extract::<usize>()?
+    } else {
+        return Ok(None);
+    };
+    let error = extract_optional_py_string(kwargs, error_key)?.unwrap_or_else(|| {
+        PyString::new(py, &format!("{default_error_prefix}{bound_value}.")).unbind()
+    });
+    Ok(Some(LengthBound {
+        value: bound_value,
+        error,
+    }))
 }
 
 fn get_kwargs<'py>(py: Python<'py>, kwargs: Option<&Bound<'py, PyAny>>) -> Bound<'py, PyAny> {
@@ -1168,10 +1183,20 @@ impl ContainerBuilder {
             extract_optional_py_string(&kwargs, "invalid_error")?.unwrap_or(default_invalid_error);
         let common = build_field_common(optional, &kwargs, invalid_error)?;
         let item_validator = extract_optional_py(&kwargs, "item_validator");
-        let min_length = extract_optional_usize(&kwargs, "min_length")?;
-        let min_length_error = extract_optional_py_string(&kwargs, "min_length_error")?;
-        let max_length = extract_optional_usize(&kwargs, "max_length")?;
-        let max_length_error = extract_optional_py_string(&kwargs, "max_length_error")?;
+        let min_length = extract_length_bound(
+            py,
+            &kwargs,
+            "min_length",
+            "min_length_error",
+            "Shorter than minimum length ",
+        )?;
+        let max_length = extract_length_bound(
+            py,
+            &kwargs,
+            "max_length",
+            "max_length_error",
+            "Longer than maximum length ",
+        )?;
         let item_container = self.__resolve_field_handle(item)?;
 
         let container = FieldContainer::Collection {
@@ -1180,9 +1205,7 @@ impl ContainerBuilder {
             item: Box::new(item_container),
             item_validator,
             min_length,
-            min_length_error,
             max_length,
-            max_length_error,
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
