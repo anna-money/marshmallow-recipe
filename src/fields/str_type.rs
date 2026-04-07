@@ -1,4 +1,3 @@
-use pyo3::conversion::IntoPyObjectExt;
 use pyo3::prelude::*;
 use pyo3::types::PyString;
 
@@ -35,11 +34,9 @@ pub fn load_from_py(
         if trimmed.len() == s.len() {
             (value.clone().unbind(), py_string_char_count(py_str))
         } else {
-            let count = trimmed.chars().count();
-            let val = trimmed
-                .into_py_any(py)
-                .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-            (val, count)
+            let trimmed_py = PyString::new(py, trimmed);
+            let count = py_string_char_count(&trimmed_py);
+            (trimmed_py.unbind().into_any(), count)
         }
     } else {
         (value.clone().unbind(), py_string_char_count(py_str))
@@ -81,10 +78,14 @@ pub fn dump_to_py(
             validate_length(py, py_string_char_count(py_str), min_length, max_length)?;
             Ok(value.clone().unbind())
         } else {
-            validate_length(py, trimmed.chars().count(), min_length, max_length)?;
-            trimmed
-                .into_py_any(py)
-                .map_err(|e| SerializationError::simple(py, &e.to_string()))
+            let trimmed_py = PyString::new(py, trimmed);
+            validate_length(
+                py,
+                py_string_char_count(&trimmed_py),
+                min_length,
+                max_length,
+            )?;
+            Ok(trimmed_py.unbind().into_any())
         }
     } else {
         validate_length(py, py_string_char_count(py_str), min_length, max_length)?;
