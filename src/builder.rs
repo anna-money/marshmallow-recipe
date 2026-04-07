@@ -167,7 +167,13 @@ fn extract_length_bound(
     };
     let bound_ref = bound_value.bind(py);
     check_py_int(bound_ref, bound_key)?;
-    let bound_value = bound_ref.extract::<usize>()?;
+    let bound_value = bound_ref.extract::<isize>()?;
+    if bound_value < 0 {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+            "{bound_key} must be a non-negative integer"
+        )));
+    }
+    let bound_value = bound_value.cast_unsigned();
     let error = extract_optional_py_string(kwargs, error_key)?.unwrap_or_else(|| {
         PyString::new(py, &format!("{default_error_prefix}{bound_value}.")).unbind()
     });
@@ -367,6 +373,13 @@ impl ContainerBuilder {
             "max_length_error",
             "Longer than maximum length ",
         )?;
+        if let (Some(min), Some(max)) = (&min_length, &max_length)
+            && min.value > max.value
+        {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "min_length must be less than or equal to max_length",
+            ));
+        }
         let container = FieldContainer::Str {
             common,
             strip_whitespaces,
@@ -1218,6 +1231,13 @@ impl ContainerBuilder {
             "max_length_error",
             "Longer than maximum length ",
         )?;
+        if let (Some(min), Some(max)) = (&min_length, &max_length)
+            && min.value > max.value
+        {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "min_length must be less than or equal to max_length",
+            ));
+        }
         let item_container = self.__resolve_field_handle(item)?;
 
         let container = FieldContainer::Collection {
