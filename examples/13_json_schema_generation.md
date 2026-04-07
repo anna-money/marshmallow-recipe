@@ -233,7 +233,7 @@ Output:
 }
 ```
 
-### String Length Constraints
+## String Length Constraints
 
 String `min_length`/`max_length` are emitted as `minLength`/`maxLength`:
 
