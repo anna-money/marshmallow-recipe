@@ -205,6 +205,34 @@ Output:
 
 The mapping is: `gt` → `exclusiveMinimum`, `gte` → `minimum`, `lt` → `exclusiveMaximum`, `lte` → `maximum`. Values are strings to match the decimal `type: "string"` representation.
 
+## List Length Constraints
+
+List `min_length`/`max_length` are emitted as `minItems`/`maxItems`:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class BoundedList:
+    items: Annotated[list[str], mr.list_meta(min_length=1, max_length=10)]
+
+
+schema = mr.json_schema(BoundedList)
+```
+
+Output:
+```json
+{
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1,
+      "maxItems": 10
+    }
+  },
+  "required": ["items"]
+}
+```
+
 ## Union Types
 
 Union types are mapped to `anyOf`:

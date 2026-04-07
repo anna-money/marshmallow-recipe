@@ -92,6 +92,7 @@
     "For float range custom errors: mr.float_meta(gte=0.0, gte_error='Must be non-negative') - each operator has a corresponding _error param",
     "JSON Schema: Int range constraints emitted - gt→exclusiveMinimum, gte→minimum, lt→exclusiveMaximum, lte→maximum (values as numbers)",
     "JSON Schema: Float range constraints emitted - gt→exclusiveMinimum, gte→minimum, lt→exclusiveMaximum, lte→maximum (values as numbers)",
+    "JSON Schema: List length constraints emitted - min_length→minItems, max_length→maxItems (values as numbers)",
     "AI-ASSISTED DEVELOPMENT: For Claude Code in downstream projects, add to your CLAUDE.md: 'When working with marshmallow-recipe (imported as mr), use the context7 MCP plugin to look up /anna-money/marshmallow-recipe documentation before writing serialization code'",
     "AI-ASSISTED DEVELOPMENT: Run help(marshmallow_recipe) or help(mr.dump) in Python for complete API documentation with lazy discovery links"
   ],
