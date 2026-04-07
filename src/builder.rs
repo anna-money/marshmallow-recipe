@@ -139,6 +139,21 @@ fn extract_optional_isize(kwargs: &Bound<'_, PyAny>, key: &str) -> PyResult<Opti
     Ok(None)
 }
 
+fn check_py_int(value: &Bound<'_, PyAny>, name: &str) -> PyResult<()> {
+    if value.is_instance_of::<pyo3::types::PyBool>() {
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+            "{name} must be int, got bool"
+        )));
+    }
+    if !value.is_instance_of::<pyo3::types::PyInt>() {
+        let type_name = value.get_type().name()?;
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+            "{name} must be int, got {type_name}"
+        )));
+    }
+    Ok(())
+}
+
 fn extract_length_bound(
     py: Python<'_>,
     kwargs: &Bound<'_, PyAny>,
@@ -146,13 +161,13 @@ fn extract_length_bound(
     error_key: &str,
     default_error_prefix: &str,
 ) -> PyResult<Option<LengthBound>> {
-    let bound_value = if let Ok(value) = kwargs.get_item(bound_key)
-        && !value.is_none()
-    {
-        value.extract::<usize>()?
-    } else {
+    let bound_value = extract_optional_py(kwargs, bound_key);
+    let Some(bound_value) = bound_value else {
         return Ok(None);
     };
+    let bound_ref = bound_value.bind(py);
+    check_py_int(bound_ref, bound_key)?;
+    let bound_value = bound_ref.extract::<usize>()?;
     let error = extract_optional_py_string(kwargs, error_key)?.unwrap_or_else(|| {
         PyString::new(py, &format!("{default_error_prefix}{bound_value}.")).unbind()
     });
@@ -207,17 +222,7 @@ fn extract_int_range_bound(
         return Ok(None);
     };
     let bound_ref = bound_value.bind(py);
-    if bound_ref.is_instance_of::<pyo3::types::PyBool>() {
-        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-            "{bound_key} must be int, got bool"
-        )));
-    }
-    if !bound_ref.is_instance_of::<pyo3::types::PyInt>() {
-        let type_name = bound_ref.get_type().name()?;
-        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-            "{bound_key} must be int, got {type_name}"
-        )));
-    }
+    check_py_int(bound_ref, bound_key)?;
     let error = if let Some(custom_error) = extract_optional_py_string(kwargs, error_key)? {
         custom_error
     } else {

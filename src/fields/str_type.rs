@@ -42,15 +42,22 @@ pub fn load_from_py(
         (value.clone().unbind(), py_string_char_count(py_str))
     };
 
+    let (result, char_count) = if let Some(post_load_fn) = post_load {
+        let post_result = post_load_fn
+            .call1(py, (&result,))
+            .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+        let count = post_result
+            .bind(py)
+            .cast::<PyString>()
+            .map_or(char_count, |s| py_string_char_count(s));
+        (post_result, count)
+    } else {
+        (result, char_count)
+    };
+
     validate_length(py, char_count, min_length, max_length)?;
 
-    if let Some(post_load_fn) = post_load {
-        post_load_fn
-            .call1(py, (&result,))
-            .map_err(|e| SerializationError::simple(py, &e.to_string()))
-    } else {
-        Ok(result)
-    }
+    Ok(result)
 }
 
 pub fn dump_to_py(

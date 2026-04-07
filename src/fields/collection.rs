@@ -45,11 +45,16 @@ pub fn load_from_py(
         return Err(SerializationError::Single(invalid_error.clone_ref(py)));
     }
 
+    let size = value
+        .len()
+        .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+
+    validate_length(py, size, min_length, max_length)?;
+
     let iter = value
         .try_iter()
         .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
-    let (size_hint, _) = iter.size_hint();
-    let mut items = Vec::with_capacity(size_hint);
+    let mut items = Vec::with_capacity(size);
     let mut errors: Option<Bound<'_, PyDict>> = None;
 
     for (idx, item_result) in iter.enumerate() {
@@ -76,8 +81,6 @@ pub fn load_from_py(
     if let Some(errors) = errors {
         return Err(SerializationError::Dict(errors.unbind()));
     }
-
-    validate_length(py, items.len(), min_length, max_length)?;
 
     match kind {
         CollectionKind::List => PyList::new(py, items)
