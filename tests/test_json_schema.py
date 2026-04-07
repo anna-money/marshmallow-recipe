@@ -366,6 +366,54 @@ def test_list_item_description() -> None:
     }
 
 
+def test_list_min_max_length() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class BoundedList:
+        items: Annotated[list[int], mr.list_meta(min_length=1, max_length=10)]
+
+    schema = mr.json_schema(BoundedList)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "BoundedList",
+        "properties": {"items": {"type": "array", "items": {"type": "integer"}, "minItems": 1, "maxItems": 10}},
+        "required": ["items"],
+    }
+
+
+def test_list_min_length_only() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class MinLengthList:
+        items: Annotated[list[str], mr.list_meta(min_length=2)]
+
+    schema = mr.json_schema(MinLengthList)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "MinLengthList",
+        "properties": {"items": {"type": "array", "items": {"type": "string"}, "minItems": 2}},
+        "required": ["items"],
+    }
+
+
+def test_list_max_length_only() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class MaxLengthList:
+        items: Annotated[list[str], mr.list_meta(max_length=5)]
+
+    schema = mr.json_schema(MaxLengthList)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "MaxLengthList",
+        "properties": {"items": {"type": "array", "items": {"type": "string"}, "maxItems": 5}},
+        "required": ["items"],
+    }
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class _CyclicNode:
     value: int
