@@ -170,7 +170,7 @@ fn extract_length_bound(
     let bound_value = bound_ref.extract::<isize>()?;
     if bound_value < 0 {
         return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-            "{bound_key} must be a non-negative integer"
+            "{bound_key} must be a non-negative integer, got {bound_value}"
         )));
     }
     let bound_value = bound_value.cast_unsigned();
@@ -376,9 +376,10 @@ impl ContainerBuilder {
         if let (Some(min), Some(max)) = (&min_length, &max_length)
             && min.value > max.value
         {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "min_length must be less than or equal to max_length",
-            ));
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "min_length {} must be less than or equal to max_length {}",
+                min.value, max.value
+            )));
         }
         let container = FieldContainer::Str {
             common,
@@ -1234,9 +1235,10 @@ impl ContainerBuilder {
         if let (Some(min), Some(max)) = (&min_length, &max_length)
             && min.value > max.value
         {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "min_length must be less than or equal to max_length",
-            ));
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "min_length {} must be less than or equal to max_length {}",
+                min.value, max.value
+            )));
         }
         let item_container = self.__resolve_field_handle(item)?;
 
