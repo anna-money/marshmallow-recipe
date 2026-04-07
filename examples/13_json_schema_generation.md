@@ -233,6 +233,32 @@ Output:
 }
 ```
 
+### String Length Constraints
+
+String `min_length`/`max_length` are emitted as `minLength`/`maxLength`:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class UserProfile:
+    username: Annotated[str, mr.str_meta(min_length=3, max_length=20)]
+
+
+schema = mr.json_schema(UserProfile)
+```
+
+Output:
+```json
+{
+  "properties": {
+    "username": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 20
+    }
+  }
+}
+```
+
 ## Union Types
 
 Union types are mapped to `anyOf`:

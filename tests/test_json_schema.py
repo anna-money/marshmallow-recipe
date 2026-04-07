@@ -414,6 +414,54 @@ def test_list_max_length_only() -> None:
     }
 
 
+def test_str_min_max_length() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class BoundedStr:
+        value: Annotated[str, mr.str_meta(min_length=1, max_length=100)]
+
+    schema = mr.json_schema(BoundedStr)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "BoundedStr",
+        "properties": {"value": {"type": "string", "minLength": 1, "maxLength": 100}},
+        "required": ["value"],
+    }
+
+
+def test_str_min_length_only() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class MinLengthStr:
+        value: Annotated[str, mr.str_meta(min_length=3)]
+
+    schema = mr.json_schema(MinLengthStr)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "MinLengthStr",
+        "properties": {"value": {"type": "string", "minLength": 3}},
+        "required": ["value"],
+    }
+
+
+def test_str_max_length_only() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class MaxLengthStr:
+        value: Annotated[str, mr.str_meta(max_length=50)]
+
+    schema = mr.json_schema(MaxLengthStr)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "MaxLengthStr",
+        "properties": {"value": {"type": "string", "maxLength": 50}},
+        "required": ["value"],
+    }
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class _CyclicNode:
     value: int

@@ -348,10 +348,26 @@ impl ContainerBuilder {
         let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
             .unwrap_or_else(|| intern!(py, "Not a valid string.").clone().unbind());
         let common = build_field_common(optional, &kwargs, invalid_error)?;
+        let min_length = extract_length_bound(
+            py,
+            &kwargs,
+            "min_length",
+            "min_length_error",
+            "Shorter than minimum length ",
+        )?;
+        let max_length = extract_length_bound(
+            py,
+            &kwargs,
+            "max_length",
+            "max_length_error",
+            "Longer than maximum length ",
+        )?;
         let container = FieldContainer::Str {
             common,
             strip_whitespaces,
             post_load,
+            min_length,
+            max_length,
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 

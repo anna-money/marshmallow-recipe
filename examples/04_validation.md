@@ -402,6 +402,34 @@ cart_dict = mr.dump(cart)
 loaded_cart = mr.load(ShoppingCart, cart_dict)
 ```
 
+### String Length Validation
+
+Use `min_length` and `max_length` parameters on `str_meta` to constrain string length:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class UserProfile:
+    username: Annotated[
+        str,
+        mr.str_meta(min_length=3, max_length=20),
+    ]
+
+    bio: Annotated[
+        str,
+        mr.str_meta(
+            min_length=1,
+            min_length_error="Bio must have at least {min} character",
+            max_length=500,
+            max_length_error="Bio cannot exceed {max} characters",
+        ),
+    ]
+
+
+profile = UserProfile(username="john_doe", bio="Hello world")
+profile_dict = mr.dump(profile)
+loaded_profile = mr.load(UserProfile, profile_dict)
+```
+
 ## Combining Validation with Transformations
 
 Whitespace is stripped before validation:

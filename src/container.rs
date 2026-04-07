@@ -142,6 +142,8 @@ pub enum FieldContainer {
         common: FieldCommon,
         strip_whitespaces: bool,
         post_load: Option<Py<PyAny>>,
+        min_length: Option<LengthBound>,
+        max_length: Option<LengthBound>,
     },
     Int {
         common: FieldCommon,
@@ -240,10 +242,14 @@ impl Clone for FieldContainer {
                 common,
                 strip_whitespaces,
                 post_load,
+                min_length,
+                max_length,
             } => Self::Str {
                 common: common.clone(),
                 strip_whitespaces: *strip_whitespaces,
                 post_load: post_load.as_ref().map(|v| v.clone_ref(py)),
+                min_length: min_length.clone(),
+                max_length: max_length.clone(),
             },
             Self::Int {
                 common,

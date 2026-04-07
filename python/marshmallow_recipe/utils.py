@@ -64,7 +64,7 @@ def validate_float_bound(value: float | int | None, name: str) -> None:
         raise TypeError(f"{name} must be float or int, got {type(value).__name__}")
 
 
-def validate_collection_length_bound(value: int | None, name: str) -> None:
+def validate_length_bound(value: int | None, name: str) -> None:
     if value is None:
         return
     if isinstance(value, bool):

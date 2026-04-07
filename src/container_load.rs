@@ -59,6 +59,8 @@ impl FieldContainer {
             Self::Str {
                 strip_whitespaces,
                 post_load,
+                min_length,
+                max_length,
                 ..
             } => str_type::load_from_py(
                 value,
@@ -66,6 +68,8 @@ impl FieldContainer {
                 common.optional,
                 &common.invalid_error,
                 post_load.as_ref(),
+                min_length.as_ref(),
+                max_length.as_ref(),
             ),
             Self::Int {
                 gt, gte, lt, lte, ..
