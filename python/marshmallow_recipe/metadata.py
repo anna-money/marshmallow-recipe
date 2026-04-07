@@ -4,6 +4,7 @@ from typing import Any, TypeGuard, final
 
 from .missing import MISSING
 from .utils import (
+    validate_collection_length_bound,
     validate_datetime_format,
     validate_decimal_bound,
     validate_decimal_places,
@@ -487,24 +488,36 @@ def list_metadata(
     name: str = MISSING,
     description: str | None = None,
     item_description: str | None = None,
+    min_length: int | None = None,
+    min_length_error: str | None = None,
+    max_length: int | None = None,
+    max_length_error: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     validate_item: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
-    """Configure list field serialization with item validation.
+    """Configure list field serialization with item and length validation.
 
     Args:
         name: Override serialized field name.
         description: Field description, used in JSON Schema generation.
         item_description: Description for list items, used in JSON Schema.
+        min_length: Minimum number of items in the list.
+        min_length_error: Custom error for min_length violation. Supports ``{min}`` placeholder.
+        max_length: Maximum number of items in the list.
+        max_length_error: Custom error for max_length violation. Supports ``{max}`` placeholder.
         validate: Validation function or list of functions for the list itself.
         validate_item: Validation function or list of functions applied to each item.
         required_error: Custom error message when required field is missing.
         none_error: Custom error message when field is None but shouldn't be.
         invalid_error: Custom error message when field value has invalid type.
     """
+    validate_collection_length_bound(min_length, "min_length")
+    validate_collection_length_bound(max_length, "max_length")
+    if min_length is not None and max_length is not None and min_length > max_length:
+        raise ValueError(f"min_length {min_length} must be less than or equal to max_length {max_length}")
     values = dict[str, Any]()
     if name is not MISSING:
         values.update(name=name)
@@ -512,6 +525,14 @@ def list_metadata(
         values.update(description=description)
     if item_description is not None:
         values.update(item_description=item_description)
+    if min_length is not None:
+        values.update(min_length=min_length)
+    if min_length_error is not None:
+        values.update(min_length_error=min_length_error.format(min=min_length))
+    if max_length is not None:
+        values.update(max_length=max_length)
+    if max_length_error is not None:
+        values.update(max_length_error=max_length_error.format(max=max_length))
     if validate is not None:
         values.update(validate=validate)
     if validate_item is not None:

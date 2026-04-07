@@ -5,6 +5,35 @@ use crate::container::{DataclassRegistry, FieldContainer};
 use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
 use crate::utils::{call_validator, new_presized_list};
 
+fn check_length(
+    py: Python<'_>,
+    len: usize,
+    min_length: Option<usize>,
+    min_length_error: Option<&Py<PyString>>,
+    max_length: Option<usize>,
+    max_length_error: Option<&Py<PyString>>,
+) -> Result<(), SerializationError> {
+    if let Some(min) = min_length
+        && len < min
+    {
+        let msg = min_length_error.map_or_else(
+            || PyString::new(py, &format!("Shorter than minimum length {min}.")).unbind(),
+            |err| err.clone_ref(py),
+        );
+        return Err(SerializationError::Single(msg));
+    }
+    if let Some(max) = max_length
+        && len > max
+    {
+        let msg = max_length_error.map_or_else(
+            || PyString::new(py, &format!("Longer than maximum length {max}.")).unbind(),
+            |err| err.clone_ref(py),
+        );
+        return Err(SerializationError::Single(msg));
+    }
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CollectionKind {
     List,
@@ -31,6 +60,10 @@ pub fn load_from_py(
     item: &FieldContainer,
     item_validator: Option<&Py<PyAny>>,
     invalid_error: &Py<PyString>,
+    min_length: Option<usize>,
+    min_length_error: Option<&Py<PyString>>,
+    max_length: Option<usize>,
+    max_length_error: Option<&Py<PyString>>,
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
 
@@ -74,6 +107,15 @@ pub fn load_from_py(
         return Err(SerializationError::Dict(errors.unbind()));
     }
 
+    check_length(
+        py,
+        items.len(),
+        min_length,
+        min_length_error,
+        max_length,
+        max_length_error,
+    )?;
+
     match kind {
         CollectionKind::List => PyList::new(py, items)
             .map(|l| l.into_any().unbind())
@@ -97,6 +139,10 @@ pub fn dump_to_py(
     item: &FieldContainer,
     item_validator: Option<&Py<PyAny>>,
     invalid_error: &Py<PyString>,
+    min_length: Option<usize>,
+    min_length_error: Option<&Py<PyString>>,
+    max_length: Option<usize>,
+    max_length_error: Option<&Py<PyString>>,
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
 
@@ -107,6 +153,16 @@ pub fn dump_to_py(
     let size = value
         .len()
         .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+
+    check_length(
+        py,
+        size,
+        min_length,
+        min_length_error,
+        max_length,
+        max_length_error,
+    )?;
+
     let result = new_presized_list(py, size);
     let mut errors: Option<Bound<'_, PyDict>> = None;
 

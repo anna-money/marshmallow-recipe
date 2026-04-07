@@ -138,6 +138,15 @@ fn extract_optional_isize(kwargs: &Bound<'_, PyAny>, key: &str) -> PyResult<Opti
     Ok(None)
 }
 
+fn extract_optional_usize(kwargs: &Bound<'_, PyAny>, key: &str) -> PyResult<Option<usize>> {
+    if let Ok(value) = kwargs.get_item(key)
+        && !value.is_none()
+    {
+        return Ok(Some(value.extract()?));
+    }
+    Ok(None)
+}
+
 fn get_kwargs<'py>(py: Python<'py>, kwargs: Option<&Bound<'py, PyAny>>) -> Bound<'py, PyAny> {
     kwargs.cloned().unwrap_or_else(|| py.None().into_bound(py))
 }
@@ -1159,6 +1168,10 @@ impl ContainerBuilder {
             extract_optional_py_string(&kwargs, "invalid_error")?.unwrap_or(default_invalid_error);
         let common = build_field_common(optional, &kwargs, invalid_error)?;
         let item_validator = extract_optional_py(&kwargs, "item_validator");
+        let min_length = extract_optional_usize(&kwargs, "min_length")?;
+        let min_length_error = extract_optional_py_string(&kwargs, "min_length_error")?;
+        let max_length = extract_optional_usize(&kwargs, "max_length")?;
+        let max_length_error = extract_optional_py_string(&kwargs, "max_length_error")?;
         let item_container = self.__resolve_field_handle(item)?;
 
         let container = FieldContainer::Collection {
@@ -1166,6 +1179,10 @@ impl ContainerBuilder {
             kind,
             item: Box::new(item_container),
             item_validator,
+            min_length,
+            min_length_error,
+            max_length,
+            max_length_error,
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 

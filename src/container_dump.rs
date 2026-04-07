@@ -101,6 +101,10 @@ impl FieldContainer {
                 kind,
                 item,
                 item_validator,
+                min_length,
+                min_length_error,
+                max_length,
+                max_length_error,
                 ..
             } => collection::dump_to_py(
                 registry,
@@ -109,6 +113,10 @@ impl FieldContainer {
                 item,
                 item_validator.as_ref(),
                 &common.invalid_error,
+                *min_length,
+                min_length_error.as_ref(),
+                *max_length,
+                max_length_error.as_ref(),
             ),
             Self::Dict {
                 value: value_schema,

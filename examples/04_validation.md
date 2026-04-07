@@ -374,6 +374,34 @@ inventory_dict = mr.dump(inventory)
 loaded_inventory = mr.load(ProductInventory, inventory_dict)
 ```
 
+### List Length Validation
+
+Use `min_length` and `max_length` parameters on `list_meta` to constrain list size:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ShoppingCart:
+    items: Annotated[
+        list[str],
+        mr.list_meta(min_length=1, max_length=50),
+    ]
+
+    tags: Annotated[
+        list[str],
+        mr.list_meta(
+            min_length=1,
+            min_length_error="At least {min} tag required",
+            max_length=10,
+            max_length_error="No more than {max} tags allowed",
+        ),
+    ]
+
+
+cart = ShoppingCart(items=["item1", "item2"], tags=["sale"])
+cart_dict = mr.dump(cart)
+loaded_cart = mr.load(ShoppingCart, cart_dict)
+```
+
 ## Combining Validation with Transformations
 
 Whitespace is stripped before validation:

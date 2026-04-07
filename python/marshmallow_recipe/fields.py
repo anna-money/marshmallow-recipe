@@ -663,6 +663,10 @@ def list_field(
     allow_none: bool,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
+    min_length: int | None = None,
+    min_length_error: str | None = None,
+    max_length: int | None = None,
+    max_length_error: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     required_error: str | None = None,
     none_error: str | None = None,
@@ -670,6 +674,10 @@ def list_field(
     description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    if min_length is not None:
+        validate = combine_validators(validate, m.validate.Length(min=min_length, error=min_length_error))
+    if max_length is not None:
+        validate = combine_validators(validate, m.validate.Length(max=max_length, error=max_length_error))
     if default is m.missing:
         return m.fields.List(
             field,
