@@ -1,6 +1,7 @@
-## v0.0.93 (unreleased)
+## v0.0.93 (2026-04-08)
 
 * [Add `min_length`/`max_length` support to `list_metadata` and `str_metadata`](https://github.com/anna-money/marshmallow-recipe/pull/298)
+
 
 ## v0.0.92 (2026-04-03)
 
