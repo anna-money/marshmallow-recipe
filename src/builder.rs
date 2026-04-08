@@ -12,6 +12,7 @@ use crate::container::{
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::parse_datetime_format;
 use crate::fields::decimal::get_decimal_cls;
+use crate::fields::length::LengthBound;
 use crate::fields::range::RangeBound;
 
 #[pyclass]
@@ -138,6 +139,50 @@ fn extract_optional_isize(kwargs: &Bound<'_, PyAny>, key: &str) -> PyResult<Opti
     Ok(None)
 }
 
+fn check_py_int(value: &Bound<'_, PyAny>, name: &str) -> PyResult<()> {
+    if value.is_instance_of::<pyo3::types::PyBool>() {
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+            "{name} must be int, got bool"
+        )));
+    }
+    if !value.is_instance_of::<pyo3::types::PyInt>() {
+        let type_name = value.get_type().name()?;
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
+            "{name} must be int, got {type_name}"
+        )));
+    }
+    Ok(())
+}
+
+fn extract_length_bound(
+    py: Python<'_>,
+    kwargs: &Bound<'_, PyAny>,
+    bound_key: &str,
+    error_key: &str,
+    default_error_prefix: &str,
+) -> PyResult<Option<LengthBound>> {
+    let bound_value = extract_optional_py(kwargs, bound_key);
+    let Some(bound_value) = bound_value else {
+        return Ok(None);
+    };
+    let bound_ref = bound_value.bind(py);
+    check_py_int(bound_ref, bound_key)?;
+    let bound_value = bound_ref.extract::<isize>()?;
+    if bound_value < 0 {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+            "{bound_key} must be a non-negative integer, got {bound_value}"
+        )));
+    }
+    let bound_value = bound_value.cast_unsigned();
+    let error = extract_optional_py_string(kwargs, error_key)?.unwrap_or_else(|| {
+        PyString::new(py, &format!("{default_error_prefix}{bound_value}.")).unbind()
+    });
+    Ok(Some(LengthBound {
+        value: bound_value,
+        error,
+    }))
+}
+
 fn get_kwargs<'py>(py: Python<'py>, kwargs: Option<&Bound<'py, PyAny>>) -> Bound<'py, PyAny> {
     kwargs.cloned().unwrap_or_else(|| py.None().into_bound(py))
 }
@@ -183,17 +228,7 @@ fn extract_int_range_bound(
         return Ok(None);
     };
     let bound_ref = bound_value.bind(py);
-    if bound_ref.is_instance_of::<pyo3::types::PyBool>() {
-        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-            "{bound_key} must be int, got bool"
-        )));
-    }
-    if !bound_ref.is_instance_of::<pyo3::types::PyInt>() {
-        let type_name = bound_ref.get_type().name()?;
-        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-            "{bound_key} must be int, got {type_name}"
-        )));
-    }
+    check_py_int(bound_ref, bound_key)?;
     let error = if let Some(custom_error) = extract_optional_py_string(kwargs, error_key)? {
         custom_error
     } else {
@@ -324,10 +359,34 @@ impl ContainerBuilder {
         let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
             .unwrap_or_else(|| intern!(py, "Not a valid string.").clone().unbind());
         let common = build_field_common(optional, &kwargs, invalid_error)?;
+        let min_length = extract_length_bound(
+            py,
+            &kwargs,
+            "min_length",
+            "min_length_error",
+            "Shorter than minimum length ",
+        )?;
+        let max_length = extract_length_bound(
+            py,
+            &kwargs,
+            "max_length",
+            "max_length_error",
+            "Longer than maximum length ",
+        )?;
+        if let (Some(min), Some(max)) = (&min_length, &max_length)
+            && min.value > max.value
+        {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "min_length {} must be less than or equal to max_length {}",
+                min.value, max.value
+            )));
+        }
         let container = FieldContainer::Str {
             common,
             strip_whitespaces,
             post_load,
+            min_length,
+            max_length,
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
@@ -1159,6 +1218,28 @@ impl ContainerBuilder {
             extract_optional_py_string(&kwargs, "invalid_error")?.unwrap_or(default_invalid_error);
         let common = build_field_common(optional, &kwargs, invalid_error)?;
         let item_validator = extract_optional_py(&kwargs, "item_validator");
+        let min_length = extract_length_bound(
+            py,
+            &kwargs,
+            "min_length",
+            "min_length_error",
+            "Shorter than minimum length ",
+        )?;
+        let max_length = extract_length_bound(
+            py,
+            &kwargs,
+            "max_length",
+            "max_length_error",
+            "Longer than maximum length ",
+        )?;
+        if let (Some(min), Some(max)) = (&min_length, &max_length)
+            && min.value > max.value
+        {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                "min_length {} must be less than or equal to max_length {}",
+                min.value, max.value
+            )));
+        }
         let item_container = self.__resolve_field_handle(item)?;
 
         let container = FieldContainer::Collection {
@@ -1166,6 +1247,8 @@ impl ContainerBuilder {
             kind,
             item: Box::new(item_container),
             item_validator,
+            min_length,
+            max_length,
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 

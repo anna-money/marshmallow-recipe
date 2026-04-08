@@ -234,6 +234,10 @@ def __convert_field_to_json_schema(
 
     if field_type is str:
         schema["type"] = "string"
+        if metadata.get("min_length") is not None:
+            schema["minLength"] = metadata["min_length"]
+        if metadata.get("max_length") is not None:
+            schema["maxLength"] = metadata["max_length"]
     elif field_type is int:
         schema["type"] = "integer"
         if metadata.get("gt") is not None:
@@ -292,6 +296,10 @@ def __convert_field_to_json_schema(
                     if metadata.get("item_description"):
                         item_meta = Metadata({"description": metadata["item_description"]})
                     schema["items"] = __convert_field_to_json_schema(args[0], item_meta, context)
+                if metadata.get("min_length") is not None:
+                    schema["minItems"] = metadata["min_length"]
+                if metadata.get("max_length") is not None:
+                    schema["maxItems"] = metadata["max_length"]
             elif origin is set or origin is collections.abc.Set or origin is frozenset:
                 schema["type"] = "array"
                 schema["uniqueItems"] = True

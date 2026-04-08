@@ -1,3 +1,7 @@
+## v0.0.93 (unreleased)
+
+* [Add `min_length`/`max_length` support to `list_metadata` and `str_metadata`](https://github.com/anna-money/marshmallow-recipe/pull/298)
+
 ## v0.0.92 (2026-04-03)
 
 * [Deprecate none_value_handling in load/load_many](https://github.com/anna-money/marshmallow-recipe/pull/297)

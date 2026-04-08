@@ -14,6 +14,11 @@ from .conftest import (
     WithStrDefault,
     WithStrInvalidError,
     WithStripWhitespace,
+    WithStrMaxLength,
+    WithStrMaxLengthError,
+    WithStrMinLength,
+    WithStrMinLengthError,
+    WithStrMinMaxLength,
     WithStrMissing,
     WithStrNoneError,
     WithStrRequiredError,
@@ -135,6 +140,66 @@ class TestStrDump:
             impl.dump(WithStrInvalidError, obj)
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == {"value": ["Custom invalid message"]}
+
+    @pytest.mark.parametrize(
+        ("schema_type", "obj"),
+        [
+            pytest.param(WithStrMinLength, WithStrMinLength(value="ab"), id="min_length_ok"),
+            pytest.param(WithStrMaxLength, WithStrMaxLength(value="hello"), id="max_length_ok"),
+            pytest.param(WithStrMinMaxLength, WithStrMinMaxLength(value="hello"), id="min_max_length_ok"),
+        ],
+    )
+    def test_length_pass(self, impl: Serializer, schema_type: type, obj: object) -> None:
+        impl.dump(schema_type, obj)
+
+    @pytest.mark.parametrize(
+        ("schema_type", "obj", "error_messages"),
+        [
+            pytest.param(
+                WithStrMinLength,
+                WithStrMinLength(value="a"),
+                {"value": ["Shorter than minimum length 2."]},
+                id="min_length",
+            ),
+            pytest.param(
+                WithStrMaxLength,
+                WithStrMaxLength(value="toolong"),
+                {"value": ["Longer than maximum length 5."]},
+                id="max_length",
+            ),
+            pytest.param(
+                WithStrMinMaxLength,
+                WithStrMinMaxLength(value=""),
+                {"value": ["Shorter than minimum length 1."]},
+                id="min_max_below",
+            ),
+            pytest.param(
+                WithStrMinMaxLength,
+                WithStrMinMaxLength(value="a" * 11),
+                {"value": ["Longer than maximum length 10."]},
+                id="min_max_above",
+            ),
+            pytest.param(
+                WithStrMinLengthError,
+                WithStrMinLengthError(value="a"),
+                {"value": ["At least 2 chars"]},
+                id="min_length_custom_error",
+            ),
+            pytest.param(
+                WithStrMaxLengthError,
+                WithStrMaxLengthError(value="toolong"),
+                {"value": ["At most 5 chars"]},
+                id="max_length_custom_error",
+            ),
+        ],
+    )
+    def test_length_fail(
+        self, impl: Serializer, schema_type: type, obj: object, error_messages: dict[str, list[str]]
+    ) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(schema_type, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == error_messages
 
 
 class TestStrLoad:
@@ -283,3 +348,91 @@ class TestStrLoad:
         data = b'{"value":"hello"}'
         result = impl.load(WithStrMissing, data)
         assert result == WithStrMissing(value="hello")
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "expected"),
+        [
+            pytest.param(WithStrMinLength, b'{"value":"ab"}', WithStrMinLength(value="ab"), id="min_length_ok"),
+            pytest.param(WithStrMaxLength, b'{"value":"hello"}', WithStrMaxLength(value="hello"), id="max_length_ok"),
+            pytest.param(
+                WithStrMinMaxLength, b'{"value":"hello"}', WithStrMinMaxLength(value="hello"), id="min_max_length_ok"
+            ),
+        ],
+    )
+    def test_length_pass(self, impl: Serializer, schema_type: type, data: bytes, expected: object) -> None:
+        result = impl.load(schema_type, data)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "error_messages"),
+        [
+            pytest.param(
+                WithStrMinLength, b'{"value":"a"}', {"value": ["Shorter than minimum length 2."]}, id="min_length"
+            ),
+            pytest.param(
+                WithStrMaxLength, b'{"value":"toolong"}', {"value": ["Longer than maximum length 5."]}, id="max_length"
+            ),
+            pytest.param(
+                WithStrMinMaxLength, b'{"value":""}', {"value": ["Shorter than minimum length 1."]}, id="min_max_below"
+            ),
+            pytest.param(
+                WithStrMinMaxLength,
+                b'{"value":"aaaaaaaaaaa"}',
+                {"value": ["Longer than maximum length 10."]},
+                id="min_max_above",
+            ),
+            pytest.param(
+                WithStrMinLengthError, b'{"value":"a"}', {"value": ["At least 2 chars"]}, id="min_length_custom_error"
+            ),
+            pytest.param(
+                WithStrMaxLengthError,
+                b'{"value":"toolong"}',
+                {"value": ["At most 5 chars"]},
+                id="max_length_custom_error",
+            ),
+        ],
+    )
+    def test_length_fail(
+        self, impl: Serializer, data: bytes, schema_type: type, error_messages: dict[str, list[str]]
+    ) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(schema_type, data)
+        assert exc.value.messages == error_messages
+
+
+class TestStrMetaValidation:
+    @pytest.mark.parametrize("bound_name", ["min_length", "max_length"])
+    def test_bool_bound_raises(self, bound_name: str) -> None:
+        with pytest.raises(TypeError, match=f"{bound_name} must be int, got bool"):
+            mr.str_meta(**{bound_name: True})  # type: ignore[reportArgumentType]
+
+    @pytest.mark.parametrize("bound_name", ["min_length", "max_length"])
+    def test_float_bound_raises(self, bound_name: str) -> None:
+        with pytest.raises(TypeError, match=f"{bound_name} must be int, got float"):
+            mr.str_meta(**{bound_name: 1.5})  # type: ignore[reportArgumentType]
+
+    @pytest.mark.parametrize("bound_name", ["min_length", "max_length"])
+    def test_str_bound_raises(self, bound_name: str) -> None:
+        with pytest.raises(TypeError, match=f"{bound_name} must be int, got str"):
+            mr.str_meta(**{bound_name: "1"})  # type: ignore[reportArgumentType]
+
+    @pytest.mark.parametrize("bound_name", ["min_length", "max_length"])
+    def test_negative_bound_raises(self, bound_name: str) -> None:
+        with pytest.raises(ValueError, match=f"{bound_name} must be a non-negative integer, got -1"):
+            mr.str_meta(**{bound_name: -1})  # type: ignore[reportArgumentType]
+
+    def test_min_greater_than_max_raises(self) -> None:
+        with pytest.raises(ValueError, match="min_length 5 must be less than or equal to max_length 3"):
+            mr.str_meta(min_length=5, max_length=3)
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param({"min_length": 0}, id="min_zero"),
+            pytest.param({"max_length": 0}, id="max_zero"),
+            pytest.param({"min_length": 1, "max_length": 5}, id="min_max"),
+            pytest.param({"min_length": 3, "max_length": 3}, id="min_eq_max"),
+        ],
+    )
+    def test_valid_bounds(self, kwargs: dict[str, int]) -> None:
+        mr.str_meta(**kwargs)  # type: ignore[reportArgumentType]

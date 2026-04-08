@@ -129,6 +129,10 @@ class _FieldMetadata:
     float_lte_error: str | None = None
     datetime_format: str | None = None
     item_validators: list[Callable] | None = None
+    min_length: int | None = None
+    min_length_error: str | None = None
+    max_length: int | None = None
+    max_length_error: str | None = None
 
 
 @dataclasses.dataclass(slots=True, kw_only=True)
@@ -437,6 +441,10 @@ class _BuildContext:
         float_lt_error: str | None = None
         float_lte: float | int | None = None
         float_lte_error: str | None = None
+        field_min_length: int | None = None
+        field_min_length_error: str | None = None
+        field_max_length: int | None = None
+        field_max_length_error: str | None = None
 
         if metadata:
             data_key = metadata.get("name")
@@ -480,6 +488,10 @@ class _BuildContext:
             validate_item = metadata.get("validate_item")
             if validate_item is not None:
                 item_validators = list(validate_item) if isinstance(validate_item, list | tuple) else [validate_item]
+            field_min_length = metadata.get("min_length")
+            field_min_length_error = metadata.get("min_length_error")
+            field_max_length = metadata.get("max_length")
+            field_max_length_error = metadata.get("max_length_error")
 
         while isinstance(field_type, TypeAliasType):
             field_type = field_type.__value__
@@ -539,6 +551,14 @@ class _BuildContext:
                     if "validate" in arg:
                         validate = arg["validate"]
                         validators = list(validate) if isinstance(validate, list | tuple) else [validate]
+                    if "min_length" in arg:
+                        field_min_length = arg["min_length"]
+                    if "min_length_error" in arg:
+                        field_min_length_error = arg["min_length_error"]
+                    if "max_length" in arg:
+                        field_max_length = arg["max_length"]
+                    if "max_length_error" in arg:
+                        field_max_length_error = arg["max_length_error"]
             origin = get_origin(field_type)
             args = get_args(field_type)
 
@@ -613,6 +633,10 @@ class _BuildContext:
             float_lte_error=float_lte_error,
             datetime_format=datetime_format,
             item_validators=item_validators,
+            min_length=field_min_length,
+            min_length_error=field_min_length_error,
+            max_length=field_max_length,
+            max_length_error=field_max_length_error,
         )
 
         field_handle = self.__build_field_by_type(
@@ -657,6 +681,14 @@ class _BuildContext:
             item_handle = self.__build_item_field(item_type, nested_naming_case)
             if field_metadata.item_validators:
                 kwargs["item_validator"] = build_combined_validator(field_metadata.item_validators)
+            if field_metadata.min_length is not None:
+                kwargs["min_length"] = field_metadata.min_length
+            if field_metadata.min_length_error is not None:
+                kwargs["min_length_error"] = field_metadata.min_length_error
+            if field_metadata.max_length is not None:
+                kwargs["max_length"] = field_metadata.max_length
+            if field_metadata.max_length_error is not None:
+                kwargs["max_length_error"] = field_metadata.max_length_error
             return self.__builder.list_field(name, optional, item_handle, **kwargs)
 
         if origin is dict:
@@ -683,6 +715,14 @@ class _BuildContext:
             item_handle = self.__build_item_field(item_type, nested_naming_case)
             if field_metadata.item_validators:
                 kwargs["item_validator"] = build_combined_validator(field_metadata.item_validators)
+            if field_metadata.min_length is not None:
+                kwargs["min_length"] = field_metadata.min_length
+            if field_metadata.min_length_error is not None:
+                kwargs["min_length_error"] = field_metadata.min_length_error
+            if field_metadata.max_length is not None:
+                kwargs["max_length"] = field_metadata.max_length
+            if field_metadata.max_length_error is not None:
+                kwargs["max_length_error"] = field_metadata.max_length_error
             return self.__builder.list_field(name, optional, item_handle, **kwargs)
 
         if origin is Mapping:
@@ -726,6 +766,14 @@ class _BuildContext:
         if field_type is str:
             if field_metadata.strip_whitespaces:
                 kwargs["strip_whitespaces"] = True
+            if field_metadata.min_length is not None:
+                kwargs["min_length"] = field_metadata.min_length
+            if field_metadata.min_length_error is not None:
+                kwargs["min_length_error"] = field_metadata.min_length_error
+            if field_metadata.max_length is not None:
+                kwargs["max_length"] = field_metadata.max_length
+            if field_metadata.max_length_error is not None:
+                kwargs["max_length_error"] = field_metadata.max_length_error
             return self.__builder.str_field(name, optional, **kwargs)
         if field_type is int:
             if field_metadata.int_gt is not None:

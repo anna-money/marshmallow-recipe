@@ -3,6 +3,7 @@ use pyo3::types::{PyDict, PyFrozenSet, PyList, PySet, PyString, PyTuple};
 
 use crate::container::{DataclassRegistry, FieldContainer};
 use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
+use crate::fields::length::{LengthBound, validate_length};
 use crate::utils::{call_validator, new_presized_list};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -31,6 +32,8 @@ pub fn load_from_py(
     item: &FieldContainer,
     item_validator: Option<&Py<PyAny>>,
     invalid_error: &Py<PyString>,
+    min_length: Option<&LengthBound>,
+    max_length: Option<&LengthBound>,
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
 
@@ -42,11 +45,16 @@ pub fn load_from_py(
         return Err(SerializationError::Single(invalid_error.clone_ref(py)));
     }
 
+    let size = value
+        .len()
+        .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+
+    validate_length(py, size, min_length, max_length)?;
+
     let iter = value
         .try_iter()
         .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
-    let (size_hint, _) = iter.size_hint();
-    let mut items = Vec::with_capacity(size_hint);
+    let mut items = Vec::with_capacity(size);
     let mut errors: Option<Bound<'_, PyDict>> = None;
 
     for (idx, item_result) in iter.enumerate() {
@@ -97,6 +105,8 @@ pub fn dump_to_py(
     item: &FieldContainer,
     item_validator: Option<&Py<PyAny>>,
     invalid_error: &Py<PyString>,
+    min_length: Option<&LengthBound>,
+    max_length: Option<&LengthBound>,
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
 
@@ -107,6 +117,9 @@ pub fn dump_to_py(
     let size = value
         .len()
         .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+
+    validate_length(py, size, min_length, max_length)?;
+
     let result = new_presized_list(py, size);
     let mut errors: Option<Bound<'_, PyDict>> = None;
 

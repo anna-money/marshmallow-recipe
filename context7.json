@@ -23,6 +23,8 @@
     "For email validation: Annotated[str, mr.str_meta(validate=mr.email_validate())] or with custom error: mr.email_validate(error='msg')",
     "For custom field error messages: Annotated[T, mr.meta(required_error='msg', none_error='msg', invalid_error='msg')]",
     "For collection item validation: mr.list_meta(validate_item=func), mr.set_meta(validate_item=func), mr.tuple_meta(validate_item=func)",
+    "For list length validation: mr.list_meta(min_length=1, max_length=10) - constrains list size; custom errors via min_length_error='msg {min}', max_length_error='msg {max}'",
+    "For string length validation: mr.str_meta(min_length=3, max_length=20) - constrains string length (character count); custom errors via min_length_error='msg {min}', max_length_error='msg {max}'",
     "GLOBAL PARAMETERS: Three parameters can be passed to load/dump/schema - naming_case, none_value_handling, decimal_places",
     "Global parameter naming_case: mr.dump(obj, naming_case=mr.CAMEL_CASE) converts field names at runtime",
     "Global parameter none_value_handling: mr.dump(obj, none_value_handling=mr.NoneValueHandling.INCLUDE) includes None values",
@@ -91,6 +93,8 @@
     "For float range custom errors: mr.float_meta(gte=0.0, gte_error='Must be non-negative') - each operator has a corresponding _error param",
     "JSON Schema: Int range constraints emitted - gt→exclusiveMinimum, gte→minimum, lt→exclusiveMaximum, lte→maximum (values as numbers)",
     "JSON Schema: Float range constraints emitted - gt→exclusiveMinimum, gte→minimum, lt→exclusiveMaximum, lte→maximum (values as numbers)",
+    "JSON Schema: List length constraints emitted - min_length→minItems, max_length→maxItems (values as numbers)",
+    "JSON Schema: String length constraints emitted - min_length→minLength, max_length→maxLength (values as numbers)",
     "AI-ASSISTED DEVELOPMENT: For Claude Code in downstream projects, add to your CLAUDE.md: 'When working with marshmallow-recipe (imported as mr), use the context7 MCP plugin to look up /anna-money/marshmallow-recipe documentation before writing serialization code'",
     "AI-ASSISTED DEVELOPMENT: Run help(marshmallow_recipe) or help(mr.dump) in Python for complete API documentation with lazy discovery links"
   ],

@@ -5,6 +5,7 @@ use pyo3::types::PyString;
 
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::DateTimeFormat;
+use crate::fields::length::LengthBound;
 use crate::fields::range::RangeBound;
 
 pub struct FieldCommon {
@@ -141,6 +142,8 @@ pub enum FieldContainer {
         common: FieldCommon,
         strip_whitespaces: bool,
         post_load: Option<Py<PyAny>>,
+        min_length: Option<LengthBound>,
+        max_length: Option<LengthBound>,
     },
     Int {
         common: FieldCommon,
@@ -214,6 +217,8 @@ pub enum FieldContainer {
         kind: CollectionKind,
         item: Box<FieldContainer>,
         item_validator: Option<Py<PyAny>>,
+        min_length: Option<LengthBound>,
+        max_length: Option<LengthBound>,
     },
     Dict {
         common: FieldCommon,
@@ -237,10 +242,14 @@ impl Clone for FieldContainer {
                 common,
                 strip_whitespaces,
                 post_load,
+                min_length,
+                max_length,
             } => Self::Str {
                 common: common.clone(),
                 strip_whitespaces: *strip_whitespaces,
                 post_load: post_load.as_ref().map(|v| v.clone_ref(py)),
+                min_length: min_length.clone(),
+                max_length: max_length.clone(),
             },
             Self::Int {
                 common,
@@ -342,11 +351,15 @@ impl Clone for FieldContainer {
                 kind,
                 item,
                 item_validator,
+                min_length,
+                max_length,
             } => Self::Collection {
                 common: common.clone(),
                 kind: *kind,
                 item: item.clone(),
                 item_validator: item_validator.as_ref().map(|v| v.clone_ref(py)),
+                min_length: min_length.clone(),
+                max_length: max_length.clone(),
             },
             Self::Dict {
                 common,

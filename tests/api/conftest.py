@@ -928,6 +928,31 @@ class WithStrInvalidError:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrMinLength:
+    value: str = dataclasses.field(metadata=mr.str_meta(min_length=2))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrMaxLength:
+    value: str = dataclasses.field(metadata=mr.str_meta(max_length=5))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrMinMaxLength:
+    value: str = dataclasses.field(metadata=mr.str_meta(min_length=1, max_length=10))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrMinLengthError:
+    value: str = dataclasses.field(metadata=mr.str_meta(min_length=2, min_length_error="At least {min} chars"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrMaxLengthError:
+    value: str = dataclasses.field(metadata=mr.str_meta(max_length=5, max_length_error="At most {max} chars"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithIntRequiredError:
     value: int = dataclasses.field(metadata=mr.meta(required_error="Custom required message"))
 
@@ -1104,6 +1129,31 @@ class WithListNoneError:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithListInvalidError:
     items: list[int] = dataclasses.field(metadata=mr.list_meta(invalid_error="Custom invalid message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithListMinLength:
+    items: list[int] = dataclasses.field(metadata=mr.list_meta(min_length=2))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithListMaxLength:
+    items: list[int] = dataclasses.field(metadata=mr.list_meta(max_length=3))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithListMinMaxLength:
+    items: list[int] = dataclasses.field(metadata=mr.list_meta(min_length=1, max_length=5))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithListMinLengthError:
+    items: list[int] = dataclasses.field(metadata=mr.list_meta(min_length=2, min_length_error="At least {min} items"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithListMaxLengthError:
+    items: list[int] = dataclasses.field(metadata=mr.list_meta(max_length=3, max_length_error="At most {max} items"))
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

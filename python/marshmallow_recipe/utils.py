@@ -64,6 +64,17 @@ def validate_float_bound(value: float | int | None, name: str) -> None:
         raise TypeError(f"{name} must be float or int, got {type(value).__name__}")
 
 
+def validate_length_bound(value: int | None, name: str) -> None:
+    if value is None:
+        return
+    if isinstance(value, bool):
+        raise TypeError(f"{name} must be int, got bool")
+    if not isinstance(value, int):  # type: ignore[reportUnnecessaryIsInstance]
+        raise TypeError(f"{name} must be int, got {type(value).__name__}")
+    if value < 0:
+        raise ValueError(f"{name} must be a non-negative integer, got {value}")
+
+
 SUPPORTED_DATETIME_FORMATS: frozenset[str] = frozenset({"iso", "timestamp"})
 
 
