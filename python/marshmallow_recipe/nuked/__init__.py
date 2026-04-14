@@ -220,7 +220,7 @@ def _analyze_dataclass_options(cls: Any, naming_case: NamingCase | None) -> _Dat
     )
 
 
-def _analyze_load_strategy(cls: type) -> Any:
+def _analyze_load_strategy(cls: type) -> nuked.LoadStrategy:
     has_post_init = hasattr(cls, "__post_init__")
     dc_params = getattr(cls, "__dataclass_params__", None)
     dataclass_init_enabled = dc_params.init if dc_params else True
@@ -355,7 +355,7 @@ class _BuildContext:
         return field_handles, field_data_keys, pre_loads
 
     def __ensure_dataclass(
-        self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, load_strategy: Any
+        self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, load_strategy: nuked.LoadStrategy
     ) -> Any:
         if cls in self.__dataclass_handles:
             return self.__dataclass_handles[cls]
@@ -383,7 +383,7 @@ class _BuildContext:
         return handle
 
     def __build_dataclass_type(
-        self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, load_strategy: Any
+        self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, load_strategy: nuked.LoadStrategy
     ) -> Any:
         handle = self.__ensure_dataclass(cls, naming_case, opts, load_strategy)
         return self.__builder.type_dataclass(handle)
