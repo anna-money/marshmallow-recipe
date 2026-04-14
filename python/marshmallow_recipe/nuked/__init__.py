@@ -88,7 +88,7 @@ def try_get_slot_offset(cls: type, field_name: str) -> int | None:
     if not hasattr(cls, "__slots__"):
         return None
     descriptor = getattr(cls, field_name, None)
-    if descriptor is None:
+    if not isinstance(descriptor, types.MemberDescriptorType):
         return None
     try:
         ptr = ctypes.cast(id(descriptor), ctypes.POINTER(_PyMemberDescrObject))
@@ -146,6 +146,7 @@ class _DataclassOptions:
 @dataclasses.dataclass(slots=True, kw_only=True)
 class _SlotStrategy:
     can_use_direct_slots: bool
+    can_use_direct_dict: bool
     has_post_init: bool
 
 
@@ -230,12 +231,19 @@ def _analyze_slot_strategy(cls: type) -> _SlotStrategy:
     has_post_init = hasattr(cls, "__post_init__")
     dc_params = getattr(cls, "__dataclass_params__", None)
     dataclass_init_enabled = dc_params.init if dc_params else True
-    has_slots = hasattr(cls, "__slots__")
 
     all_fields_have_init = all(field.init for field in dataclasses.fields(cls))
-    can_use_direct_slots = has_slots and dataclass_init_enabled and not has_post_init and all_fields_have_init
+    common = dataclass_init_enabled and not has_post_init and all_fields_have_init
 
-    return _SlotStrategy(can_use_direct_slots=can_use_direct_slots, has_post_init=has_post_init)
+    dataclass_bases = [klass for klass in cls.__mro__ if klass is not object and dataclasses.is_dataclass(klass)]
+    all_have_slots = all("__slots__" in klass.__dict__ for klass in dataclass_bases)
+    none_have_slots = not any("__slots__" in klass.__dict__ for klass in dataclass_bases)
+
+    return _SlotStrategy(
+        can_use_direct_slots=all_have_slots and common,
+        can_use_direct_dict=none_have_slots and common,
+        has_post_init=has_post_init,
+    )
 
 
 class _BuildContext:
@@ -373,6 +381,7 @@ class _BuildContext:
             opts.cls,
             field_handles,
             can_use_direct_slots=slots.can_use_direct_slots,
+            can_use_direct_dict=slots.can_use_direct_dict,
             has_post_init=slots.has_post_init,
             ignore_none=self.__resolve_ignore_none(opts),
             pre_loads=pre_loads,

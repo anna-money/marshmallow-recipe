@@ -6,8 +6,8 @@ use pyo3::types::{PyList, PyString, PyTuple};
 
 use crate::container::{
     BoolLiteralData, DataclassContainer, DataclassField, DataclassRegistry, EnumDumperData,
-    FieldCommon, FieldContainer, IntEnumLoaderData, IntLiteralData, PrimitiveContainer,
-    StrEnumLoaderData, StrLiteralData, TypeContainer,
+    FieldCommon, FieldContainer, IntEnumLoaderData, IntLiteralData, LoadStrategy,
+    PrimitiveContainer, StrEnumLoaderData, StrLiteralData, TypeContainer,
 };
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::parse_datetime_format;
@@ -1006,7 +1006,8 @@ impl ContainerBuilder {
         DataclassHandle(idx)
     }
 
-    #[pyo3(signature = (handle, cls, fields, *, can_use_direct_slots=false, has_post_init=false, ignore_none=true, pre_loads=vec![]))]
+    #[allow(clippy::fn_params_excessive_bools)]
+    #[pyo3(signature = (handle, cls, fields, *, can_use_direct_slots=false, can_use_direct_dict=false, has_post_init=false, ignore_none=true, pre_loads=vec![]))]
     fn finalize_dataclass(
         &mut self,
         py: Python<'_>,
@@ -1014,6 +1015,7 @@ impl ContainerBuilder {
         cls: Py<PyAny>,
         fields: Vec<FieldHandle>,
         can_use_direct_slots: bool,
+        can_use_direct_dict: bool,
         has_post_init: bool,
         ignore_none: bool,
         pre_loads: Vec<Py<PyAny>>,
@@ -1023,6 +1025,7 @@ impl ContainerBuilder {
             cls,
             fields,
             can_use_direct_slots,
+            can_use_direct_dict,
             has_post_init,
             ignore_none,
             pre_loads,
@@ -1150,23 +1153,27 @@ impl ContainerBuilder {
         TypeHandle(idx)
     }
 
+    #[allow(clippy::fn_params_excessive_bools)]
     fn __build_dataclass_container(
         &self,
         py: Python<'_>,
         cls: Py<PyAny>,
         fields: Vec<FieldHandle>,
         can_use_direct_slots: bool,
+        can_use_direct_dict: bool,
         has_post_init: bool,
         ignore_none: bool,
         pre_loads: Vec<Py<PyAny>>,
     ) -> PyResult<DataclassContainer> {
-        let mut container = DataclassContainer::new(
-            cls,
-            can_use_direct_slots,
-            has_post_init,
-            ignore_none,
-            pre_loads,
-        );
+        let load_strategy = if can_use_direct_slots {
+            LoadStrategy::DirectSlots
+        } else if can_use_direct_dict {
+            LoadStrategy::DirectDict
+        } else {
+            LoadStrategy::Kwargs
+        };
+        let mut container =
+            DataclassContainer::new(cls, load_strategy, has_post_init, ignore_none, pre_loads);
 
         for handle in fields {
             let builder_field = self.fields.get(handle.0).ok_or_else(|| {

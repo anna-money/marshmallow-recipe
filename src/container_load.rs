@@ -4,7 +4,7 @@ use pyo3::types::{PyDict, PyFrozenSet, PyList, PySet, PyString, PyTuple};
 use smallbitvec::SmallBitVec;
 
 use crate::container::{
-    DataclassContainer, DataclassRegistry, FieldCommon, FieldContainer, TypeContainer,
+    DataclassContainer, DataclassRegistry, FieldCommon, FieldContainer, LoadStrategy, TypeContainer,
 };
 use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
 use crate::fields::{
@@ -190,20 +190,20 @@ impl DataclassContainer {
         })?;
 
         let dict = apply_pre_loads(py, dict, &self.pre_loads)?;
-        if self.can_use_direct_slots {
-            self.load_from_py_direct_slots(registry, &dict)
-        } else {
-            self.load_from_py_kwargs(registry, &dict)
+        match self.load_strategy {
+            LoadStrategy::DirectSlots => self.load_from_py_direct_slots(registry, &dict),
+            LoadStrategy::DirectDict => self.load_from_py_direct_dict(registry, &dict),
+            LoadStrategy::Kwargs => self.load_from_py_kwargs(registry, &dict),
         }
     }
 
-    fn load_from_py_kwargs(
+    fn collect_fields_into_dict<'py>(
         &self,
         registry: &DataclassRegistry,
-        dict: &Bound<'_, PyDict>,
-    ) -> Result<Py<PyAny>, SerializationError> {
+        dict: &Bound<'py, PyDict>,
+    ) -> Result<Bound<'py, PyDict>, SerializationError> {
         let py = dict.py();
-        let kwargs = PyDict::new(py);
+        let result = PyDict::new(py);
         let mut seen = SmallBitVec::from_elem(self.fields.len(), false);
         let mut errors: Option<Bound<'_, PyDict>> = None;
 
@@ -226,7 +226,7 @@ impl DataclassContainer {
                 match dc_field.field.load_from_py(registry, &v) {
                     Ok(py_val) => match apply_validate(py, py_val, common.validator.as_ref()) {
                         Ok(validated) => {
-                            let _ = kwargs.set_item(dc_field.name_interned.bind(py), validated);
+                            let _ = result.set_item(dc_field.name_interned.bind(py), validated);
                         }
                         Err(ref e) => {
                             accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
@@ -250,7 +250,7 @@ impl DataclassContainer {
             if !seen[idx] && dc_field.field_init {
                 match get_default_value(py, common) {
                     Ok(Some(val)) => {
-                        let _ = kwargs.set_item(dc_field.name_interned.bind(py), val);
+                        let _ = result.set_item(dc_field.name_interned.bind(py), val);
                     }
                     Ok(None) => {
                         let err_list = common.required_error.as_ref().map_or_else(
@@ -274,11 +274,46 @@ impl DataclassContainer {
             return Err(SerializationError::Dict(errors.unbind()));
         }
 
+        Ok(result)
+    }
+
+    fn load_from_py_kwargs(
+        &self,
+        registry: &DataclassRegistry,
+        dict: &Bound<'_, PyDict>,
+    ) -> Result<Py<PyAny>, SerializationError> {
+        let py = dict.py();
+        let kwargs = self.collect_fields_into_dict(registry, dict)?;
+
         self.cls
             .bind(py)
             .call((), Some(&kwargs))
             .map(Bound::unbind)
             .map_err(|e| SerializationError::simple(py, &e.to_string()))
+    }
+
+    fn load_from_py_direct_dict(
+        &self,
+        registry: &DataclassRegistry,
+        dict: &Bound<'_, PyDict>,
+    ) -> Result<Py<PyAny>, SerializationError> {
+        let py = dict.py();
+        let result_dict = self.collect_fields_into_dict(registry, dict)?;
+
+        let object_type =
+            get_object_cls(py).map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+        let instance = object_type
+            .call_method1(intern!(py, "__new__"), (self.cls.bind(py),))
+            .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+
+        object_type
+            .call_method1(
+                intern!(py, "__setattr__"),
+                (&instance, intern!(py, "__dict__"), &result_dict),
+            )
+            .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+
+        Ok(instance.unbind())
     }
 
     fn load_from_py_direct_slots(
