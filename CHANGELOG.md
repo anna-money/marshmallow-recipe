@@ -1,6 +1,6 @@
 ## v0.0.94 (2026-04-14)
 
-* [Add direct `__dict__` load optimization for non-slots dataclasses](https://github.com/anna-money/marshmallow-recipe/pull/299)
+* [Add direct `__dict__` load for non-slots dataclasses](https://github.com/anna-money/marshmallow-recipe/pull/299)
 
 
 ## v0.0.93 (2026-04-08)
