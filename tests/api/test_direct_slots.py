@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from typing import Any
+
+import pytest
 
 from .conftest import Serializer
 
@@ -243,3 +246,177 @@ class TestDirectSlotsLoad:
         data = b'{"name":"test","count":5}'
         result = impl.load(WithMixedDefaults, data)
         assert result == WithMixedDefaults(name="test", count=5)
+
+
+@dataclasses.dataclass
+class PlainBasic:
+    name: str
+    value: int
+
+
+@dataclasses.dataclass(frozen=True)
+class FrozenNoSlots:
+    name: str
+    value: int
+
+
+@dataclasses.dataclass
+class PlainWithDefaults:
+    name: str
+    count: int = 42
+    tags: list[str] = dataclasses.field(default_factory=list)
+    description: str | None = None
+
+
+@dataclasses.dataclass
+class PlainNestedItem:
+    id: int
+    label: str
+
+
+@dataclasses.dataclass
+class PlainWithNestedList:
+    name: str
+    items: list[PlainNestedItem]
+
+
+@dataclasses.dataclass(slots=True)
+class MixedParentSlots:
+    x: int
+
+
+@dataclasses.dataclass
+class MixedChildNoSlots(MixedParentSlots):
+    y: int = 0
+
+
+@dataclasses.dataclass
+class MixedParentNoSlots:
+    x: int
+
+
+@dataclasses.dataclass(slots=True)
+class MixedChildSlots(MixedParentNoSlots):
+    y: int = 0
+
+
+@dataclasses.dataclass
+class PlainWithPostInit:
+    name: str
+    value: int
+    computed: str = dataclasses.field(init=False, default="")
+
+    def __post_init__(self) -> None:
+        self.computed = f"{self.name}_{self.value}"
+
+
+@dataclasses.dataclass
+class PlainWithFieldInitFalse:
+    name: str
+    value: int
+    auto_field: str = dataclasses.field(init=False, default="auto")
+
+
+class TestDirectDictDump:
+    @pytest.mark.parametrize(
+        ("cls", "obj", "expected"),
+        [
+            (PlainBasic, PlainBasic(name="test", value=123), {"name": "test", "value": 123}),
+            (FrozenNoSlots, FrozenNoSlots(name="test", value=123), {"name": "test", "value": 123}),
+            (
+                PlainWithDefaults,
+                PlainWithDefaults(name="t", count=5, tags=["a"], description="d"),
+                {"name": "t", "count": 5, "tags": ["a"], "description": "d"},
+            ),
+            (PlainWithDefaults, PlainWithDefaults(name="t"), {"name": "t", "count": 42, "tags": []}),
+            (
+                PlainWithNestedList,
+                PlainWithNestedList(name="c", items=[PlainNestedItem(id=1, label="a")]),
+                {"name": "c", "items": [{"id": 1, "label": "a"}]},
+            ),
+            (PlainWithNestedList, PlainWithNestedList(name="e", items=[]), {"name": "e", "items": []}),
+            (MixedChildNoSlots, MixedChildNoSlots(x=1, y=2), {"x": 1, "y": 2}),
+            (MixedChildSlots, MixedChildSlots(x=1, y=2), {"x": 1, "y": 2}),
+            (PlainWithPostInit, PlainWithPostInit(name="a", value=1), {"name": "a", "value": 1}),
+            (PlainWithFieldInitFalse, PlainWithFieldInitFalse(name="a", value=1), {"name": "a", "value": 1}),
+        ],
+        ids=[
+            "plain_basic",
+            "frozen_no_slots",
+            "plain_defaults_all",
+            "plain_defaults_only_required",
+            "plain_nested",
+            "plain_nested_empty",
+            "mixed_parent_slots",
+            "mixed_parent_no_slots",
+            "plain_post_init",
+            "plain_init_false",
+        ],
+    )
+    def test_dump(self, impl: Serializer, cls: type, obj: Any, expected: dict) -> None:
+        result = json.loads(impl.dump(cls, obj))
+        assert result == expected
+
+
+class TestDirectDictLoad:
+    @pytest.mark.parametrize(
+        ("cls", "data", "expected"),
+        [
+            (PlainBasic, b'{"name":"test","value":123}', PlainBasic(name="test", value=123)),
+            (FrozenNoSlots, b'{"name":"test","value":123}', FrozenNoSlots(name="test", value=123)),
+            (
+                PlainWithDefaults,
+                b'{"name":"t","count":10,"tags":["a"],"description":"d"}',
+                PlainWithDefaults(name="t", count=10, tags=["a"], description="d"),
+            ),
+            (PlainWithDefaults, b'{"name":"t"}', PlainWithDefaults(name="t")),
+            (PlainWithDefaults, b'{"name":"t","count":5}', PlainWithDefaults(name="t", count=5)),
+            (PlainWithDefaults, b'{"name":"t","tags":["x"]}', PlainWithDefaults(name="t", tags=["x"])),
+            (PlainWithDefaults, b'{"name":"t","description":null}', PlainWithDefaults(name="t", description=None)),
+            (
+                PlainWithNestedList,
+                b'{"name":"c","items":[{"id":1,"label":"a"},{"id":2,"label":"b"}]}',
+                PlainWithNestedList(
+                    name="c", items=[PlainNestedItem(id=1, label="a"), PlainNestedItem(id=2, label="b")]
+                ),
+            ),
+            (PlainWithNestedList, b'{"name":"e","items":[]}', PlainWithNestedList(name="e", items=[])),
+            (MixedChildNoSlots, b'{"x":1,"y":2}', MixedChildNoSlots(x=1, y=2)),
+            (MixedChildNoSlots, b'{"x":1}', MixedChildNoSlots(x=1)),
+            (MixedChildSlots, b'{"x":1,"y":2}', MixedChildSlots(x=1, y=2)),
+            (MixedChildSlots, b'{"x":1}', MixedChildSlots(x=1)),
+            (PlainWithPostInit, b'{"name":"a","value":1}', PlainWithPostInit(name="a", value=1)),
+            (PlainWithFieldInitFalse, b'{"name":"a","value":1}', PlainWithFieldInitFalse(name="a", value=1)),
+        ],
+        ids=[
+            "plain_basic",
+            "frozen_no_slots",
+            "defaults_all_provided",
+            "defaults_none_provided",
+            "defaults_partial_count",
+            "defaults_partial_tags",
+            "defaults_explicit_null",
+            "nested_list",
+            "nested_list_empty",
+            "mixed_parent_slots",
+            "mixed_parent_slots_default",
+            "mixed_parent_no_slots",
+            "mixed_parent_no_slots_default",
+            "post_init",
+            "init_false",
+        ],
+    )
+    def test_load(self, impl: Serializer, cls: type, data: bytes, expected: Any) -> None:
+        result = impl.load(cls, data)
+        assert result == expected
+
+    def test_frozen_no_slots_immutability(self, impl: Serializer) -> None:
+        result = impl.load(FrozenNoSlots, b'{"name":"test","value":123}')
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            result.name = "changed"  # type: ignore[misc]
+
+    def test_default_factory_independence(self, impl: Serializer) -> None:
+        r1 = impl.load(PlainWithDefaults, b'{"name":"a"}')
+        r2 = impl.load(PlainWithDefaults, b'{"name":"b"}')
+        r1.tags.append("modified")
+        assert r2.tags == []

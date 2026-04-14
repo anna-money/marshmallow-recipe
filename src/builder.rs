@@ -6,8 +6,8 @@ use pyo3::types::{PyList, PyString, PyTuple};
 
 use crate::container::{
     BoolLiteralData, DataclassContainer, DataclassField, DataclassRegistry, EnumDumperData,
-    FieldCommon, FieldContainer, IntEnumLoaderData, IntLiteralData, PrimitiveContainer,
-    StrEnumLoaderData, StrLiteralData, TypeContainer,
+    FieldCommon, FieldContainer, IntEnumLoaderData, IntLiteralData, LoadStrategy,
+    PrimitiveContainer, StrEnumLoaderData, StrLiteralData, TypeContainer,
 };
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::parse_datetime_format;
@@ -1006,15 +1006,14 @@ impl ContainerBuilder {
         DataclassHandle(idx)
     }
 
-    #[pyo3(signature = (handle, cls, fields, *, can_use_direct_slots=false, has_post_init=false, ignore_none=true, pre_loads=vec![]))]
+    #[pyo3(signature = (handle, cls, fields, *, load_strategy=LoadStrategy::Kwargs, ignore_none=true, pre_loads=vec![]))]
     fn finalize_dataclass(
         &mut self,
         py: Python<'_>,
         handle: DataclassHandle,
         cls: Py<PyAny>,
         fields: Vec<FieldHandle>,
-        can_use_direct_slots: bool,
-        has_post_init: bool,
+        load_strategy: LoadStrategy,
         ignore_none: bool,
         pre_loads: Vec<Py<PyAny>>,
     ) -> PyResult<()> {
@@ -1022,8 +1021,7 @@ impl ContainerBuilder {
             py,
             cls,
             fields,
-            can_use_direct_slots,
-            has_post_init,
+            load_strategy,
             ignore_none,
             pre_loads,
         )?;
@@ -1155,18 +1153,11 @@ impl ContainerBuilder {
         py: Python<'_>,
         cls: Py<PyAny>,
         fields: Vec<FieldHandle>,
-        can_use_direct_slots: bool,
-        has_post_init: bool,
+        load_strategy: LoadStrategy,
         ignore_none: bool,
         pre_loads: Vec<Py<PyAny>>,
     ) -> PyResult<DataclassContainer> {
-        let mut container = DataclassContainer::new(
-            cls,
-            can_use_direct_slots,
-            has_post_init,
-            ignore_none,
-            pre_loads,
-        );
+        let mut container = DataclassContainer::new(cls, load_strategy, ignore_none, pre_loads);
 
         for handle in fields {
             let builder_field = self.fields.get(handle.0).ok_or_else(|| {

@@ -1,3 +1,8 @@
+## v0.0.94 (2026-04-14)
+
+* [Add direct `__dict__` load for non-slots dataclasses](https://github.com/anna-money/marshmallow-recipe/pull/299)
+
+
 ## v0.0.93 (2026-04-08)
 
 * [Add `min_length`/`max_length` support to `list_metadata` and `str_metadata`](https://github.com/anna-money/marshmallow-recipe/pull/298)

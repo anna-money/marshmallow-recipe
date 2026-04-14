@@ -88,7 +88,7 @@ def try_get_slot_offset(cls: type, field_name: str) -> int | None:
     if not hasattr(cls, "__slots__"):
         return None
     descriptor = getattr(cls, field_name, None)
-    if descriptor is None:
+    if not isinstance(descriptor, types.MemberDescriptorType):
         return None
     try:
         ptr = ctypes.cast(id(descriptor), ctypes.POINTER(_PyMemberDescrObject))
@@ -141,12 +141,6 @@ class _DataclassOptions:
     none_value_handling: NoneValueHandling | None
     decimal_places: int | None
     effective_naming_case: NamingCase | None
-
-
-@dataclasses.dataclass(slots=True, kw_only=True)
-class _SlotStrategy:
-    can_use_direct_slots: bool
-    has_post_init: bool
 
 
 def build_container(
@@ -226,16 +220,26 @@ def _analyze_dataclass_options(cls: Any, naming_case: NamingCase | None) -> _Dat
     )
 
 
-def _analyze_slot_strategy(cls: type) -> _SlotStrategy:
+def _analyze_load_strategy(cls: type) -> nuked.LoadStrategy:
     has_post_init = hasattr(cls, "__post_init__")
     dc_params = getattr(cls, "__dataclass_params__", None)
     dataclass_init_enabled = dc_params.init if dc_params else True
-    has_slots = hasattr(cls, "__slots__")
 
     all_fields_have_init = all(field.init for field in dataclasses.fields(cls))
-    can_use_direct_slots = has_slots and dataclass_init_enabled and not has_post_init and all_fields_have_init
+    common = dataclass_init_enabled and not has_post_init and all_fields_have_init
 
-    return _SlotStrategy(can_use_direct_slots=can_use_direct_slots, has_post_init=has_post_init)
+    dataclass_bases = [klass for klass in cls.__mro__ if klass is not object and dataclasses.is_dataclass(klass)]
+    all_have_slots = all("__slots__" in klass.__dict__ for klass in dataclass_bases)
+    none_have_slots = not any("__slots__" in klass.__dict__ for klass in dataclass_bases)
+
+    if all_have_slots and common:
+        load_strategy = nuked.LoadStrategy.DirectSlots
+    elif none_have_slots and common:
+        load_strategy = nuked.LoadStrategy.DirectDict
+    else:
+        load_strategy = nuked.LoadStrategy.Kwargs
+
+    return load_strategy
 
 
 class _BuildContext:
@@ -260,8 +264,8 @@ class _BuildContext:
         if origin is None:
             if dataclasses.is_dataclass(cls):
                 opts = _analyze_dataclass_options(cls, naming_case)
-                slots = _analyze_slot_strategy(opts.cls)
-                return self.__build_dataclass_type(cls, naming_case, opts, slots)
+                load_strategy = _analyze_load_strategy(opts.cls)
+                return self.__build_dataclass_type(cls, naming_case, opts, load_strategy)
             field_handle = self.__build_item_field(cls, naming_case)
             return self.__builder.type_primitive(field_handle)
 
@@ -307,8 +311,8 @@ class _BuildContext:
 
         if dataclasses.is_dataclass(origin):
             opts = _analyze_dataclass_options(origin, naming_case)
-            slots = _analyze_slot_strategy(opts.cls)
-            return self.__build_dataclass_type(cls, naming_case, opts, slots)
+            load_strategy = _analyze_load_strategy(opts.cls)
+            return self.__build_dataclass_type(cls, naming_case, opts, load_strategy)
 
         raise TypeError(f"Unsupported root type: {cls}")
 
@@ -351,7 +355,7 @@ class _BuildContext:
         return field_handles, field_data_keys, pre_loads
 
     def __ensure_dataclass(
-        self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, slots: _SlotStrategy
+        self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, load_strategy: nuked.LoadStrategy
     ) -> Any:
         if cls in self.__dataclass_handles:
             return self.__dataclass_handles[cls]
@@ -372,23 +376,22 @@ class _BuildContext:
             handle,
             opts.cls,
             field_handles,
-            can_use_direct_slots=slots.can_use_direct_slots,
-            has_post_init=slots.has_post_init,
+            load_strategy=load_strategy,
             ignore_none=self.__resolve_ignore_none(opts),
             pre_loads=pre_loads,
         )
         return handle
 
     def __build_dataclass_type(
-        self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, slots: _SlotStrategy
+        self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, load_strategy: nuked.LoadStrategy
     ) -> Any:
-        handle = self.__ensure_dataclass(cls, naming_case, opts, slots)
+        handle = self.__ensure_dataclass(cls, naming_case, opts, load_strategy)
         return self.__builder.type_dataclass(handle)
 
     def __build_nested_dataclass(self, cls: Any, naming_case: NamingCase | None) -> Any:
         opts = _analyze_dataclass_options(cls, naming_case)
-        slots = _analyze_slot_strategy(opts.cls)
-        return self.__ensure_dataclass(cls, naming_case, opts, slots)
+        load_strategy = _analyze_load_strategy(opts.cls)
+        return self.__ensure_dataclass(cls, naming_case, opts, load_strategy)
 
     def __build_field(
         self,

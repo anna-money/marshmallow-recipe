@@ -3,6 +3,14 @@ use std::collections::HashMap;
 use pyo3::prelude::*;
 use pyo3::types::PyString;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[pyclass(eq, eq_int, from_py_object)]
+pub enum LoadStrategy {
+    DirectSlots,
+    DirectDict,
+    Kwargs,
+}
+
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::DateTimeFormat;
 use crate::fields::length::LengthBound;
@@ -456,8 +464,7 @@ pub struct DataclassContainer {
     pub cls: Py<PyAny>,
     pub fields: Vec<DataclassField>,
     pub field_lookup: HashMap<String, usize>,
-    pub can_use_direct_slots: bool,
-    pub has_post_init: bool,
+    pub load_strategy: LoadStrategy,
     pub ignore_none: bool,
     pub pre_loads: Vec<Py<PyAny>>,
 }
@@ -468,8 +475,7 @@ impl Clone for DataclassContainer {
             cls: self.cls.clone_ref(py),
             fields: self.fields.clone(),
             field_lookup: self.field_lookup.clone(),
-            can_use_direct_slots: self.can_use_direct_slots,
-            has_post_init: self.has_post_init,
+            load_strategy: self.load_strategy,
             ignore_none: self.ignore_none,
             pre_loads: self.pre_loads.iter().map(|f| f.clone_ref(py)).collect(),
         })
@@ -479,8 +485,7 @@ impl Clone for DataclassContainer {
 impl DataclassContainer {
     pub fn new(
         cls: Py<PyAny>,
-        can_use_direct_slots: bool,
-        has_post_init: bool,
+        load_strategy: LoadStrategy,
         ignore_none: bool,
         pre_loads: Vec<Py<PyAny>>,
     ) -> Self {
@@ -488,8 +493,7 @@ impl DataclassContainer {
             cls,
             fields: Vec::new(),
             field_lookup: HashMap::new(),
-            can_use_direct_slots,
-            has_post_init,
+            load_strategy,
             ignore_none,
             pre_loads,
         }
@@ -506,7 +510,7 @@ impl std::fmt::Debug for DataclassContainer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DataclassContainer")
             .field("fields", &self.fields.len())
-            .field("can_use_direct_slots", &self.can_use_direct_slots)
+            .field("load_strategy", &self.load_strategy)
             .finish_non_exhaustive()
     }
 }
