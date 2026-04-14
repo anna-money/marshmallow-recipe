@@ -1006,7 +1006,7 @@ impl ContainerBuilder {
         DataclassHandle(idx)
     }
 
-    #[pyo3(signature = (handle, cls, fields, *, load_strategy=LoadStrategy::Kwargs, has_post_init=false, ignore_none=true, pre_loads=vec![]))]
+    #[pyo3(signature = (handle, cls, fields, *, load_strategy=LoadStrategy::Kwargs, ignore_none=true, pre_loads=vec![]))]
     fn finalize_dataclass(
         &mut self,
         py: Python<'_>,
@@ -1014,7 +1014,6 @@ impl ContainerBuilder {
         cls: Py<PyAny>,
         fields: Vec<FieldHandle>,
         load_strategy: LoadStrategy,
-        has_post_init: bool,
         ignore_none: bool,
         pre_loads: Vec<Py<PyAny>>,
     ) -> PyResult<()> {
@@ -1023,7 +1022,6 @@ impl ContainerBuilder {
             cls,
             fields,
             load_strategy,
-            has_post_init,
             ignore_none,
             pre_loads,
         )?;
@@ -1156,12 +1154,10 @@ impl ContainerBuilder {
         cls: Py<PyAny>,
         fields: Vec<FieldHandle>,
         load_strategy: LoadStrategy,
-        has_post_init: bool,
         ignore_none: bool,
         pre_loads: Vec<Py<PyAny>>,
     ) -> PyResult<DataclassContainer> {
-        let mut container =
-            DataclassContainer::new(cls, load_strategy, has_post_init, ignore_none, pre_loads);
+        let mut container = DataclassContainer::new(cls, load_strategy, ignore_none, pre_loads);
 
         for handle in fields {
             let builder_field = self.fields.get(handle.0).ok_or_else(|| {

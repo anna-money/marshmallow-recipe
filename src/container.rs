@@ -465,7 +465,6 @@ pub struct DataclassContainer {
     pub fields: Vec<DataclassField>,
     pub field_lookup: HashMap<String, usize>,
     pub load_strategy: LoadStrategy,
-    pub has_post_init: bool,
     pub ignore_none: bool,
     pub pre_loads: Vec<Py<PyAny>>,
 }
@@ -477,7 +476,6 @@ impl Clone for DataclassContainer {
             fields: self.fields.clone(),
             field_lookup: self.field_lookup.clone(),
             load_strategy: self.load_strategy,
-            has_post_init: self.has_post_init,
             ignore_none: self.ignore_none,
             pre_loads: self.pre_loads.iter().map(|f| f.clone_ref(py)).collect(),
         })
@@ -488,7 +486,6 @@ impl DataclassContainer {
     pub fn new(
         cls: Py<PyAny>,
         load_strategy: LoadStrategy,
-        has_post_init: bool,
         ignore_none: bool,
         pre_loads: Vec<Py<PyAny>>,
     ) -> Self {
@@ -497,7 +494,6 @@ impl DataclassContainer {
             fields: Vec::new(),
             field_lookup: HashMap::new(),
             load_strategy,
-            has_post_init,
             ignore_none,
             pre_loads,
         }

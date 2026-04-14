@@ -146,7 +146,6 @@ class _DataclassOptions:
 @dataclasses.dataclass(slots=True, kw_only=True)
 class _SlotStrategy:
     load_strategy: Any
-    has_post_init: bool
 
 
 def build_container(
@@ -245,7 +244,7 @@ def _analyze_slot_strategy(cls: type) -> _SlotStrategy:
     else:
         load_strategy = nuked.LoadStrategy.Kwargs
 
-    return _SlotStrategy(load_strategy=load_strategy, has_post_init=has_post_init)
+    return _SlotStrategy(load_strategy=load_strategy)
 
 
 class _BuildContext:
@@ -383,7 +382,6 @@ class _BuildContext:
             opts.cls,
             field_handles,
             load_strategy=slots.load_strategy,
-            has_post_init=slots.has_post_init,
             ignore_none=self.__resolve_ignore_none(opts),
             pre_loads=pre_loads,
         )
