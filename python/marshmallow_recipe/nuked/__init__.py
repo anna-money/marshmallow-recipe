@@ -143,11 +143,6 @@ class _DataclassOptions:
     effective_naming_case: NamingCase | None
 
 
-@dataclasses.dataclass(slots=True, kw_only=True)
-class _SlotStrategy:
-    load_strategy: Any
-
-
 def build_container(
     cls: Any, naming_case: NamingCase | None, none_value_handling: NoneValueHandling | None, decimal_places: int | None
 ) -> Any:
@@ -225,7 +220,7 @@ def _analyze_dataclass_options(cls: Any, naming_case: NamingCase | None) -> _Dat
     )
 
 
-def _analyze_slot_strategy(cls: type) -> _SlotStrategy:
+def _analyze_load_strategy(cls: type) -> Any:
     has_post_init = hasattr(cls, "__post_init__")
     dc_params = getattr(cls, "__dataclass_params__", None)
     dataclass_init_enabled = dc_params.init if dc_params else True
@@ -244,7 +239,7 @@ def _analyze_slot_strategy(cls: type) -> _SlotStrategy:
     else:
         load_strategy = nuked.LoadStrategy.Kwargs
 
-    return _SlotStrategy(load_strategy=load_strategy)
+    return load_strategy
 
 
 class _BuildContext:
@@ -269,8 +264,8 @@ class _BuildContext:
         if origin is None:
             if dataclasses.is_dataclass(cls):
                 opts = _analyze_dataclass_options(cls, naming_case)
-                slots = _analyze_slot_strategy(opts.cls)
-                return self.__build_dataclass_type(cls, naming_case, opts, slots)
+                load_strategy = _analyze_load_strategy(opts.cls)
+                return self.__build_dataclass_type(cls, naming_case, opts, load_strategy)
             field_handle = self.__build_item_field(cls, naming_case)
             return self.__builder.type_primitive(field_handle)
 
@@ -316,8 +311,8 @@ class _BuildContext:
 
         if dataclasses.is_dataclass(origin):
             opts = _analyze_dataclass_options(origin, naming_case)
-            slots = _analyze_slot_strategy(opts.cls)
-            return self.__build_dataclass_type(cls, naming_case, opts, slots)
+            load_strategy = _analyze_load_strategy(opts.cls)
+            return self.__build_dataclass_type(cls, naming_case, opts, load_strategy)
 
         raise TypeError(f"Unsupported root type: {cls}")
 
@@ -360,7 +355,7 @@ class _BuildContext:
         return field_handles, field_data_keys, pre_loads
 
     def __ensure_dataclass(
-        self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, slots: _SlotStrategy
+        self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, load_strategy: Any
     ) -> Any:
         if cls in self.__dataclass_handles:
             return self.__dataclass_handles[cls]
@@ -381,22 +376,22 @@ class _BuildContext:
             handle,
             opts.cls,
             field_handles,
-            load_strategy=slots.load_strategy,
+            load_strategy=load_strategy,
             ignore_none=self.__resolve_ignore_none(opts),
             pre_loads=pre_loads,
         )
         return handle
 
     def __build_dataclass_type(
-        self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, slots: _SlotStrategy
+        self, cls: Any, naming_case: NamingCase | None, opts: _DataclassOptions, load_strategy: Any
     ) -> Any:
-        handle = self.__ensure_dataclass(cls, naming_case, opts, slots)
+        handle = self.__ensure_dataclass(cls, naming_case, opts, load_strategy)
         return self.__builder.type_dataclass(handle)
 
     def __build_nested_dataclass(self, cls: Any, naming_case: NamingCase | None) -> Any:
         opts = _analyze_dataclass_options(cls, naming_case)
-        slots = _analyze_slot_strategy(opts.cls)
-        return self.__ensure_dataclass(cls, naming_case, opts, slots)
+        load_strategy = _analyze_load_strategy(opts.cls)
+        return self.__ensure_dataclass(cls, naming_case, opts, load_strategy)
 
     def __build_field(
         self,
