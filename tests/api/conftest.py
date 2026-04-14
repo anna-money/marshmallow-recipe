@@ -282,6 +282,11 @@ def impl(request: pytest.FixtureRequest) -> Serializer:
     return request.param
 
 
+@pytest.fixture(params=[NukedSerializer(), NukedSchemaSerializer()], ids=["nuked", "nuked_schema"])
+def nuked_impl(request: pytest.FixtureRequest) -> Serializer:
+    return request.param
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class ValueOf[T]:
     value: T

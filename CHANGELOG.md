@@ -36,6 +36,7 @@
 * [Add `int_meta`/`float_meta` with range validation (`gt`, `gte`, `lt`, `lte`) support](https://github.com/anna-money/marshmallow-recipe/pull/277)
 * [Add string `"0"`/`"1"` support to nuked bool deserialization](https://github.com/anna-money/marshmallow-recipe/pull/280)
 * [Fix `None` handling in multi-type unions (e.g. `dict | str | None`) in nuked](https://github.com/anna-money/marshmallow-recipe/pull/279)
+* [Fix segfault when dumping MagicMock objects via direct slot access](https://github.com/anna-money/marshmallow-recipe/pull/278)
 
 
 ## v0.0.86 (2026-03-06)
