@@ -16,5 +16,6 @@ fn _nuked(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<builder::DataclassHandle>()?;
     m.add_class::<builder::TypeHandle>()?;
     m.add_class::<builder::Container>()?;
+    m.add_class::<container::LoadStrategy>()?;
     Ok(())
 }

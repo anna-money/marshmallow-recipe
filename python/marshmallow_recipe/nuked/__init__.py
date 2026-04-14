@@ -145,8 +145,7 @@ class _DataclassOptions:
 
 @dataclasses.dataclass(slots=True, kw_only=True)
 class _SlotStrategy:
-    can_use_direct_slots: bool
-    can_use_direct_dict: bool
+    load_strategy: Any
     has_post_init: bool
 
 
@@ -239,11 +238,14 @@ def _analyze_slot_strategy(cls: type) -> _SlotStrategy:
     all_have_slots = all("__slots__" in klass.__dict__ for klass in dataclass_bases)
     none_have_slots = not any("__slots__" in klass.__dict__ for klass in dataclass_bases)
 
-    return _SlotStrategy(
-        can_use_direct_slots=all_have_slots and common,
-        can_use_direct_dict=none_have_slots and common,
-        has_post_init=has_post_init,
-    )
+    if all_have_slots and common:
+        load_strategy = nuked.LoadStrategy.DirectSlots
+    elif none_have_slots and common:
+        load_strategy = nuked.LoadStrategy.DirectDict
+    else:
+        load_strategy = nuked.LoadStrategy.Kwargs
+
+    return _SlotStrategy(load_strategy=load_strategy, has_post_init=has_post_init)
 
 
 class _BuildContext:
@@ -380,8 +382,7 @@ class _BuildContext:
             handle,
             opts.cls,
             field_handles,
-            can_use_direct_slots=slots.can_use_direct_slots,
-            can_use_direct_dict=slots.can_use_direct_dict,
+            load_strategy=slots.load_strategy,
             has_post_init=slots.has_post_init,
             ignore_none=self.__resolve_ignore_none(opts),
             pre_loads=pre_loads,

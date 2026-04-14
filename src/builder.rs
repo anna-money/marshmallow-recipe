@@ -1006,16 +1006,14 @@ impl ContainerBuilder {
         DataclassHandle(idx)
     }
 
-    #[allow(clippy::fn_params_excessive_bools)]
-    #[pyo3(signature = (handle, cls, fields, *, can_use_direct_slots=false, can_use_direct_dict=false, has_post_init=false, ignore_none=true, pre_loads=vec![]))]
+    #[pyo3(signature = (handle, cls, fields, *, load_strategy=LoadStrategy::Kwargs, has_post_init=false, ignore_none=true, pre_loads=vec![]))]
     fn finalize_dataclass(
         &mut self,
         py: Python<'_>,
         handle: DataclassHandle,
         cls: Py<PyAny>,
         fields: Vec<FieldHandle>,
-        can_use_direct_slots: bool,
-        can_use_direct_dict: bool,
+        load_strategy: LoadStrategy,
         has_post_init: bool,
         ignore_none: bool,
         pre_loads: Vec<Py<PyAny>>,
@@ -1024,8 +1022,7 @@ impl ContainerBuilder {
             py,
             cls,
             fields,
-            can_use_direct_slots,
-            can_use_direct_dict,
+            load_strategy,
             has_post_init,
             ignore_none,
             pre_loads,
@@ -1153,25 +1150,16 @@ impl ContainerBuilder {
         TypeHandle(idx)
     }
 
-    #[allow(clippy::fn_params_excessive_bools)]
     fn __build_dataclass_container(
         &self,
         py: Python<'_>,
         cls: Py<PyAny>,
         fields: Vec<FieldHandle>,
-        can_use_direct_slots: bool,
-        can_use_direct_dict: bool,
+        load_strategy: LoadStrategy,
         has_post_init: bool,
         ignore_none: bool,
         pre_loads: Vec<Py<PyAny>>,
     ) -> PyResult<DataclassContainer> {
-        let load_strategy = if can_use_direct_slots {
-            LoadStrategy::DirectSlots
-        } else if can_use_direct_dict {
-            LoadStrategy::DirectDict
-        } else {
-            LoadStrategy::Kwargs
-        };
         let mut container =
             DataclassContainer::new(cls, load_strategy, has_post_init, ignore_none, pre_loads);
 

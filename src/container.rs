@@ -4,6 +4,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyString;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[pyclass(eq, eq_int, from_py_object)]
 pub enum LoadStrategy {
     DirectSlots,
     DirectDict,
