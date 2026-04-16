@@ -201,7 +201,7 @@ fn extract_regexp_bound(
             .unbind()
     });
     Ok(Some(RegexpBound {
-        pattern: Box::new(compiled),
+        pattern: compiled,
         error,
     }))
 }
