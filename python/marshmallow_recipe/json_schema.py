@@ -281,6 +281,9 @@ def __build_leaf(
     if field_type is str:
         schema["type"] = __nullable_type("string", nullable)
         __apply_length(schema, metadata, item=False)
+        regexp = metadata.get("regexp")
+        if regexp is not None:
+            schema["pattern"] = regexp
         return schema
 
     if field_type is int:
