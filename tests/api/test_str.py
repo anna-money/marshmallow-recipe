@@ -1,3 +1,4 @@
+import dataclasses
 import re
 
 import marshmallow
@@ -602,3 +603,38 @@ class TestStrMetaValidation:
     def test_invalid_regexp_raises(self) -> None:
         with pytest.raises(re.error):
             mr.str_meta(regexp="[invalid")
+
+
+class TestStrRegexpFeatureParity:
+    @pytest.mark.parametrize(
+        ("regexp", "value", "should_pass"),
+        [
+            pytest.param(r"^\d+$", "123", True, id="anchored_pass"),
+            pytest.param(r"^\d+$", "abc", False, id="anchored_fail"),
+            pytest.param(r"\d+", "123abc", True, id="unanchored_match_at_start"),
+            pytest.param(r"\d+", "abc123", False, id="unanchored_match_not_at_start"),
+            pytest.param(r"\d+", "abc", False, id="unanchored_no_match"),
+            pytest.param(r"(?=.*\d).+", "abc123", True, id="lookahead_pass"),
+            pytest.param(r"(?=.*\d).+", "abc", False, id="lookahead_fail"),
+            pytest.param(r"(?!foo).*", "bar", True, id="negative_lookahead_pass"),
+            pytest.param(r"(?!foo).*", "foobar", False, id="negative_lookahead_fail"),
+            pytest.param(r"(?<=^)\d+", "123abc", True, id="lookbehind_pass"),
+            pytest.param(r"(?<=^)\d+", "abc", False, id="lookbehind_fail"),
+            pytest.param(r"(a)b\1", "aba", True, id="backreference_pass"),
+            pytest.param(r"(a)b\1", "abb", False, id="backreference_fail"),
+            pytest.param(r"^\w+$", "café", True, id="unicode_word_pass"),
+            pytest.param(r"^\w+$", "café!", False, id="unicode_word_fail"),
+            pytest.param(r"^[(?=]+$", "(?=", True, id="literal_in_charclass_pass"),
+            pytest.param(r"^[(?=]+$", "abc", False, id="literal_in_charclass_fail"),
+        ],
+    )
+    def test_regexp_feature_parity(self, impl: Serializer, regexp: str, value: str, should_pass: bool) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: str = dataclasses.field(metadata=mr.str_meta(regexp=regexp))
+
+        if should_pass:
+            impl.dump(DC, DC(value=value))
+        elif impl.supports_proper_validation_errors_on_dump:
+            with pytest.raises(marshmallow.ValidationError):
+                impl.dump(DC, DC(value=value))

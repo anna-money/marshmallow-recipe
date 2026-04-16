@@ -5,7 +5,7 @@ use crate::error::SerializationError;
 use crate::fields::length::{LengthBound, validate_length};
 
 pub struct RegexpBound {
-    pub pattern: regex::Regex,
+    pub pattern: Box<fancy_regex::Regex>,
     pub error: Py<PyString>,
 }
 
@@ -23,10 +23,15 @@ fn validate_regexp(
     s: &str,
     regexp: Option<&RegexpBound>,
 ) -> Result<(), SerializationError> {
-    if let Some(bound) = regexp
-        && bound.pattern.find(s).is_none_or(|m| m.start() != 0)
-    {
-        return Err(SerializationError::Single(bound.error.clone_ref(py)));
+    if let Some(bound) = regexp {
+        let matched_at_start = bound
+            .pattern
+            .find(s)
+            .map_err(|e| SerializationError::simple(py, &e.to_string()))?
+            .is_some_and(|m| m.start() == 0);
+        if !matched_at_start {
+            return Err(SerializationError::Single(bound.error.clone_ref(py)));
+        }
     }
     Ok(())
 }
