@@ -5,7 +5,7 @@ use crate::error::SerializationError;
 use crate::fields::length::{LengthBound, validate_length};
 
 pub struct RegexpBound {
-    pub pattern: Box<fancy_regex::Regex>,
+    pub pattern: fancy_regex::Regex,
     pub error: Py<PyString>,
 }
 
