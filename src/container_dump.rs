@@ -27,6 +27,7 @@ impl FieldContainer {
                 strip_whitespaces,
                 min_length,
                 max_length,
+                regexp,
                 ..
             } => str_type::dump_to_py(
                 value,
@@ -35,6 +36,7 @@ impl FieldContainer {
                 &common.invalid_error,
                 min_length.as_ref(),
                 max_length.as_ref(),
+                regexp.as_ref(),
             ),
             Self::Int {
                 gt, gte, lt, lte, ..

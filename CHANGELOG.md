@@ -1,3 +1,8 @@
+## unreleased
+
+* Add `regexp` parameter to `str_meta()` for built-in string pattern validation with Rust acceleration
+
+
 ## v0.0.99 (2026-06-24)
 
 * [Bump PyO3 to 0.29](https://github.com/anna-money/marshmallow-recipe/pull/308)

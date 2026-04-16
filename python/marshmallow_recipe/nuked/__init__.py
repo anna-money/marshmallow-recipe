@@ -133,6 +133,8 @@ class _FieldMetadata:
     min_length_error: str | None = None
     max_length: int | None = None
     max_length_error: str | None = None
+    str_regexp: str | None = None
+    str_regexp_error: str | None = None
 
 
 @dataclasses.dataclass(slots=True, kw_only=True)
@@ -448,6 +450,8 @@ class _BuildContext:
         field_min_length_error: str | None = None
         field_max_length: int | None = None
         field_max_length_error: str | None = None
+        str_regexp: str | None = None
+        str_regexp_error: str | None = None
 
         if metadata:
             data_key = metadata.get("name")
@@ -495,6 +499,10 @@ class _BuildContext:
             field_min_length_error = metadata.get("min_length_error")
             field_max_length = metadata.get("max_length")
             field_max_length_error = metadata.get("max_length_error")
+            if "regexp" in metadata:
+                str_regexp = metadata["regexp"]
+            if "regexp_error" in metadata:
+                str_regexp_error = metadata["regexp_error"]
 
         while isinstance(field_type, TypeAliasType):
             field_type = field_type.__value__
@@ -562,6 +570,10 @@ class _BuildContext:
                         field_max_length = arg["max_length"]
                     if "max_length_error" in arg:
                         field_max_length_error = arg["max_length_error"]
+                    if "regexp" in arg:
+                        str_regexp = arg["regexp"]
+                    if "regexp_error" in arg:
+                        str_regexp_error = arg["regexp_error"]
             origin = get_origin(field_type)
             args = get_args(field_type)
 
@@ -640,6 +652,8 @@ class _BuildContext:
             min_length_error=field_min_length_error,
             max_length=field_max_length,
             max_length_error=field_max_length_error,
+            str_regexp=str_regexp,
+            str_regexp_error=str_regexp_error,
         )
 
         field_handle = self.__build_field_by_type(
@@ -777,6 +791,10 @@ class _BuildContext:
                 kwargs["max_length"] = field_metadata.max_length
             if field_metadata.max_length_error is not None:
                 kwargs["max_length_error"] = field_metadata.max_length_error
+            if field_metadata.str_regexp is not None:
+                kwargs["regexp"] = field_metadata.str_regexp
+            if field_metadata.str_regexp_error is not None:
+                kwargs["regexp_error"] = field_metadata.str_regexp_error
             return self.__builder.str_field(name, optional, **kwargs)
         if field_type is int:
             if field_metadata.int_gt is not None:

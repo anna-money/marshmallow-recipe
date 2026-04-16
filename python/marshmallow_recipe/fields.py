@@ -28,6 +28,8 @@ def str_field(
     min_length_error: str | None = None,
     max_length: int | None = None,
     max_length_error: str | None = None,
+    regexp: str | None = None,
+    regexp_error: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     strip_whitespaces: bool = False,
     post_load: collections.abc.Callable[[str], str] | None = None,
@@ -41,6 +43,9 @@ def str_field(
         validate = combine_validators(validate, m.validate.Length(min=min_length, error=min_length_error))
     if max_length is not None:
         validate = combine_validators(validate, m.validate.Length(max=max_length, error=max_length_error))
+    if regexp is not None:
+        error = regexp_error or "String does not match expected pattern."
+        validate = combine_validators(validate, m.validate.Regexp(regex=regexp, error=error))
     if default is m.missing:
         return StrField(
             allow_none=allow_none,
