@@ -128,7 +128,9 @@ def str_metadata(
         min_length_error: Custom error for min_length violation. Supports ``{min}`` placeholder.
         max_length: Maximum string length (character count).
         max_length_error: Custom error for max_length violation. Supports ``{max}`` placeholder.
-        regexp: Regular expression pattern the string must match (from the start, like ``re.match``).
+        regexp: Regular expression pattern the string must match from the start (like ``re.match``,
+            not ``re.search``). The Rust-accelerated path uses the ``regex`` crate which does not
+            support look-around or backreferences.
         regexp_error: Custom error when regexp validation fails.
         validate: Validation function or list of functions applied on load.
         strip_whitespaces: If True, strip leading/trailing whitespace on load.

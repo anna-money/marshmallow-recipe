@@ -231,7 +231,13 @@ class TestStrDump:
                 WithStrRegexpUnanchored,
                 WithStrRegexpUnanchored(value="abc"),
                 {"value": ["String does not match expected pattern."]},
-                id="regexp_unanchored",
+                id="regexp_unanchored_no_match",
+            ),
+            pytest.param(
+                WithStrRegexpUnanchored,
+                WithStrRegexpUnanchored(value="abc123"),
+                {"value": ["String does not match expected pattern."]},
+                id="regexp_unanchored_match_not_at_start",
             ),
             pytest.param(
                 WithStrRegexpError,
@@ -486,7 +492,13 @@ class TestStrLoad:
                 WithStrRegexpUnanchored,
                 b'{"value":"abc"}',
                 {"value": ["String does not match expected pattern."]},
-                id="regexp_unanchored",
+                id="regexp_unanchored_no_match",
+            ),
+            pytest.param(
+                WithStrRegexpUnanchored,
+                b'{"value":"abc123"}',
+                {"value": ["String does not match expected pattern."]},
+                id="regexp_unanchored_match_not_at_start",
             ),
             pytest.param(
                 WithStrRegexpError, b'{"value":"abc"}', {"value": ["Must be digits"]}, id="regexp_custom_error"

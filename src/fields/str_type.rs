@@ -24,7 +24,7 @@ fn validate_regexp(
     regexp: Option<&RegexpBound>,
 ) -> Result<(), SerializationError> {
     if let Some(bound) = regexp
-        && !bound.pattern.is_match_at(s, 0)
+        && bound.pattern.find(s).is_none_or(|m| m.start() != 0)
     {
         return Err(SerializationError::Single(bound.error.clone_ref(py)));
     }
