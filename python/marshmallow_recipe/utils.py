@@ -1,4 +1,5 @@
 import decimal
+import re
 
 from .missing import MISSING
 
@@ -80,6 +81,7 @@ def validate_str_regexp(value: str | None) -> None:
         return
     if not isinstance(value, str):  # type: ignore[reportUnnecessaryIsInstance]
         raise TypeError(f"regexp must be str, got {type(value).__name__}")
+    re.compile(value)
 
 
 SUPPORTED_DATETIME_FORMATS: frozenset[str] = frozenset({"iso", "timestamp"})

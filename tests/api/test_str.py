@@ -1,4 +1,4 @@
-import dataclasses
+import re
 
 import marshmallow
 import pytest
@@ -599,12 +599,6 @@ class TestStrMetaValidation:
         with pytest.raises(TypeError, match="regexp must be str, got bool"):
             mr.str_meta(regexp=True)  # type: ignore[reportArgumentType]
 
-    def test_invalid_regexp_at_build_time(self, impl: Serializer) -> None:
-        import re
-
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class WithInvalidRegexp:
-            value: str = dataclasses.field(metadata=mr.str_meta(regexp="[invalid"))
-
-        with pytest.raises((re.error, ValueError)):
-            impl.load(WithInvalidRegexp, b'{"value":"test"}')
+    def test_invalid_regexp_raises(self) -> None:
+        with pytest.raises(re.error):
+            mr.str_meta(regexp="[invalid")
