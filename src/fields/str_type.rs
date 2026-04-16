@@ -73,21 +73,28 @@ pub fn load_from_py(
         }
         (result, char_count)
     } else {
-        (value.clone().unbind(), py_string_char_count(py_str))
+        let char_count = py_string_char_count(py_str);
+        if post_load.is_none() {
+            validate_length(py, char_count, min_length, max_length)?;
+            if regexp.is_some() {
+                let s = py_str
+                    .to_str()
+                    .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
+                validate_regexp(py, s, regexp)?;
+            }
+            return Ok(value.clone().unbind());
+        }
+        (value.clone().unbind(), char_count)
     };
 
-    let (result, char_count) = if let Some(post_load_fn) = post_load {
-        let post_result = post_load_fn
-            .call1(py, (&result,))
-            .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-        let count = post_result
-            .bind(py)
-            .cast::<PyString>()
-            .map_or(char_count, |s| py_string_char_count(s));
-        (post_result, count)
-    } else {
-        (result, char_count)
-    };
+    let post_load_fn = post_load.expect("post_load must be Some here");
+    let result = post_load_fn
+        .call1(py, (&result,))
+        .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+    let char_count = result
+        .bind(py)
+        .cast::<PyString>()
+        .map_or(char_count, |s| py_string_char_count(s));
 
     validate_length(py, char_count, min_length, max_length)?;
 
