@@ -15,6 +15,7 @@ use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::DateTimeFormat;
 use crate::fields::length::LengthBound;
 use crate::fields::range::RangeBound;
+use crate::fields::str_type::RegexpBound;
 
 pub struct FieldCommon {
     pub optional: bool,
@@ -152,6 +153,7 @@ pub enum FieldContainer {
         post_load: Option<Py<PyAny>>,
         min_length: Option<LengthBound>,
         max_length: Option<LengthBound>,
+        regexp: Option<RegexpBound>,
     },
     Int {
         common: FieldCommon,
@@ -252,12 +254,14 @@ impl Clone for FieldContainer {
                 post_load,
                 min_length,
                 max_length,
+                regexp,
             } => Self::Str {
                 common: common.clone(),
                 strip_whitespaces: *strip_whitespaces,
                 post_load: post_load.as_ref().map(|v| v.clone_ref(py)),
                 min_length: min_length.clone(),
                 max_length: max_length.clone(),
+                regexp: regexp.clone(),
             },
             Self::Int {
                 common,
@@ -427,11 +431,13 @@ impl std::fmt::Debug for FieldContainer {
             Self::Str {
                 strip_whitespaces,
                 post_load,
+                regexp,
                 ..
             } => f
                 .debug_struct("Str")
                 .field("strip_whitespaces", strip_whitespaces)
                 .field("has_post_load", &post_load.is_some())
+                .field("has_regexp", &regexp.is_some())
                 .finish(),
             Self::Int { .. } => write!(f, "Int"),
             Self::Float { .. } => write!(f, "Float"),

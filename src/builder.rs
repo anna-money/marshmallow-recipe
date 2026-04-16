@@ -14,6 +14,7 @@ use crate::fields::datetime::parse_datetime_format;
 use crate::fields::decimal::get_decimal_cls;
 use crate::fields::length::LengthBound;
 use crate::fields::range::RangeBound;
+use crate::fields::str_type::RegexpBound;
 
 #[pyclass]
 pub struct Container {
@@ -179,6 +180,29 @@ fn extract_length_bound(
     });
     Ok(Some(LengthBound {
         value: bound_value,
+        error,
+    }))
+}
+
+fn extract_regexp_bound(
+    py: Python<'_>,
+    kwargs: &Bound<'_, PyAny>,
+    pattern_key: &str,
+    error_key: &str,
+) -> PyResult<Option<RegexpBound>> {
+    let pattern_str = extract_optional_string(kwargs, pattern_key)?;
+    let Some(s) = pattern_str else {
+        return Ok(None);
+    };
+    let compiled = regex::Regex::new(&s)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+    let error = extract_optional_py_string(kwargs, error_key)?.unwrap_or_else(|| {
+        intern!(py, "String does not match expected pattern.")
+            .clone()
+            .unbind()
+    });
+    Ok(Some(RegexpBound {
+        pattern: compiled,
         error,
     }))
 }
@@ -381,12 +405,14 @@ impl ContainerBuilder {
                 min.value, max.value
             )));
         }
+        let regexp = extract_regexp_bound(py, &kwargs, "regexp", "regexp_error")?;
         let container = FieldContainer::Str {
             common,
             strip_whitespaces,
             post_load,
             min_length,
             max_length,
+            regexp,
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
