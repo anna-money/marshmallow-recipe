@@ -953,6 +953,31 @@ class WithStrMaxLengthError:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrRegexp:
+    value: str = dataclasses.field(metadata=mr.str_meta(regexp=r"^\d+$"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrRegexpUnanchored:
+    value: str = dataclasses.field(metadata=mr.str_meta(regexp=r"\d+"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrRegexpError:
+    value: str = dataclasses.field(metadata=mr.str_meta(regexp=r"^\d+$", regexp_error="Must be digits"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrStripAndRegexp:
+    value: str = dataclasses.field(metadata=mr.str_meta(strip_whitespaces=True, regexp=r"^[a-z]+$"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrLengthAndRegexp:
+    value: str = dataclasses.field(metadata=mr.str_meta(min_length=2, max_length=10, regexp=r"^[a-z]+$"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithIntRequiredError:
     value: int = dataclasses.field(metadata=mr.meta(required_error="Custom required message"))
 

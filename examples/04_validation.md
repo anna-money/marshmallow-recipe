@@ -430,6 +430,37 @@ profile_dict = mr.dump(profile)
 loaded_profile = mr.load(UserProfile, profile_dict)
 ```
 
+### String Regexp Validation
+
+Use the `regexp` parameter on `str_meta` for built-in regex validation (Rust-accelerated):
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ContactInfo:
+    # Username: 3-20 alphanumeric characters
+    username: Annotated[
+        str,
+        mr.str_meta(
+            min_length=3,
+            max_length=20,
+            regexp=r"^[a-zA-Z0-9]+$",
+            regexp_error="Username must be alphanumeric",
+        ),
+    ]
+
+    # Phone: international format
+    phone: Annotated[
+        str,
+        mr.str_meta(regexp=r"^\+?[1-9]\d{1,14}$", regexp_error="Invalid phone number"),
+    ]
+
+
+contact = ContactInfo(
+    username="johndoe",
+    phone="+15551234567",
+)
+```
+
 ## Combining Validation with Transformations
 
 Whitespace is stripped before validation:

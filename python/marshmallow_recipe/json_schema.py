@@ -238,6 +238,8 @@ def __convert_field_to_json_schema(
             schema["minLength"] = metadata["min_length"]
         if metadata.get("max_length") is not None:
             schema["maxLength"] = metadata["max_length"]
+        if metadata.get("regexp") is not None:
+            schema["pattern"] = metadata["regexp"]
     elif field_type is int:
         schema["type"] = "integer"
         if metadata.get("gt") is not None:

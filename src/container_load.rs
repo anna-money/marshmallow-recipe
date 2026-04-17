@@ -61,6 +61,7 @@ impl FieldContainer {
                 post_load,
                 min_length,
                 max_length,
+                regexp,
                 ..
             } => str_type::load_from_py(
                 value,
@@ -70,6 +71,7 @@ impl FieldContainer {
                 post_load.as_ref(),
                 min_length.as_ref(),
                 max_length.as_ref(),
+                regexp.as_ref(),
             ),
             Self::Int {
                 gt, gte, lt, lte, ..

@@ -1,3 +1,7 @@
+## unreleased
+
+* [Add `regexp` parameter to `str_meta()` for built-in string pattern validation with Rust acceleration](https://github.com/anna-money/marshmallow-recipe/pull/300)
+
 ## v0.0.94 (2026-04-14)
 
 * [Add direct `__dict__` load for non-slots dataclasses](https://github.com/anna-money/marshmallow-recipe/pull/299)

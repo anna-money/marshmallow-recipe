@@ -11,6 +11,7 @@ from .utils import (
     validate_float_bound,
     validate_int_bound,
     validate_length_bound,
+    validate_str_regexp,
 )
 from .validation import ValidationFunc
 
@@ -109,6 +110,8 @@ def str_metadata(
     min_length_error: str | None = None,
     max_length: int | None = None,
     max_length_error: str | None = None,
+    regexp: str | None = None,
+    regexp_error: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
     strip_whitespaces: bool | None = None,
     post_load: collections.abc.Callable[[str], str] | None = None,
@@ -116,7 +119,7 @@ def str_metadata(
     none_error: str | None = None,
     invalid_error: str | None = None,
 ) -> Metadata:
-    """Configure string field serialization with length validation.
+    """Configure string field serialization with length and regexp validation.
 
     Args:
         name: Override serialized field name.
@@ -125,6 +128,9 @@ def str_metadata(
         min_length_error: Custom error for min_length violation. Supports ``{min}`` placeholder.
         max_length: Maximum string length (character count).
         max_length_error: Custom error for max_length violation. Supports ``{max}`` placeholder.
+        regexp: Regular expression pattern the string must match from the start (like ``re.match``,
+            not ``re.search``).
+        regexp_error: Custom error when regexp validation fails.
         validate: Validation function or list of functions applied on load.
         strip_whitespaces: If True, strip leading/trailing whitespace on load.
         post_load: Callable applied to the string value after deserialization.
@@ -134,6 +140,7 @@ def str_metadata(
     """
     validate_length_bound(min_length, "min_length")
     validate_length_bound(max_length, "max_length")
+    validate_str_regexp(regexp)
     if min_length is not None and max_length is not None and min_length > max_length:
         raise ValueError(f"min_length {min_length} must be less than or equal to max_length {max_length}")
     values = dict[str, Any]()
@@ -149,6 +156,10 @@ def str_metadata(
         values.update(max_length=max_length)
     if max_length_error is not None:
         values.update(max_length_error=max_length_error.format(max=max_length))
+    if regexp is not None:
+        values.update(regexp=regexp)
+    if regexp_error is not None:
+        values.update(regexp_error=regexp_error)
     if validate is not None:
         values.update(validate=validate)
     if strip_whitespaces is not None:
