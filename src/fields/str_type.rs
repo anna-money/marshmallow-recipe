@@ -96,17 +96,17 @@ pub fn load_from_py(
     let result = post_load_fn
         .call1(py, (&result,))
         .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-    let char_count = result
-        .bind(py)
-        .cast::<PyString>()
+    let result_bound = result.bind(py);
+    let result_py_str = result_bound.cast::<PyString>();
+
+    let char_count = result_py_str
+        .as_ref()
         .map_or(char_count, |s| py_string_char_count(s));
 
     validate_length(py, char_count, min_length, max_length)?;
 
     if regexp.is_some() {
-        let s = result
-            .bind(py)
-            .cast::<PyString>()
+        let s = result_py_str
             .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?
             .to_str()
             .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
