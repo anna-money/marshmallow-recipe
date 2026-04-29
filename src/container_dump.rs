@@ -84,14 +84,24 @@ impl FieldContainer {
             Self::Bytes { .. } => bytes::dump_to_py(value, &common.invalid_error),
             Self::IntEnum {
                 common,
+                loader_data,
                 dumper_data,
-                ..
-            } => int_enum::dump_to_py(value, &dumper_data.enum_cls, &common.invalid_error),
+            } => int_enum::dump_to_py(
+                value,
+                loader_data,
+                &dumper_data.enum_cls,
+                &common.invalid_error,
+            ),
             Self::StrEnum {
                 common,
+                loader_data,
                 dumper_data,
-                ..
-            } => str_enum::dump_to_py(value, &dumper_data.enum_cls, &common.invalid_error),
+            } => str_enum::dump_to_py(
+                value,
+                loader_data,
+                &dumper_data.enum_cls,
+                &common.invalid_error,
+            ),
             Self::StrLiteral { common, data } => {
                 str_literal::dump_to_py(value, data, &common.invalid_error)
             }

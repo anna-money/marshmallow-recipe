@@ -1,3 +1,8 @@
+## v0.0.95 (2026-04-29)
+
+* [Support `Literal[<enum member>, ...]`: load returns the enum member, dump enforces subset](https://github.com/anna-money/marshmallow-recipe/pull/302)
+
+
 ## v0.0.94 (2026-04-14)
 
 * [Add direct `__dict__` load for non-slots dataclasses](https://github.com/anna-money/marshmallow-recipe/pull/299)

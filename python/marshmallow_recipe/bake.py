@@ -52,7 +52,7 @@ from .metadata import EMPTY_METADATA, Metadata, build_metadata, is_metadata
 from .missing import MISSING
 from .naming_case import NamingCase
 from .options import NoneValueHandling, try_get_options_for
-from .validation import wrap_validators
+from .validation import combine_validators, wrap_validators
 
 SchemaTypeKey = tuple[type, NamingCase | None, NoneValueHandling | None, int | None]
 
@@ -422,6 +422,20 @@ def _get_field_for(
 
         if origin is Literal:
             _validate_literal_values(arguments)
+            if all(isinstance(v, enum.Enum) for v in arguments):
+                enum_type = type(arguments[0])
+                subset_values = [v.value for v in arguments]
+                invalid_error = metadata.get("invalid_error") or f"Not a valid value. Allowed values: {subset_values}"
+                merged: dict[str, Any] = dict(metadata)
+                merged["invalid_error"] = invalid_error
+                merged["validate"] = combine_validators(
+                    merged.get("validate"), m.validate.OneOf(arguments, error=invalid_error)
+                )
+                merged["metadata"] = {"enum": subset_values, **merged.get("metadata", {})}
+                return with_type_checks_on_serialize(
+                    enum_field(enum_type=enum_type, required=required, allow_none=allow_none, **merged),
+                    type_guards=enum_type,
+                )
             return literal_field(values=arguments, required=required, allow_none=allow_none, **metadata)
 
     if t in _SIMPLE_TYPE_FIELD_FACTORIES:
@@ -444,6 +458,15 @@ def _get_field_for(
 def _validate_literal_values(values: tuple[Any, ...]) -> None:
     if not values:
         raise ValueError("Literal must have at least one value")
+    enum_count = sum(1 for v in values if isinstance(v, enum.Enum))
+    if enum_count:
+        if enum_count != len(values):
+            raise ValueError(f"Unsupported Literal values: {values}. Cannot mix enum members with primitives")
+        if len({type(v) for v in values}) > 1:
+            raise ValueError(
+                f"Unsupported Literal values: {values}. All enum members must belong to the same enum class"
+            )
+        return
     if all(isinstance(v, str) for v in values):
         return
     if all(isinstance(v, bool) for v in values):
