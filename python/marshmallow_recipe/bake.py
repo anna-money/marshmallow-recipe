@@ -458,9 +458,8 @@ def _get_field_for(
 def _validate_literal_values(values: tuple[Any, ...]) -> None:
     if not values:
         raise ValueError("Literal must have at least one value")
-    enum_count = sum(1 for v in values if isinstance(v, enum.Enum))
-    if enum_count:
-        if enum_count != len(values):
+    if any(isinstance(v, enum.Enum) for v in values):
+        if not all(isinstance(v, enum.Enum) for v in values):
             raise ValueError(f"Unsupported Literal values: {values}. Cannot mix enum members with primitives")
         if len({type(v) for v in values}) > 1:
             raise ValueError(
