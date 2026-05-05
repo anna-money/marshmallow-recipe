@@ -2,12 +2,11 @@ use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::PyString;
 
-use crate::container::StrEnumLoaderData;
 use crate::error::SerializationError;
 
 pub fn load_from_py(
     value: &Bound<'_, PyAny>,
-    data: &StrEnumLoaderData,
+    enum_values: &[(String, Py<PyAny>)],
     invalid_error: &Py<PyString>,
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
@@ -15,7 +14,7 @@ pub fn load_from_py(
     if let Ok(py_str) = value.cast::<PyString>()
         && let Ok(s) = py_str.to_str()
     {
-        for (k, member) in &data.values {
+        for (k, member) in enum_values {
             if k == s {
                 return Ok(member.clone_ref(py));
             }
@@ -27,7 +26,7 @@ pub fn load_from_py(
 
 pub fn dump_to_py(
     value: &Bound<'_, PyAny>,
-    values: &[(String, Py<PyAny>)],
+    enum_values: &[(String, Py<PyAny>)],
     enum_cls: &Py<PyAny>,
     invalid_error: &Py<PyString>,
 ) -> Result<Py<PyAny>, SerializationError> {
@@ -37,7 +36,10 @@ pub fn dump_to_py(
         return Err(SerializationError::Single(invalid_error.clone_ref(py)));
     }
 
-    if !values.iter().any(|(_, member)| value.is(member.bind(py))) {
+    if !enum_values
+        .iter()
+        .any(|(_, member)| value.is(member.bind(py)))
+    {
         return Err(SerializationError::Single(invalid_error.clone_ref(py)));
     }
 

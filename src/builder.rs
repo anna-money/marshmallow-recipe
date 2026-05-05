@@ -5,9 +5,8 @@ use pyo3::prelude::*;
 use pyo3::types::{PyList, PyString, PyTuple};
 
 use crate::container::{
-    BoolLiteralData, DataclassContainer, DataclassField, DataclassRegistry, EnumDumperData,
-    FieldCommon, FieldContainer, IntEnumLoaderData, IntLiteralData, LoadStrategy,
-    PrimitiveContainer, StrEnumLoaderData, StrLiteralData, TypeContainer,
+    DataclassContainer, DataclassField, DataclassRegistry, FieldCommon, FieldContainer,
+    LoadStrategy, PrimitiveContainer, TypeContainer,
 };
 use crate::fields::collection::CollectionKind;
 use crate::fields::datetime::parse_datetime_format;
@@ -708,8 +707,8 @@ impl ContainerBuilder {
 
         let container = FieldContainer::StrEnum {
             common,
-            loader_data: Box::new(StrEnumLoaderData { values }),
-            dumper_data: Box::new(EnumDumperData { enum_cls }),
+            enum_values: values,
+            enum_cls,
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
@@ -745,8 +744,8 @@ impl ContainerBuilder {
 
         let container = FieldContainer::IntEnum {
             common,
-            loader_data: Box::new(IntEnumLoaderData { values }),
-            dumper_data: Box::new(EnumDumperData { enum_cls }),
+            enum_values: values,
+            enum_cls,
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
@@ -771,9 +770,7 @@ impl ContainerBuilder {
 
         let container = FieldContainer::StrLiteral {
             common,
-            data: Box::new(StrLiteralData {
-                values: literal_values,
-            }),
+            values: literal_values,
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
@@ -801,10 +798,7 @@ impl ContainerBuilder {
             .map(|item| Ok(item.unbind()))
             .collect::<PyResult<_>>()?;
 
-        let container = FieldContainer::IntLiteral {
-            common,
-            data: Box::new(IntLiteralData { values }),
-        };
+        let container = FieldContainer::IntLiteral { common, values };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
         let idx = self.fields.len();
@@ -828,9 +822,7 @@ impl ContainerBuilder {
 
         let container = FieldContainer::BoolLiteral {
             common,
-            data: Box::new(BoolLiteralData {
-                values: literal_values,
-            }),
+            values: literal_values,
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
