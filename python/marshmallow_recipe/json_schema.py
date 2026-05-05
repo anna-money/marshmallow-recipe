@@ -208,7 +208,7 @@ def __convert_field_to_json_schema(
             schema["type"] = "boolean"
         elif literal_values and all(isinstance(v, int) and not isinstance(v, bool) for v in literal_values):
             schema["type"] = "integer"
-        schema["enum"] = list(literal_values)
+        schema["enum"] = [v.value if isinstance(v, enum.Enum) else v for v in literal_values]
         return schema
 
     underlying_union_types = __try_get_underlying_types_from_union(field_type)
@@ -225,7 +225,7 @@ def __convert_field_to_json_schema(
                     schema["type"] = "boolean"
                 elif literal_values and all(isinstance(v, int) and not isinstance(v, bool) for v in literal_values):
                     schema["type"] = "integer"
-                schema["enum"] = list(literal_values)
+                schema["enum"] = [v.value if isinstance(v, enum.Enum) else v for v in literal_values]
                 return schema
         elif len(non_none_types) > 1:
             schemas = [__convert_field_to_json_schema(t, EMPTY_METADATA, context) for t in non_none_types]

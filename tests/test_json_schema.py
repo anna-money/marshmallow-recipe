@@ -866,6 +866,42 @@ def test_literal_types() -> None:
     }
 
 
+class _LiteralStrDiscriminator(enum.StrEnum):
+    DOG = "DOG"
+    CAT = "CAT"
+
+
+class _LiteralIntDiscriminator(enum.IntEnum):
+    ONE = 1
+    TWO = 2
+
+
+def test_literal_enum_member_types() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class WithEnumLiterals:
+        str_enum_multi: Literal[_LiteralStrDiscriminator.DOG, _LiteralStrDiscriminator.CAT]
+        str_enum_single: Literal[_LiteralStrDiscriminator.DOG]
+        int_enum_multi: Literal[_LiteralIntDiscriminator.ONE, _LiteralIntDiscriminator.TWO]
+        int_enum_single: Literal[_LiteralIntDiscriminator.ONE]
+        optional_str_enum: Literal[_LiteralStrDiscriminator.DOG] | None = None
+
+    schema = mr.json_schema(WithEnumLiterals)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "WithEnumLiterals",
+        "properties": {
+            "str_enum_multi": {"type": "string", "enum": ["DOG", "CAT"]},
+            "str_enum_single": {"type": "string", "enum": ["DOG"]},
+            "int_enum_multi": {"type": "integer", "enum": [1, 2]},
+            "int_enum_single": {"type": "integer", "enum": [1]},
+            "optional_str_enum": {"type": "string", "enum": ["DOG"], "default": None},
+        },
+        "required": ["str_enum_multi", "str_enum_single", "int_enum_multi", "int_enum_single"],
+    }
+
+
 def test_bytes_field() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class WithBytes:

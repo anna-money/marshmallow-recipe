@@ -959,20 +959,31 @@ def enum_field(
     name: str | None = None,
     default: Any = dataclasses.MISSING,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
+    metadata: dict[str, Any] | None = None,
     required_error: str | None = None,
     none_error: str | None = None,
     invalid_error: str | None = None,
     description: str | None = None,
     **_: Any,
 ) -> marshmallow.fields.Field:
+    description_kwargs = dict(description_fields(description))
+    description_metadata = (
+        description_kwargs.pop("metadata") if isinstance(description_kwargs.get("metadata"), dict) else None
+    )
+    if description_metadata is not None:
+        merged_metadata: dict[str, Any] | None = {**description_metadata, **(metadata or {})}
+    else:
+        merged_metadata = dict(metadata) if metadata else None
+
     if default is m.missing:
         return EnumField(
             enum_type=enum_type,
             allow_none=allow_none,
             validate=validate,
+            metadata=merged_metadata,
             **default_fields(m.missing),
             **data_key_fields(name),
-            **description_fields(description),
+            **description_kwargs,
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -986,8 +997,9 @@ def enum_field(
             required=True,
             allow_none=allow_none,
             validate=validate,
+            metadata=merged_metadata,
             **data_key_fields(name),
-            **description_fields(description),
+            **description_kwargs,
             error_messages=build_error_messages(
                 required_error=required_error, none_error=none_error, invalid_error=invalid_error
             ),
@@ -997,9 +1009,10 @@ def enum_field(
         enum_type=enum_type,
         allow_none=allow_none,
         validate=validate,
+        metadata=merged_metadata,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
         **data_key_fields(name),
-        **description_fields(description),
+        **description_kwargs,
         error_messages=build_error_messages(
             required_error=required_error, none_error=none_error, invalid_error=invalid_error
         ),
@@ -1428,7 +1441,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             *,
             enum_type: type[enum.Enum],
             error_messages: dict[str, str] | None = None,
-            metadata: dict[str, str] | None = None,
+            metadata: dict[str, Any] | None = None,
             allow_none: bool = False,
             **kwargs: Any,
         ):
@@ -1443,7 +1456,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 enum_values.append(None)
             super().__init__(
                 error_messages=error_messages,
-                metadata={**(metadata or {}), "enum": enum_values},
+                metadata={"enum": enum_values, **(metadata or {})},
                 allow_none=allow_none,
                 **kwargs,
             )
@@ -1889,6 +1902,7 @@ else:
             *,
             enum_type: type[enum.Enum],
             error_messages: dict[str, str] | None = None,
+            metadata: dict[str, Any] | None = None,
             allow_none: bool = False,
             **kwargs: Any,
         ):
@@ -1898,8 +1912,9 @@ else:
                     **(error_messages or {}),
                     "invalid": f"Not a valid enum. Allowed values: {[e.value for e in enum_type]}",
                 }
-            enum_values: list[Any] = [e.value for e in enum_type]
-            if allow_none:
+            override_enum = (metadata or {}).get("enum")
+            enum_values: list[Any] = list(override_enum) if override_enum is not None else [e.value for e in enum_type]
+            if allow_none and None not in enum_values:
                 enum_values.append(None)
             super().__init__(error_messages=error_messages, allow_none=allow_none, **kwargs, enum=enum_values)
 

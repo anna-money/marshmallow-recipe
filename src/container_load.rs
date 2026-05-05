@@ -119,22 +119,22 @@ impl FieldContainer {
             Self::Bytes { .. } => bytes::load_from_py(value, &common.invalid_error),
             Self::StrEnum {
                 common,
-                loader_data,
+                enum_values,
                 ..
-            } => str_enum::load_from_py(value, loader_data, &common.invalid_error),
+            } => str_enum::load_from_py(value, enum_values, &common.invalid_error),
             Self::IntEnum {
                 common,
-                loader_data,
+                enum_values,
                 ..
-            } => int_enum::load_from_py(value, loader_data, &common.invalid_error),
-            Self::StrLiteral { common, data } => {
-                str_literal::load_from_py(value, data, &common.invalid_error)
+            } => int_enum::load_from_py(value, enum_values, &common.invalid_error),
+            Self::StrLiteral { common, values } => {
+                str_literal::load_from_py(value, values, &common.invalid_error)
             }
-            Self::IntLiteral { common, data } => {
-                int_literal::load_from_py(value, data, &common.invalid_error)
+            Self::IntLiteral { common, values } => {
+                int_literal::load_from_py(value, values, &common.invalid_error)
             }
-            Self::BoolLiteral { common, data } => {
-                bool_literal::load_from_py(value, data, &common.invalid_error)
+            Self::BoolLiteral { common, values } => {
+                bool_literal::load_from_py(value, values, &common.invalid_error)
             }
             Self::Any { .. } => Ok(any::load_from_py(value)),
             Self::Collection {

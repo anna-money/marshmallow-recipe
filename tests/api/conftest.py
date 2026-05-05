@@ -1631,6 +1631,137 @@ class WithBoolLiteralInvalidError:
     value: Literal[True, False] = dataclasses.field(metadata=mr.meta(invalid_error="Custom invalid message"))
 
 
+class StrDiscriminator(enum.StrEnum):
+    DOG = "DOG"
+    CAT = "CAT"
+    BIRD = "BIRD"
+
+
+class IntDiscriminator(enum.IntEnum):
+    ONE = 1
+    TWO = 2
+    THREE = 3
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrEnumLiteral:
+    value: Literal[StrDiscriminator.DOG, StrDiscriminator.CAT]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrEnumLiteralSingle:
+    value: Literal[StrDiscriminator.DOG]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalStrEnumLiteral:
+    value: Literal[StrDiscriminator.DOG, StrDiscriminator.CAT] | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrEnumLiteralDefault:
+    value: Literal[StrDiscriminator.DOG, StrDiscriminator.CAT] = StrDiscriminator.DOG
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrEnumLiteralMissing:
+    value: Literal[StrDiscriminator.DOG, StrDiscriminator.CAT] = mr.MISSING
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrEnumLiteralRequiredError:
+    value: Literal[StrDiscriminator.DOG, StrDiscriminator.CAT] = dataclasses.field(
+        metadata=mr.meta(required_error="Custom required message")
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrEnumLiteralNoneError:
+    value: Literal[StrDiscriminator.DOG, StrDiscriminator.CAT] = dataclasses.field(
+        metadata=mr.meta(none_error="Custom none message")
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrEnumLiteralInvalidError:
+    value: Literal[StrDiscriminator.DOG, StrDiscriminator.CAT] = dataclasses.field(
+        metadata=mr.meta(invalid_error="Custom invalid message")
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntEnumLiteral:
+    value: Literal[IntDiscriminator.ONE, IntDiscriminator.TWO]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntEnumLiteralSingle:
+    value: Literal[IntDiscriminator.ONE]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalIntEnumLiteral:
+    value: Literal[IntDiscriminator.ONE, IntDiscriminator.TWO] | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntEnumLiteralDefault:
+    value: Literal[IntDiscriminator.ONE, IntDiscriminator.TWO] = IntDiscriminator.ONE
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntEnumLiteralMissing:
+    value: Literal[IntDiscriminator.ONE, IntDiscriminator.TWO] = mr.MISSING
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntEnumLiteralRequiredError:
+    value: Literal[IntDiscriminator.ONE, IntDiscriminator.TWO] = dataclasses.field(
+        metadata=mr.meta(required_error="Custom required message")
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntEnumLiteralNoneError:
+    value: Literal[IntDiscriminator.ONE, IntDiscriminator.TWO] = dataclasses.field(
+        metadata=mr.meta(none_error="Custom none message")
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntEnumLiteralInvalidError:
+    value: Literal[IntDiscriminator.ONE, IntDiscriminator.TWO] = dataclasses.field(
+        metadata=mr.meta(invalid_error="Custom invalid message")
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithLegacyStrEnumLiteral:
+    value: Literal[Status.ACTIVE, Status.INACTIVE]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithLegacyIntEnumLiteral:
+    value: Literal[Priority.LOW, Priority.HIGH]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class DogVariant:
+    disc: Literal[StrDiscriminator.DOG]
+    value: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class CatVariant:
+    disc: Literal[StrDiscriminator.CAT]
+    value: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDiscriminatedUnion:
+    field: DogVariant | CatVariant
+
+
 type StrAlias = str
 type IntAlias = int
 type OptionalStrAlias = str | None

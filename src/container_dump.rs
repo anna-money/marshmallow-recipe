@@ -84,22 +84,22 @@ impl FieldContainer {
             Self::Bytes { .. } => bytes::dump_to_py(value, &common.invalid_error),
             Self::IntEnum {
                 common,
-                dumper_data,
-                ..
-            } => int_enum::dump_to_py(value, &dumper_data.enum_cls, &common.invalid_error),
+                enum_values,
+                enum_cls,
+            } => int_enum::dump_to_py(value, enum_values, enum_cls, &common.invalid_error),
             Self::StrEnum {
                 common,
-                dumper_data,
-                ..
-            } => str_enum::dump_to_py(value, &dumper_data.enum_cls, &common.invalid_error),
-            Self::StrLiteral { common, data } => {
-                str_literal::dump_to_py(value, data, &common.invalid_error)
+                enum_values,
+                enum_cls,
+            } => str_enum::dump_to_py(value, enum_values, enum_cls, &common.invalid_error),
+            Self::StrLiteral { common, values } => {
+                str_literal::dump_to_py(value, values, &common.invalid_error)
             }
-            Self::IntLiteral { common, data } => {
-                int_literal::dump_to_py(value, data, &common.invalid_error)
+            Self::IntLiteral { common, values } => {
+                int_literal::dump_to_py(value, values, &common.invalid_error)
             }
-            Self::BoolLiteral { common, data } => {
-                bool_literal::dump_to_py(value, data, &common.invalid_error)
+            Self::BoolLiteral { common, values } => {
+                bool_literal::dump_to_py(value, values, &common.invalid_error)
             }
             Self::Any { .. } => any::dump_to_py(value),
             Self::Collection {

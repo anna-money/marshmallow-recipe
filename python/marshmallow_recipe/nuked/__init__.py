@@ -879,6 +879,24 @@ class _BuildContext:
         if not values:
             raise ValueError("Literal must have at least one value")
 
+        if any(isinstance(v, enum.Enum) for v in values):
+            if not all(isinstance(v, enum.Enum) for v in values):
+                raise ValueError(f"Unsupported Literal values: {values}. Cannot mix enum members with primitives")
+            if len({type(v) for v in values}) > 1:
+                raise ValueError(
+                    f"Unsupported Literal values: {values}. All enum members must belong to the same enum class"
+                )
+            enum_cls = type(values[0])
+            subset_values = [v.value for v in values]
+            if "invalid_error" not in kwargs:
+                kwargs["invalid_error"] = f"Not a valid value. Allowed values: {subset_values}"
+            enum_values = [(member.value, member) for member in values]
+            if issubclass(enum_cls, str):
+                return self.__builder.str_enum_field(name, optional, enum_cls, enum_values, **kwargs)
+            if issubclass(enum_cls, int):
+                return self.__builder.int_enum_field(name, optional, enum_cls, enum_values, **kwargs)
+            raise NotImplementedError(f"Unsupported enum type in Literal: {enum_cls} (must inherit from str or int)")
+
         if "invalid_error" not in kwargs:
             kwargs["invalid_error"] = f"Not a valid value. Allowed values: {list(values)}"
 

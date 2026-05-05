@@ -4,8 +4,12 @@ import pytest
 import marshmallow_recipe as mr
 
 from .conftest import (
+    CatVariant,
+    DogVariant,
     Inner,
     Serializer,
+    StrDiscriminator,
+    WithDiscriminatedUnion,
     WithUnion,
     WithUnionDictDataclass,
     WithUnionDictStr,
@@ -365,3 +369,32 @@ class TestUnionErrors:
         data = b'{"value": "hello"}'
         result = impl.load(WithUnionDictDataclass, data)
         assert result == WithUnionDictDataclass(value="hello")
+
+
+class TestStrEnumLiteralDiscriminatedUnion:
+    def test_load_dog_variant(self, impl: Serializer) -> None:
+        data = b'{"field":{"disc":"DOG","value":42}}'
+        result = impl.load(WithDiscriminatedUnion, data)
+        assert result == WithDiscriminatedUnion(field=DogVariant(disc=StrDiscriminator.DOG, value=42))
+        assert result.field.disc is StrDiscriminator.DOG
+
+    def test_load_cat_variant(self, impl: Serializer) -> None:
+        data = b'{"field":{"disc":"CAT","value":"lol"}}'
+        result = impl.load(WithDiscriminatedUnion, data)
+        assert result == WithDiscriminatedUnion(field=CatVariant(disc=StrDiscriminator.CAT, value="lol"))
+        assert result.field.disc is StrDiscriminator.CAT
+
+    def test_load_unknown_discriminator(self, impl: Serializer) -> None:
+        data = b'{"field":{"disc":"BIRD","value":1}}'
+        with pytest.raises(marshmallow.ValidationError):
+            impl.load(WithDiscriminatedUnion, data)
+
+    def test_dump_dog_variant(self, impl: Serializer) -> None:
+        obj = WithDiscriminatedUnion(field=DogVariant(disc=StrDiscriminator.DOG, value=42))
+        result = impl.dump(WithDiscriminatedUnion, obj)
+        assert result == b'{"field":{"disc":"DOG","value":42}}'
+
+    def test_dump_cat_variant(self, impl: Serializer) -> None:
+        obj = WithDiscriminatedUnion(field=CatVariant(disc=StrDiscriminator.CAT, value="lol"))
+        result = impl.dump(WithDiscriminatedUnion, obj)
+        assert result == b'{"field":{"disc":"CAT","value":"lol"}}'

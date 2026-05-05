@@ -129,3 +129,96 @@ import marshmallow_recipe as mr
 # Loading invalid value raises ValidationError:
 # {"role": ["Not a valid value. Allowed values: ['user', 'assistant', 'system']"]}
 ```
+
+## Enum Member Literals
+
+`Literal[<enum member>, ...]` constrains a field to a specific subset of an
+`enum.StrEnum` or `enum.IntEnum`. Load returns the enum member; dump emits
+the member's `.value`. All members in a single `Literal[...]` must belong
+to the same enum class.
+
+```python
+import dataclasses
+import enum
+from typing import Literal
+
+import marshmallow_recipe as mr
+
+
+class Status(enum.StrEnum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    PENDING = "pending"
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Subscription:
+    status: Literal[Status.ACTIVE, Status.INACTIVE]
+
+
+loaded = mr.load(Subscription, {"status": "active"})
+# Subscription(status=<Status.ACTIVE: 'active'>)
+# loaded.status is Status.ACTIVE  # True
+
+data = mr.dump(Subscription, loaded)
+# {"status": "active"}
+
+# A member of the enum that is NOT in the literal subset is rejected
+# on both load and dump:
+# mr.load(Subscription, {"status": "pending"})
+# → ValidationError: {"status": ["Not a valid value. Allowed values: ['active', 'inactive']"]}
+```
+
+### IntEnum
+
+```python
+class HttpStatus(enum.IntEnum):
+    OK = 200
+    NOT_FOUND = 404
+    INTERNAL_ERROR = 500
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Response:
+    status: Literal[HttpStatus.OK, HttpStatus.NOT_FOUND]
+
+
+loaded = mr.load(Response, {"status": 200})
+# loaded.status is HttpStatus.OK  # True
+```
+
+### Discriminated Unions
+
+Pair `Literal[<enum member>]` fields with a union of dataclasses to
+implement discriminated unions:
+
+```python
+class Kind(enum.StrEnum):
+    DOG = "DOG"
+    CAT = "CAT"
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Dog:
+    kind: Literal[Kind.DOG]
+    age: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Cat:
+    kind: Literal[Kind.CAT]
+    name: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Pet:
+    animal: Dog | Cat
+
+
+mr.load(Pet, {"animal": {"kind": "CAT", "name": "Whiskers"}})
+# Pet(animal=Cat(kind=<Kind.CAT: 'CAT'>, name='Whiskers'))
+```
+
+`Literal[<enum>, "raw_str"]` (mixing enum members with primitives) and
+`Literal[A.X, B.Y]` (mixing classes) raise `ValueError` at schema-build
+time.

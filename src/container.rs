@@ -64,87 +64,7 @@ impl Clone for DataclassField {
     }
 }
 
-pub struct StrEnumLoaderData {
-    pub values: Vec<(String, Py<PyAny>)>,
-}
-
-impl Clone for StrEnumLoaderData {
-    fn clone(&self) -> Self {
-        Python::attach(|py| Self {
-            values: self
-                .values
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone_ref(py)))
-                .collect(),
-        })
-    }
-}
-
-pub struct IntEnumLoaderData {
-    pub values: Vec<(Py<PyAny>, Py<PyAny>)>,
-}
-
-impl Clone for IntEnumLoaderData {
-    fn clone(&self) -> Self {
-        Python::attach(|py| Self {
-            values: self
-                .values
-                .iter()
-                .map(|(k, v)| (k.clone_ref(py), v.clone_ref(py)))
-                .collect(),
-        })
-    }
-}
-
-pub struct StrLiteralData {
-    pub values: Vec<String>,
-}
-
-impl Clone for StrLiteralData {
-    fn clone(&self) -> Self {
-        Self {
-            values: self.values.clone(),
-        }
-    }
-}
-
-pub struct IntLiteralData {
-    pub values: Vec<Py<PyAny>>,
-}
-
-impl Clone for IntLiteralData {
-    fn clone(&self) -> Self {
-        Python::attach(|py| Self {
-            values: self.values.iter().map(|v| v.clone_ref(py)).collect(),
-        })
-    }
-}
-
-pub struct BoolLiteralData {
-    pub values: Vec<bool>,
-}
-
-impl Clone for BoolLiteralData {
-    fn clone(&self) -> Self {
-        Self {
-            values: self.values.clone(),
-        }
-    }
-}
-
-pub struct EnumDumperData {
-    pub enum_cls: Py<PyAny>,
-}
-
-impl Clone for EnumDumperData {
-    fn clone(&self) -> Self {
-        Python::attach(|py| Self {
-            enum_cls: self.enum_cls.clone_ref(py),
-        })
-    }
-}
-
-#[allow(clippy::use_self)]
+#[allow(clippy::use_self, clippy::large_enum_variant)]
 pub enum FieldContainer {
     Str {
         common: FieldCommon,
@@ -197,25 +117,25 @@ pub enum FieldContainer {
     },
     StrEnum {
         common: FieldCommon,
-        loader_data: Box<StrEnumLoaderData>,
-        dumper_data: Box<EnumDumperData>,
+        enum_values: Vec<(String, Py<PyAny>)>,
+        enum_cls: Py<PyAny>,
     },
     IntEnum {
         common: FieldCommon,
-        loader_data: Box<IntEnumLoaderData>,
-        dumper_data: Box<EnumDumperData>,
+        enum_values: Vec<(Py<PyAny>, Py<PyAny>)>,
+        enum_cls: Py<PyAny>,
     },
     StrLiteral {
         common: FieldCommon,
-        data: Box<StrLiteralData>,
+        values: Vec<String>,
     },
     IntLiteral {
         common: FieldCommon,
-        data: Box<IntLiteralData>,
+        values: Vec<Py<PyAny>>,
     },
     BoolLiteral {
         common: FieldCommon,
-        data: Box<BoolLiteralData>,
+        values: Vec<bool>,
     },
     Any {
         common: FieldCommon,
@@ -323,33 +243,39 @@ impl Clone for FieldContainer {
             },
             Self::StrEnum {
                 common,
-                loader_data,
-                dumper_data,
+                enum_values,
+                enum_cls,
             } => Self::StrEnum {
                 common: common.clone(),
-                loader_data: loader_data.clone(),
-                dumper_data: dumper_data.clone(),
+                enum_values: enum_values
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone_ref(py)))
+                    .collect(),
+                enum_cls: enum_cls.clone_ref(py),
             },
             Self::IntEnum {
                 common,
-                loader_data,
-                dumper_data,
+                enum_values,
+                enum_cls,
             } => Self::IntEnum {
                 common: common.clone(),
-                loader_data: loader_data.clone(),
-                dumper_data: dumper_data.clone(),
+                enum_values: enum_values
+                    .iter()
+                    .map(|(k, v)| (k.clone_ref(py), v.clone_ref(py)))
+                    .collect(),
+                enum_cls: enum_cls.clone_ref(py),
             },
-            Self::StrLiteral { common, data } => Self::StrLiteral {
+            Self::StrLiteral { common, values } => Self::StrLiteral {
                 common: common.clone(),
-                data: data.clone(),
+                values: values.clone(),
             },
-            Self::IntLiteral { common, data } => Self::IntLiteral {
+            Self::IntLiteral { common, values } => Self::IntLiteral {
                 common: common.clone(),
-                data: data.clone(),
+                values: values.iter().map(|v| v.clone_ref(py)).collect(),
             },
-            Self::BoolLiteral { common, data } => Self::BoolLiteral {
+            Self::BoolLiteral { common, values } => Self::BoolLiteral {
                 common: common.clone(),
-                data: data.clone(),
+                values: values.clone(),
             },
             Self::Any { common } => Self::Any {
                 common: common.clone(),
