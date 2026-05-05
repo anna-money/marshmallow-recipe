@@ -88,7 +88,7 @@ impl FieldContainer {
                 dumper_data,
             } => int_enum::dump_to_py(
                 value,
-                loader_data,
+                &loader_data.values,
                 &dumper_data.enum_cls,
                 &common.invalid_error,
             ),
@@ -98,7 +98,7 @@ impl FieldContainer {
                 dumper_data,
             } => str_enum::dump_to_py(
                 value,
-                loader_data,
+                &loader_data.values,
                 &dumper_data.enum_cls,
                 &common.invalid_error,
             ),

@@ -27,7 +27,7 @@ pub fn load_from_py(
 
 pub fn dump_to_py(
     value: &Bound<'_, PyAny>,
-    data: &StrEnumLoaderData,
+    values: &[(String, Py<PyAny>)],
     enum_cls: &Py<PyAny>,
     invalid_error: &Py<PyString>,
 ) -> Result<Py<PyAny>, SerializationError> {
@@ -37,11 +37,7 @@ pub fn dump_to_py(
         return Err(SerializationError::Single(invalid_error.clone_ref(py)));
     }
 
-    if !data
-        .values
-        .iter()
-        .any(|(_, member)| value.is(member.bind(py)))
-    {
+    if !values.iter().any(|(_, member)| value.is(member.bind(py))) {
         return Err(SerializationError::Single(invalid_error.clone_ref(py)));
     }
 
