@@ -1,4 +1,4 @@
-## v0.0.95 (2026-04-29)
+## v0.0.95 (2026-05-05)
 
 * [Support `Literal[<enum member>, ...]`: load returns the enum member, dump enforces subset](https://github.com/anna-money/marshmallow-recipe/pull/302)
 
