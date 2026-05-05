@@ -398,10 +398,3 @@ class TestStrEnumLiteralDiscriminatedUnion:
         obj = WithDiscriminatedUnion(field=CatVariant(disc=StrDiscriminator.CAT, value="lol"))
         result = impl.dump(WithDiscriminatedUnion, obj)
         assert result == b'{"field":{"disc":"CAT","value":"lol"}}'
-
-    def test_round_trip(self, impl: Serializer) -> None:
-        original = WithDiscriminatedUnion(field=CatVariant(disc=StrDiscriminator.CAT, value="lol"))
-        dumped = impl.dump(WithDiscriminatedUnion, original)
-        loaded = impl.load(WithDiscriminatedUnion, dumped)
-        assert loaded == original
-        assert loaded.field.disc is StrDiscriminator.CAT

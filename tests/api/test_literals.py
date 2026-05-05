@@ -22,6 +22,8 @@ from .conftest import (
     WithIntEnumLiteralDefault,
     WithIntEnumLiteralInvalidError,
     WithIntEnumLiteralMissing,
+    WithIntEnumLiteralNoneError,
+    WithIntEnumLiteralRequiredError,
     WithIntEnumLiteralSingle,
     WithIntLiteral,
     WithIntLiteralDefault,
@@ -574,8 +576,10 @@ class TestStrEnumLiteralDump:
 
     def test_invalid_type(self, impl: Serializer) -> None:
         obj = WithStrEnumLiteral(**{"value": "DOG"})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(WithStrEnumLiteral, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Not a valid value. Allowed values: ['DOG', 'CAT']"]}
 
     def test_custom_invalid_error(self, impl: Serializer) -> None:
         obj = WithStrEnumLiteralInvalidError(**{"value": StrDiscriminator.BIRD})  # type: ignore[arg-type]
@@ -595,11 +599,13 @@ class TestStrEnumLiteralLoad:
     def test_other_value(self, impl: Serializer) -> None:
         data = b'{"value":"DOG"}'
         result = impl.load(WithStrEnumLiteral, data)
+        assert result == WithStrEnumLiteral(value=StrDiscriminator.DOG)
         assert result.value is StrDiscriminator.DOG
 
     def test_single_value(self, impl: Serializer) -> None:
         data = b'{"value":"DOG"}'
         result = impl.load(WithStrEnumLiteralSingle, data)
+        assert result == WithStrEnumLiteralSingle(value=StrDiscriminator.DOG)
         assert result.value is StrDiscriminator.DOG
 
     def test_null(self, impl: Serializer) -> None:
@@ -616,6 +622,7 @@ class TestStrEnumLiteralLoad:
     def test_optional_value(self, impl: Serializer) -> None:
         data = b'{"value":"CAT"}'
         result = impl.load(WithOptionalStrEnumLiteral, data)
+        assert result == WithOptionalStrEnumLiteral(value=StrDiscriminator.CAT)
         assert result.value is StrDiscriminator.CAT
 
     def test_optional_missing_key(self, impl: Serializer) -> None:
@@ -626,6 +633,7 @@ class TestStrEnumLiteralLoad:
     def test_default(self, impl: Serializer) -> None:
         data = b"{}"
         result = impl.load(WithStrEnumLiteralDefault, data)
+        assert result == WithStrEnumLiteralDefault(value=StrDiscriminator.DOG)
         assert result.value is StrDiscriminator.DOG
 
     def test_subset_violation(self, impl: Serializer) -> None:
@@ -642,8 +650,9 @@ class TestStrEnumLiteralLoad:
 
     def test_wrong_type(self, impl: Serializer) -> None:
         data = b'{"value":123}'
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithStrEnumLiteral, data)
+        assert exc.value.messages == {"value": ["Not a valid value. Allowed values: ['DOG', 'CAT']"]}
 
     def test_missing_required(self, impl: Serializer) -> None:
         data = b"{}"
@@ -674,13 +683,6 @@ class TestStrEnumLiteralLoad:
             impl.load(WithStrEnumLiteralInvalidError, data)
         assert exc.value.messages == {"value": ["Custom invalid message"]}
 
-    def test_round_trip(self, impl: Serializer) -> None:
-        original = WithStrEnumLiteral(value=StrDiscriminator.CAT)
-        dumped = impl.dump(WithStrEnumLiteral, original)
-        loaded = impl.load(WithStrEnumLiteral, dumped)
-        assert loaded == original
-        assert loaded.value is StrDiscriminator.CAT
-
 
 class TestIntEnumLiteralDump:
     def test_value(self, impl: Serializer) -> None:
@@ -703,6 +705,11 @@ class TestIntEnumLiteralDump:
         result = impl.dump(WithOptionalIntEnumLiteral, obj)
         assert result == b"{}"
 
+    def test_optional_value(self, impl: Serializer) -> None:
+        obj = WithOptionalIntEnumLiteral(value=IntDiscriminator.ONE)
+        result = impl.dump(WithOptionalIntEnumLiteral, obj)
+        assert result == b'{"value":1}'
+
     def test_default(self, impl: Serializer) -> None:
         obj = WithIntEnumLiteralDefault()
         result = impl.dump(WithIntEnumLiteralDefault, obj)
@@ -713,12 +720,24 @@ class TestIntEnumLiteralDump:
         result = impl.dump(WithIntEnumLiteralMissing, obj)
         assert result == b"{}"
 
+    def test_missing_with_value(self, impl: Serializer) -> None:
+        obj = WithIntEnumLiteralMissing(value=IntDiscriminator.TWO)
+        result = impl.dump(WithIntEnumLiteralMissing, obj)
+        assert result == b'{"value":2}'
+
     def test_subset_violation(self, impl: Serializer) -> None:
         obj = WithIntEnumLiteralSingle(**{"value": IntDiscriminator.TWO})  # type: ignore[arg-type]
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(WithIntEnumLiteralSingle, obj)
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == {"value": ["Not a valid value. Allowed values: [1]"]}
+
+    def test_invalid_type(self, impl: Serializer) -> None:
+        obj = WithIntEnumLiteral(**{"value": 1})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithIntEnumLiteral, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Not a valid value. Allowed values: [1, 2]"]}
 
     def test_custom_invalid_error(self, impl: Serializer) -> None:
         obj = WithIntEnumLiteralInvalidError(**{"value": IntDiscriminator.THREE})  # type: ignore[arg-type]
@@ -738,7 +757,42 @@ class TestIntEnumLiteralLoad:
     def test_other_value(self, impl: Serializer) -> None:
         data = b'{"value":2}'
         result = impl.load(WithIntEnumLiteral, data)
+        assert result == WithIntEnumLiteral(value=IntDiscriminator.TWO)
         assert result.value is IntDiscriminator.TWO
+
+    def test_single_value(self, impl: Serializer) -> None:
+        data = b'{"value":1}'
+        result = impl.load(WithIntEnumLiteralSingle, data)
+        assert result == WithIntEnumLiteralSingle(value=IntDiscriminator.ONE)
+        assert result.value is IntDiscriminator.ONE
+
+    def test_null(self, impl: Serializer) -> None:
+        data = b'{"value":null}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithIntEnumLiteral, data)
+        assert exc.value.messages == {"value": ["Field may not be null."]}
+
+    def test_optional_null(self, impl: Serializer) -> None:
+        data = b'{"value":null}'
+        result = impl.load(WithOptionalIntEnumLiteral, data)
+        assert result == WithOptionalIntEnumLiteral(value=None)
+
+    def test_optional_value(self, impl: Serializer) -> None:
+        data = b'{"value":2}'
+        result = impl.load(WithOptionalIntEnumLiteral, data)
+        assert result == WithOptionalIntEnumLiteral(value=IntDiscriminator.TWO)
+        assert result.value is IntDiscriminator.TWO
+
+    def test_optional_missing_key(self, impl: Serializer) -> None:
+        data = b"{}"
+        result = impl.load(WithOptionalIntEnumLiteral, data)
+        assert result == WithOptionalIntEnumLiteral(value=None)
+
+    def test_default(self, impl: Serializer) -> None:
+        data = b"{}"
+        result = impl.load(WithIntEnumLiteralDefault, data)
+        assert result == WithIntEnumLiteralDefault(value=IntDiscriminator.ONE)
+        assert result.value is IntDiscriminator.ONE
 
     def test_subset_violation(self, impl: Serializer) -> None:
         data = b'{"value":3}'
@@ -754,45 +808,76 @@ class TestIntEnumLiteralLoad:
 
     def test_wrong_type(self, impl: Serializer) -> None:
         data = b'{"value":"not an int"}'
-        with pytest.raises(marshmallow.ValidationError):
+        with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithIntEnumLiteral, data)
+        assert exc.value.messages == {"value": ["Not a valid value. Allowed values: [1, 2]"]}
 
-    def test_round_trip(self, impl: Serializer) -> None:
-        original = WithIntEnumLiteral(value=IntDiscriminator.TWO)
-        dumped = impl.dump(WithIntEnumLiteral, original)
-        loaded = impl.load(WithIntEnumLiteral, dumped)
-        assert loaded == original
-        assert loaded.value is IntDiscriminator.TWO
+    def test_missing_required(self, impl: Serializer) -> None:
+        data = b"{}"
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithIntEnumLiteral, data)
+        assert exc.value.messages == {"value": ["Missing data for required field."]}
+
+    def test_missing(self, impl: Serializer) -> None:
+        data = b"{}"
+        result = impl.load(WithIntEnumLiteralMissing, data)
+        assert result == WithIntEnumLiteralMissing()
+
+    def test_custom_required_error(self, impl: Serializer) -> None:
+        data = b"{}"
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithIntEnumLiteralRequiredError, data)
+        assert exc.value.messages == {"value": ["Custom required message"]}
+
+    def test_custom_none_error(self, impl: Serializer) -> None:
+        data = b'{"value":null}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithIntEnumLiteralNoneError, data)
+        assert exc.value.messages == {"value": ["Custom none message"]}
+
+    def test_custom_invalid_error(self, impl: Serializer) -> None:
+        data = b'{"value":99}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithIntEnumLiteralInvalidError, data)
+        assert exc.value.messages == {"value": ["Custom invalid message"]}
 
 
-class TestLegacyEnumLiteral:
-    def test_str_mixin_load(self, impl: Serializer) -> None:
-        data = b'{"value":"active"}'
-        result = impl.load(WithLegacyStrEnumLiteral, data)
-        assert result.value is Status.ACTIVE
-
-    def test_str_mixin_dump(self, impl: Serializer) -> None:
+class TestLegacyStrEnumLiteralDump:
+    def test_value(self, impl: Serializer) -> None:
         obj = WithLegacyStrEnumLiteral(value=Status.INACTIVE)
         result = impl.dump(WithLegacyStrEnumLiteral, obj)
         assert result == b'{"value":"inactive"}'
 
-    def test_str_mixin_subset_violation(self, impl: Serializer) -> None:
+
+class TestLegacyStrEnumLiteralLoad:
+    def test_value(self, impl: Serializer) -> None:
+        data = b'{"value":"active"}'
+        result = impl.load(WithLegacyStrEnumLiteral, data)
+        assert result == WithLegacyStrEnumLiteral(value=Status.ACTIVE)
+        assert result.value is Status.ACTIVE
+
+    def test_subset_violation(self, impl: Serializer) -> None:
         data = b'{"value":"pending"}'
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithLegacyStrEnumLiteral, data)
         assert exc.value.messages == {"value": ["Not a valid value. Allowed values: ['active', 'inactive']"]}
 
-    def test_int_mixin_load(self, impl: Serializer) -> None:
-        data = b'{"value":1}'
-        result = impl.load(WithLegacyIntEnumLiteral, data)
-        assert result.value is Priority.LOW
 
-    def test_int_mixin_dump(self, impl: Serializer) -> None:
+class TestLegacyIntEnumLiteralDump:
+    def test_value(self, impl: Serializer) -> None:
         obj = WithLegacyIntEnumLiteral(value=Priority.HIGH)
         result = impl.dump(WithLegacyIntEnumLiteral, obj)
         assert result == b'{"value":3}'
 
-    def test_int_mixin_subset_violation(self, impl: Serializer) -> None:
+
+class TestLegacyIntEnumLiteralLoad:
+    def test_value(self, impl: Serializer) -> None:
+        data = b'{"value":1}'
+        result = impl.load(WithLegacyIntEnumLiteral, data)
+        assert result == WithLegacyIntEnumLiteral(value=Priority.LOW)
+        assert result.value is Priority.LOW
+
+    def test_subset_violation(self, impl: Serializer) -> None:
         data = b'{"value":2}'
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithLegacyIntEnumLiteral, data)

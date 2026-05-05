@@ -1715,6 +1715,20 @@ class WithIntEnumLiteralMissing:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntEnumLiteralRequiredError:
+    value: Literal[IntDiscriminator.ONE, IntDiscriminator.TWO] = dataclasses.field(
+        metadata=mr.meta(required_error="Custom required message")
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntEnumLiteralNoneError:
+    value: Literal[IntDiscriminator.ONE, IntDiscriminator.TWO] = dataclasses.field(
+        metadata=mr.meta(none_error="Custom none message")
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithIntEnumLiteralInvalidError:
     value: Literal[IntDiscriminator.ONE, IntDiscriminator.TWO] = dataclasses.field(
         metadata=mr.meta(invalid_error="Custom invalid message")
