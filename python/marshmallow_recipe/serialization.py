@@ -1,6 +1,6 @@
 import importlib.metadata
 import warnings
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 from typing import Any, ClassVar, Protocol, get_args, overload
 
 import marshmallow as m
@@ -137,18 +137,18 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def load_many_v3[T](
         cls: type[T],
-        data: Iterable[Mapping[str, Any]],
+        data: list[Mapping[str, Any]],
         /,
         *,
         naming_case: NamingCase | None = None,
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> list[T]:
-        """Deserialize an iterable of mappings to a list of dataclass instances.
+        """Deserialize a list of mappings to a list of dataclass instances.
 
         Args:
             cls: Dataclass type to deserialize into.
-            data: Iterable of mappings with serialized data.
+            data: List of mappings with serialized data.
             naming_case: Convert field names. Use ``mr.CAMEL_CASE``,
                 ``mr.CAPITAL_CAMEL_CASE``, or ``mr.UPPER_SNAKE_CASE``.
             none_value_handling: Controls None field handling on load.
@@ -334,7 +334,7 @@ else:
 
     def load_many_v2[T](
         cls: type[T],
-        data: Iterable[Mapping[str, Any]],
+        data: list[Mapping[str, Any]],
         /,
         *,
         naming_case: NamingCase | None = None,
