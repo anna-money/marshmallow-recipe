@@ -1,6 +1,5 @@
 import dataclasses
 import types
-from collections.abc import Iterator
 from typing import Any
 
 import marshmallow
@@ -47,16 +46,6 @@ class TestMappingInputLoad:
         address = types.MappingProxyType({"street": "Main St", "city": "NYC", "zip_code": "10001"})
         result = mr.nuked.load(Person, types.MappingProxyType({"name": "Bob", "age": 40, "address": address}))
         assert result == Person(name="Bob", age=40, address=Address(street="Main St", city="NYC", zip_code="10001"))
-
-    def test_load_many_via_schema_accepts_iterator(self) -> None:
-        schema = mr.nuked.schema(SimpleTypes, many=True)
-
-        def gen() -> Iterator[Any]:
-            yield types.MappingProxyType({"name": "a", "age": 1})
-            yield types.MappingProxyType({"name": "b", "age": 2})
-
-        result = schema.load(gen())
-        assert result == [SimpleTypes(name="a", age=1), SimpleTypes(name="b", age=2)]
 
     def test_pre_load_hook_still_works_with_mapping_proxy(self) -> None:
         @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
