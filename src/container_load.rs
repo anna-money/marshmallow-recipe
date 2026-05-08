@@ -4,7 +4,8 @@ use pyo3::types::{PyDict, PyFrozenSet, PyList, PyMapping, PySet, PyString, PyTup
 use smallbitvec::SmallBitVec;
 
 use crate::container::{
-    DataclassContainer, DataclassRegistry, FieldCommon, FieldContainer, LoadStrategy, TypeContainer,
+    DataclassContainer, DataclassField, DataclassRegistry, FieldCommon, FieldContainer,
+    LoadStrategy, TypeContainer,
 };
 use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
 use crate::fields::{
@@ -420,23 +421,7 @@ impl DataclassContainer {
                 }
             };
 
-            if let Some(offset) = dc_field.slot_offset {
-                if !unsafe { set_slot_value_direct(&instance, offset, py_value) } {
-                    let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
-                    let _ = err_dict.set_item(
-                        dc_field.name_interned.bind(py),
-                        PyList::new(
-                            py,
-                            [intern!(py, "Failed to set slot value: null object pointer")],
-                        )
-                        .unwrap(),
-                    );
-                }
-            } else {
-                instance
-                    .setattr(dc_field.name_interned.bind(py), py_value)
-                    .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-            }
+            write_field_to_slot_or_attr(py, &instance, dc_field, py_value, &mut errors)?;
         }
 
         if let Some(errors) = errors {
@@ -461,7 +446,13 @@ impl DataclassContainer {
             }
             let common = dc_field.field.common();
             let key = dc_field.data_key_interned.bind(py);
-            let present: Option<Bound<'_, PyAny>> = data.get_item(key).ok();
+            let present = match get_mapping_item_or_none(py, data, key) {
+                Ok(opt) => opt,
+                Err(ref e) => {
+                    accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+                    continue;
+                }
+            };
 
             let py_val_result = if let Some(v) = present {
                 dc_field
@@ -538,7 +529,13 @@ impl DataclassContainer {
         for dc_field in &self.fields {
             let common = dc_field.field.common();
             let key = dc_field.data_key_interned.bind(py);
-            let present: Option<Bound<'_, PyAny>> = data.get_item(key).ok();
+            let present = match get_mapping_item_or_none(py, data, key) {
+                Ok(opt) => opt,
+                Err(ref e) => {
+                    accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+                    continue;
+                }
+            };
 
             let py_value: Py<PyAny> = if let Some(v) = present {
                 match dc_field.field.load_from_py(registry, &v) {
@@ -573,23 +570,7 @@ impl DataclassContainer {
                 }
             };
 
-            if let Some(offset) = dc_field.slot_offset {
-                if !unsafe { set_slot_value_direct(&instance, offset, py_value) } {
-                    let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
-                    let _ = err_dict.set_item(
-                        dc_field.name_interned.bind(py),
-                        PyList::new(
-                            py,
-                            [intern!(py, "Failed to set slot value: null object pointer")],
-                        )
-                        .unwrap(),
-                    );
-                }
-            } else {
-                instance
-                    .setattr(dc_field.name_interned.bind(py), py_value)
-                    .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-            }
+            write_field_to_slot_or_attr(py, &instance, dc_field, py_value, &mut errors)?;
         }
 
         if let Some(errors) = errors {
@@ -611,6 +592,45 @@ fn coerce_to_pydict<'py>(
     dict.update(mapping)
         .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
     Ok(dict)
+}
+
+fn get_mapping_item_or_none<'py>(
+    py: Python<'py>,
+    data: &Bound<'py, PyAny>,
+    key: &Bound<'py, PyString>,
+) -> Result<Option<Bound<'py, PyAny>>, SerializationError> {
+    match data.get_item(key) {
+        Ok(v) => Ok(Some(v)),
+        Err(e) if e.is_instance_of::<pyo3::exceptions::PyKeyError>(py) => Ok(None),
+        Err(e) => Err(SerializationError::simple(py, &e.to_string())),
+    }
+}
+
+fn write_field_to_slot_or_attr<'py>(
+    py: Python<'py>,
+    instance: &Bound<'py, PyAny>,
+    dc_field: &DataclassField,
+    py_value: Py<PyAny>,
+    errors: &mut Option<Bound<'py, PyDict>>,
+) -> Result<(), SerializationError> {
+    if let Some(offset) = dc_field.slot_offset {
+        if !unsafe { set_slot_value_direct(instance, offset, py_value) } {
+            let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
+            let _ = err_dict.set_item(
+                dc_field.name_interned.bind(py),
+                PyList::new(
+                    py,
+                    [intern!(py, "Failed to set slot value: null object pointer")],
+                )
+                .unwrap(),
+            );
+        }
+        Ok(())
+    } else {
+        instance
+            .setattr(dc_field.name_interned.bind(py), py_value)
+            .map_err(|e| SerializationError::simple(py, &e.to_string()))
+    }
 }
 
 fn apply_pre_loads<'py>(
