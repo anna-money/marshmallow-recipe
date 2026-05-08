@@ -102,11 +102,13 @@ ro = types.MappingProxyType({"a": 1, "b": 2})
 loaded = mr.nuked.load(dict[str, int], ro)
 assert loaded == {"a": 1, "b": 2}
 
-# load_many accepts any Iterable[Mapping] (lists, generators, iterators)
-schema = mr.nuked.schema(Address, many=True)
-def gen():
-    yield types.MappingProxyType({"street": "1 Main", "city": "NYC"})
-    yield types.MappingProxyType({"street": "2 Oak", "city": "SF"})
-result = schema.load(gen())
+# load_many accepts a list of Mappings
+result = mr.load_many(
+    Address,
+    [
+        types.MappingProxyType({"street": "1 Main", "city": "NYC"}),
+        types.MappingProxyType({"street": "2 Oak", "city": "SF"}),
+    ],
+)
 assert result == [Address(street="1 Main", city="NYC"), Address(street="2 Oak", city="SF")]
 ```
