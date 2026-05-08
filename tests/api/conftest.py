@@ -5,6 +5,7 @@ import decimal
 import enum
 import importlib.metadata
 import json
+import types
 import uuid
 from collections.abc import Mapping, Sequence
 from typing import Annotated, Any, Literal, NewType
@@ -13,6 +14,15 @@ import marshmallow
 import pytest
 
 import marshmallow_recipe as mr
+
+
+def _wrap_in_mapping_proxy(value: Any) -> Any:
+    if isinstance(value, dict):
+        return types.MappingProxyType({k: _wrap_in_mapping_proxy(v) for k, v in value.items()})
+    if isinstance(value, list):
+        return [_wrap_in_mapping_proxy(v) for v in value]
+    return value
+
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
@@ -180,6 +190,23 @@ class NukedSerializer(Serializer):
         return mr.nuked.load(cls, data_json, naming_case=naming_case, decimal_places=decimal_places)
 
 
+class NukedMappingSerializer(NukedSerializer):
+    __slots__ = ()
+
+    def load[T](
+        self,
+        cls: type[T],
+        data: bytes,
+        naming_case: mr.NamingCase | None = None,
+        decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
+    ) -> T:
+        data_json = json.loads(data.decode(encoding))
+        return mr.nuked.load(
+            cls, _wrap_in_mapping_proxy(data_json), naming_case=naming_case, decimal_places=decimal_places
+        )
+
+
 class NukedSchemaSerializer(Serializer):
     __slots__ = ()
 
@@ -275,8 +302,8 @@ class NukedSchemaSerializer(Serializer):
 
 
 @pytest.fixture(
-    params=[MarshmallowSerializer(), NukedSerializer(), NukedSchemaSerializer()],
-    ids=["marshmallow", "nuked", "nuked_schema"],
+    params=[MarshmallowSerializer(), NukedSerializer(), NukedSchemaSerializer(), NukedMappingSerializer()],
+    ids=["marshmallow", "nuked", "nuked_schema", "nuked_mapping"],
 )
 def impl(request: pytest.FixtureRequest) -> Serializer:
     return request.param
