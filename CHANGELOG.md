@@ -1,6 +1,7 @@
-## v0.0.96 (TBD)
+## v0.0.96 (2026-05-09)
 
-* Accept any `collections.abc.Mapping` (e.g. `types.MappingProxyType`, `OrderedDict`) in `mr.load` / `mr.nuked.load` at the root, in nested dataclass fields, and as `dict[K, V]` field values — without copying the input on the hot path. The `dict` fast-path is unchanged. `mr.load_many` and `mr.nuked.schema(many=True).load` now accept any `Iterable[Mapping[str, Any]]`.
+* [Load from Mapping in nuked](https://github.com/anna-money/marshmallow-recipe/pull/303)
+
 
 ## v0.0.95 (2026-05-05)
 
