@@ -83,3 +83,30 @@ dumped = mr.nuked.dump(dict[str, Address], addresses)
 loaded = mr.nuked.load(dict[str, Address], dumped)
 assert loaded == addresses
 ```
+
+## Mapping Inputs (Load Only)
+
+`mr.nuked.load` accepts any `collections.abc.Mapping` (e.g. `types.MappingProxyType`,
+`OrderedDict`, custom mapping subclasses) at the root, in nested dataclass fields,
+and as `dict[K, V]` field values. Non-`dict` mappings are read **without copying** the
+input on the hot path. The `dict` fast-path is unchanged.
+
+```python
+import types
+
+import marshmallow_recipe as mr
+
+
+# Root-level Mapping for a dict[K, V] type
+ro = types.MappingProxyType({"a": 1, "b": 2})
+loaded = mr.nuked.load(dict[str, int], ro)
+assert loaded == {"a": 1, "b": 2}
+
+# load_many accepts any Iterable[Mapping] (lists, generators, iterators)
+schema = mr.nuked.schema(Address, many=True)
+def gen():
+    yield types.MappingProxyType({"street": "1 Main", "city": "NYC"})
+    yield types.MappingProxyType({"street": "2 Oak", "city": "SF"})
+result = schema.load(gen())
+assert result == [Address(street="1 Main", city="NYC"), Address(street="2 Oak", city="SF")]
+```
