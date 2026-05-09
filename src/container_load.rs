@@ -441,7 +441,7 @@ impl DataclassContainer {
         let result = PyDict::new(py);
         let mut errors: Option<Bound<'_, PyDict>> = None;
         let missing_sentinel =
-            get_missing_sentinel(py).map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+            get_missing_sentinel(py).map_err(|e| SerializationError::from_pyerr(py, &e))?;
 
         for dc_field in &self.fields {
             if !dc_field.field_init {
@@ -458,7 +458,7 @@ impl DataclassContainer {
                         py,
                         &mut errors,
                         dc_field.name_interned.bind(py),
-                        &SerializationError::simple(py, &e.to_string()),
+                        &SerializationError::from_pyerr(py, &e),
                     );
                     continue;
                 }
@@ -534,7 +534,7 @@ impl DataclassContainer {
             .call_method1(intern!(py, "__new__"), (self.cls.bind(py),))
             .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
         let missing_sentinel =
-            get_missing_sentinel(py).map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+            get_missing_sentinel(py).map_err(|e| SerializationError::from_pyerr(py, &e))?;
 
         let mut errors: Option<Bound<'_, PyDict>> = None;
 
@@ -550,7 +550,7 @@ impl DataclassContainer {
                         py,
                         &mut errors,
                         dc_field.name_interned.bind(py),
-                        &SerializationError::simple(py, &e.to_string()),
+                        &SerializationError::from_pyerr(py, &e),
                     );
                     continue;
                 }

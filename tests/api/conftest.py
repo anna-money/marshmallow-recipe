@@ -12,8 +12,6 @@ from typing import Annotated, Any, Literal, NewType
 
 import marshmallow
 import pytest
-from multidict import MultiDict
-from webargs.multidictproxy import MultiDictProxy
 
 import marshmallow_recipe as mr
 
@@ -24,17 +22,6 @@ def _wrap_in_mapping_proxy(value: Any) -> Any:
     if isinstance(value, list):
         return [_wrap_in_mapping_proxy(v) for v in value]
     return value
-
-
-def _to_multidict(d: dict[str, Any]) -> MultiDict[Any]:
-    md: MultiDict[Any] = MultiDict()
-    for k, v in d.items():
-        if isinstance(v, list):
-            for item in v:
-                md.add(k, item)
-        else:
-            md.add(k, v)
-    return md
 
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
@@ -218,25 +205,6 @@ class NukedMappingSerializer(NukedSerializer):
         return mr.nuked.load(
             cls, _wrap_in_mapping_proxy(data_json), naming_case=naming_case, decimal_places=decimal_places
         )
-
-
-class NukedWebargsSerializer(NukedSerializer):
-    __slots__ = ()
-
-    def load[T](
-        self,
-        cls: type[T],
-        data: bytes,
-        naming_case: mr.NamingCase | None = None,
-        decimal_places: int | None = mr.MISSING,
-        encoding: str = "utf-8",
-    ) -> T:
-        data_json = json.loads(data.decode(encoding))
-        if not dataclasses.is_dataclass(cls):
-            return mr.nuked.load(cls, data_json, naming_case=naming_case, decimal_places=decimal_places)
-        schema = mr.nuked.schema(cls, naming_case=naming_case, decimal_places=decimal_places)
-        proxy = MultiDictProxy(_to_multidict(data_json), schema)
-        return mr.nuked.load(cls, proxy, naming_case=naming_case, decimal_places=decimal_places)
 
 
 class NukedSchemaSerializer(Serializer):
