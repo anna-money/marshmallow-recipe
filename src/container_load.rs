@@ -14,7 +14,8 @@ use crate::fields::{
 };
 use crate::slots::set_slot_value_direct;
 use crate::utils::{
-    call_validator, extract_error_args, get_mapping_abc, get_object_cls, new_presized_list,
+    call_validator, extract_error_args, get_mapping_abc, get_missing_sentinel, get_object_cls,
+    new_presized_list,
 };
 
 const NESTED_ERROR: &str = "Invalid input type.";
@@ -439,6 +440,8 @@ impl DataclassContainer {
         let py = data.py();
         let result = PyDict::new(py);
         let mut errors: Option<Bound<'_, PyDict>> = None;
+        let missing_sentinel =
+            get_missing_sentinel(py).map_err(|e| SerializationError::simple(py, &e.to_string()))?;
 
         for dc_field in &self.fields {
             if !dc_field.field_init {
@@ -446,10 +449,17 @@ impl DataclassContainer {
             }
             let common = dc_field.field.common();
             let key = dc_field.data_key_interned.bind(py);
-            let present = match get_mapping_item_or_none(py, data, key) {
-                Ok(opt) => opt,
-                Err(ref e) => {
-                    accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+            let present: Option<Bound<'_, PyAny>> = match data.get_item(key) {
+                Ok(v) if v.is(missing_sentinel) => None,
+                Ok(v) => Some(v),
+                Err(e) if e.is_instance_of::<pyo3::exceptions::PyKeyError>(py) => None,
+                Err(e) => {
+                    accumulate_error(
+                        py,
+                        &mut errors,
+                        dc_field.name_interned.bind(py),
+                        &SerializationError::simple(py, &e.to_string()),
+                    );
                     continue;
                 }
             };
@@ -523,16 +533,25 @@ impl DataclassContainer {
         let instance = object_type
             .call_method1(intern!(py, "__new__"), (self.cls.bind(py),))
             .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+        let missing_sentinel =
+            get_missing_sentinel(py).map_err(|e| SerializationError::simple(py, &e.to_string()))?;
 
         let mut errors: Option<Bound<'_, PyDict>> = None;
 
         for dc_field in &self.fields {
             let common = dc_field.field.common();
             let key = dc_field.data_key_interned.bind(py);
-            let present = match get_mapping_item_or_none(py, data, key) {
-                Ok(opt) => opt,
-                Err(ref e) => {
-                    accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+            let present: Option<Bound<'_, PyAny>> = match data.get_item(key) {
+                Ok(v) if v.is(missing_sentinel) => None,
+                Ok(v) => Some(v),
+                Err(e) if e.is_instance_of::<pyo3::exceptions::PyKeyError>(py) => None,
+                Err(e) => {
+                    accumulate_error(
+                        py,
+                        &mut errors,
+                        dc_field.name_interned.bind(py),
+                        &SerializationError::simple(py, &e.to_string()),
+                    );
                     continue;
                 }
             };
@@ -592,18 +611,6 @@ fn coerce_to_pydict<'py>(
     dict.update(mapping)
         .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
     Ok(dict)
-}
-
-fn get_mapping_item_or_none<'py>(
-    py: Python<'py>,
-    data: &Bound<'py, PyAny>,
-    key: &Bound<'py, PyString>,
-) -> Result<Option<Bound<'py, PyAny>>, SerializationError> {
-    match data.get_item(key) {
-        Ok(v) => Ok(Some(v)),
-        Err(e) if e.is_instance_of::<pyo3::exceptions::PyKeyError>(py) => Ok(None),
-        Err(e) => Err(SerializationError::simple(py, &e.to_string())),
-    }
 }
 
 fn write_field_to_slot_or_attr<'py>(
