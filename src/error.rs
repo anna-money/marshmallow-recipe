@@ -14,6 +14,10 @@ impl SerializationError {
         Self::Single(PyString::new(py, msg).unbind())
     }
 
+    pub fn from_pyerr(py: Python<'_>, e: &PyErr) -> Self {
+        Self::simple(py, &e.to_string())
+    }
+
     pub fn collect_list(py: Python<'_>, errors: Vec<Self>) -> Self {
         let items: Vec<Py<PyAny>> = errors
             .into_iter()
