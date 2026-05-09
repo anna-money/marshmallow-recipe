@@ -24,6 +24,38 @@ def _wrap_in_mapping_proxy(value: Any) -> Any:
     return value
 
 
+class _MissingMapping(Mapping[str, Any]):
+    """Emulates webargs.MultiDictProxy: __getitem__ returns marshmallow.missing for absent keys.
+
+    Crucially NOT a dict subclass — would otherwise pass cast::<PyDict>() and skip the
+    Mapping path the sentinel guard lives on.
+    """
+
+    __slots__ = ("_data",)
+
+    def __init__(self, data: dict[str, Any]) -> None:
+        self._data = data
+
+    def __getitem__(self, key: str) -> Any:
+        if key in self._data:
+            return self._data[key]
+        return marshmallow.missing
+
+    def __iter__(self) -> Any:
+        return iter(self._data)
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+
+def _wrap_in_missing_mapping(value: Any) -> Any:
+    if isinstance(value, dict):
+        return _MissingMapping({k: _wrap_in_missing_mapping(v) for k, v in value.items()})
+    if isinstance(value, list):
+        return [_wrap_in_missing_mapping(v) for v in value]
+    return value
+
+
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 
@@ -207,6 +239,23 @@ class NukedMappingSerializer(NukedSerializer):
         )
 
 
+class NukedMissingSentinelSerializer(NukedSerializer):
+    __slots__ = ()
+
+    def load[T](
+        self,
+        cls: type[T],
+        data: bytes,
+        naming_case: mr.NamingCase | None = None,
+        decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
+    ) -> T:
+        data_json = json.loads(data.decode(encoding))
+        return mr.nuked.load(
+            cls, _wrap_in_missing_mapping(data_json), naming_case=naming_case, decimal_places=decimal_places
+        )
+
+
 class NukedSchemaSerializer(Serializer):
     __slots__ = ()
 
@@ -302,8 +351,14 @@ class NukedSchemaSerializer(Serializer):
 
 
 @pytest.fixture(
-    params=[MarshmallowSerializer(), NukedSerializer(), NukedSchemaSerializer(), NukedMappingSerializer()],
-    ids=["marshmallow", "nuked", "nuked_schema", "nuked_mapping"],
+    params=[
+        MarshmallowSerializer(),
+        NukedSerializer(),
+        NukedSchemaSerializer(),
+        NukedMappingSerializer(),
+        NukedMissingSentinelSerializer(),
+    ],
+    ids=["marshmallow", "nuked", "nuked_schema", "nuked_mapping", "nuked_missing_sentinel"],
 )
 def impl(request: pytest.FixtureRequest) -> Serializer:
     return request.param
