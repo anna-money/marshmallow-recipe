@@ -39,6 +39,8 @@ dev = [
     "setuptools",
     "maturin>=1.9,<2.0",
     "pyperf>=2.7",
+    "webargs>=8",
+    "multidict>=6",
 ]
 
 [tool.maturin]
