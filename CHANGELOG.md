@@ -1,6 +1,6 @@
 ## v0.0.96 (2026-05-09)
 
-* Bump Rust dependencies
+* [Bump rust dependencies](https://github.com/anna-money/marshmallow-recipe/pull/304)
 
 
 ## v0.0.95 (2026-05-05)
