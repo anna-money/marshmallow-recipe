@@ -49,4 +49,4 @@ class TestMappingMissingSentinel:
 
         schema = mr.nuked.schema(Q)
         proxy = MultiDictProxy(MultiDict([("company_id", "abc")]), schema)
-        assert schema.load(proxy) == Q(company_id="abc", status=None, limit=None)
+        assert mr.nuked.load(Q, proxy) == Q(company_id="abc", status=None, limit=None)

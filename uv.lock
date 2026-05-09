@@ -61,7 +61,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = "==8.3.5" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.8.4" },
     { name = "setuptools", marker = "extra == 'dev'" },
-    { name = "webargs", marker = "extra == 'dev'", specifier = ">=8" },
+    { name = "webargs", marker = "extra == 'dev'", specifier = ">=6" },
 ]
 provides-extras = ["dev"]
 
@@ -325,13 +325,12 @@ wheels = [
 
 [[package]]
 name = "webargs"
-version = "8.7.1"
+version = "6.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "marshmallow" },
-    { name = "packaging" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/37/64/17afc4e6f47eef154a553c6e56adcc9f1ac3003305c7df978d11aa62937e/webargs-8.7.1.tar.gz", hash = "sha256:799bf9039c76c23fd8dc1951107a75a9e561203c15d6ae8f89c1e46e234636c1", size = 97351, upload-time = "2025-10-29T16:07:50.066Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/85/5c/d7a556e6160c8a2397de259cb7a8d746d0847158be38f708bd7f25b5ad98/webargs-6.1.1.tar.gz", hash = "sha256:412ecadd977afdea0ed6fa5f5b65ddd13a099269e622ec537f9c74c443ce4d0b", size = 56072, upload-time = "2020-09-08T16:57:55.45Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/41/ef/b0d17f3943429358184449771b592e0e1d33bbeaa6ed326434a95eac187b/webargs-8.7.1-py3-none-any.whl", hash = "sha256:a184aed9d2509e6e14ab99ee3e9dc3a614c7070affe94cd4dfdb0d002e0a6e5f", size = 32500, upload-time = "2025-10-29T16:07:47.895Z" },
+    { url = "https://files.pythonhosted.org/packages/fe/b3/07bacf9effa97fb7bf2c2226e46fd64bad15c4887e407ea497b4f21c21dc/webargs-6.1.1-py2.py3-none-any.whl", hash = "sha256:2ead6ce38559152043ab4ada4d389aef6c804b0c169482e7c92b3f498f690b2c", size = 30506, upload-time = "2020-09-08T16:57:53.705Z" },
 ]
