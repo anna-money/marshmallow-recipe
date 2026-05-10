@@ -1,6 +1,7 @@
 ## v0.0.96 (2026-05-09)
 
 * [Bump rust dependencies](https://github.com/anna-money/marshmallow-recipe/pull/304)
+* [Load from Mapping in nuked](https://github.com/anna-money/marshmallow-recipe/pull/303)
 
 
 ## v0.0.95 (2026-05-05)

@@ -61,6 +61,11 @@ pub fn get_object_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     OBJECT_CLS.import(py, "builtins", "object")
 }
 
+pub fn get_mapping_abc(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
+    static MAPPING_ABC: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+    MAPPING_ABC.import(py, "collections.abc", "Mapping")
+}
+
 pub fn get_int_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     static INT_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
     INT_CLS.import(py, "builtins", "int")

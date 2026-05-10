@@ -1,5 +1,6 @@
 import importlib.metadata
 import warnings
+from collections.abc import Mapping
 from typing import Any, ClassVar, Protocol, get_args, overload
 
 import marshmallow as m
@@ -65,18 +66,18 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def load_v3[T](
         cls: type[T],
-        data: dict[str, Any],
+        data: Mapping[str, Any],
         /,
         *,
         naming_case: NamingCase | None = None,
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> T:
-        """Deserialize a dict to a dataclass instance.
+        """Deserialize a mapping to a dataclass instance.
 
         Args:
             cls: Dataclass type to deserialize into.
-            data: Dict with serialized data.
+            data: Mapping with serialized data.
             naming_case: Convert field names. Use ``mr.CAMEL_CASE``,
                 ``mr.CAPITAL_CAMEL_CASE``, or ``mr.UPPER_SNAKE_CASE``.
             none_value_handling: Controls None field handling on load.
@@ -111,7 +112,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def _load_union_v3(
         union_type: Any,
-        data: dict[str, Any],
+        data: Mapping[str, Any],
         *,
         naming_case: NamingCase | None,
         none_value_handling: NoneValueHandling | None,
@@ -136,18 +137,18 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def load_many_v3[T](
         cls: type[T],
-        data: list[dict[str, Any]],
+        data: list[Mapping[str, Any]],
         /,
         *,
         naming_case: NamingCase | None = None,
         none_value_handling: NoneValueHandling | None = None,
         decimal_places: int | None = MISSING,
     ) -> list[T]:
-        """Deserialize a list of dicts to a list of dataclass instances.
+        """Deserialize a list of mappings to a list of dataclass instances.
 
         Args:
             cls: Dataclass type to deserialize into.
-            data: List of dicts with serialized data.
+            data: List of mappings with serialized data.
             naming_case: Convert field names. Use ``mr.CAMEL_CASE``,
                 ``mr.CAPITAL_CAMEL_CASE``, or ``mr.UPPER_SNAKE_CASE``.
             none_value_handling: Controls None field handling on load.
@@ -277,7 +278,7 @@ else:
 
     def load_v2[T](
         cls: type[T],
-        data: dict[str, Any],
+        data: Mapping[str, Any],
         /,
         *,
         naming_case: NamingCase | None = None,
@@ -308,7 +309,7 @@ else:
 
     def _load_union_v2(
         union_type: Any,
-        data: dict[str, Any],
+        data: Mapping[str, Any],
         *,
         naming_case: NamingCase | None,
         none_value_handling: NoneValueHandling | None,
@@ -333,7 +334,7 @@ else:
 
     def load_many_v2[T](
         cls: type[T],
-        data: list[dict[str, Any]],
+        data: list[Mapping[str, Any]],
         /,
         *,
         naming_case: NamingCase | None = None,

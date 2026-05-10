@@ -986,7 +986,8 @@ def load[T](
 ) -> T:
     """Deserialize from a JSON-compatible value using the Rust backend.
 
-    Accepts dict for dataclasses, list for collections.
+    Accepts any Mapping (e.g. dict, types.MappingProxyType) for dataclasses
+    and root dict[K, V] types; list for sequence types.
 
     Args:
         cls: Dataclass type or root collection type (e.g. ``list[User]``, ``dict[str, User]``).
