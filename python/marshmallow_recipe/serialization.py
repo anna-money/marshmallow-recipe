@@ -1,5 +1,6 @@
 import importlib.metadata
 import warnings
+from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar, Protocol, get_args, overload
 
 import marshmallow as m
@@ -65,7 +66,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def load_v3[T](
         cls: type[T],
-        data: dict[str, Any],
+        data: Mapping[str, Any],
         /,
         *,
         naming_case: NamingCase | None = None,
@@ -111,7 +112,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def _load_union_v3(
         union_type: Any,
-        data: dict[str, Any],
+        data: Mapping[str, Any],
         *,
         naming_case: NamingCase | None,
         none_value_handling: NoneValueHandling | None,
@@ -136,7 +137,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def load_many_v3[T](
         cls: type[T],
-        data: list[dict[str, Any]],
+        data: Sequence[Mapping[str, Any]],
         /,
         *,
         naming_case: NamingCase | None = None,
@@ -277,7 +278,7 @@ else:
 
     def load_v2[T](
         cls: type[T],
-        data: dict[str, Any],
+        data: Mapping[str, Any],
         /,
         *,
         naming_case: NamingCase | None = None,
@@ -308,7 +309,7 @@ else:
 
     def _load_union_v2(
         union_type: Any,
-        data: dict[str, Any],
+        data: Mapping[str, Any],
         *,
         naming_case: NamingCase | None,
         none_value_handling: NoneValueHandling | None,
@@ -333,7 +334,7 @@ else:
 
     def load_many_v2[T](
         cls: type[T],
-        data: list[dict[str, Any]],
+        data: Sequence[Mapping[str, Any]],
         /,
         *,
         naming_case: NamingCase | None = None,
