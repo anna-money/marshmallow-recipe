@@ -1,3 +1,8 @@
+## v0.0.97 (2026-05-12)
+
+* [Use covariant `Sequence` instead of `list` in `load_many`](https://github.com/anna-money/marshmallow-recipe/pull/305)
+
+
 ## v0.0.96 (2026-05-09)
 
 * [Bump rust dependencies](https://github.com/anna-money/marshmallow-recipe/pull/304)

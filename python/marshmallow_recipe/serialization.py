@@ -1,6 +1,6 @@
 import importlib.metadata
 import warnings
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar, Protocol, get_args, overload
 
 import marshmallow as m
@@ -137,7 +137,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def load_many_v3[T](
         cls: type[T],
-        data: list[Mapping[str, Any]],
+        data: Sequence[Mapping[str, Any]],
         /,
         *,
         naming_case: NamingCase | None = None,
@@ -334,7 +334,7 @@ else:
 
     def load_many_v2[T](
         cls: type[T],
-        data: list[Mapping[str, Any]],
+        data: Sequence[Mapping[str, Any]],
         /,
         *,
         naming_case: NamingCase | None = None,
