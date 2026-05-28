@@ -939,6 +939,7 @@ type OptionalIntAlias = int | None
 type UnionAlias = str | int
 type ChainedStrAlias = StrAlias
 type UnionOfAliases = StrAlias | OptionalIntAlias
+type IntOrStrAlias = int | str
 
 
 def test_type_alias() -> None:
@@ -997,6 +998,21 @@ def test_optional_multi_union_appends_null_branch() -> None:
     @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
     class M:
         v: int | str | None = None
+
+    schema = mr.json_schema(M)
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "M",
+        "properties": {"v": {"anyOf": [{"type": "integer"}, {"type": "string"}, {"type": "null"}], "default": None}},
+        "required": [],
+    }
+
+
+def test_optional_type_alias_to_multi_union_appends_null_branch() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class M:
+        v: IntOrStrAlias | None = None
 
     schema = mr.json_schema(M)
     assert schema == {

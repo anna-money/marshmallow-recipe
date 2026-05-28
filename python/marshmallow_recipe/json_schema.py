@@ -126,8 +126,18 @@ def __make_nullable(schema: dict[str, Any]) -> dict[str, Any]:
         result["anyOf"] = [{"$ref": schema["$ref"]}, {"type": "null"}]
         return result
 
+    any_of = schema.get("anyOf")
+    if isinstance(any_of, list):
+        result = dict(schema)
+        if not any(isinstance(b, dict) and b.get("type") == "null" for b in any_of):
+            result["anyOf"] = [*any_of, {"type": "null"}]
+        return result
+
+    if "type" not in schema:
+        raise ValueError(f"cannot make schema nullable, no $ref / type / anyOf: {schema!r}")
+
     result = dict(schema)
-    schema_type = result.get("type")
+    schema_type = result["type"]
     if isinstance(schema_type, str):
         result["type"] = [schema_type, "null"]
     elif isinstance(schema_type, list) and "null" not in schema_type:
