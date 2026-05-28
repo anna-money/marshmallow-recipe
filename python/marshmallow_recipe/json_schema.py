@@ -120,6 +120,33 @@ def __is_optional(field_type: TypeLike) -> bool:
     return any(t is types.NoneType for t in underlying_union_types)
 
 
+def __add_null_branch(schema: dict[str, Any]) -> None:
+    """Mutate `schema` in place to also accept JSON null.
+
+    For ``$ref`` schemas, rewrites to ``anyOf`` because the 2020-12 spec
+    forbids siblings on a $ref-only schema. For typed schemas, appends
+    ``"null"`` to the ``type`` list and ``None`` to ``enum`` when present —
+    validators check ``type`` and ``enum`` independently.
+    """
+    if "$ref" in schema:
+        ref_value = schema.pop("$ref")
+        description = schema.pop("description", None)
+        schema["anyOf"] = [{"$ref": ref_value}, {"type": "null"}]
+        if description is not None:
+            schema["description"] = description
+        return
+
+    schema_type = schema.get("type")
+    if isinstance(schema_type, str):
+        schema["type"] = [schema_type, "null"]
+    elif isinstance(schema_type, list) and "null" not in schema_type:
+        schema["type"] = [*schema_type, "null"]
+
+    enum_values = schema.get("enum")
+    if isinstance(enum_values, list) and None not in enum_values:
+        schema["enum"] = [*enum_values, None]
+
+
 def __try_get_underlying_types_from_union(t: TypeLike) -> tuple[TypeLike, ...] | None:
     origin = get_origin(t)
     if origin is None:
@@ -214,22 +241,23 @@ def __convert_field_to_json_schema(
     underlying_union_types = __try_get_underlying_types_from_union(field_type)
     if underlying_union_types is not None:
         non_none_types = [t for t in underlying_union_types if t is not types.NoneType]
+        has_none = len(non_none_types) != len(underlying_union_types)
+
         if len(non_none_types) == 1:
-            field_type = non_none_types[0]
-            origin = get_origin(field_type)
-            if origin is Literal:
-                literal_values = get_args(field_type)
-                if literal_values and all(isinstance(v, str) for v in literal_values):
-                    schema["type"] = "string"
-                elif literal_values and all(isinstance(v, bool) for v in literal_values):
-                    schema["type"] = "boolean"
-                elif literal_values and all(isinstance(v, int) and not isinstance(v, bool) for v in literal_values):
-                    schema["type"] = "integer"
-                schema["enum"] = [v.value if isinstance(v, enum.Enum) else v for v in literal_values]
-                return schema
-        elif len(non_none_types) > 1:
-            schemas = [__convert_field_to_json_schema(t, EMPTY_METADATA, context) for t in non_none_types]
-            schema["anyOf"] = schemas
+            inner = __convert_field_to_json_schema(non_none_types[0], metadata, context)
+            for k, v in inner.items():
+                if k == "description" and "description" in schema:
+                    continue
+                schema[k] = v
+            if has_none:
+                __add_null_branch(schema)
+            return schema
+
+        if len(non_none_types) > 1:
+            branches = [__convert_field_to_json_schema(t, EMPTY_METADATA, context) for t in non_none_types]
+            if has_none:
+                branches.append({"type": "null"})
+            schema["anyOf"] = branches
             return schema
 
     if field_type is str:

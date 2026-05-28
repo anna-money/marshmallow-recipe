@@ -34,11 +34,13 @@ Output:
     "id": {"type": "integer"},
     "name": {"type": "string"},
     "email": {"type": "string"},
-    "age": {"type": "integer"}
+    "age": {"type": ["integer", "null"]}
   },
   "required": ["id", "name", "email"]
 }
 ```
+
+`T | None` always renders as a nullable JSON Schema (here `["integer", "null"]`), regardless of the `none_value_handling` setting. `none_value_handling` only controls serialization (whether `mr.dump` emits `"age": null` or omits the key); JSON Schema describes what input is valid, and `null` is valid whenever the Python type is `T | None`.
 
 ## Field Descriptions
 
@@ -284,11 +286,30 @@ Output:
       ]
     },
     "optional": {
-      "type": "string"
+      "type": ["string", "null"],
+      "default": null
     }
   },
   "required": ["value"]
 }
+```
+
+When a union includes `None` and exactly one other type, the result is a nullable type list. For unions with multiple non-`None` members plus `None` (e.g. `int | str | None`), the `null` branch is appended to `anyOf`:
+
+```json
+{"anyOf": [{"type": "integer"}, {"type": "string"}, {"type": "null"}]}
+```
+
+For nullable nested dataclasses (`Inner | None`), the `$ref` is wrapped in `anyOf` (the 2020-12 spec forbids siblings on a `$ref`-only schema):
+
+```json
+{"anyOf": [{"$ref": "#/$defs/Inner"}, {"type": "null"}]}
+```
+
+For nullable enums or `Literal`, `null` appears both in the `type` list and in `enum` (validators check them independently):
+
+```json
+{"type": ["string", "null"], "enum": ["a", "b", null]}
 ```
 
 ## Nested Dataclasses

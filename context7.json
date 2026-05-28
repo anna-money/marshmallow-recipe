@@ -60,7 +60,7 @@
     "JSON Schema: Literal types include allowed values - Literal['a', 'b'] → {\"type\": \"string\", \"enum\": [\"a\", \"b\"]}",
     "JSON Schema: Collections mapped - list→array, set→array with uniqueItems, dict→object with additionalProperties",
     "JSON Schema: Union types (str | int) mapped to anyOf - {\"anyOf\": [{\"type\": \"string\"}, {\"type\": \"integer\"}]}",
-    "JSON Schema: Optional fields (T | None) not in required array, but type is not anyOf with null",
+    "JSON Schema: Optional fields (T | None) render as nullable. str | None → {\"type\": [\"string\", \"null\"]}; Nested | None → {\"anyOf\": [{\"$ref\": \"#/$defs/Nested\"}, {\"type\": \"null\"}]}; T1 | T2 | None → {\"anyOf\": [<T1>, <T2>, {\"type\": \"null\"}]}; Literal/Enum | None adds null to both the type list and the enum list",
     "JSON Schema: Nested dataclasses use $defs and $ref for reusability - {\"$ref\": \"#/$defs/ClassName\"}",
     "JSON Schema: Cyclic/self-referential types handled automatically without infinite recursion",
     "JSON Schema: Field descriptions via Annotated[T, mr.meta(description='...')] → {\"description\": \"...\"}",
