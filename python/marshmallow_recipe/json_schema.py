@@ -120,31 +120,24 @@ def __is_optional(field_type: TypeLike) -> bool:
     return any(t is types.NoneType for t in underlying_union_types)
 
 
-def __add_null_branch(schema: dict[str, Any]) -> None:
-    """Mutate `schema` in place to also accept JSON null.
-
-    For ``$ref`` schemas, rewrites to ``anyOf`` because the 2020-12 spec
-    forbids siblings on a $ref-only schema. For typed schemas, appends
-    ``"null"`` to the ``type`` list and ``None`` to ``enum`` when present —
-    validators check ``type`` and ``enum`` independently.
-    """
+def __make_nullable(schema: dict[str, Any]) -> dict[str, Any]:
     if "$ref" in schema:
-        ref_value = schema.pop("$ref")
-        description = schema.pop("description", None)
-        schema["anyOf"] = [{"$ref": ref_value}, {"type": "null"}]
-        if description is not None:
-            schema["description"] = description
-        return
+        result = {k: v for k, v in schema.items() if k != "$ref"}
+        result["anyOf"] = [{"$ref": schema["$ref"]}, {"type": "null"}]
+        return result
 
-    schema_type = schema.get("type")
+    result = dict(schema)
+    schema_type = result.get("type")
     if isinstance(schema_type, str):
-        schema["type"] = [schema_type, "null"]
+        result["type"] = [schema_type, "null"]
     elif isinstance(schema_type, list) and "null" not in schema_type:
-        schema["type"] = [*schema_type, "null"]
+        result["type"] = [*schema_type, "null"]
 
-    enum_values = schema.get("enum")
+    enum_values = result.get("enum")
     if isinstance(enum_values, list) and None not in enum_values:
-        schema["enum"] = [*enum_values, None]
+        result["enum"] = [*enum_values, None]
+
+    return result
 
 
 def __try_get_underlying_types_from_union(t: TypeLike) -> tuple[TypeLike, ...] | None:
@@ -245,13 +238,7 @@ def __convert_field_to_json_schema(
 
         if len(non_none_types) == 1:
             inner = __convert_field_to_json_schema(non_none_types[0], metadata, context)
-            for k, v in inner.items():
-                if k == "description" and "description" in schema:
-                    continue
-                schema[k] = v
-            if has_none:
-                __add_null_branch(schema)
-            return schema
+            return __make_nullable(inner) if has_none else inner
 
         if len(non_none_types) > 1:
             branches = [__convert_field_to_json_schema(t, EMPTY_METADATA, context) for t in non_none_types]
