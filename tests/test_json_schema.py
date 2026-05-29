@@ -5,7 +5,7 @@ import datetime
 import decimal
 import enum
 import uuid
-from typing import Annotated, Generic, Literal, TypeVar
+from typing import Annotated, Any, Generic, Literal, TypeVar
 
 import pytest
 
@@ -1084,3 +1084,74 @@ def test_none_value_handling_does_not_change_json_schema_shape() -> None:
 
     assert default == ignore == include
     assert default["properties"]["s"] == {"type": ["string", "null"], "default": None}
+
+
+def _assert_nullable_property(inner_annotation: Any, expected_property: dict[str, object]) -> None:
+    cls = dataclasses.make_dataclass("M", [("v", inner_annotation | None)], frozen=True, slots=True, kw_only=True)
+    assert mr.json_schema(cls) == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "M",
+        "properties": {"v": expected_property},
+        "required": [],
+    }
+
+
+@pytest.mark.parametrize(
+    ("meta", "expected_extra"),
+    [
+        (mr.str_meta(min_length=1, max_length=5), {"minLength": 1, "maxLength": 5}),
+        (mr.str_meta(min_length=2), {"minLength": 2}),
+        (mr.str_meta(max_length=5), {"maxLength": 5}),
+    ],
+)
+def test_nullable_str_keeps_length_constraints(meta: Any, expected_extra: dict[str, object]) -> None:
+    _assert_nullable_property(Annotated[str, meta], {"type": ["string", "null"], **expected_extra})
+
+
+@pytest.mark.parametrize(
+    ("inner_annotation", "expected_property"),
+    [
+        (Annotated[int, mr.int_meta(gte=1, lte=9)], {"type": ["integer", "null"], "minimum": 1, "maximum": 9}),
+        (
+            Annotated[int, mr.int_meta(gt=0, lt=100)],
+            {"type": ["integer", "null"], "exclusiveMinimum": 0, "exclusiveMaximum": 100},
+        ),
+        (
+            Annotated[float, mr.float_meta(gte=0.0, lte=1.0)],
+            {"type": ["number", "null"], "minimum": 0.0, "maximum": 1.0},
+        ),
+        (
+            Annotated[float, mr.float_meta(gt=0.0, lt=10.0)],
+            {"type": ["number", "null"], "exclusiveMinimum": 0.0, "exclusiveMaximum": 10.0},
+        ),
+    ],
+)
+def test_nullable_numeric_keeps_bounds(inner_annotation: Any, expected_property: dict[str, object]) -> None:
+    _assert_nullable_property(inner_annotation, expected_property)
+
+
+@pytest.mark.parametrize(
+    ("meta", "expected_extra"),
+    [
+        (mr.decimal_meta(gte=0, lte=100), {"minimum": "0", "maximum": "100"}),
+        (mr.decimal_meta(gt=0), {"exclusiveMinimum": "0"}),
+        (mr.decimal_meta(lt=1000), {"exclusiveMaximum": "1000"}),
+    ],
+)
+def test_nullable_decimal_keeps_stringified_bounds(meta: Any, expected_extra: dict[str, object]) -> None:
+    _assert_nullable_property(Annotated[decimal.Decimal, meta], {"type": ["string", "null"], **expected_extra})
+
+
+@pytest.mark.parametrize(
+    ("meta", "expected_extra"),
+    [
+        (mr.list_meta(min_length=1, max_length=3), {"minItems": 1, "maxItems": 3}),
+        (mr.list_meta(min_length=2), {"minItems": 2}),
+        (mr.list_meta(max_length=5), {"maxItems": 5}),
+    ],
+)
+def test_nullable_list_keeps_item_count_constraints(meta: Any, expected_extra: dict[str, object]) -> None:
+    _assert_nullable_property(
+        Annotated[list[int], meta], {"type": ["array", "null"], "items": {"type": "integer"}, **expected_extra}
+    )

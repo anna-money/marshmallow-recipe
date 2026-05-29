@@ -120,34 +120,46 @@ def __is_optional(field_type: TypeLike) -> bool:
     return any(t is types.NoneType for t in underlying_union_types)
 
 
-def __make_nullable(schema: dict[str, Any]) -> dict[str, Any]:
-    if "$ref" in schema:
-        result = {k: v for k, v in schema.items() if k != "$ref"}
-        result["anyOf"] = [{"$ref": schema["$ref"]}, {"type": "null"}]
-        return result
+__SCALAR_FORMATS: dict[Any, tuple[str, str | None]] = {
+    bool: ("boolean", None),
+    datetime.datetime: ("string", "date-time"),
+    datetime.date: ("string", "date"),
+    datetime.time: ("string", "time"),
+    uuid.UUID: ("string", "uuid"),
+    bytes: ("string", "byte"),
+}
 
-    any_of = schema.get("anyOf")
-    if isinstance(any_of, list):
-        result = dict(schema)
-        if not any(isinstance(b, dict) and b.get("type") == "null" for b in any_of):
-            result["anyOf"] = [*any_of, {"type": "null"}]
-        return result
 
-    if "type" not in schema:
-        raise ValueError(f"cannot make schema nullable, no $ref / type / anyOf: {schema!r}")
+def __nullable_type(name: str, nullable: bool) -> str | list[str]:
+    return [name, "null"] if nullable else name
 
-    result = dict(schema)
-    schema_type = result["type"]
-    if isinstance(schema_type, str):
-        result["type"] = [schema_type, "null"]
-    elif isinstance(schema_type, list) and "null" not in schema_type:
-        result["type"] = [*schema_type, "null"]
 
-    enum_values = result.get("enum")
-    if isinstance(enum_values, list) and None not in enum_values:
-        result["enum"] = [*enum_values, None]
+def __item_metadata(metadata: Metadata) -> Metadata:
+    item_description = metadata.get("item_description")
+    if item_description:
+        return Metadata({"description": item_description})
+    return EMPTY_METADATA
 
-    return result
+
+def __apply_length(schema: dict[str, Any], metadata: Metadata, *, item: bool) -> None:
+    min_length = metadata.get("min_length")
+    max_length = metadata.get("max_length")
+    if min_length is not None:
+        schema["minItems" if item else "minLength"] = min_length
+    if max_length is not None:
+        schema["maxItems" if item else "maxLength"] = max_length
+
+
+def __apply_numeric_bounds(schema: dict[str, Any], metadata: Metadata, *, stringify: bool) -> None:
+    for meta_key, schema_key in (
+        ("gt", "exclusiveMinimum"),
+        ("gte", "minimum"),
+        ("lt", "exclusiveMaximum"),
+        ("lte", "maximum"),
+    ):
+        value = metadata.get(meta_key)
+        if value is not None:
+            schema[schema_key] = str(value) if stringify else value
 
 
 def __try_get_underlying_types_from_union(t: TypeLike) -> tuple[TypeLike, ...] | None:
@@ -210,173 +222,163 @@ def __generate_dataclass_schema(
     return schema
 
 
-def __convert_field_to_json_schema(
-    field_type: TypeLike, metadata: Metadata, context: _JsonSchemaContext
+def __fill_literal_schema(schema: dict[str, Any], field_type: TypeLike, nullable: bool) -> None:
+    literal_values = get_args(field_type)
+    json_type: str | None = None
+    if literal_values and all(isinstance(v, str) for v in literal_values):
+        json_type = "string"
+    elif literal_values and all(isinstance(v, bool) for v in literal_values):
+        json_type = "boolean"
+    elif literal_values and all(isinstance(v, int) and not isinstance(v, bool) for v in literal_values):
+        json_type = "integer"
+    if json_type is not None:
+        schema["type"] = __nullable_type(json_type, nullable)
+    enum_values = [v.value if isinstance(v, enum.Enum) else v for v in literal_values]
+    schema["enum"] = [*enum_values, None] if nullable else enum_values
+
+
+def __fill_enum_schema(schema: dict[str, Any], enum_cls: type[enum.Enum], nullable: bool) -> None:
+    first_value = next(iter(enum_cls.__members__.values())).value
+    if isinstance(first_value, str):
+        json_type = "string"
+    elif isinstance(first_value, int):
+        json_type = "integer"
+    else:
+        json_type = "string"
+    schema["type"] = __nullable_type(json_type, nullable)
+    enum_values = [member.value for member in enum_cls.__members__.values()]
+    schema["enum"] = [*enum_values, None] if nullable else enum_values
+
+
+def __fill_ref_schema(
+    schema: dict[str, Any], field_type: TypeLike, context: _JsonSchemaContext, nullable: bool
+) -> None:
+    ref_name = __get_type_name(cast(type, field_type))
+    if field_type not in context.visited_types:
+        context.visited_types.add(field_type)
+        context.defs[ref_name] = __generate_dataclass_schema(cast(type, field_type), context)
+    ref = f"#/$defs/{ref_name}"
+    if nullable:
+        schema["anyOf"] = [{"$ref": ref}, {"type": "null"}]
+    else:
+        schema["$ref"] = ref
+
+
+def __build_leaf(
+    field_type: TypeLike, metadata: Metadata, context: _JsonSchemaContext, nullable: bool
 ) -> dict[str, Any]:
     schema: dict[str, Any] = {}
+    description = metadata.get("description")
+    if description:
+        schema["description"] = description
 
-    if metadata.get("description"):
-        schema["description"] = metadata["description"]
+    origin = get_origin(field_type)
 
+    if origin is Literal:
+        __fill_literal_schema(schema, field_type, nullable)
+        return schema
+
+    if field_type is str:
+        schema["type"] = __nullable_type("string", nullable)
+        __apply_length(schema, metadata, item=False)
+        return schema
+
+    if field_type is int:
+        schema["type"] = __nullable_type("integer", nullable)
+        __apply_numeric_bounds(schema, metadata, stringify=False)
+        return schema
+
+    if field_type is float:
+        schema["type"] = __nullable_type("number", nullable)
+        __apply_numeric_bounds(schema, metadata, stringify=False)
+        return schema
+
+    if field_type is decimal.Decimal:
+        schema["type"] = __nullable_type("string", nullable)
+        __apply_numeric_bounds(schema, metadata, stringify=True)
+        return schema
+
+    scalar = __SCALAR_FORMATS.get(field_type)
+    if scalar is not None:
+        json_type, fmt = scalar
+        schema["type"] = __nullable_type(json_type, nullable)
+        if fmt is not None:
+            schema["format"] = fmt
+        return schema
+
+    args = get_args(field_type)
+
+    if origin is list or origin is collections.abc.Sequence:
+        schema["type"] = __nullable_type("array", nullable)
+        if args:
+            schema["items"] = __convert_field_to_json_schema(args[0], __item_metadata(metadata), context)
+        __apply_length(schema, metadata, item=True)
+        return schema
+
+    if origin is set or origin is collections.abc.Set or origin is frozenset:
+        schema["type"] = __nullable_type("array", nullable)
+        schema["uniqueItems"] = True
+        if args:
+            schema["items"] = __convert_field_to_json_schema(args[0], __item_metadata(metadata), context)
+        return schema
+
+    if origin is tuple:
+        schema["type"] = __nullable_type("array", nullable)
+        if args and len(args) == 2 and args[1] is Ellipsis:
+            schema["items"] = __convert_field_to_json_schema(args[0], __item_metadata(metadata), context)
+        return schema
+
+    if origin is dict or origin is collections.abc.Mapping:
+        schema["type"] = __nullable_type("object", nullable)
+        if args and len(args) >= 2 and args[1] is not types.NoneType:
+            schema["additionalProperties"] = __convert_field_to_json_schema(args[1], EMPTY_METADATA, context)
+        return schema
+
+    field_origin = origin or field_type
+    if isinstance(field_origin, type) and dataclasses.is_dataclass(field_origin):
+        __fill_ref_schema(schema, field_type, context, nullable)
+        return schema
+
+    if isinstance(field_origin, type) and issubclass(field_origin, enum.Enum):
+        __fill_enum_schema(schema, field_origin, nullable)
+        return schema
+
+    schema["type"] = __nullable_type("object", nullable)
+    return schema
+
+
+def __convert_field_to_json_schema(
+    field_type: TypeLike, metadata: Metadata, context: _JsonSchemaContext, *, nullable: bool = False
+) -> dict[str, Any]:
     while isinstance(field_type, TypeAliasType):
         field_type = field_type.__value__
 
-    origin = get_origin(field_type)
-    if origin is Annotated:
+    if get_origin(field_type) is Annotated:
         args = get_args(field_type)
         if args:
             underlying_type = args[0]
             annotated_metadata = next((arg for arg in args[1:] if isinstance(arg, Metadata)), EMPTY_METADATA)
             merged_metadata = Metadata(dict(metadata, **annotated_metadata))
-            return __convert_field_to_json_schema(underlying_type, merged_metadata, context)
-
-    if origin is Literal:
-        literal_values = get_args(field_type)
-        if literal_values and all(isinstance(v, str) for v in literal_values):
-            schema["type"] = "string"
-        elif literal_values and all(isinstance(v, bool) for v in literal_values):
-            schema["type"] = "boolean"
-        elif literal_values and all(isinstance(v, int) and not isinstance(v, bool) for v in literal_values):
-            schema["type"] = "integer"
-        schema["enum"] = [v.value if isinstance(v, enum.Enum) else v for v in literal_values]
-        return schema
+            return __convert_field_to_json_schema(underlying_type, merged_metadata, context, nullable=nullable)
 
     underlying_union_types = __try_get_underlying_types_from_union(field_type)
     if underlying_union_types is not None:
         non_none_types = [t for t in underlying_union_types if t is not types.NoneType]
-        has_none = len(non_none_types) != len(underlying_union_types)
+        nullable = nullable or len(non_none_types) != len(underlying_union_types)
 
         if len(non_none_types) == 1:
-            inner = __convert_field_to_json_schema(non_none_types[0], metadata, context)
-            return __make_nullable(inner) if has_none else inner
+            return __convert_field_to_json_schema(non_none_types[0], metadata, context, nullable=nullable)
 
-        if len(non_none_types) > 1:
-            branches = [__convert_field_to_json_schema(t, EMPTY_METADATA, context) for t in non_none_types]
-            if has_none:
-                branches.append({"type": "null"})
-            schema["anyOf"] = branches
+        schema: dict[str, Any] = {}
+        if metadata.get("description"):
+            schema["description"] = metadata["description"]
+        if not non_none_types:
+            schema["type"] = "null"
             return schema
+        branches = [__convert_field_to_json_schema(t, EMPTY_METADATA, context) for t in non_none_types]
+        if nullable:
+            branches.append({"type": "null"})
+        schema["anyOf"] = branches
+        return schema
 
-    if field_type is str:
-        schema["type"] = "string"
-        if metadata.get("min_length") is not None:
-            schema["minLength"] = metadata["min_length"]
-        if metadata.get("max_length") is not None:
-            schema["maxLength"] = metadata["max_length"]
-    elif field_type is int:
-        schema["type"] = "integer"
-        if metadata.get("gt") is not None:
-            schema["exclusiveMinimum"] = metadata["gt"]
-        if metadata.get("gte") is not None:
-            schema["minimum"] = metadata["gte"]
-        if metadata.get("lt") is not None:
-            schema["exclusiveMaximum"] = metadata["lt"]
-        if metadata.get("lte") is not None:
-            schema["maximum"] = metadata["lte"]
-    elif field_type is float:
-        schema["type"] = "number"
-        if metadata.get("gt") is not None:
-            schema["exclusiveMinimum"] = metadata["gt"]
-        if metadata.get("gte") is not None:
-            schema["minimum"] = metadata["gte"]
-        if metadata.get("lt") is not None:
-            schema["exclusiveMaximum"] = metadata["lt"]
-        if metadata.get("lte") is not None:
-            schema["maximum"] = metadata["lte"]
-    elif field_type is bool:
-        schema["type"] = "boolean"
-    elif field_type is datetime.datetime:
-        schema["type"] = "string"
-        schema["format"] = "date-time"
-    elif field_type is datetime.date:
-        schema["type"] = "string"
-        schema["format"] = "date"
-    elif field_type is datetime.time:
-        schema["type"] = "string"
-        schema["format"] = "time"
-    elif field_type is uuid.UUID:
-        schema["type"] = "string"
-        schema["format"] = "uuid"
-    elif field_type is bytes:
-        schema["type"] = "string"
-        schema["format"] = "byte"
-    elif field_type is decimal.Decimal:
-        schema["type"] = "string"
-        if metadata.get("gt") is not None:
-            schema["exclusiveMinimum"] = str(metadata["gt"])
-        if metadata.get("gte") is not None:
-            schema["minimum"] = str(metadata["gte"])
-        if metadata.get("lt") is not None:
-            schema["exclusiveMaximum"] = str(metadata["lt"])
-        if metadata.get("lte") is not None:
-            schema["maximum"] = str(metadata["lte"])
-    else:
-        origin = get_origin(field_type)
-        if origin is not None:
-            args = get_args(field_type)
-            if origin is list or origin is collections.abc.Sequence:
-                schema["type"] = "array"
-                if args:
-                    item_meta = EMPTY_METADATA
-                    if metadata.get("item_description"):
-                        item_meta = Metadata({"description": metadata["item_description"]})
-                    schema["items"] = __convert_field_to_json_schema(args[0], item_meta, context)
-                if metadata.get("min_length") is not None:
-                    schema["minItems"] = metadata["min_length"]
-                if metadata.get("max_length") is not None:
-                    schema["maxItems"] = metadata["max_length"]
-            elif origin is set or origin is collections.abc.Set or origin is frozenset:
-                schema["type"] = "array"
-                schema["uniqueItems"] = True
-                if args:
-                    item_meta = EMPTY_METADATA
-                    if metadata.get("item_description"):
-                        item_meta = Metadata({"description": metadata["item_description"]})
-                    schema["items"] = __convert_field_to_json_schema(args[0], item_meta, context)
-            elif origin is tuple:
-                schema["type"] = "array"
-                if args and len(args) == 2 and args[1] is Ellipsis:
-                    item_meta = EMPTY_METADATA
-                    if metadata.get("item_description"):
-                        item_meta = Metadata({"description": metadata["item_description"]})
-                    schema["items"] = __convert_field_to_json_schema(args[0], item_meta, context)
-            elif origin is dict or origin is collections.abc.Mapping:
-                schema["type"] = "object"
-                if args and len(args) >= 2 and args[1] is not type(None):
-                    schema["additionalProperties"] = __convert_field_to_json_schema(args[1], EMPTY_METADATA, context)
-            elif isinstance(origin, type) and dataclasses.is_dataclass(origin):
-                # Subscripted generic dataclass like Container[int]
-                ref_name = __get_type_name(cast(type, field_type))
-                if field_type not in context.visited_types:
-                    context.visited_types.add(field_type)
-                    nested_schema = __generate_dataclass_schema(cast(type, field_type), context)
-                    context.defs[ref_name] = nested_schema
-                schema["$ref"] = f"#/$defs/{ref_name}"
-            else:
-                schema["type"] = "object"
-        else:
-            # Check if it's a dataclass (non-generic or base case)
-            field_origin = get_origin(field_type) or field_type
-            if isinstance(field_origin, type) and dataclasses.is_dataclass(field_origin):
-                ref_name = __get_type_name(cast(type, field_type))
-                # Add to visited_types first to prevent infinite recursion on cyclic references
-                if field_type not in context.visited_types:
-                    context.visited_types.add(field_type)
-                    # Generate the nested schema using internal helper to pass context
-                    nested_schema = __generate_dataclass_schema(cast(type, field_type), context)
-                    context.defs[ref_name] = nested_schema
-                # Always set $ref, even if we already processed this type
-                schema["$ref"] = f"#/$defs/{ref_name}"
-            elif isinstance(field_origin, type) and issubclass(field_origin, enum.Enum):
-                first_value = next(iter(field_origin.__members__.values())).value
-                if isinstance(first_value, str):
-                    schema["type"] = "string"
-                elif isinstance(first_value, int):
-                    schema["type"] = "integer"
-                else:
-                    schema["type"] = "string"
-                schema["enum"] = [member.value for member in field_origin.__members__.values()]
-            else:
-                schema["type"] = "object"
-
-    return schema
+    return __build_leaf(field_type, metadata, context, nullable)
