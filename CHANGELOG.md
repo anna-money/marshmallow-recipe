@@ -1,3 +1,8 @@
+## v0.0.98 (2026-05-29)
+
+* **Breaking:** `mr.json_schema()` now renders `T | None` as nullable JSON Schema. `str | None` becomes `{"type": ["string", "null"]}`; `Nested | None` becomes `{"anyOf": [{"$ref": "#/$defs/Nested"}, {"type": "null"}]}`; nullable enums and `Literal` types include `null` in both the `type` list and the `enum` list. Previously the `None` branch was dropped, producing schemas that rejected `null` even though the Python type allowed it. `NoneValueHandling` does not affect schema rendering — it remains a serialization-only setting.
+
+
 ## v0.0.97 (2026-05-12)
 
 * [Use covariant `Sequence` instead of `list` in `load_many`](https://github.com/anna-money/marshmallow-recipe/pull/305)

@@ -5,7 +5,7 @@ import datetime
 import decimal
 import enum
 import uuid
-from typing import Annotated, Generic, Literal, TypeVar
+from typing import Annotated, Any, Generic, Literal, TypeVar
 
 import pytest
 
@@ -56,8 +56,8 @@ def test_optional_fields() -> None:
         "title": "OptionalFields",
         "properties": {
             "required_str": {"type": "string"},
-            "optional_str": {"type": "string"},
-            "optional_int": {"type": "integer"},
+            "optional_str": {"type": ["string", "null"]},
+            "optional_int": {"type": ["integer", "null"]},
         },
         "required": ["required_str"],
     }
@@ -482,7 +482,10 @@ def test_cyclic_references() -> None:
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
         "title": "_CyclicNode",
-        "properties": {"value": {"type": "integer"}, "next_node": {"$ref": "#/$defs/_CyclicNode", "default": None}},
+        "properties": {
+            "value": {"type": "integer"},
+            "next_node": {"anyOf": [{"$ref": "#/$defs/_CyclicNode"}, {"type": "null"}], "default": None},
+        },
         "required": ["value"],
         "$defs": {
             "_CyclicNode": {
@@ -490,7 +493,7 @@ def test_cyclic_references() -> None:
                 "title": "_CyclicNode",
                 "properties": {
                     "value": {"type": "integer"},
-                    "next_node": {"$ref": "#/$defs/_CyclicNode", "default": None},
+                    "next_node": {"anyOf": [{"$ref": "#/$defs/_CyclicNode"}, {"type": "null"}], "default": None},
                 },
                 "required": ["value"],
             }
@@ -507,7 +510,7 @@ def test_mutually_recursive_types() -> None:
         "title": "_RecursivePerson",
         "properties": {
             "name": {"type": "string"},
-            "spouse": {"$ref": "#/$defs/_RecursivePerson", "default": None},
+            "spouse": {"anyOf": [{"$ref": "#/$defs/_RecursivePerson"}, {"type": "null"}], "default": None},
             "friends": {"type": "array", "items": {"$ref": "#/$defs/_RecursivePerson"}},
         },
         "required": ["name"],
@@ -517,7 +520,7 @@ def test_mutually_recursive_types() -> None:
                 "title": "_RecursivePerson",
                 "properties": {
                     "name": {"type": "string"},
-                    "spouse": {"$ref": "#/$defs/_RecursivePerson", "default": None},
+                    "spouse": {"anyOf": [{"$ref": "#/$defs/_RecursivePerson"}, {"type": "null"}], "default": None},
                     "friends": {"type": "array", "items": {"$ref": "#/$defs/_RecursivePerson"}},
                 },
                 "required": ["name"],
@@ -557,7 +560,11 @@ def test_enum_types() -> None:
             "title": {"type": "string"},
             "status": {"type": "string", "enum": ["active", "inactive", "pending"]},
             "priority": {"type": "integer", "enum": [1, 2, 3]},
-            "optional_status": {"type": "string", "enum": ["active", "inactive", "pending"], "default": None},
+            "optional_status": {
+                "type": ["string", "null"],
+                "enum": ["active", "inactive", "pending", None],
+                "default": None,
+            },
         },
         "required": ["title", "status", "priority"],
     }
@@ -678,7 +685,12 @@ def test_set_and_frozenset_types() -> None:
         "properties": {
             "tags_set": {"type": "array", "uniqueItems": True, "items": {"type": "string"}},
             "ids_frozenset": {"type": "array", "uniqueItems": True, "items": {"type": "integer"}},
-            "optional_set": {"type": "array", "uniqueItems": True, "items": {"type": "string"}, "default": None},
+            "optional_set": {
+                "type": ["array", "null"],
+                "uniqueItems": True,
+                "items": {"type": "string"},
+                "default": None,
+            },
         },
         "required": ["tags_set", "ids_frozenset"],
     }
@@ -700,7 +712,7 @@ def test_dict_types() -> None:
         "properties": {
             "simple_dict": {"type": "object", "additionalProperties": {"type": "integer"}},
             "any_dict": {"type": "object", "additionalProperties": {"type": "object"}},
-            "optional_dict": {"type": "object", "additionalProperties": {"type": "string"}, "default": None},
+            "optional_dict": {"type": ["object", "null"], "additionalProperties": {"type": "string"}, "default": None},
         },
         "required": ["simple_dict", "any_dict"],
     }
@@ -858,9 +870,9 @@ def test_literal_types() -> None:
             "str_literal": {"type": "string", "enum": ["a", "b", "c"]},
             "int_literal": {"type": "integer", "enum": [1, 2, 3]},
             "bool_literal": {"type": "boolean", "enum": [True, False]},
-            "optional_str_literal": {"type": "string", "enum": ["x", "y"], "default": None},
-            "optional_int_literal": {"type": "integer", "enum": [1, 2], "default": None},
-            "optional_bool_literal": {"type": "boolean", "enum": [True], "default": None},
+            "optional_str_literal": {"type": ["string", "null"], "enum": ["x", "y", None], "default": None},
+            "optional_int_literal": {"type": ["integer", "null"], "enum": [1, 2, None], "default": None},
+            "optional_bool_literal": {"type": ["boolean", "null"], "enum": [True, None], "default": None},
         },
         "required": ["str_literal", "int_literal", "bool_literal"],
     }
@@ -896,7 +908,7 @@ def test_literal_enum_member_types() -> None:
             "str_enum_single": {"type": "string", "enum": ["DOG"]},
             "int_enum_multi": {"type": "integer", "enum": [1, 2]},
             "int_enum_single": {"type": "integer", "enum": [1]},
-            "optional_str_enum": {"type": "string", "enum": ["DOG"], "default": None},
+            "optional_str_enum": {"type": ["string", "null"], "enum": ["DOG", None], "default": None},
         },
         "required": ["str_enum_multi", "str_enum_single", "int_enum_multi", "int_enum_single"],
     }
@@ -916,7 +928,7 @@ def test_bytes_field() -> None:
         "title": "WithBytes",
         "properties": {
             "data": {"type": "string", "format": "byte"},
-            "optional_data": {"type": "string", "format": "byte", "default": None},
+            "optional_data": {"type": ["string", "null"], "format": "byte", "default": None},
         },
         "required": ["data"],
     }
@@ -927,6 +939,7 @@ type OptionalIntAlias = int | None
 type UnionAlias = str | int
 type ChainedStrAlias = StrAlias
 type UnionOfAliases = StrAlias | OptionalIntAlias
+type IntOrStrAlias = int | str
 
 
 def test_type_alias() -> None:
@@ -944,7 +957,7 @@ def test_type_alias() -> None:
         "title": "WithTypeAliases",
         "properties": {
             "name": {"type": "string"},
-            "count": {"type": "integer", "default": None},
+            "count": {"type": ["integer", "null"], "default": None},
             "value": {"anyOf": [{"type": "string"}, {"type": "integer"}], "default": "default"},
         },
         "required": ["name"],
@@ -976,6 +989,169 @@ def test_type_alias_union_of_aliases() -> None:
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
         "title": "WithUnionOfAliases",
-        "properties": {"value": {"anyOf": [{"type": "string"}, {"type": "integer"}]}},
+        "properties": {"value": {"anyOf": [{"type": "string"}, {"type": ["integer", "null"]}]}},
         "required": ["value"],
     }
+
+
+def test_optional_multi_union_appends_null_branch() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class M:
+        v: int | str | None = None
+
+    schema = mr.json_schema(M)
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "M",
+        "properties": {"v": {"anyOf": [{"type": "integer"}, {"type": "string"}, {"type": "null"}], "default": None}},
+        "required": [],
+    }
+
+
+def test_optional_type_alias_to_multi_union_appends_null_branch() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class M:
+        v: IntOrStrAlias | None = None
+
+    schema = mr.json_schema(M)
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "M",
+        "properties": {"v": {"anyOf": [{"type": "integer"}, {"type": "string"}, {"type": "null"}], "default": None}},
+        "required": [],
+    }
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class _NullableInner:
+    v: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class _NullableOuter:
+    inner: _NullableInner | None = None
+
+
+def test_optional_dataclass_renders_anyof_with_null() -> None:
+    schema = mr.json_schema(_NullableOuter)
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "_NullableOuter",
+        "properties": {"inner": {"anyOf": [{"$ref": "#/$defs/_NullableInner"}, {"type": "null"}], "default": None}},
+        "required": [],
+        "$defs": {
+            "_NullableInner": {
+                "type": "object",
+                "title": "_NullableInner",
+                "properties": {"v": {"type": "integer"}},
+                "required": ["v"],
+            }
+        },
+    }
+
+
+class _NullableEnumStatus(enum.StrEnum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+
+
+def test_optional_enum_includes_null_in_type_and_enum_list() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class M:
+        status: _NullableEnumStatus | None = None
+
+    schema = mr.json_schema(M)
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "M",
+        "properties": {"status": {"type": ["string", "null"], "enum": ["active", "inactive", None], "default": None}},
+        "required": [],
+    }
+
+
+def test_none_value_handling_does_not_change_json_schema_shape() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class M:
+        s: str | None = None
+
+    default = mr.json_schema(M)
+    ignore = mr.json_schema(M, none_value_handling=mr.NoneValueHandling.IGNORE)
+    include = mr.json_schema(M, none_value_handling=mr.NoneValueHandling.INCLUDE)
+
+    assert default == ignore == include
+    assert default["properties"]["s"] == {"type": ["string", "null"], "default": None}
+
+
+def _assert_nullable_property(inner_annotation: Any, expected_property: dict[str, object]) -> None:
+    cls = dataclasses.make_dataclass("M", [("v", inner_annotation | None)], frozen=True, slots=True, kw_only=True)
+    assert mr.json_schema(cls) == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "M",
+        "properties": {"v": expected_property},
+        "required": [],
+    }
+
+
+@pytest.mark.parametrize(
+    ("meta", "expected_extra"),
+    [
+        (mr.str_meta(min_length=1, max_length=5), {"minLength": 1, "maxLength": 5}),
+        (mr.str_meta(min_length=2), {"minLength": 2}),
+        (mr.str_meta(max_length=5), {"maxLength": 5}),
+    ],
+)
+def test_nullable_str_keeps_length_constraints(meta: Any, expected_extra: dict[str, object]) -> None:
+    _assert_nullable_property(Annotated[str, meta], {"type": ["string", "null"], **expected_extra})
+
+
+@pytest.mark.parametrize(
+    ("inner_annotation", "expected_property"),
+    [
+        (Annotated[int, mr.int_meta(gte=1, lte=9)], {"type": ["integer", "null"], "minimum": 1, "maximum": 9}),
+        (
+            Annotated[int, mr.int_meta(gt=0, lt=100)],
+            {"type": ["integer", "null"], "exclusiveMinimum": 0, "exclusiveMaximum": 100},
+        ),
+        (
+            Annotated[float, mr.float_meta(gte=0.0, lte=1.0)],
+            {"type": ["number", "null"], "minimum": 0.0, "maximum": 1.0},
+        ),
+        (
+            Annotated[float, mr.float_meta(gt=0.0, lt=10.0)],
+            {"type": ["number", "null"], "exclusiveMinimum": 0.0, "exclusiveMaximum": 10.0},
+        ),
+    ],
+)
+def test_nullable_numeric_keeps_bounds(inner_annotation: Any, expected_property: dict[str, object]) -> None:
+    _assert_nullable_property(inner_annotation, expected_property)
+
+
+@pytest.mark.parametrize(
+    ("meta", "expected_extra"),
+    [
+        (mr.decimal_meta(gte=0, lte=100), {"minimum": "0", "maximum": "100"}),
+        (mr.decimal_meta(gt=0), {"exclusiveMinimum": "0"}),
+        (mr.decimal_meta(lt=1000), {"exclusiveMaximum": "1000"}),
+    ],
+)
+def test_nullable_decimal_keeps_stringified_bounds(meta: Any, expected_extra: dict[str, object]) -> None:
+    _assert_nullable_property(Annotated[decimal.Decimal, meta], {"type": ["string", "null"], **expected_extra})
+
+
+@pytest.mark.parametrize(
+    ("meta", "expected_extra"),
+    [
+        (mr.list_meta(min_length=1, max_length=3), {"minItems": 1, "maxItems": 3}),
+        (mr.list_meta(min_length=2), {"minItems": 2}),
+        (mr.list_meta(max_length=5), {"maxItems": 5}),
+    ],
+)
+def test_nullable_list_keeps_item_count_constraints(meta: Any, expected_extra: dict[str, object]) -> None:
+    _assert_nullable_property(
+        Annotated[list[int], meta], {"type": ["array", "null"], "items": {"type": "integer"}, **expected_extra}
+    )
