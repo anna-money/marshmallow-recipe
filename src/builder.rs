@@ -193,8 +193,11 @@ fn extract_regexp_bound(
     let Some(s) = pattern_str else {
         return Ok(None);
     };
-    let compiled = fancy_regex::Regex::new(&s)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+    let compiled = py
+        .import("re")?
+        .getattr(intern!(py, "compile"))?
+        .call1((s,))?
+        .unbind();
     let error = extract_optional_py_string(kwargs, error_key)?.unwrap_or_else(|| {
         intern!(py, "String does not match expected pattern.")
             .clone()

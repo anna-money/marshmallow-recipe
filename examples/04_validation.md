@@ -432,7 +432,10 @@ loaded_profile = mr.load(UserProfile, profile_dict)
 
 ### String Regexp Validation
 
-Use the `regexp` parameter on `str_meta` for built-in regex validation (Rust-accelerated):
+Use the `regexp` parameter on `str_meta` for built-in regex validation. Patterns are
+plain Python `re` patterns and are matched with `re.match` semantics (anchored at the
+**start** of the string, not the end) on both the marshmallow and nuked backends, so
+behaviour is identical:
 
 ```python
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -460,6 +463,19 @@ contact = ContactInfo(
     phone="+15551234567",
 )
 ```
+
+Notes:
+
+* Use any pattern accepted by Python's `re` module — lookarounds, backreferences and
+  Unicode classes all work, and behave identically on both backends.
+* Matching is anchored at the start (`re.match`), not the end. `regexp=r"\d+"` accepts
+  `"12ab"` (digits at the start) but rejects `"ab12"`. Anchor with `^...$` to match the
+  whole string.
+* `regexp_error` is used verbatim — braces and other characters are not treated as
+  format placeholders.
+* In JSON Schema the pattern is emitted as-is into `pattern`, which the spec treats as
+  **unanchored**. For an exact round-trip between the schema and the validator, anchor
+  your pattern with `^...$`.
 
 ## Combining Validation with Transformations
 

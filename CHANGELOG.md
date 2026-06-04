@@ -1,6 +1,6 @@
 ## unreleased
 
-* [Add `regexp` parameter to `str_meta()` for built-in string pattern validation with Rust acceleration](https://github.com/anna-money/marshmallow-recipe/pull/300)
+* [Add `regexp` parameter to `str_meta()` for built-in string pattern validation. Patterns use Python `re` semantics (`re.match`, anchored at the start) on both the marshmallow and nuked backends, so behaviour is identical; `regexp_error` is used verbatim; the JSON Schema `pattern` is emitted as-is, unanchored, per the OpenAPI/apispec convention.](https://github.com/anna-money/marshmallow-recipe/pull/300)
 
 
 ## v0.0.98 (2026-05-29)

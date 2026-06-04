@@ -128,9 +128,11 @@ def str_metadata(
         min_length_error: Custom error for min_length violation. Supports ``{min}`` placeholder.
         max_length: Maximum string length (character count).
         max_length_error: Custom error for max_length violation. Supports ``{max}`` placeholder.
-        regexp: Regular expression pattern the string must match from the start (like ``re.match``,
-            not ``re.search``).
-        regexp_error: Custom error when regexp validation fails.
+        regexp: Python ``re`` pattern the string must match from the start (``re.match`` semantics,
+            not ``re.search``). Both the marshmallow and nuked backends match with the ``re`` module,
+            so behaviour is identical. In JSON Schema the pattern is emitted verbatim into ``pattern``,
+            which JSON Schema treats as unanchored; anchor with ``^...$`` for an exact round-trip.
+        regexp_error: Custom error when regexp validation fails. Used verbatim (no placeholders).
         validate: Validation function or list of functions applied on load.
         strip_whitespaces: If True, strip leading/trailing whitespace on load.
         post_load: Callable applied to the string value after deserialization.

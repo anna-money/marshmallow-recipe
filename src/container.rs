@@ -473,7 +473,7 @@ impl Clone for PrimitiveContainer {
     }
 }
 
-#[allow(clippy::use_self, clippy::large_enum_variant)]
+#[allow(clippy::use_self)]
 pub enum TypeContainer {
     Dataclass(usize),
     Primitive(PrimitiveContainer),
