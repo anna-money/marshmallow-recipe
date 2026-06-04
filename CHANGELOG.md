@@ -1,3 +1,8 @@
+## unreleased
+
+* [Add `regexp` parameter to `str_meta()` for built-in string pattern validation. Patterns use Python `re` semantics (`re.match`, anchored at the start) on both the marshmallow and nuked backends, so behaviour is identical; `regexp_error` is used verbatim; the JSON Schema `pattern` is emitted as-is, unanchored, per the OpenAPI/apispec convention.](https://github.com/anna-money/marshmallow-recipe/pull/300)
+
+
 ## v0.0.98 (2026-05-29)
 
 * **Breaking:** `mr.json_schema()` now renders `T | None` as nullable JSON Schema. `str | None` becomes `{"type": ["string", "null"]}`; `Nested | None` becomes `{"anyOf": [{"$ref": "#/$defs/Nested"}, {"type": "null"}]}`; nullable enums and `Literal` types include `null` in both the `type` list and the `enum` list. Previously the `None` branch was dropped, producing schemas that rejected `null` even though the Python type allowed it. `NoneValueHandling` does not affect schema rendering — it remains a serialization-only setting.

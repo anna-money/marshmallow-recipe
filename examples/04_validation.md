@@ -430,6 +430,53 @@ profile_dict = mr.dump(profile)
 loaded_profile = mr.load(UserProfile, profile_dict)
 ```
 
+### String Regexp Validation
+
+Use the `regexp` parameter on `str_meta` for built-in regex validation. Patterns are
+plain Python `re` patterns and are matched with `re.match` semantics (anchored at the
+**start** of the string, not the end) on both the marshmallow and nuked backends, so
+behaviour is identical:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ContactInfo:
+    # Username: 3-20 alphanumeric characters
+    username: Annotated[
+        str,
+        mr.str_meta(
+            min_length=3,
+            max_length=20,
+            regexp=r"^[a-zA-Z0-9]+$",
+            regexp_error="Username must be alphanumeric",
+        ),
+    ]
+
+    # Phone: international format
+    phone: Annotated[
+        str,
+        mr.str_meta(regexp=r"^\+?[1-9]\d{1,14}$", regexp_error="Invalid phone number"),
+    ]
+
+
+contact = ContactInfo(
+    username="johndoe",
+    phone="+15551234567",
+)
+```
+
+Notes:
+
+* Use any pattern accepted by Python's `re` module — lookarounds, backreferences and
+  Unicode classes all work, and behave identically on both backends.
+* Matching is anchored at the start (`re.match`), not the end. `regexp=r"\d+"` accepts
+  `"12ab"` (digits at the start) but rejects `"ab12"`. Anchor with `^...$` to match the
+  whole string.
+* `regexp_error` is used verbatim — braces and other characters are not treated as
+  format placeholders.
+* In JSON Schema the pattern is emitted as-is into `pattern`, which the spec treats as
+  **unanchored**. For an exact round-trip between the schema and the validator, anchor
+  your pattern with `^...$`.
+
 ## Combining Validation with Transformations
 
 Whitespace is stripped before validation:

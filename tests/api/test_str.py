@@ -1,3 +1,6 @@
+import dataclasses
+import re
+
 import marshmallow
 import pytest
 
@@ -14,6 +17,7 @@ from .conftest import (
     WithStrDefault,
     WithStrInvalidError,
     WithStripWhitespace,
+    WithStrLengthAndRegexp,
     WithStrMaxLength,
     WithStrMaxLengthError,
     WithStrMinLength,
@@ -21,7 +25,14 @@ from .conftest import (
     WithStrMinMaxLength,
     WithStrMissing,
     WithStrNoneError,
+    WithStrPostLoadAndRegexp,
+    WithStrPostLoadAndRegexpLowercase,
+    WithStrRegexp,
+    WithStrRegexpBraceError,
+    WithStrRegexpError,
+    WithStrRegexpUnanchored,
     WithStrRequiredError,
+    WithStrStripAndRegexp,
     WithStrTwoValidators,
     WithStrValidation,
 )
@@ -200,6 +211,63 @@ class TestStrDump:
             impl.dump(schema_type, obj)
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == error_messages
+
+    @pytest.mark.parametrize(
+        ("schema_type", "obj"),
+        [
+            pytest.param(WithStrRegexp, WithStrRegexp(value="12345"), id="regexp_anchored"),
+            pytest.param(WithStrRegexpUnanchored, WithStrRegexpUnanchored(value="123abc"), id="regexp_unanchored"),
+        ],
+    )
+    def test_regexp_pass(self, impl: Serializer, schema_type: type, obj: object) -> None:
+        impl.dump(schema_type, obj)
+
+    @pytest.mark.parametrize(
+        ("schema_type", "obj", "error_messages"),
+        [
+            pytest.param(
+                WithStrRegexp,
+                WithStrRegexp(value="abc"),
+                {"value": ["String does not match expected pattern."]},
+                id="regexp_anchored",
+            ),
+            pytest.param(
+                WithStrRegexpUnanchored,
+                WithStrRegexpUnanchored(value="abc"),
+                {"value": ["String does not match expected pattern."]},
+                id="regexp_unanchored_no_match",
+            ),
+            pytest.param(
+                WithStrRegexpUnanchored,
+                WithStrRegexpUnanchored(value="abc123"),
+                {"value": ["String does not match expected pattern."]},
+                id="regexp_unanchored_match_not_at_start",
+            ),
+            pytest.param(
+                WithStrRegexpError,
+                WithStrRegexpError(value="abc"),
+                {"value": ["Must be digits"]},
+                id="regexp_custom_error",
+            ),
+        ],
+    )
+    def test_regexp_fail(
+        self, impl: Serializer, schema_type: type, obj: object, error_messages: dict[str, list[str]]
+    ) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(schema_type, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == error_messages
+
+    def test_strip_and_regexp_pass(self, impl: Serializer) -> None:
+        obj = WithStrStripAndRegexp(value="hello")
+        result = impl.dump(WithStrStripAndRegexp, obj)
+        assert result == b'{"value":"hello"}'
+
+    def test_strip_and_regexp_strips_before_validating(self, impl: Serializer) -> None:
+        obj = WithStrStripAndRegexp(value="  hello  ")
+        result = impl.dump(WithStrStripAndRegexp, obj)
+        assert result == b'{"value":"hello"}'
 
 
 class TestStrLoad:
@@ -399,6 +467,110 @@ class TestStrLoad:
             impl.load(schema_type, data)
         assert exc.value.messages == error_messages
 
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "expected"),
+        [
+            pytest.param(WithStrRegexp, b'{"value":"12345"}', WithStrRegexp(value="12345"), id="regexp_anchored"),
+            pytest.param(
+                WithStrRegexpUnanchored,
+                b'{"value":"123abc"}',
+                WithStrRegexpUnanchored(value="123abc"),
+                id="regexp_unanchored",
+            ),
+        ],
+    )
+    def test_regexp_pass(self, impl: Serializer, schema_type: type, data: bytes, expected: object) -> None:
+        result = impl.load(schema_type, data)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "error_messages"),
+        [
+            pytest.param(
+                WithStrRegexp,
+                b'{"value":"abc"}',
+                {"value": ["String does not match expected pattern."]},
+                id="regexp_anchored",
+            ),
+            pytest.param(
+                WithStrRegexpUnanchored,
+                b'{"value":"abc"}',
+                {"value": ["String does not match expected pattern."]},
+                id="regexp_unanchored_no_match",
+            ),
+            pytest.param(
+                WithStrRegexpUnanchored,
+                b'{"value":"abc123"}',
+                {"value": ["String does not match expected pattern."]},
+                id="regexp_unanchored_match_not_at_start",
+            ),
+            pytest.param(
+                WithStrRegexpError, b'{"value":"abc"}', {"value": ["Must be digits"]}, id="regexp_custom_error"
+            ),
+        ],
+    )
+    def test_regexp_fail(
+        self, impl: Serializer, schema_type: type, data: bytes, error_messages: dict[str, list[str]]
+    ) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(schema_type, data)
+        assert exc.value.messages == error_messages
+
+    def test_strip_and_regexp_pass(self, impl: Serializer) -> None:
+        data = b'{"value":"  hello  "}'
+        result = impl.load(WithStrStripAndRegexp, data)
+        assert result == WithStrStripAndRegexp(value="hello")
+
+    def test_strip_and_regexp_fail(self, impl: Serializer) -> None:
+        data = b'{"value":"  HELLO  "}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrStripAndRegexp, data)
+        assert exc.value.messages == {"value": ["String does not match expected pattern."]}
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "error_messages"),
+        [
+            pytest.param(
+                WithStrLengthAndRegexp,
+                b'{"value":"a"}',
+                {"value": ["Shorter than minimum length 2."]},
+                id="min_length_first",
+            ),
+            pytest.param(
+                WithStrLengthAndRegexp,
+                b'{"value":"abcdefghijk"}',
+                {"value": ["Longer than maximum length 10."]},
+                id="max_length_first",
+            ),
+            pytest.param(
+                WithStrLengthAndRegexp,
+                b'{"value":"HELLO"}',
+                {"value": ["String does not match expected pattern."]},
+                id="regexp_after_length",
+            ),
+        ],
+    )
+    def test_combined_length_and_regexp_fail(
+        self, impl: Serializer, schema_type: type, data: bytes, error_messages: dict[str, list[str]]
+    ) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(schema_type, data)
+        assert exc.value.messages == error_messages
+
+    def test_regexp_error_with_braces_is_literal(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrRegexpBraceError, b'{"value":"abc"}')
+        assert exc.value.messages == {"value": ["count {0,5} digits"]}
+
+    def test_post_load_then_regexp_pass(self, impl: Serializer) -> None:
+        result = impl.load(WithStrPostLoadAndRegexp, b'{"value":"abc"}')
+        assert result == WithStrPostLoadAndRegexp(value="ABC")
+
+    def test_post_load_then_regexp_validates_transformed_value(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrPostLoadAndRegexpLowercase, b'{"value":"abc"}')
+        assert exc.value.messages == {"value": ["String does not match expected pattern."]}
+
 
 class TestStrMetaValidation:
     @pytest.mark.parametrize("bound_name", ["min_length", "max_length"])
@@ -436,3 +608,49 @@ class TestStrMetaValidation:
     )
     def test_valid_bounds(self, kwargs: dict[str, int]) -> None:
         mr.str_meta(**kwargs)  # type: ignore[reportArgumentType]
+
+    @pytest.mark.parametrize(("value", "type_name"), [(123, "int"), (True, "bool")])
+    def test_regexp_non_str_raises(self, value: object, type_name: str) -> None:
+        with pytest.raises(TypeError, match=f"regexp must be str, got {type_name}"):
+            mr.str_meta(regexp=value)  # type: ignore[reportArgumentType]
+
+    def test_invalid_regexp_raises(self) -> None:
+        with pytest.raises(re.error):
+            mr.str_meta(regexp="[invalid")
+
+
+class TestStrRegexpFeatureParity:
+    @pytest.mark.parametrize(
+        ("regexp", "value", "should_pass"),
+        [
+            pytest.param(r"^\d+$", "123", True, id="anchored_pass"),
+            pytest.param(r"^\d+$", "abc", False, id="anchored_fail"),
+            pytest.param(r"\d+", "123abc", True, id="unanchored_match_at_start"),
+            pytest.param(r"\d+", "abc123", False, id="unanchored_match_not_at_start"),
+            pytest.param(r"\d+", "abc", False, id="unanchored_no_match"),
+            pytest.param(r"(?=.*\d).+", "abc123", True, id="lookahead_pass"),
+            pytest.param(r"(?=.*\d).+", "abc", False, id="lookahead_fail"),
+            pytest.param(r"(?!foo).*", "bar", True, id="negative_lookahead_pass"),
+            pytest.param(r"(?!foo).*", "foobar", False, id="negative_lookahead_fail"),
+            pytest.param(r"(?<=^)\d+", "123abc", True, id="lookbehind_pass"),
+            pytest.param(r"(?<=^)\d+", "abc", False, id="lookbehind_fail"),
+            pytest.param(r"(a)b\1", "aba", True, id="backreference_pass"),
+            pytest.param(r"(a)b\1", "abb", False, id="backreference_fail"),
+            pytest.param(r"^\w+$", "café", True, id="unicode_word_pass"),
+            pytest.param(r"^\w+$", "café!", False, id="unicode_word_fail"),
+            pytest.param(r"^[(?=]+$", "(?=", True, id="literal_in_charclass_pass"),
+            pytest.param(r"^[(?=]+$", "abc", False, id="literal_in_charclass_fail"),
+            pytest.param(r"^(a)(?(1)b|c)$", "ab", True, id="conditional_group_pass"),
+            pytest.param(r"^(a)(?(1)b|c)$", "ac", False, id="conditional_group_fail"),
+        ],
+    )
+    def test_regexp_feature_parity(self, impl: Serializer, regexp: str, value: str, should_pass: bool) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            value: str = dataclasses.field(metadata=mr.str_meta(regexp=regexp))
+
+        if should_pass:
+            impl.dump(DC, DC(value=value))
+        elif impl.supports_proper_validation_errors_on_dump:
+            with pytest.raises(marshmallow.ValidationError):
+                impl.dump(DC, DC(value=value))

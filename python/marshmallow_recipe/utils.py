@@ -1,4 +1,5 @@
 import decimal
+import re
 
 from .missing import MISSING
 
@@ -73,6 +74,14 @@ def validate_length_bound(value: int | None, name: str) -> None:
         raise TypeError(f"{name} must be int, got {type(value).__name__}")
     if value < 0:
         raise ValueError(f"{name} must be a non-negative integer, got {value}")
+
+
+def validate_str_regexp(value: str | None) -> None:
+    if value is None:
+        return
+    if not isinstance(value, str):  # type: ignore[reportUnnecessaryIsInstance]
+        raise TypeError(f"regexp must be str, got {type(value).__name__}")
+    re.compile(value)
 
 
 SUPPORTED_DATETIME_FORMATS: frozenset[str] = frozenset({"iso", "timestamp"})
