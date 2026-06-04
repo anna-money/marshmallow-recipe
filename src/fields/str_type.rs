@@ -1,3 +1,4 @@
+use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::PyString;
 
@@ -5,14 +6,14 @@ use crate::error::SerializationError;
 use crate::fields::length::{LengthBound, validate_length};
 
 pub struct RegexpBound {
-    pub pattern: fancy_regex::Regex,
+    pub pattern: Py<PyAny>,
     pub error: Py<PyString>,
 }
 
 impl Clone for RegexpBound {
     fn clone(&self) -> Self {
         Python::attach(|py| Self {
-            pattern: self.pattern.clone(),
+            pattern: self.pattern.clone_ref(py),
             error: self.error.clone_ref(py),
         })
     }
@@ -20,16 +21,16 @@ impl Clone for RegexpBound {
 
 fn validate_regexp(
     py: Python<'_>,
-    s: &str,
+    value: &Bound<'_, PyAny>,
     regexp: Option<&RegexpBound>,
 ) -> Result<(), SerializationError> {
     if let Some(bound) = regexp {
-        let matched_at_start = bound
+        let matched = bound
             .pattern
-            .find(s)
-            .map_err(|e| SerializationError::simple(py, &e.to_string()))?
-            .is_some_and(|m| m.start() == 0);
-        if !matched_at_start {
+            .bind(py)
+            .call_method1(intern!(py, "match"), (value,))
+            .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+        if matched.is_none() {
             return Err(SerializationError::Single(bound.error.clone_ref(py)));
         }
     }
@@ -73,7 +74,7 @@ pub fn load_from_py(
         };
         if post_load.is_none() {
             validate_length(py, char_count, min_length, max_length)?;
-            validate_regexp(py, trimmed, regexp)?;
+            validate_regexp(py, result.bind(py), regexp)?;
             return Ok(result);
         }
         (result, char_count)
@@ -81,12 +82,7 @@ pub fn load_from_py(
         let char_count = py_string_char_count(py_str);
         if post_load.is_none() {
             validate_length(py, char_count, min_length, max_length)?;
-            if regexp.is_some() {
-                let s = py_str
-                    .to_str()
-                    .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
-                validate_regexp(py, s, regexp)?;
-            }
+            validate_regexp(py, value, regexp)?;
             return Ok(value.clone().unbind());
         }
         (value.clone().unbind(), char_count)
@@ -97,21 +93,14 @@ pub fn load_from_py(
         .call1(py, (&result,))
         .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
     let result_bound = result.bind(py);
-    let result_py_str = result_bound.cast::<PyString>();
 
-    let char_count = result_py_str
+    let char_count = result_bound
+        .cast::<PyString>()
         .as_ref()
         .map_or(char_count, |s| py_string_char_count(s));
 
     validate_length(py, char_count, min_length, max_length)?;
-
-    if regexp.is_some() {
-        let s = result_py_str
-            .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?
-            .to_str()
-            .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
-        validate_regexp(py, s, regexp)?;
-    }
+    validate_regexp(py, result_bound, regexp)?;
 
     Ok(result)
 }
@@ -140,7 +129,7 @@ pub fn dump_to_py(
         }
         if trimmed.len() == s.len() {
             validate_length(py, py_string_char_count(py_str), min_length, max_length)?;
-            validate_regexp(py, trimmed, regexp)?;
+            validate_regexp(py, value, regexp)?;
             Ok(value.clone().unbind())
         } else {
             let trimmed_py = PyString::new(py, trimmed);
@@ -150,17 +139,12 @@ pub fn dump_to_py(
                 min_length,
                 max_length,
             )?;
-            validate_regexp(py, trimmed, regexp)?;
+            validate_regexp(py, trimmed_py.as_any(), regexp)?;
             Ok(trimmed_py.unbind().into_any())
         }
     } else {
         validate_length(py, py_string_char_count(py_str), min_length, max_length)?;
-        if regexp.is_some() {
-            let s = py_str
-                .to_str()
-                .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-            validate_regexp(py, s, regexp)?;
-        }
+        validate_regexp(py, value, regexp)?;
         Ok(value.clone().unbind())
     }
 }

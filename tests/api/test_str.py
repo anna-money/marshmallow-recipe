@@ -25,7 +25,10 @@ from .conftest import (
     WithStrMinMaxLength,
     WithStrMissing,
     WithStrNoneError,
+    WithStrPostLoadAndRegexp,
+    WithStrPostLoadAndRegexpLowercase,
     WithStrRegexp,
+    WithStrRegexpBraceError,
     WithStrRegexpError,
     WithStrRegexpUnanchored,
     WithStrRequiredError,
@@ -554,6 +557,20 @@ class TestStrLoad:
             impl.load(schema_type, data)
         assert exc.value.messages == error_messages
 
+    def test_regexp_error_with_braces_is_literal(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrRegexpBraceError, b'{"value":"abc"}')
+        assert exc.value.messages == {"value": ["count {0,5} digits"]}
+
+    def test_post_load_then_regexp_pass(self, impl: Serializer) -> None:
+        result = impl.load(WithStrPostLoadAndRegexp, b'{"value":"abc"}')
+        assert result == WithStrPostLoadAndRegexp(value="ABC")
+
+    def test_post_load_then_regexp_validates_transformed_value(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrPostLoadAndRegexpLowercase, b'{"value":"abc"}')
+        assert exc.value.messages == {"value": ["String does not match expected pattern."]}
+
 
 class TestStrMetaValidation:
     @pytest.mark.parametrize("bound_name", ["min_length", "max_length"])
@@ -626,6 +643,8 @@ class TestStrRegexpFeatureParity:
             pytest.param(r"^\w+$", "café!", False, id="unicode_word_fail"),
             pytest.param(r"^[(?=]+$", "(?=", True, id="literal_in_charclass_pass"),
             pytest.param(r"^[(?=]+$", "abc", False, id="literal_in_charclass_fail"),
+            pytest.param(r"^(a)(?(1)b|c)$", "ab", True, id="conditional_group_pass"),
+            pytest.param(r"^(a)(?(1)b|c)$", "ac", False, id="conditional_group_fail"),
         ],
     )
     def test_regexp_feature_parity(self, impl: Serializer, regexp: str, value: str, should_pass: bool) -> None:

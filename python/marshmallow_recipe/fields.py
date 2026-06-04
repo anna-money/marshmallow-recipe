@@ -44,7 +44,7 @@ def str_field(
     if max_length is not None:
         validate = combine_validators(validate, m.validate.Length(max=max_length, error=max_length_error))
     if regexp is not None:
-        error = regexp_error or "String does not match expected pattern."
+        error = (regexp_error or "String does not match expected pattern.").replace("{", "{{").replace("}", "}}")
         validate = combine_validators(validate, m.validate.Regexp(regex=regexp, error=error))
     if default is m.missing:
         return StrField(
