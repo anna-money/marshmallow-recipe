@@ -13,7 +13,7 @@ from typing import Any
 import marshmallow as m
 import marshmallow.validate
 
-from .validation import ValidationFunc, combine_validators
+from .validation import ValidationFunc, combine_validators, regexp_validate
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
@@ -45,7 +45,7 @@ def str_field(
         validate = combine_validators(validate, m.validate.Length(max=max_length, error=max_length_error))
     if regexp is not None:
         error = (regexp_error or "String does not match expected pattern.").replace("{", "{{").replace("}", "}}")
-        validate = combine_validators(validate, m.validate.Regexp(regex=regexp, error=error))
+        validate = combine_validators(validate, regexp_validate(regexp, error=error))
     if default is m.missing:
         return StrField(
             allow_none=allow_none,

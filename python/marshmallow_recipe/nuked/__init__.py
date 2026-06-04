@@ -499,10 +499,8 @@ class _BuildContext:
             field_min_length_error = metadata.get("min_length_error")
             field_max_length = metadata.get("max_length")
             field_max_length_error = metadata.get("max_length_error")
-            if "regexp" in metadata:
-                str_regexp = metadata["regexp"]
-            if "regexp_error" in metadata:
-                str_regexp_error = metadata["regexp_error"]
+            str_regexp = metadata.get("regexp")
+            str_regexp_error = metadata.get("regexp_error")
 
         while isinstance(field_type, TypeAliasType):
             field_type = field_type.__value__

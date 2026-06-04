@@ -609,13 +609,10 @@ class TestStrMetaValidation:
     def test_valid_bounds(self, kwargs: dict[str, int]) -> None:
         mr.str_meta(**kwargs)  # type: ignore[reportArgumentType]
 
-    def test_regexp_int_raises(self) -> None:
-        with pytest.raises(TypeError, match="regexp must be str, got int"):
-            mr.str_meta(regexp=123)  # type: ignore[reportArgumentType]
-
-    def test_regexp_bool_raises(self) -> None:
-        with pytest.raises(TypeError, match="regexp must be str, got bool"):
-            mr.str_meta(regexp=True)  # type: ignore[reportArgumentType]
+    @pytest.mark.parametrize(("value", "type_name"), [(123, "int"), (True, "bool")])
+    def test_regexp_non_str_raises(self, value: object, type_name: str) -> None:
+        with pytest.raises(TypeError, match=f"regexp must be str, got {type_name}"):
+            mr.str_meta(regexp=value)  # type: ignore[reportArgumentType]
 
     def test_invalid_regexp_raises(self) -> None:
         with pytest.raises(re.error):
