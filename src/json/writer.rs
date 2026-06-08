@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use crate::error::SerializationError;
 
 const HEX: &[u8; 16] = b"0123456789abcdef";
@@ -141,22 +143,7 @@ impl JsonWriter {
     }
 
     fn fmt_i64(&mut self, i: i64) {
-        const DIGITS: &[u8; 10] = b"0123456789";
-        let mut tmp = [0u8; 20];
-        let mut idx = tmp.len();
-        let mut m = i.unsigned_abs();
-        loop {
-            idx -= 1;
-            tmp[idx] = DIGITS[usize::try_from(m % 10).unwrap_or(0)];
-            m /= 10;
-            if m == 0 {
-                break;
-            }
-        }
-        if i < 0 {
-            self.buf.push(b'-');
-        }
-        self.buf.extend_from_slice(&tmp[idx..]);
+        write!(self.buf, "{i}").expect("writing to Vec<u8> must not fail");
     }
 
     fn fmt_f64(&mut self, f: f64) {
