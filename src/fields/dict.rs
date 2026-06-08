@@ -1,4 +1,3 @@
-use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyString};
 
@@ -70,64 +69,6 @@ pub fn load_from_py(
                 .get_item(&k)
                 .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
             handle(k, v);
-        }
-    }
-
-    if let Some(errors) = errors {
-        return Err(SerializationError::Dict(errors.unbind()));
-    }
-
-    Ok(result.into_any().unbind())
-}
-
-pub fn dump_to_py(
-    registry: &DataclassRegistry,
-    value: &Bound<'_, PyAny>,
-    value_schema: &FieldContainer,
-    value_validator: Option<&Py<PyAny>>,
-    invalid_error: &Py<PyString>,
-) -> Result<Py<PyAny>, SerializationError> {
-    let py = value.py();
-
-    let dict = value
-        .cast::<PyDict>()
-        .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
-
-    let result = PyDict::new(py);
-    let mut errors: Option<Bound<'_, PyDict>> = None;
-
-    for (k, v) in dict.iter() {
-        let key_str = k
-            .cast::<PyString>()
-            .map_err(|_| {
-                SerializationError::Single(
-                    intern!(py, "Dict key must be a string").clone().unbind(),
-                )
-            })?
-            .to_str()
-            .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-
-        if let Some(validator) = value_validator
-            && let Ok(Some(err_list)) = call_validator(py, validator, &v)
-        {
-            let e = pyerrors_to_serialization_error(py, &err_list);
-            accumulate_error(py, &mut errors, key_str, &e);
-            continue;
-        }
-
-        match value_schema.dump_to_py(registry, &v) {
-            Ok(dumped) => {
-                result
-                    .set_item(k, dumped)
-                    .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-            }
-            Err(e) => {
-                let nested_dict = PyDict::new(py);
-                let _ =
-                    nested_dict.set_item("value", e.to_py_value(py).unwrap_or_else(|_| py.None()));
-                let wrapped = SerializationError::Dict(nested_dict.unbind());
-                accumulate_error(py, &mut errors, key_str, &wrapped);
-            }
         }
     }
 

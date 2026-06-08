@@ -34,7 +34,7 @@ from ..missing import MISSING
 from ..options import NoneValueHandling, try_get_options_for
 from ..utils import validate_decimal_places
 
-__all__ = ("dump", "load", "schema")
+__all__ = ("dump", "dump_to_bytes", "load", "load_from_bytes", "schema")
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
@@ -981,6 +981,35 @@ def dump[T](
     return container.dump(data)
 
 
+def dump_to_bytes[T](
+    cls: type[T],
+    data: T,
+    *,
+    naming_case: NamingCase | None = None,
+    none_value_handling: NoneValueHandling | None = None,
+    decimal_places: int | None = MISSING,
+) -> bytes:
+    """Serialize to JSON bytes using the Rust backend.
+
+    Writes JSON straight into a byte buffer, skipping the intermediate Python
+    dict/list tree and the separate ``json.dumps`` pass. Byte output matches
+    ``json.dumps(mr.nuked.dump(cls, data), separators=(",", ":")).encode()``.
+
+    Args:
+        cls: Dataclass type or root collection type (e.g. ``list[User]``, ``dict[str, User]``).
+        data: Instance to serialize.
+        naming_case: Convert field names. Use ``mr.CAMEL_CASE``,
+            ``mr.CAPITAL_CAMEL_CASE``, or ``mr.UPPER_SNAKE_CASE``.
+        none_value_handling: Controls None field output.
+            ``mr.NoneValueHandling.INCLUDE`` keeps None fields, default excludes them.
+        decimal_places: Validate maximum decimal places for all Decimal fields.
+    """
+    validate_decimal_places(decimal_places)
+
+    container = _get_container(cls, naming_case, none_value_handling, decimal_places)
+    return container.dump_to_bytes(data)
+
+
 def load[T](
     cls: type[T], data: Any, *, naming_case: NamingCase | None = None, decimal_places: int | None = MISSING
 ) -> T:
@@ -1000,6 +1029,28 @@ def load[T](
 
     container = _get_container(cls, naming_case, NoneValueHandling.IGNORE, decimal_places)
     return container.load(data)  # type: ignore[return-value]
+
+
+def load_from_bytes[T](
+    cls: type[T], data: bytes, *, naming_case: NamingCase | None = None, decimal_places: int | None = MISSING
+) -> T:
+    """Deserialize from JSON bytes using the Rust backend.
+
+    Parses JSON straight into the target dataclass, skipping the intermediate
+    ``json.loads`` dict and the separate ``load`` pass. Produces the same objects
+    and ``marshmallow.ValidationError`` messages as ``mr.nuked.load(cls, json.loads(data))``.
+
+    Args:
+        cls: Dataclass type or root collection type (e.g. ``list[User]``, ``dict[str, User]``).
+        data: JSON bytes to deserialize (UTF-8).
+        naming_case: Convert field names. Use ``mr.CAMEL_CASE``,
+            ``mr.CAPITAL_CAMEL_CASE``, or ``mr.UPPER_SNAKE_CASE``.
+        decimal_places: Validate maximum decimal places for all Decimal fields.
+    """
+    validate_decimal_places(decimal_places)
+
+    container = _get_container(cls, naming_case, NoneValueHandling.IGNORE, decimal_places)
+    return container.load_from_bytes(data)  # type: ignore[return-value]
 
 
 SchemaKey = tuple[type, bool, NamingCase | None, NoneValueHandling | None, int | None]
