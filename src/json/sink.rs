@@ -124,7 +124,6 @@ impl<'py> DumpSink<'py> for PyDictSink<'py> {
 
 pub struct JsonWriterSink {
     w: JsonWriter,
-    first: bool,
 }
 
 impl Default for JsonWriterSink {
@@ -137,18 +136,6 @@ impl JsonWriterSink {
     pub fn new() -> Self {
         Self {
             w: JsonWriter::new(),
-            first: true,
-        }
-    }
-
-    fn pre(&mut self, key: Option<&str>) {
-        if !self.first {
-            self.w.push(b',');
-        }
-        self.first = false;
-        if let Some(k) = key {
-            self.w.write_str(k);
-            self.w.push(b':');
         }
     }
 }
@@ -157,13 +144,11 @@ impl<'py> DumpSink<'py> for JsonWriterSink {
     type Out = Vec<u8>;
 
     fn leaf(&mut self, key: Option<&str>, v: &Bound<'py, PyAny>) -> Result<(), SerializationError> {
-        self.pre(key);
-        write_leaf(&mut self.w, v.py(), v)
+        write_leaf(&mut self.w, key, v)
     }
 
     fn null(&mut self, key: Option<&str>) -> Result<(), SerializationError> {
-        self.pre(key);
-        self.w.write_null();
+        self.w.value_null(key);
         Ok(())
     }
 
@@ -172,28 +157,21 @@ impl<'py> DumpSink<'py> for JsonWriterSink {
         key: Option<&str>,
         v: &Bound<'py, PyAny>,
     ) -> Result<(), SerializationError> {
-        self.pre(key);
-        write_pyobject(&mut self.w, v)
+        write_pyobject(&mut self.w, key, v)
     }
 
     fn open_object<F>(&mut self, key: Option<&str>, body: F) -> Result<(), SerializationError>
     where
         F: FnOnce(&mut Self) -> Result<(), SerializationError>,
     {
-        let mark = self.w.len();
-        let had_first = self.first;
-        self.pre(key);
-        self.w.push(b'{');
-        let parent_first = std::mem::replace(&mut self.first, true);
+        let frame = self.w.begin_object(key);
         match body(self) {
             Ok(()) => {
-                self.w.push(b'}');
-                self.first = parent_first;
+                self.w.end_object();
                 Ok(())
             }
             Err(e) => {
-                self.w.truncate(mark);
-                self.first = had_first;
+                self.w.rollback(frame);
                 Err(e)
             }
         }
@@ -203,20 +181,14 @@ impl<'py> DumpSink<'py> for JsonWriterSink {
     where
         F: FnOnce(&mut Self) -> Result<(), SerializationError>,
     {
-        let mark = self.w.len();
-        let had_first = self.first;
-        self.pre(key);
-        self.w.push(b'[');
-        let parent_first = std::mem::replace(&mut self.first, true);
+        let frame = self.w.begin_array(key);
         match body(self) {
             Ok(()) => {
-                self.w.push(b']');
-                self.first = parent_first;
+                self.w.end_array();
                 Ok(())
             }
             Err(e) => {
-                self.w.truncate(mark);
-                self.first = had_first;
+                self.w.rollback(frame);
                 Err(e)
             }
         }
@@ -235,42 +207,69 @@ pub fn wrap_value_error(py: Python<'_>, e: &SerializationError) -> Serialization
 
 fn write_leaf(
     w: &mut JsonWriter,
-    py: Python<'_>,
+    key: Option<&str>,
     v: &Bound<'_, PyAny>,
 ) -> Result<(), SerializationError> {
+    let py = v.py();
     if v.is_none() {
-        w.write_null();
+        w.value_null(key);
     } else if v.is_instance_of::<PyBool>() {
-        w.write_bool(v.extract::<bool>().unwrap_or(false));
+        w.value_bool(key, v.extract::<bool>().unwrap_or(false));
     } else if let Ok(s) = v.cast::<PyString>() {
-        w.write_str_value(s)
+        let s = s
+            .to_str()
             .map_err(|e| SerializationError::from_pyerr(py, &e))?;
+        w.value_str(key, s);
     } else if v.is_instance_of::<PyInt>() {
-        w.write_pyint(v)
-            .map_err(|e| SerializationError::from_pyerr(py, &e))?;
+        write_pyint(w, key, v)?;
     } else if v.is_instance_of::<PyFloat>() {
         let f = v
             .extract::<f64>()
             .map_err(|e| SerializationError::from_pyerr(py, &e))?;
-        w.write_f64(f);
+        w.value_f64(key, f);
     } else {
         return Err(SerializationError::simple(py, ANY_ERROR));
     }
     Ok(())
 }
 
-fn write_pyobject(w: &mut JsonWriter, v: &Bound<'_, PyAny>) -> Result<(), SerializationError> {
+fn write_pyint(
+    w: &mut JsonWriter,
+    key: Option<&str>,
+    v: &Bound<'_, PyAny>,
+) -> Result<(), SerializationError> {
+    let py = v.py();
+    if let Ok(i) = v.extract::<i64>() {
+        w.value_i64(key, i);
+    } else {
+        let s = v
+            .str()
+            .map_err(|e| SerializationError::from_pyerr(py, &e))?;
+        let s = s
+            .to_str()
+            .map_err(|e| SerializationError::from_pyerr(py, &e))?;
+        w.value_number_str(key, s);
+    }
+    Ok(())
+}
+
+fn write_pyobject(
+    w: &mut JsonWriter,
+    key: Option<&str>,
+    v: &Bound<'_, PyAny>,
+) -> Result<(), SerializationError> {
     let py = v.py();
     if v.is_none() {
-        w.write_null();
+        w.value_null(key);
     } else if v.is_instance_of::<PyBool>() {
-        w.write_bool(v.extract::<bool>().unwrap_or(false));
+        w.value_bool(key, v.extract::<bool>().unwrap_or(false));
     } else if v.is_instance_of::<PyInt>() {
-        w.write_pyint(v)
-            .map_err(|e| SerializationError::from_pyerr(py, &e))?;
+        write_pyint(w, key, v)?;
     } else if let Ok(s) = v.cast::<PyString>() {
-        w.write_str_value(s)
+        let s = s
+            .to_str()
             .map_err(|e| SerializationError::from_pyerr(py, &e))?;
+        w.value_str(key, s);
     } else if v.is_instance_of::<PyFloat>() {
         let f = v
             .extract::<f64>()
@@ -280,35 +279,27 @@ fn write_pyobject(w: &mut JsonWriter, v: &Bound<'_, PyAny>) -> Result<(), Serial
                 intern!(py, ANY_ERROR).clone().unbind(),
             ));
         }
-        w.write_f64(f);
+        w.value_f64(key, f);
     } else if let Ok(list) = v.cast::<PyList>() {
-        w.push(b'[');
-        let mut first = true;
-        for item in list.iter() {
-            if !first {
-                w.push(b',');
+        w.array(key, |w| {
+            for item in list.iter() {
+                write_pyobject(w, None, &item)?;
             }
-            first = false;
-            write_pyobject(w, &item)?;
-        }
-        w.push(b']');
+            Ok(())
+        })?;
     } else if let Ok(dict) = v.cast::<PyDict>() {
-        w.push(b'{');
-        let mut first = true;
-        for (k, val) in dict.iter() {
-            let ks = k
-                .cast::<PyString>()
-                .map_err(|_| SerializationError::Single(intern!(py, ANY_ERROR).clone().unbind()))?;
-            if !first {
-                w.push(b',');
+        w.object(key, |w| {
+            for (k, val) in dict.iter() {
+                let ks = k.cast::<PyString>().map_err(|_| {
+                    SerializationError::Single(intern!(py, ANY_ERROR).clone().unbind())
+                })?;
+                let ks = ks
+                    .to_str()
+                    .map_err(|e| SerializationError::from_pyerr(py, &e))?;
+                write_pyobject(w, Some(ks), &val)?;
             }
-            first = false;
-            w.write_str_value(ks)
-                .map_err(|e| SerializationError::from_pyerr(py, &e))?;
-            w.push(b':');
-            write_pyobject(w, &val)?;
-        }
-        w.push(b'}');
+            Ok(())
+        })?;
     } else {
         return Err(SerializationError::Single(
             intern!(py, ANY_ERROR).clone().unbind(),

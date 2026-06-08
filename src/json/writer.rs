@@ -1,10 +1,16 @@
-use pyo3::prelude::*;
-use pyo3::types::PyString;
+use crate::error::SerializationError;
 
 const HEX: &[u8; 16] = b"0123456789abcdef";
 
+#[derive(Clone, Copy)]
+pub struct Frame {
+    mark: usize,
+    had_first: bool,
+}
+
 pub struct JsonWriter {
     buf: Vec<u8>,
+    first: bool,
 }
 
 impl Default for JsonWriter {
@@ -17,6 +23,7 @@ impl JsonWriter {
     pub fn new() -> Self {
         Self {
             buf: Vec::with_capacity(256),
+            first: true,
         }
     }
 
@@ -24,28 +31,116 @@ impl JsonWriter {
         self.buf
     }
 
-    pub const fn len(&self) -> usize {
-        self.buf.len()
+    fn pre(&mut self, key: Option<&str>) {
+        if !self.first {
+            self.buf.push(b',');
+        }
+        self.first = false;
+        if let Some(k) = key {
+            self.fmt_str(k);
+            self.buf.push(b':');
+        }
     }
 
-    pub fn truncate(&mut self, n: usize) {
-        self.buf.truncate(n);
-    }
-
-    pub fn push(&mut self, b: u8) {
-        self.buf.push(b);
-    }
-
-    pub fn write_null(&mut self) {
+    pub fn value_null(&mut self, key: Option<&str>) {
+        self.pre(key);
         self.buf.extend_from_slice(b"null");
     }
 
-    pub fn write_bool(&mut self, b: bool) {
+    pub fn value_bool(&mut self, key: Option<&str>, b: bool) {
+        self.pre(key);
         self.buf
             .extend_from_slice(if b { b"true" } else { b"false" });
     }
 
-    pub fn write_i64(&mut self, i: i64) {
+    pub fn value_i64(&mut self, key: Option<&str>, i: i64) {
+        self.pre(key);
+        self.fmt_i64(i);
+    }
+
+    pub fn value_number_str(&mut self, key: Option<&str>, digits: &str) {
+        self.pre(key);
+        self.buf.extend_from_slice(digits.as_bytes());
+    }
+
+    pub fn value_f64(&mut self, key: Option<&str>, f: f64) {
+        self.pre(key);
+        self.fmt_f64(f);
+    }
+
+    pub fn value_str(&mut self, key: Option<&str>, s: &str) {
+        self.pre(key);
+        self.fmt_str(s);
+    }
+
+    pub fn begin_object(&mut self, key: Option<&str>) -> Frame {
+        let mark = self.buf.len();
+        let had_first = self.first;
+        self.pre(key);
+        self.buf.push(b'{');
+        self.first = true;
+        Frame { mark, had_first }
+    }
+
+    pub fn end_object(&mut self) {
+        self.buf.push(b'}');
+        self.first = false;
+    }
+
+    pub fn begin_array(&mut self, key: Option<&str>) -> Frame {
+        let mark = self.buf.len();
+        let had_first = self.first;
+        self.pre(key);
+        self.buf.push(b'[');
+        self.first = true;
+        Frame { mark, had_first }
+    }
+
+    pub fn end_array(&mut self) {
+        self.buf.push(b']');
+        self.first = false;
+    }
+
+    pub fn rollback(&mut self, frame: Frame) {
+        self.buf.truncate(frame.mark);
+        self.first = frame.had_first;
+    }
+
+    pub fn object<F>(&mut self, key: Option<&str>, body: F) -> Result<(), SerializationError>
+    where
+        F: FnOnce(&mut Self) -> Result<(), SerializationError>,
+    {
+        let frame = self.begin_object(key);
+        match body(self) {
+            Ok(()) => {
+                self.end_object();
+                Ok(())
+            }
+            Err(e) => {
+                self.rollback(frame);
+                Err(e)
+            }
+        }
+    }
+
+    pub fn array<F>(&mut self, key: Option<&str>, body: F) -> Result<(), SerializationError>
+    where
+        F: FnOnce(&mut Self) -> Result<(), SerializationError>,
+    {
+        let frame = self.begin_array(key);
+        match body(self) {
+            Ok(()) => {
+                self.end_array();
+                Ok(())
+            }
+            Err(e) => {
+                self.rollback(frame);
+                Err(e)
+            }
+        }
+    }
+
+    fn fmt_i64(&mut self, i: i64) {
         const DIGITS: &[u8; 10] = b"0123456789";
         let mut tmp = [0u8; 20];
         let mut idx = tmp.len();
@@ -64,17 +159,7 @@ impl JsonWriter {
         self.buf.extend_from_slice(&tmp[idx..]);
     }
 
-    pub fn write_pyint(&mut self, v: &Bound<'_, PyAny>) -> PyResult<()> {
-        if let Ok(i) = v.extract::<i64>() {
-            self.write_i64(i);
-        } else {
-            let s = v.str()?;
-            self.buf.extend_from_slice(s.to_str()?.as_bytes());
-        }
-        Ok(())
-    }
-
-    pub fn write_f64(&mut self, f: f64) {
+    fn fmt_f64(&mut self, f: f64) {
         if f.is_nan() {
             self.buf.extend_from_slice(b"NaN");
             return;
@@ -109,7 +194,7 @@ impl JsonWriter {
         self.buf.push(HEX[(cp & 0xf) as usize]);
     }
 
-    pub fn write_str(&mut self, s: &str) {
+    fn fmt_str(&mut self, s: &str) {
         self.buf.push(b'"');
         for c in s.chars() {
             match c {
@@ -135,10 +220,5 @@ impl JsonWriter {
             }
         }
         self.buf.push(b'"');
-    }
-
-    pub fn write_str_value(&mut self, v: &Bound<'_, PyString>) -> PyResult<()> {
-        self.write_str(v.to_str()?);
-        Ok(())
     }
 }
