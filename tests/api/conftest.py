@@ -222,6 +222,33 @@ class NukedSerializer(Serializer):
         return mr.nuked.load(cls, data_json, naming_case=naming_case, decimal_places=decimal_places)
 
 
+class NukedBytesSerializer(NukedSerializer):
+    __slots__ = ()
+
+    def dump[T](
+        self,
+        cls: type[T],
+        obj: T,
+        naming_case: mr.NamingCase | None = None,
+        none_value_handling: mr.NoneValueHandling | None = None,
+        decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
+    ) -> bytes:
+        return mr.nuked.dump_to_bytes(
+            cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
+        )
+
+    def load[T](
+        self,
+        cls: type[T],
+        data: bytes,
+        naming_case: mr.NamingCase | None = None,
+        decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
+    ) -> T:
+        return mr.nuked.load_from_bytes(cls, data, naming_case=naming_case, decimal_places=decimal_places)
+
+
 class NukedMappingSerializer(NukedSerializer):
     __slots__ = ()
 
@@ -354,11 +381,12 @@ class NukedSchemaSerializer(Serializer):
     params=[
         MarshmallowSerializer(),
         NukedSerializer(),
+        NukedBytesSerializer(),
         NukedSchemaSerializer(),
         NukedMappingSerializer(),
         NukedMissingSentinelSerializer(),
     ],
-    ids=["marshmallow", "nuked", "nuked_schema", "nuked_mapping", "nuked_missing_sentinel"],
+    ids=["marshmallow", "nuked", "nuked_bytes", "nuked_schema", "nuked_mapping", "nuked_missing_sentinel"],
 )
 def impl(request: pytest.FixtureRequest) -> Serializer:
     return request.param

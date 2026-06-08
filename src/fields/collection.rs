@@ -4,7 +4,7 @@ use pyo3::types::{PyDict, PyFrozenSet, PyList, PySet, PyString, PyTuple};
 use crate::container::{DataclassRegistry, FieldContainer};
 use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
 use crate::fields::length::{LengthBound, validate_length};
-use crate::utils::{call_validator, new_presized_list};
+use crate::utils::call_validator;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CollectionKind {
@@ -96,62 +96,4 @@ pub fn load_from_py(
             .map(|t| t.into_any().unbind())
             .map_err(|e| SerializationError::simple(py, &e.to_string())),
     }
-}
-
-pub fn dump_to_py(
-    registry: &DataclassRegistry,
-    value: &Bound<'_, PyAny>,
-    kind: CollectionKind,
-    item: &FieldContainer,
-    item_validator: Option<&Py<PyAny>>,
-    invalid_error: &Py<PyString>,
-    min_length: Option<&LengthBound>,
-    max_length: Option<&LengthBound>,
-) -> Result<Py<PyAny>, SerializationError> {
-    let py = value.py();
-
-    if !kind.is_valid_type(value) {
-        return Err(SerializationError::Single(invalid_error.clone_ref(py)));
-    }
-
-    let size = value
-        .len()
-        .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-
-    validate_length(py, size, min_length, max_length)?;
-
-    let result = new_presized_list(py, size);
-    let mut errors: Option<Bound<'_, PyDict>> = None;
-
-    let iter = value
-        .try_iter()
-        .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
-    let mut idx = 0usize;
-
-    for item_result in iter {
-        let item_value = item_result.map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-
-        if let Some(validator) = item_validator
-            && let Ok(Some(err_list)) = call_validator(py, validator, &item_value)
-        {
-            let e = pyerrors_to_serialization_error(py, &err_list);
-            accumulate_error(py, &mut errors, idx, &e);
-            idx += 1;
-            continue;
-        }
-
-        match item.dump_to_py(registry, &item_value) {
-            Ok(dumped) => unsafe {
-                pyo3::ffi::PyList_SET_ITEM(result.as_ptr(), idx.cast_signed(), dumped.into_ptr());
-            },
-            Err(ref e) => accumulate_error(py, &mut errors, idx, e),
-        }
-        idx += 1;
-    }
-
-    if let Some(errors) = errors {
-        return Err(SerializationError::Dict(errors.unbind()));
-    }
-
-    Ok(result.into_any().unbind())
 }

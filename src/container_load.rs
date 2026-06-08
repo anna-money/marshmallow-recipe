@@ -12,6 +12,7 @@ use crate::fields::{
     any, bool_literal, bool_type, bytes, collection, date, datetime, decimal, dict, float_type,
     int_enum, int_literal, int_type, str_enum, str_literal, str_type, time, union, uuid,
 };
+use crate::json::parser::Parser;
 use crate::slots::set_slot_value_direct;
 use crate::utils::{
     call_validator, extract_error_args, get_mapping_abc, get_missing_sentinel, get_object_cls,
@@ -866,6 +867,227 @@ impl TypeContainer {
                 }
                 Err(SerializationError::collect_list(py, errors))
             }
+        }
+    }
+}
+
+impl FieldContainer {
+    fn load_value_from_bytes(
+        &self,
+        registry: &DataclassRegistry,
+        parser: &mut Parser<'_>,
+        py: Python<'_>,
+    ) -> Result<Py<PyAny>, SerializationError> {
+        if let Self::Nested {
+            dataclass_index, ..
+        } = self
+        {
+            let dc = registry.get(*dataclass_index);
+            if dc.pre_loads.is_empty() && parser.peek_byte() == Some(b'{') {
+                return dc.load_from_bytes(registry, parser, py);
+            }
+        }
+        let value = parser.parse_to_pyobject(py)?;
+        self.load_from_py(registry, &value)
+    }
+}
+
+impl DataclassContainer {
+    pub fn load_from_bytes(
+        &self,
+        registry: &DataclassRegistry,
+        parser: &mut Parser<'_>,
+        py: Python<'_>,
+    ) -> Result<Py<PyAny>, SerializationError> {
+        if !self.pre_loads.is_empty() || parser.peek_byte() != Some(b'{') {
+            let value = parser.parse_to_pyobject(py)?;
+            return self.load_from_py(registry, &value);
+        }
+        match self.load_strategy {
+            LoadStrategy::DirectSlots => self.load_from_bytes_direct_slots(registry, parser, py),
+            LoadStrategy::DirectDict => {
+                let dict = self.collect_fields_from_bytes(registry, parser, py)?;
+                self.instantiate_via_direct_dict(py, &dict)
+            }
+            LoadStrategy::Kwargs => {
+                let kwargs = self.collect_fields_from_bytes(registry, parser, py)?;
+                self.instantiate_via_kwargs(py, &kwargs)
+            }
+        }
+    }
+
+    fn collect_fields_from_bytes<'py>(
+        &self,
+        registry: &DataclassRegistry,
+        parser: &mut Parser<'_>,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, PyDict>, SerializationError> {
+        let result = PyDict::new(py);
+        let mut seen = SmallBitVec::from_elem(self.fields.len(), false);
+        let mut errors: Option<Bound<'_, PyDict>> = None;
+
+        parser.iter_object(py, |parser, key| {
+            if let Some(&idx) = self.field_lookup.get(key) {
+                let dc_field = &self.fields[idx];
+                let common = dc_field.field.common();
+                seen.set(idx, true);
+                if dc_field.field_init {
+                    match dc_field.field.load_value_from_bytes(registry, parser, py) {
+                        Ok(py_val) => match apply_validate(py, py_val, common.validator.as_ref()) {
+                            Ok(validated) => {
+                                if let Some(ref e) = errors {
+                                    let _ = e.del_item(dc_field.name_interned.bind(py));
+                                }
+                                let _ = result.set_item(dc_field.name_interned.bind(py), validated);
+                            }
+                            Err(ref e) => {
+                                accumulate_error(
+                                    py,
+                                    &mut errors,
+                                    dc_field.name_interned.bind(py),
+                                    e,
+                                );
+                            }
+                        },
+                        Err(ref e) => {
+                            accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+                        }
+                    }
+                } else {
+                    parser.skip_value(py)?;
+                }
+            } else {
+                parser.skip_value(py)?;
+            }
+            Ok(())
+        })?;
+
+        for (idx, dc_field) in self.fields.iter().enumerate() {
+            let common = dc_field.field.common();
+            if errors
+                .as_ref()
+                .is_some_and(|e| e.contains(dc_field.name_interned.bind(py)).unwrap_or(false))
+            {
+                continue;
+            }
+            if !seen[idx] && dc_field.field_init {
+                match get_default_value(py, common) {
+                    Ok(Some(val)) => {
+                        let _ = result.set_item(dc_field.name_interned.bind(py), val);
+                    }
+                    Ok(None) => {
+                        push_required_error(
+                            py,
+                            &mut errors,
+                            dc_field.name_interned.bind(py),
+                            common,
+                        );
+                    }
+                    Err(ref e) => {
+                        accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+                    }
+                }
+            }
+        }
+
+        if let Some(errors) = errors {
+            return Err(SerializationError::Dict(errors.unbind()));
+        }
+        Ok(result)
+    }
+
+    fn load_from_bytes_direct_slots(
+        &self,
+        registry: &DataclassRegistry,
+        parser: &mut Parser<'_>,
+        py: Python<'_>,
+    ) -> Result<Py<PyAny>, SerializationError> {
+        let object_type =
+            get_object_cls(py).map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+        let instance = object_type
+            .call_method1(intern!(py, "__new__"), (self.cls.bind(py),))
+            .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+
+        let mut field_values: Vec<Option<Py<PyAny>>> =
+            (0..self.fields.len()).map(|_| None).collect();
+        let mut errors: Option<Bound<'_, PyDict>> = None;
+
+        parser.iter_object(py, |parser, key| {
+            if let Some(&idx) = self.field_lookup.get(key) {
+                let dc_field = &self.fields[idx];
+                let common = dc_field.field.common();
+                match dc_field.field.load_value_from_bytes(registry, parser, py) {
+                    Ok(py_val) => match apply_validate(py, py_val, common.validator.as_ref()) {
+                        Ok(validated) => {
+                            if let Some(ref e) = errors {
+                                let _ = e.del_item(dc_field.name_interned.bind(py));
+                            }
+                            field_values[idx] = Some(validated);
+                        }
+                        Err(ref e) => {
+                            accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+                        }
+                    },
+                    Err(ref e) => {
+                        accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+                    }
+                }
+            } else {
+                parser.skip_value(py)?;
+            }
+            Ok(())
+        })?;
+
+        for (idx, dc_field) in self.fields.iter().enumerate() {
+            let common = dc_field.field.common();
+            if errors
+                .as_ref()
+                .is_some_and(|e| e.contains(dc_field.name_interned.bind(py)).unwrap_or(false))
+            {
+                continue;
+            }
+            let py_value = if let Some(value) = field_values[idx].take() {
+                value
+            } else {
+                match get_default_value(py, common) {
+                    Ok(Some(val)) => val,
+                    Ok(None) => {
+                        push_required_error(
+                            py,
+                            &mut errors,
+                            dc_field.name_interned.bind(py),
+                            common,
+                        );
+                        continue;
+                    }
+                    Err(ref e) => {
+                        accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+                        continue;
+                    }
+                }
+            };
+            write_field_to_slot_or_attr(py, &instance, dc_field, py_value, &mut errors)?;
+        }
+
+        if let Some(errors) = errors {
+            return Err(SerializationError::Dict(errors.unbind()));
+        }
+        Ok(instance.unbind())
+    }
+}
+
+impl TypeContainer {
+    pub fn load_from_bytes(
+        &self,
+        py: Python<'_>,
+        registry: &DataclassRegistry,
+        parser: &mut Parser<'_>,
+    ) -> Result<Py<PyAny>, SerializationError> {
+        if let Self::Dataclass(idx) = self {
+            registry.get(*idx).load_from_bytes(registry, parser, py)
+        } else {
+            let value = parser.parse_to_pyobject(py)?;
+            self.load_from_py(py, registry, &value)
         }
     }
 }

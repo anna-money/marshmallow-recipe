@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use pyo3::intern;
 use pyo3::prelude::*;
-use pyo3::types::{PyList, PyString, PyTuple};
+use pyo3::types::{PyBytes, PyList, PyString, PyTuple};
 
 use crate::container::{
     DataclassContainer, DataclassField, DataclassRegistry, FieldCommon, FieldContainer,
@@ -13,6 +13,7 @@ use crate::fields::datetime::parse_datetime_format;
 use crate::fields::decimal::get_decimal_cls;
 use crate::fields::length::LengthBound;
 use crate::fields::range::RangeBound;
+use crate::json::sink::DumpSink;
 
 #[pyclass]
 pub struct Container {
@@ -28,10 +29,36 @@ impl Container {
             .map_err(|e| e.to_validation_err(py))
     }
 
+    fn load_from_bytes(&self, py: Python<'_>, data: &[u8]) -> PyResult<Py<PyAny>> {
+        let mut parser = crate::json::parser::Parser::new(data);
+        let result = self
+            .inner
+            .load_from_bytes(py, &self.registry, &mut parser)
+            .map_err(|e| e.to_validation_err(py))?;
+        if !parser.at_end() {
+            return Err(crate::error::SerializationError::simple(
+                py,
+                "Invalid JSON: trailing data",
+            )
+            .to_validation_err(py));
+        }
+        Ok(result)
+    }
+
     fn dump(&self, py: Python<'_>, obj: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+        let mut sink = crate::json::sink::PyDictSink::new(py);
         self.inner
-            .dump_to_py(&self.registry, obj)
-            .map_err(|e| e.to_validation_err(py))
+            .dump(&self.registry, obj, &mut sink, None)
+            .map_err(|e| e.to_validation_err(py))?;
+        Ok(sink.finish())
+    }
+
+    fn dump_to_bytes(&self, py: Python<'_>, obj: &Bound<'_, PyAny>) -> PyResult<Py<PyBytes>> {
+        let mut sink = crate::json::sink::JsonWriterSink::new();
+        self.inner
+            .dump(&self.registry, obj, &mut sink, None)
+            .map_err(|e| e.to_validation_err(py))?;
+        Ok(PyBytes::new(py, &sink.finish()).unbind())
     }
 }
 
