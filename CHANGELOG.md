@@ -1,3 +1,8 @@
+## v0.0.99 (2026-06-08)
+
+* [Add bytes-level JSON parser and `dump_to_bytes` to `nuked`](https://github.com/anna-money/marshmallow-recipe/pull/307)
+
+
 ## v0.0.98 (2026-05-29)
 
 * **Breaking:** `mr.json_schema()` now renders `T | None` as nullable JSON Schema. `str | None` becomes `{"type": ["string", "null"]}`; `Nested | None` becomes `{"anyOf": [{"$ref": "#/$defs/Nested"}, {"type": "null"}]}`; nullable enums and `Literal` types include `null` in both the `type` list and the `enum` list. Previously the `None` branch was dropped, producing schemas that rejected `null` even though the Python type allowed it. `NoneValueHandling` does not affect schema rendering — it remains a serialization-only setting.
