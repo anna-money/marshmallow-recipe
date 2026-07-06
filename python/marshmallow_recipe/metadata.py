@@ -130,8 +130,9 @@ def str_metadata(
         max_length_error: Custom error for max_length violation. Supports ``{max}`` placeholder.
         regexp: Python ``re`` pattern the string must match from the start (``re.match`` semantics,
             not ``re.search``). Both the marshmallow and nuked backends match with the ``re`` module,
-            so behaviour is identical. In JSON Schema the pattern is emitted verbatim into ``pattern``,
-            which JSON Schema treats as unanchored; anchor with ``^...$`` for an exact round-trip.
+            so behaviour is identical. In JSON Schema the pattern is emitted start-anchored as
+            ``^(?:...)`` so the schema accepts the same strings as the validator (JSON Schema
+            ``pattern`` is otherwise unanchored); the end is left free, matching ``re.match``.
         regexp_error: Custom error when regexp validation fails. Used verbatim (no placeholders).
         validate: Validation function or list of functions applied on load.
         strip_whitespaces: If True, strip leading/trailing whitespace on load.

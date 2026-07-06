@@ -283,7 +283,7 @@ def __build_leaf(
         __apply_length(schema, metadata, item=False)
         regexp = metadata.get("regexp")
         if regexp is not None:
-            schema["pattern"] = regexp
+            schema["pattern"] = f"^(?:{regexp})"
         return schema
 
     if field_type is int:

@@ -473,9 +473,10 @@ Notes:
   whole string.
 * `regexp_error` is used verbatim — braces and other characters are not treated as
   format placeholders.
-* In JSON Schema the pattern is emitted as-is into `pattern`, which the spec treats as
-  **unanchored**. For an exact round-trip between the schema and the validator, anchor
-  your pattern with `^...$`.
+* In JSON Schema the pattern is emitted **start-anchored** as `^(?:...)`, so the schema
+  accepts the same strings as the validator (JSON Schema `pattern` is otherwise unanchored).
+  The end is left free to match `re.match` — anchor your own pattern with `$` if you also
+  need the whole string to match.
 
 ## Combining Validation with Transformations
 
