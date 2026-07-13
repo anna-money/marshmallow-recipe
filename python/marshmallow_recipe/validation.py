@@ -42,8 +42,12 @@ def regexp_validate(regexp: re.Pattern | str, *, error: str | None = None) -> Va
 
     Args:
         regexp: Regular expression pattern or compiled re.Pattern.
-        error: Custom error message on validation failure.
+        error: Custom error message on validation failure. Used verbatim: braces
+            are escaped, so `{input}`/`{regex}` are not treated as format placeholders
+            (unlike `email_validate`).
     """
+    if error is not None:
+        error = error.replace("{", "{{").replace("}", "}}")
     return marshmallow.validate.Regexp(regexp, error=error)
 
 

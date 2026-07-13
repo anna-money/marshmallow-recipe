@@ -1,8 +1,62 @@
+use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::PyString;
 
 use crate::error::SerializationError;
 use crate::fields::length::{LengthBound, validate_length};
+
+pub struct RegexpBound {
+    pub pattern: Py<PyAny>,
+    pub error: Py<PyString>,
+}
+
+impl Clone for RegexpBound {
+    fn clone(&self) -> Self {
+        Python::attach(|py| Self {
+            pattern: self.pattern.clone_ref(py),
+            error: self.error.clone_ref(py),
+        })
+    }
+}
+
+fn validate_regexp(
+    py: Python<'_>,
+    value: &Bound<'_, PyAny>,
+    regexp: Option<&RegexpBound>,
+) -> Result<(), SerializationError> {
+    if let Some(bound) = regexp {
+        let matched = bound
+            .pattern
+            .bind(py)
+            .call_method1(intern!(py, "match"), (value,))
+            .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+        if matched.is_none() {
+            return Err(SerializationError::Single(bound.error.clone_ref(py)));
+        }
+    }
+    Ok(())
+}
+
+fn validate_length_and_regexp(
+    py: Python<'_>,
+    char_count: usize,
+    value: &Bound<'_, PyAny>,
+    min_length: Option<&LengthBound>,
+    max_length: Option<&LengthBound>,
+    regexp: Option<&RegexpBound>,
+) -> Result<(), SerializationError> {
+    match (
+        validate_length(py, char_count, min_length, max_length).err(),
+        validate_regexp(py, value, regexp).err(),
+    ) {
+        (None, None) => Ok(()),
+        (Some(e), None) | (None, Some(e)) => Err(e),
+        (Some(length_err), Some(regexp_err)) => Err(SerializationError::collect_flat_list(
+            py,
+            vec![length_err, regexp_err],
+        )),
+    }
+}
 
 fn py_string_char_count(py_str: &Bound<'_, PyString>) -> usize {
     unsafe { pyo3::ffi::PyUnicode_GET_LENGTH(py_str.as_ptr()).cast_unsigned() }
@@ -16,6 +70,7 @@ pub fn load_from_py(
     post_load: Option<&Py<PyAny>>,
     min_length: Option<&LengthBound>,
     max_length: Option<&LengthBound>,
+    regexp: Option<&RegexpBound>,
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
 
@@ -31,31 +86,46 @@ pub fn load_from_py(
         if allow_none && trimmed.is_empty() {
             return Ok(py.None());
         }
-        if trimmed.len() == s.len() {
+        let (result, char_count) = if trimmed.len() == s.len() {
             (value.clone().unbind(), py_string_char_count(py_str))
         } else {
             let trimmed_py = PyString::new(py, trimmed);
             let count = py_string_char_count(&trimmed_py);
             (trimmed_py.unbind().into_any(), count)
+        };
+        if post_load.is_none() {
+            validate_length_and_regexp(
+                py,
+                char_count,
+                result.bind(py),
+                min_length,
+                max_length,
+                regexp,
+            )?;
+            return Ok(result);
         }
-    } else {
-        (value.clone().unbind(), py_string_char_count(py_str))
-    };
-
-    let (result, char_count) = if let Some(post_load_fn) = post_load {
-        let post_result = post_load_fn
-            .call1(py, (&result,))
-            .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-        let count = post_result
-            .bind(py)
-            .cast::<PyString>()
-            .map_or(char_count, |s| py_string_char_count(s));
-        (post_result, count)
-    } else {
         (result, char_count)
+    } else {
+        let char_count = py_string_char_count(py_str);
+        if post_load.is_none() {
+            validate_length_and_regexp(py, char_count, value, min_length, max_length, regexp)?;
+            return Ok(value.clone().unbind());
+        }
+        (value.clone().unbind(), char_count)
     };
 
-    validate_length(py, char_count, min_length, max_length)?;
+    let post_load_fn = post_load.expect("post_load must be Some here");
+    let result = post_load_fn
+        .call1(py, (&result,))
+        .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+    let result_bound = result.bind(py);
+
+    let char_count = result_bound
+        .cast::<PyString>()
+        .as_ref()
+        .map_or(char_count, |s| py_string_char_count(s));
+
+    validate_length_and_regexp(py, char_count, result_bound, min_length, max_length, regexp)?;
 
     Ok(result)
 }
@@ -67,6 +137,7 @@ pub fn dump_to_py(
     invalid_error: &Py<PyString>,
     min_length: Option<&LengthBound>,
     max_length: Option<&LengthBound>,
+    regexp: Option<&RegexpBound>,
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
     let py_str = value
@@ -82,20 +153,36 @@ pub fn dump_to_py(
             return Ok(py.None());
         }
         if trimmed.len() == s.len() {
-            validate_length(py, py_string_char_count(py_str), min_length, max_length)?;
+            validate_length_and_regexp(
+                py,
+                py_string_char_count(py_str),
+                value,
+                min_length,
+                max_length,
+                regexp,
+            )?;
             Ok(value.clone().unbind())
         } else {
             let trimmed_py = PyString::new(py, trimmed);
-            validate_length(
+            validate_length_and_regexp(
                 py,
                 py_string_char_count(&trimmed_py),
+                trimmed_py.as_any(),
                 min_length,
                 max_length,
+                regexp,
             )?;
             Ok(trimmed_py.unbind().into_any())
         }
     } else {
-        validate_length(py, py_string_char_count(py_str), min_length, max_length)?;
+        validate_length_and_regexp(
+            py,
+            py_string_char_count(py_str),
+            value,
+            min_length,
+            max_length,
+            regexp,
+        )?;
         Ok(value.clone().unbind())
     }
 }
