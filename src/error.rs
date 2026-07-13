@@ -26,6 +26,28 @@ impl SerializationError {
         Self::List(PyList::new(py, items).expect("valid items").unbind())
     }
 
+    /// Merge errors into one flat message list, matching marshmallow's
+    /// `validate.And` accumulation (each error's messages appended in order).
+    pub fn collect_flat_list(py: Python<'_>, errors: Vec<Self>) -> Self {
+        let merged = PyList::empty(py);
+        for e in errors {
+            match e {
+                Self::Single(s) => {
+                    let _ = merged.append(s.bind(py));
+                }
+                Self::List(l) => {
+                    for item in l.bind(py).iter() {
+                        let _ = merged.append(item);
+                    }
+                }
+                other @ Self::Dict(_) => {
+                    let _ = merged.append(other.to_py_value(py).unwrap_or_else(|_| py.None()));
+                }
+            }
+        }
+        Self::List(merged.unbind())
+    }
+
     pub fn to_py_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         match self {
             Self::Single(s) => {

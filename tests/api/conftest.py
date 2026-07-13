@@ -1065,6 +1065,13 @@ class WithStrRegexpBraceError:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrValidateRegexpBraceError:
+    value: str = dataclasses.field(
+        metadata=mr.str_meta(validate=mr.regexp_validate(r"^\d+$", error="need {3,5} digits"))
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithStrPostLoadAndRegexp:
     value: str = dataclasses.field(metadata=mr.str_meta(post_load=str.upper, regexp=r"^[A-Z]+$"))
 

@@ -3,6 +3,7 @@ import dataclasses
 import datetime
 import decimal
 import enum
+import re
 import types
 import uuid
 from typing import Annotated, Any, ClassVar, Literal, Protocol, TypeAliasType, cast, get_args, get_origin
@@ -283,7 +284,13 @@ def __build_leaf(
         __apply_length(schema, metadata, item=False)
         regexp = metadata.get("regexp")
         if regexp is not None:
-            schema["pattern"] = f"^(?:{regexp})"
+            pattern = f"^(?:{regexp})"
+            try:
+                re.compile(pattern)
+            except re.error:
+                pass
+            else:
+                schema["pattern"] = pattern
         return schema
 
     if field_type is int:

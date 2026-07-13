@@ -34,6 +34,7 @@ from .conftest import (
     WithStrRequiredError,
     WithStrStripAndRegexp,
     WithStrTwoValidators,
+    WithStrValidateRegexpBraceError,
     WithStrValidation,
 )
 
@@ -268,6 +269,29 @@ class TestStrDump:
         obj = WithStrStripAndRegexp(value="  hello  ")
         result = impl.dump(WithStrStripAndRegexp, obj)
         assert result == b'{"value":"hello"}'
+
+    @pytest.mark.parametrize(
+        ("obj", "error_messages"),
+        [
+            pytest.param(
+                WithStrLengthAndRegexp(value="A"),
+                {"value": ["Shorter than minimum length 2.", "String does not match expected pattern."]},
+                id="both_min_length_and_regexp",
+            ),
+            pytest.param(
+                WithStrLengthAndRegexp(value="ABCDEFGHIJK"),
+                {"value": ["Longer than maximum length 10.", "String does not match expected pattern."]},
+                id="both_max_length_and_regexp",
+            ),
+        ],
+    )
+    def test_combined_length_and_regexp_fail(
+        self, impl: Serializer, obj: WithStrLengthAndRegexp, error_messages: dict[str, list[str]]
+    ) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithStrLengthAndRegexp, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == error_messages
 
 
 class TestStrLoad:
@@ -548,6 +572,18 @@ class TestStrLoad:
                 {"value": ["String does not match expected pattern."]},
                 id="regexp_after_length",
             ),
+            pytest.param(
+                WithStrLengthAndRegexp,
+                b'{"value":"A"}',
+                {"value": ["Shorter than minimum length 2.", "String does not match expected pattern."]},
+                id="both_min_length_and_regexp",
+            ),
+            pytest.param(
+                WithStrLengthAndRegexp,
+                b'{"value":"ABCDEFGHIJK"}',
+                {"value": ["Longer than maximum length 10.", "String does not match expected pattern."]},
+                id="both_max_length_and_regexp",
+            ),
         ],
     )
     def test_combined_length_and_regexp_fail(
@@ -561,6 +597,11 @@ class TestStrLoad:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithStrRegexpBraceError, b'{"value":"abc"}')
         assert exc.value.messages == {"value": ["count {0,5} digits"]}
+
+    def test_validate_regexp_error_with_braces_is_literal(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrValidateRegexpBraceError, b'{"value":"abc"}')
+        assert exc.value.messages == {"value": ["need {3,5} digits"]}
 
     def test_post_load_then_regexp_pass(self, impl: Serializer) -> None:
         result = impl.load(WithStrPostLoadAndRegexp, b'{"value":"abc"}')

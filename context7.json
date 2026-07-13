@@ -103,7 +103,7 @@
     "JSON Schema: Float range constraints emitted - gt→exclusiveMinimum, gte→minimum, lt→exclusiveMaximum, lte→maximum (values as numbers)",
     "JSON Schema: List length constraints emitted - min_length→minItems, max_length→maxItems (values as numbers)",
     "JSON Schema: String length constraints emitted - min_length→minLength, max_length→maxLength (values as numbers)",
-    "JSON Schema: String regexp constraint emitted - regexp→pattern, start-anchored as ^(?:...) so the schema accepts the same strings as the re.match validator (end left free; add $ yourself for whole-string match)",
+    "JSON Schema: String regexp constraint emitted best-effort - regexp→pattern, start-anchored as ^(?:...) to mirror re.match (end left free; add $ yourself for whole-string match); pattern is the Python regex verbatim so strict ECMA-262 validators may diverge, and it is omitted when the wrapped form doesn't compile under Python re (e.g. global inline flags like (?i))",
     "AI-ASSISTED DEVELOPMENT: For Claude Code in downstream projects, add to your CLAUDE.md: 'When working with marshmallow-recipe (imported as mr), use the context7 MCP plugin to look up /anna-money/marshmallow-recipe documentation before writing serialization code'",
     "AI-ASSISTED DEVELOPMENT: Run help(marshmallow_recipe) or help(mr.dump) in Python for complete API documentation with lazy discovery links"
   ],

@@ -37,6 +37,27 @@ fn validate_regexp(
     Ok(())
 }
 
+fn validate_length_and_regexp(
+    py: Python<'_>,
+    char_count: usize,
+    value: &Bound<'_, PyAny>,
+    min_length: Option<&LengthBound>,
+    max_length: Option<&LengthBound>,
+    regexp: Option<&RegexpBound>,
+) -> Result<(), SerializationError> {
+    match (
+        validate_length(py, char_count, min_length, max_length).err(),
+        validate_regexp(py, value, regexp).err(),
+    ) {
+        (None, None) => Ok(()),
+        (Some(e), None) | (None, Some(e)) => Err(e),
+        (Some(length_err), Some(regexp_err)) => Err(SerializationError::collect_flat_list(
+            py,
+            vec![length_err, regexp_err],
+        )),
+    }
+}
+
 fn py_string_char_count(py_str: &Bound<'_, PyString>) -> usize {
     unsafe { pyo3::ffi::PyUnicode_GET_LENGTH(py_str.as_ptr()).cast_unsigned() }
 }
@@ -73,16 +94,21 @@ pub fn load_from_py(
             (trimmed_py.unbind().into_any(), count)
         };
         if post_load.is_none() {
-            validate_length(py, char_count, min_length, max_length)?;
-            validate_regexp(py, result.bind(py), regexp)?;
+            validate_length_and_regexp(
+                py,
+                char_count,
+                result.bind(py),
+                min_length,
+                max_length,
+                regexp,
+            )?;
             return Ok(result);
         }
         (result, char_count)
     } else {
         let char_count = py_string_char_count(py_str);
         if post_load.is_none() {
-            validate_length(py, char_count, min_length, max_length)?;
-            validate_regexp(py, value, regexp)?;
+            validate_length_and_regexp(py, char_count, value, min_length, max_length, regexp)?;
             return Ok(value.clone().unbind());
         }
         (value.clone().unbind(), char_count)
@@ -99,8 +125,7 @@ pub fn load_from_py(
         .as_ref()
         .map_or(char_count, |s| py_string_char_count(s));
 
-    validate_length(py, char_count, min_length, max_length)?;
-    validate_regexp(py, result_bound, regexp)?;
+    validate_length_and_regexp(py, char_count, result_bound, min_length, max_length, regexp)?;
 
     Ok(result)
 }
@@ -128,23 +153,36 @@ pub fn dump_to_py(
             return Ok(py.None());
         }
         if trimmed.len() == s.len() {
-            validate_length(py, py_string_char_count(py_str), min_length, max_length)?;
-            validate_regexp(py, value, regexp)?;
+            validate_length_and_regexp(
+                py,
+                py_string_char_count(py_str),
+                value,
+                min_length,
+                max_length,
+                regexp,
+            )?;
             Ok(value.clone().unbind())
         } else {
             let trimmed_py = PyString::new(py, trimmed);
-            validate_length(
+            validate_length_and_regexp(
                 py,
                 py_string_char_count(&trimmed_py),
+                trimmed_py.as_any(),
                 min_length,
                 max_length,
+                regexp,
             )?;
-            validate_regexp(py, trimmed_py.as_any(), regexp)?;
             Ok(trimmed_py.unbind().into_any())
         }
     } else {
-        validate_length(py, py_string_char_count(py_str), min_length, max_length)?;
-        validate_regexp(py, value, regexp)?;
+        validate_length_and_regexp(
+            py,
+            py_string_char_count(py_str),
+            value,
+            min_length,
+            max_length,
+            regexp,
+        )?;
         Ok(value.clone().unbind())
     }
 }

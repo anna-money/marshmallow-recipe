@@ -476,7 +476,11 @@ Notes:
 * In JSON Schema the pattern is emitted **start-anchored** as `^(?:...)`, so the schema
   accepts the same strings as the validator (JSON Schema `pattern` is otherwise unanchored).
   The end is left free to match `re.match` — anchor your own pattern with `$` if you also
-  need the whole string to match.
+  need the whole string to match. The emitted `pattern` is the Python regex verbatim and is
+  best-effort: strict ECMA-262 validators (ajv, browsers) may diverge on Python-specific
+  syntax/semantics (Unicode `\w`/`\d`, `$` vs trailing newline, lookbehind, backreferences,
+  conditional groups, inline flags). If the `^(?:...)`-wrapped pattern doesn't compile under
+  Python `re` (e.g. a global inline flag like `(?i)`), `pattern` is omitted.
 
 ## Combining Validation with Transformations
 

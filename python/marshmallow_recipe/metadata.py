@@ -132,7 +132,12 @@ def str_metadata(
             not ``re.search``). Both the marshmallow and nuked backends match with the ``re`` module,
             so behaviour is identical. In JSON Schema the pattern is emitted start-anchored as
             ``^(?:...)`` so the schema accepts the same strings as the validator (JSON Schema
-            ``pattern`` is otherwise unanchored); the end is left free, matching ``re.match``.
+            ``pattern`` is otherwise unanchored); the end is left free, matching ``re.match``. The
+            emitted ``pattern`` is the Python regex verbatim (best-effort): strict ECMA-262
+            validators may diverge on Python-specific syntax/semantics (Unicode ``\\w``/``\\d``,
+            ``$`` before a trailing newline, lookbehind, backreferences, conditional groups, inline
+            flags). If the ``^(?:...)``-wrapped pattern doesn't compile under Python ``re`` (e.g. a
+            global inline flag like ``(?i)``), ``pattern`` is omitted from the schema.
         regexp_error: Custom error when regexp validation fails. Used verbatim (no placeholders).
         validate: Validation function or list of functions applied on load.
         strip_whitespaces: If True, strip leading/trailing whitespace on load.

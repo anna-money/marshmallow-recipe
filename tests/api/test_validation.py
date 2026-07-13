@@ -47,6 +47,12 @@ class TestRegexpValidate:
             validator("123")
         assert exc.value.messages == ["Must be lowercase letters only"]
 
+    def test_custom_error_message_with_braces_is_literal(self) -> None:
+        validator = mr.regexp_validate(r"^\d+$", error="need {3,5} digits")
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            validator("abc")
+        assert exc.value.messages == ["need {3,5} digits"]
+
 
 class TestValidate:
     def test_valid_value(self) -> None:

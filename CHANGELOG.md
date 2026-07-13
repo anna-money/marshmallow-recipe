@@ -1,6 +1,6 @@
 ## unreleased
 
-* [Add `regexp` parameter to `str_meta()` for built-in string pattern validation. Patterns use Python `re` semantics (`re.match`, anchored at the start) on both the marshmallow and nuked backends, so behaviour is identical; `regexp_error` is used verbatim; the JSON Schema `pattern` is emitted start-anchored as `^(?:...)` so the schema accepts the same strings as the validator.](https://github.com/anna-money/marshmallow-recipe/pull/300)
+* [Add `regexp` parameter to `str_meta()` for built-in string pattern validation. Patterns use Python `re` semantics (`re.match`, anchored at the start) on both the marshmallow and nuked backends, so behaviour is identical; `regexp_error` is used verbatim; the JSON Schema `pattern` is emitted start-anchored as `^(?:...)` so the schema accepts the same strings as the validator. The nuked backend now accumulates length and regexp validation errors the same way the marshmallow backend does, instead of stopping at the first failure. `pattern` is omitted from the JSON Schema when the wrapped regex doesn't compile under Python `re` (e.g. a global inline flag like `(?i)`); it remains best-effort otherwise and may diverge from strict ECMA-262 semantics. **Behaviour change:** `mr.regexp_validate(error=...)` now also treats its error verbatim (braces escaped) — `{input}`/`{regex}` placeholders no longer interpolate, and brace-containing errors like `{3,5}` no longer raise `KeyError` at validation time.](https://github.com/anna-money/marshmallow-recipe/pull/300)
 
 
 ## v0.0.99 (2026-06-24)

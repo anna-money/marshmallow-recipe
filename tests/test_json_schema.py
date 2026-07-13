@@ -4,6 +4,7 @@ import dataclasses
 import datetime
 import decimal
 import enum
+import re
 import uuid
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
@@ -1187,3 +1188,28 @@ def test_str_all_validators_schema() -> None:
         "properties": {"value": {"type": "string", "minLength": 2, "maxLength": 10, "pattern": r"^(?:^[a-z]+$)"}},
         "required": ["value"],
     }
+
+
+def test_str_regexp_schema_omits_pattern_when_wrapping_breaks_compilation() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class WithInlineFlagRegexp:
+        value: str = dataclasses.field(metadata=mr.str_meta(regexp=r"(?i)abc"))
+
+    schema = mr.json_schema(WithInlineFlagRegexp)
+
+    assert schema == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "WithInlineFlagRegexp",
+        "properties": {"value": {"type": "string"}},
+        "required": ["value"],
+    }
+
+
+def test_str_regexp_schema_pattern_is_compilable() -> None:
+    @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+    class WithRegexpCompile:
+        value: str = dataclasses.field(metadata=mr.str_meta(regexp=r"^\d+$"))
+
+    schema = mr.json_schema(WithRegexpCompile)
+    re.compile(schema["properties"]["value"]["pattern"])
