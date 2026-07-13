@@ -1,4 +1,5 @@
 import datetime
+import zoneinfo
 
 import marshmallow
 import pytest
@@ -28,6 +29,21 @@ from .conftest import (
     WithDatetimeValidation,
 )
 
+LONDON = zoneinfo.ZoneInfo("Europe/London")
+NEW_YORK = zoneinfo.ZoneInfo("America/New_York")
+KOLKATA = zoneinfo.ZoneInfo("Asia/Kolkata")
+
+
+class CustomTzInfo(datetime.tzinfo):
+    def utcoffset(self, dt: datetime.datetime | None) -> datetime.timedelta:
+        return datetime.timedelta(hours=2)
+
+    def dst(self, dt: datetime.datetime | None) -> datetime.timedelta | None:
+        return None
+
+    def tzname(self, dt: datetime.datetime | None) -> str | None:
+        return None
+
 
 class TestDatetimeDump:
     def test_value(self, impl: Serializer) -> None:
@@ -40,6 +56,102 @@ class TestDatetimeDump:
         result = impl.dump(ValueOf[datetime.datetime], obj)
         assert result == b'{"value":"2025-12-26T10:30:45.100000+00:00"}'
 
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            pytest.param(
+                datetime.datetime(2026, 7, 2, 14, 43, 18, tzinfo=LONDON),
+                b'{"value":"2026-07-02T14:43:18+01:00"}',
+                id="zoneinfo_london_summer",
+            ),
+            pytest.param(
+                datetime.datetime(2026, 1, 15, 10, 30, 45, tzinfo=LONDON),
+                b'{"value":"2026-01-15T10:30:45+00:00"}',
+                id="zoneinfo_london_winter",
+            ),
+            pytest.param(
+                datetime.datetime(2026, 7, 2, 14, 43, 18, 123456, tzinfo=LONDON),
+                b'{"value":"2026-07-02T14:43:18.123456+01:00"}',
+                id="zoneinfo_london_summer_microseconds",
+            ),
+            pytest.param(
+                datetime.datetime(2026, 7, 2, 9, 43, 18, tzinfo=NEW_YORK),
+                b'{"value":"2026-07-02T09:43:18-04:00"}',
+                id="zoneinfo_new_york_summer",
+            ),
+            pytest.param(
+                datetime.datetime(2026, 1, 15, 10, 30, 45, tzinfo=NEW_YORK),
+                b'{"value":"2026-01-15T10:30:45-05:00"}',
+                id="zoneinfo_new_york_winter",
+            ),
+            pytest.param(
+                datetime.datetime(2026, 7, 2, 19, 13, 18, tzinfo=KOLKATA),
+                b'{"value":"2026-07-02T19:13:18+05:30"}',
+                id="zoneinfo_kolkata",
+            ),
+            pytest.param(
+                datetime.datetime(2026, 7, 2, 13, 43, 18, tzinfo=zoneinfo.ZoneInfo("UTC")),
+                b'{"value":"2026-07-02T13:43:18+00:00"}',
+                id="zoneinfo_utc",
+            ),
+            pytest.param(
+                datetime.datetime(2026, 1, 15, 10, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=-5))),
+                b'{"value":"2026-01-15T10:30:45-05:00"}',
+                id="negative_timezone_offset",
+            ),
+            pytest.param(
+                datetime.datetime(2026, 7, 2, 14, 43, 18, tzinfo=CustomTzInfo()),
+                b'{"value":"2026-07-02T14:43:18+02:00"}',
+                id="custom_tzinfo",
+            ),
+            pytest.param(
+                datetime.datetime(9999, 12, 31, 23, 59, 59, 999999, tzinfo=datetime.UTC),
+                b'{"value":"9999-12-31T23:59:59.999999+00:00"}',
+                id="max_datetime",
+            ),
+        ],
+    )
+    def test_tzinfo_variants(self, impl: Serializer, value: datetime.datetime, expected: bytes) -> None:
+        obj = ValueOf[datetime.datetime](value=value)
+        result = impl.dump(ValueOf[datetime.datetime], obj)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            pytest.param(
+                datetime.datetime(2026, 10, 25, 1, 30, tzinfo=LONDON),
+                b'{"value":"2026-10-25T01:30:00+01:00"}',
+                id="ambiguous_fold_0",
+            ),
+            pytest.param(
+                datetime.datetime(2026, 10, 25, 1, 30, fold=1, tzinfo=LONDON),
+                b'{"value":"2026-10-25T01:30:00+00:00"}',
+                id="ambiguous_fold_1",
+            ),
+            pytest.param(
+                datetime.datetime(2026, 3, 29, 1, 30, tzinfo=LONDON),
+                b'{"value":"2026-03-29T01:30:00+00:00"}',
+                id="skipped_fold_0",
+            ),
+            pytest.param(
+                datetime.datetime(2026, 3, 29, 1, 30, fold=1, tzinfo=LONDON),
+                b'{"value":"2026-03-29T01:30:00+01:00"}',
+                id="skipped_fold_1",
+            ),
+        ],
+    )
+    def test_zoneinfo_dst_transition(self, impl: Serializer, value: datetime.datetime, expected: bytes) -> None:
+        obj = ValueOf[datetime.datetime](value=value)
+        result = impl.dump(ValueOf[datetime.datetime], obj)
+        assert result == expected
+
+    def test_zoneinfo_round_trip(self, impl: Serializer) -> None:
+        dt = datetime.datetime(2026, 7, 2, 14, 43, 18, tzinfo=LONDON)
+        dumped = impl.dump(ValueOf[datetime.datetime], ValueOf[datetime.datetime](value=dt))
+        loaded = impl.load(ValueOf[datetime.datetime], dumped)
+        assert loaded == ValueOf[datetime.datetime](value=dt)
+
     def test_format_date_only(self, impl: Serializer) -> None:
         obj = WithDateTimeCustomFormat(scheduled_at=datetime.datetime(2024, 12, 25, 14, 30, 0, tzinfo=datetime.UTC))
         result = impl.dump(WithDateTimeCustomFormat, obj)
@@ -50,11 +162,30 @@ class TestDatetimeDump:
         result = impl.dump(WithDateTimeCustomFormatFull, obj)
         assert result == b'{"created_at":"2024-06-15 14:30:45"}'
 
-    def test_format_with_timezone(self, impl: Serializer) -> None:
-        tz = datetime.timezone(datetime.timedelta(hours=3))
-        obj = WithDateTimeCustomFormatTimezone(created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=tz))
+    @pytest.mark.parametrize(
+        ("obj", "expected"),
+        [
+            pytest.param(
+                WithDateTimeCustomFormatTimezone(
+                    created_at=datetime.datetime(
+                        2024, 6, 15, 14, 30, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=3))
+                    )
+                ),
+                b'{"created_at":"2024-06-15T14:30:45+0300"}',
+                id="timezone_offset",
+            ),
+            pytest.param(
+                WithDateTimeCustomFormatTimezone(created_at=datetime.datetime(2026, 7, 2, 14, 43, 18, tzinfo=LONDON)),
+                b'{"created_at":"2026-07-02T14:43:18+0100"}',
+                id="zoneinfo",
+            ),
+        ],
+    )
+    def test_format_with_timezone(
+        self, impl: Serializer, obj: WithDateTimeCustomFormatTimezone, expected: bytes
+    ) -> None:
         result = impl.dump(WithDateTimeCustomFormatTimezone, obj)
-        assert result == b'{"created_at":"2024-06-15T14:30:45+0300"}'
+        assert result == expected
 
     def test_optional_none(self, impl: Serializer) -> None:
         obj = OptionalValueOf[datetime.datetime](value=None)
@@ -350,6 +481,21 @@ class TestDatetimeDump:
                 ),
                 b'{"created_at":1718461845.123456}',
                 id="with_microseconds",
+            ),
+            pytest.param(
+                WithDateTimeFormatTimestamp(created_at=datetime.datetime(2026, 7, 2, 14, 43, 18, tzinfo=LONDON)),
+                b'{"created_at":1782999798.0}',
+                id="zoneinfo",
+            ),
+            pytest.param(
+                WithDateTimeFormatTimestamp(created_at=datetime.datetime(2026, 10, 25, 1, 30, tzinfo=LONDON)),
+                b'{"created_at":1792888200.0}',
+                id="zoneinfo_ambiguous_fold_0",
+            ),
+            pytest.param(
+                WithDateTimeFormatTimestamp(created_at=datetime.datetime(2026, 10, 25, 1, 30, fold=1, tzinfo=LONDON)),
+                b'{"created_at":1792891800.0}',
+                id="zoneinfo_ambiguous_fold_1",
             ),
         ],
     )

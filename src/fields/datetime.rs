@@ -1,7 +1,12 @@
-use chrono::{DateTime, FixedOffset, NaiveDateTime};
+use chrono::{DateTime, Duration, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime};
 use pyo3::conversion::IntoPyObjectExt;
+use pyo3::exceptions::PyValueError;
+use pyo3::intern;
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyDateTime, PyFloat, PyInt, PyString};
+use pyo3::types::{
+    PyBool, PyDateAccess, PyDateTime, PyFloat, PyInt, PyString, PyTimeAccess, PyTzInfo,
+    PyTzInfoAccess,
+};
 
 use crate::error::SerializationError;
 use crate::utils::display_to_py;
@@ -125,11 +130,40 @@ pub fn dump_to_py(
 }
 
 fn extract_datetime(value: &Bound<'_, PyAny>) -> PyResult<DateTime<FixedOffset>> {
-    if let Ok(dt) = value.extract::<DateTime<FixedOffset>>() {
-        return Ok(dt);
+    let dt = value.cast::<PyDateTime>()?;
+    let naive = extract_naive_datetime(dt)?;
+    let Some(tzinfo) = dt.get_tzinfo() else {
+        return Ok(naive.and_utc().fixed_offset());
+    };
+    if tzinfo.is(PyTzInfo::utc(dt.py())?) {
+        return Ok(naive.and_utc().fixed_offset());
     }
-    let naive: NaiveDateTime = value.extract()?;
-    Ok(naive.and_utc().fixed_offset())
+    let utcoffset = tzinfo.call_method1(intern!(dt.py(), "utcoffset"), (dt,))?;
+    if utcoffset.is_none() {
+        return Err(PyValueError::new_err("utcoffset is None"));
+    }
+    let delta: Duration = utcoffset.extract()?;
+    let offset = i32::try_from(delta.num_seconds())
+        .ok()
+        .and_then(FixedOffset::east_opt)
+        .ok_or_else(|| PyValueError::new_err("utcoffset is out of bounds"))?;
+    naive
+        .and_local_timezone(offset)
+        .single()
+        .ok_or_else(|| PyValueError::new_err("datetime is out of bounds"))
+}
+
+fn extract_naive_datetime(dt: &Bound<'_, PyDateTime>) -> PyResult<NaiveDateTime> {
+    let date = NaiveDate::from_ymd_opt(dt.get_year(), dt.get_month().into(), dt.get_day().into())
+        .ok_or_else(|| PyValueError::new_err("date is out of bounds"))?;
+    let time = NaiveTime::from_hms_micro_opt(
+        dt.get_hour().into(),
+        dt.get_minute().into(),
+        dt.get_second().into(),
+        dt.get_microsecond(),
+    )
+    .ok_or_else(|| PyValueError::new_err("time is out of bounds"))?;
+    Ok(NaiveDateTime::new(date, time))
 }
 
 #[allow(clippy::cast_precision_loss)]
