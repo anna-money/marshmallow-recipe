@@ -1,3 +1,8 @@
+## v0.0.100 (2026-07-13)
+
+* [Fix nuked dump of datetime with non-fixed tzinfo (ZoneInfo)](https://github.com/anna-money/marshmallow-recipe/pull/309)
+
+
 ## v0.0.99 (2026-06-24)
 
 * [Bump PyO3 to 0.29](https://github.com/anna-money/marshmallow-recipe/pull/308)
