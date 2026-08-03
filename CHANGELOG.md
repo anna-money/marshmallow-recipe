@@ -1,6 +1,6 @@
 ## v0.0.101 (2026-08-03)
 
-* [Fix nuked crash on collection fields with `CAMEL_CASE` naming](https://github.com/anna-money/marshmallow-recipe/pull/310)
+* [Fix nuked crash on collection fields with `CAMEL_CASE` naming](https://github.com/anna-money/marshmallow-recipe/pull/311)
 
 
 ## v0.0.100 (2026-07-13)
