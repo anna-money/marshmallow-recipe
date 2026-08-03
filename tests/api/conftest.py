@@ -435,6 +435,12 @@ class Company:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithNestedList:
+    display_name: str
+    home_addresses: list[Address]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithOptional:
     required: str
     optional_int: int | None = None

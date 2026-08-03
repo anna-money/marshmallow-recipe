@@ -578,7 +578,7 @@ class _BuildContext:
                 origin = get_origin(field_type)
                 args = get_args(field_type)
 
-        if data_key is None and naming_case is not None:
+        if data_key is None and naming_case is not None and name:
             data_key = naming_case(name)
 
         slot_offset = try_get_slot_offset(cls, name) if cls else None
