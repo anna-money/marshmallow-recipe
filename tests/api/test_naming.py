@@ -1,6 +1,6 @@
 import marshmallow_recipe as mr
 
-from .conftest import Address, Person, Serializer, WithCustomName, WithSnakeCase
+from .conftest import Address, Person, Serializer, WithCollections, WithCustomName, WithNestedList, WithSnakeCase
 
 
 class TestNamingDump:
@@ -26,6 +26,30 @@ class TestNamingDump:
         obj = Person(name="Test", age=25, address=Address(street="Main St", city="NYC", zip_code="10001"))
         result = impl.dump(Person, obj, naming_case=mr.CAMEL_CASE)
         expected = b'{"name":"Test","age":25,"address":{"street":"Main St","city":"NYC","zipCode":"10001"}}'
+        assert result == expected
+
+    def test_collections_camel_case(self, impl: Serializer) -> None:
+        obj = WithCollections(
+            list_int=[1, 2],
+            list_str=["a"],
+            dict_str_int={"key": 1},
+            set_str={"x"},
+            frozenset_int=frozenset([7]),
+            tuple_str=("t",),
+        )
+        result = impl.dump(WithCollections, obj, naming_case=mr.CAMEL_CASE)
+        expected = (
+            b'{"listInt":[1,2],"listStr":["a"],"dictStrInt":{"key":1},'
+            b'"setStr":["x"],"frozensetInt":[7],"tupleStr":["t"]}'
+        )
+        assert result == expected
+
+    def test_nested_list_camel_case(self, impl: Serializer) -> None:
+        obj = WithNestedList(
+            display_name="Team", home_addresses=[Address(street="Main St", city="NYC", zip_code="10001")]
+        )
+        result = impl.dump(WithNestedList, obj, naming_case=mr.CAMEL_CASE)
+        expected = b'{"displayName":"Team","homeAddresses":[{"street":"Main St","city":"NYC","zipCode":"10001"}]}'
         assert result == expected
 
     def test_custom_name(self, impl: Serializer) -> None:
@@ -54,6 +78,28 @@ class TestNamingLoad:
         data = b'{"FIRST_NAME":"Sarah","LAST_NAME":"Wilson","EMAIL_ADDRESS":"sarah@example.com"}'
         result = impl.load(WithSnakeCase, data, naming_case=mr.UPPER_SNAKE_CASE)
         assert result == WithSnakeCase(first_name="Sarah", last_name="Wilson", email_address="sarah@example.com")
+
+    def test_collections_camel_case(self, impl: Serializer) -> None:
+        data = (
+            b'{"listInt":[1,2],"listStr":["a"],"dictStrInt":{"key":1},'
+            b'"setStr":["x"],"frozensetInt":[7],"tupleStr":["t"]}'
+        )
+        result = impl.load(WithCollections, data, naming_case=mr.CAMEL_CASE)
+        assert result == WithCollections(
+            list_int=[1, 2],
+            list_str=["a"],
+            dict_str_int={"key": 1},
+            set_str={"x"},
+            frozenset_int=frozenset([7]),
+            tuple_str=("t",),
+        )
+
+    def test_nested_list_camel_case(self, impl: Serializer) -> None:
+        data = b'{"displayName":"Team","homeAddresses":[{"street":"Main St","city":"NYC","zipCode":"10001"}]}'
+        result = impl.load(WithNestedList, data, naming_case=mr.CAMEL_CASE)
+        assert result == WithNestedList(
+            display_name="Team", home_addresses=[Address(street="Main St", city="NYC", zip_code="10001")]
+        )
 
     def test_custom_name(self, impl: Serializer) -> None:
         data = b'{"id":456,"email":"user@example.com"}'
