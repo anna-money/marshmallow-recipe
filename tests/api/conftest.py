@@ -56,6 +56,29 @@ def _wrap_in_missing_mapping(value: Any) -> Any:
     return value
 
 
+def _assert_json_object(value: Any) -> None:
+    """Assert every mapping key in a dumped value is already a string.
+
+    ``json.dumps`` silently coerces int/float/bool/None keys, so a bytes-level
+    assertion cannot tell ``{1: "x"}`` from ``{"1": "x"}``. Serializers must produce
+    JSON-compatible output on their own.
+    """
+    stack = [value]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, dict):
+            for key, item in current.items():
+                assert isinstance(key, str), f"Non-str dict key {key!r} of type {type(key).__name__}"
+                stack.append(item)
+        elif isinstance(current, list):
+            stack.extend(current)
+
+
+def _encode_json(value: Any, encoding: str) -> bytes:
+    _assert_json_object(value)
+    return json.dumps(value, separators=(",", ":")).encode(encoding)
+
+
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 
@@ -150,7 +173,7 @@ class MarshmallowSerializer(Serializer):
         result = mr.dump(
             cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
-        return json.dumps(result, separators=(",", ":")).encode(encoding)
+        return _encode_json(result, encoding)
 
     def dump_many[T](
         self,
@@ -164,7 +187,7 @@ class MarshmallowSerializer(Serializer):
         result = mr.dump_many(
             cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
-        return json.dumps(result, separators=(",", ":")).encode(encoding)
+        return _encode_json(result, encoding)
 
     def load[T](
         self,
@@ -208,7 +231,7 @@ class NukedSerializer(Serializer):
         result = mr.nuked.dump(
             cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
-        return json.dumps(result, separators=(",", ":")).encode(encoding)
+        return _encode_json(result, encoding)
 
     def load[T](
         self,
@@ -286,7 +309,7 @@ class NukedSchemaSerializer(Serializer):
             assert isinstance(dumped, marshmallow.MarshalResult)
             result = dumped.data  # type: ignore
 
-        return json.dumps(result, separators=(",", ":")).encode(encoding)
+        return _encode_json(result, encoding)
 
     def dump_many[T](
         self,
@@ -311,7 +334,7 @@ class NukedSchemaSerializer(Serializer):
             assert isinstance(dumped, marshmallow.MarshalResult)
             result = dumped.data  # type: ignore
 
-        return json.dumps(result, separators=(",", ":")).encode(encoding)
+        return _encode_json(result, encoding)
 
     def load[T](
         self,
@@ -1372,6 +1395,24 @@ class WithDictNoneError:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithDictInvalidError:
     data: dict[str, int] = dataclasses.field(metadata=mr.meta(invalid_error="Custom invalid message"))
+
+
+type TimestampDateTime = Annotated[datetime.datetime, mr.datetime_meta(format="timestamp")]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithTimestampKey:
+    data: dict[TimestampDateTime, str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrKeyMinLength:
+    data: dict[Annotated[str, mr.str_meta(min_length=3)], int]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntKeyGte:
+    data: dict[Annotated[int, mr.int_meta(gte=10)], str]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
