@@ -7,7 +7,9 @@ use crate::container::{
     DataclassContainer, DataclassField, DataclassRegistry, FieldCommon, FieldContainer,
     LoadStrategy, TypeContainer,
 };
-use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
+use crate::error::{
+    SerializationError, accumulate_error, accumulate_key_error, pyerrors_to_serialization_error,
+};
 use crate::fields::{
     any, bool_literal, bool_type, bytes, collection, date, datetime, decimal, dict, float_type,
     int_enum, int_literal, int_type, str_enum, str_literal, str_type, time, union, uuid,
@@ -128,18 +130,23 @@ impl FieldContainer {
             } => str_enum::load_from_py(value, enum_values, &common.invalid_error),
             Self::IntEnum {
                 common,
+                as_string,
                 enum_values,
                 ..
-            } => int_enum::load_from_py(value, enum_values, &common.invalid_error),
+            } => int_enum::load_from_py(value, *as_string, enum_values, &common.invalid_error),
             Self::StrLiteral { common, values } => {
                 str_literal::load_from_py(value, values, &common.invalid_error)
             }
-            Self::IntLiteral { common, values } => {
-                int_literal::load_from_py(value, values, &common.invalid_error)
-            }
-            Self::BoolLiteral { common, values } => {
-                bool_literal::load_from_py(value, values, &common.invalid_error)
-            }
+            Self::IntLiteral {
+                common,
+                as_string,
+                values,
+            } => int_literal::load_from_py(value, *as_string, values, &common.invalid_error),
+            Self::BoolLiteral {
+                common,
+                as_string,
+                values,
+            } => bool_literal::load_from_py(value, *as_string, values, &common.invalid_error),
             Self::Any { .. } => Ok(any::load_from_py(value)),
             Self::Collection {
                 kind,
@@ -159,12 +166,14 @@ impl FieldContainer {
                 max_length.as_ref(),
             ),
             Self::Dict {
+                key: key_schema,
                 value: value_schema,
                 value_validator,
                 ..
             } => dict::load_from_py(
                 registry,
                 value,
+                key_schema.as_deref(),
                 value_schema,
                 value_validator.as_ref(),
                 &common.invalid_error,
@@ -751,24 +760,36 @@ impl TypeContainer {
                 Ok(result.into_any().unbind())
             }
             Self::Dict {
+                key: key_container,
                 value: value_container,
             } => {
                 let result = PyDict::new(py);
                 let mut errors: Option<Bound<'_, PyDict>> = None;
 
-                let mut handle = |k: Bound<'_, PyAny>, v: Bound<'_, PyAny>| match value_container
-                    .load_from_py(py, registry, &v)
-                {
-                    Ok(py_val) => {
-                        let _ = result.set_item(&k, py_val);
-                    }
-                    Err(ref e) => {
-                        let key_str = k
-                            .cast::<PyString>()
-                            .ok()
-                            .and_then(|s| s.to_str().ok())
-                            .unwrap_or("");
-                        accumulate_error(py, &mut errors, key_str, e);
+                let mut handle = |k: Bound<'_, PyAny>, v: Bound<'_, PyAny>| {
+                    let key_str = k
+                        .cast::<PyString>()
+                        .ok()
+                        .and_then(|s| s.to_str().ok())
+                        .unwrap_or("");
+                    let loaded_key = match key_container {
+                        Some(key_schema) => match key_schema.load_from_py(registry, &k) {
+                            Ok(loaded) => Some(loaded.into_bound(py)),
+                            Err(ref e) => {
+                                accumulate_key_error(py, &mut errors, key_str, e);
+                                return;
+                            }
+                        },
+                        None => None,
+                    };
+                    let target_key = loaded_key.as_ref().unwrap_or(&k);
+                    match value_container.load_from_py(py, registry, &v) {
+                        Ok(py_val) => {
+                            let _ = result.set_item(target_key, py_val);
+                        }
+                        Err(ref e) => {
+                            accumulate_error(py, &mut errors, key_str, e);
+                        }
                     }
                 };
 

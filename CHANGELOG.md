@@ -1,3 +1,12 @@
+## v0.0.103 (2026-09-05)
+
+
+* **Breaking:** `dict[K, V]` with a non-string key now behaves identically in `mr` and `mr.nuked`. JSON object keys are strings, so a key is serialised to its string form and parsed back on load: `dict[int, V]` dumps as `{"1": ...}`, `dict[bool, V]` as `{"true": ...}`, `dict[IntEnum, V]` and `dict[Literal[1, 2], V]` as `{"1": ...}`, and `datetime` with `format="timestamp"` as `{"1705314600.0": ...}`. Previously `mr.dump` emitted native `int`/`float`/`bool` keys, producing output that was not JSON-compatible on its own, while `mr.nuked.dump` raised `Dict key must be a string` and `mr.nuked.load` returned raw string keys without parsing them. Key metadata such as `dict[Annotated[str, mr.str_meta(min_length=3)], V]` was silently ignored by `mr.nuked` and is now applied by both.
+* **Breaking:** only primitives may be used as a `dict` key — `str`, `int`, `float`, `bool`, `decimal.Decimal`, `uuid.UUID`, `bytes`, `datetime`/`date`/`time`, enums and `Literal[...]`, optionally wrapped in `NewType`, a PEP 695 `type` alias or `Annotated`. Containers, nested dataclasses, `Any`, unions and `Optional` have no JSON key form and now raise `ValueError` when the schema is built rather than producing nonsense at dump time.
+* `datetime` with `format="timestamp"` now deserialises from a string everywhere. Previously only the pure-python backend on marshmallow 3 accepted `"1705314600.0"`; marshmallow 2 and the Rust backend rejected it, which surfaced first through dict keys.
+>>>>>>> 28d52c2 (Support non-str dict keys in both backends)
+
+
 ## v0.0.102 (2026-09-03)
 
 * [Fix nuked ignoring `validate_item` and custom error messages supplied via `Annotated`](https://github.com/anna-money/marshmallow-recipe/pull/314)

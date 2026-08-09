@@ -1415,6 +1415,41 @@ class WithIntKeyGte:
     data: dict[Annotated[int, mr.int_meta(gte=10)], str]
 
 
+type AliasKey = int
+
+NewTypeKey = NewType("NewTypeKey", int)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAliasKey:
+    data: dict[AliasKey, str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithNewTypeKey:
+    data: dict[NewTypeKey, str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAnnotatedIntKey:
+    data: dict[Annotated[int, mr.int_meta(gte=0)], str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrLiteralKey:
+    data: dict[Literal["a", "b"], str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntLiteralKey:
+    data: dict[Literal[1, 2], str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBoolLiteralKey:
+    data: dict[Literal[True, False], str]
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithMappingRequiredError:
     data: Mapping[str, int] = dataclasses.field(metadata=mr.meta(required_error="Custom required message"))

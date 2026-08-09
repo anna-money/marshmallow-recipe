@@ -28,7 +28,7 @@ import marshmallow
 
 from .. import NamingCase, _nuked as nuked  # type: ignore[attr-defined]
 from ..bake import bake_schema
-from ..generics import get_fields_type_map
+from ..generics import get_fields_type_map, validate_dict_key_type
 from ..hooks import get_pre_loads
 from ..missing import MISSING
 from ..options import NoneValueHandling, try_get_options_for
@@ -275,9 +275,10 @@ class _BuildContext:
             return self.__builder.type_list(item_handle)
 
         if origin is dict or origin is Mapping:
+            key_handle = self.__build_dict_key(args, naming_case)
             value_type = args[1] if len(args) > 1 else Any
             value_handle = self.build_root_type(value_type, naming_case)
-            return self.__builder.type_dict(value_handle)
+            return self.__builder.type_dict(value_handle, key_handle)
 
         if origin is set:
             item_type = args[0] if args else Any
@@ -406,6 +407,7 @@ class _BuildContext:
         field_init: bool = True,
         default_decimal_places: int | None = MISSING,
         nested_naming_case: NamingCase | None = None,
+        as_string: bool = False,
     ) -> tuple[Any, str | None]:
         optional = has_default
         data_key = None
@@ -617,6 +619,8 @@ class _BuildContext:
             kwargs["post_load"] = post_load_callback
         if validators:
             kwargs["validator"] = build_combined_validator(validators)
+        if as_string:
+            kwargs["as_string"] = True
 
         field_metadata = _FieldMetadata(
             strip_whitespaces=strip_whitespaces,
@@ -708,9 +712,10 @@ class _BuildContext:
             return self.__builder.list_field(name, optional, item_handle, **kwargs)
 
         if origin is dict:
+            key_handle = self.__build_dict_key(args, nested_naming_case)
             value_type = args[1] if len(args) > 1 else Any
             value_handle = self.__build_value_field(value_type, nested_naming_case)
-            return self.__builder.dict_field(name, optional, value_handle, **kwargs)
+            return self.__builder.dict_field(name, optional, value_handle, key_handle, **kwargs)
 
         if origin is set:
             item_type = args[0] if args else Any
@@ -742,9 +747,10 @@ class _BuildContext:
             return self.__builder.list_field(name, optional, item_handle, **kwargs)
 
         if origin is Mapping:
+            key_handle = self.__build_dict_key(args, nested_naming_case)
             value_type = args[1] if len(args) > 1 else Any
             value_handle = self.__build_value_field(value_type, nested_naming_case)
-            return self.__builder.dict_field(name, optional, value_handle, **kwargs)
+            return self.__builder.dict_field(name, optional, value_handle, key_handle, **kwargs)
 
         if origin is tuple:
             if len(args) == 2 and args[1] is ...:
@@ -934,6 +940,29 @@ class _BuildContext:
             False,
             default_decimal_places=self.__decimal_places,
             nested_naming_case=naming_case,
+        )
+        return field_handle
+
+    def __build_dict_key(self, args: tuple[Any, ...], naming_case: NamingCase | None) -> Any:
+        if not args:
+            return None
+        key_type = args[0]
+        validate_dict_key_type(key_type)
+        if key_type is str:
+            return None
+        return self.__build_key_field(key_type, naming_case)
+
+    def __build_key_field(self, field_type: Any, naming_case: NamingCase | None) -> Any:
+        field_handle, _ = self.__build_field(
+            None,
+            "key",
+            field_type,
+            None,
+            naming_case,
+            False,
+            default_decimal_places=self.__decimal_places,
+            nested_naming_case=naming_case,
+            as_string=True,
         )
         return field_handle
 

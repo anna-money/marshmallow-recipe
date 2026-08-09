@@ -19,6 +19,9 @@ from .conftest import (
     Priority,
     Serializer,
     Status,
+    WithAliasKey,
+    WithAnnotatedIntKey,
+    WithBoolLiteralKey,
     WithDictInvalidError,
     WithDictMissing,
     WithDictNoneError,
@@ -26,9 +29,21 @@ from .conftest import (
     WithDictTwoValidators,
     WithDictValidation,
     WithIntKeyGte,
+    WithIntLiteralKey,
+    WithNewTypeKey,
     WithStrKeyMinLength,
+    WithStrLiteralKey,
     WithTimestampKey,
 )
+
+_WRAPPED_KEY_CASES = [
+    pytest.param(WithAliasKey, {1: "x"}, b'{"data":{"1":"x"}}', id="type_alias"),
+    pytest.param(WithNewTypeKey, {1: "x"}, b'{"data":{"1":"x"}}', id="new_type"),
+    pytest.param(WithAnnotatedIntKey, {1: "x"}, b'{"data":{"1":"x"}}', id="annotated"),
+    pytest.param(WithStrLiteralKey, {"a": "x"}, b'{"data":{"a":"x"}}', id="str_literal"),
+    pytest.param(WithIntLiteralKey, {1: "x"}, b'{"data":{"1":"x"}}', id="int_literal"),
+    pytest.param(WithBoolLiteralKey, {True: "x"}, b'{"data":{"true":"x"}}', id="bool_literal"),
+]
 
 _KEY_UUID = uuid.UUID("12345678-1234-5678-1234-567812345678")
 _KEY_DATETIME = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)
@@ -247,6 +262,11 @@ class TestDictDump:
 
     @pytest.mark.parametrize(("schema_type", "data", "expected"), _KEY_CASES)
     def test_key(self, impl: Serializer, schema_type: type, data: dict[Any, str], expected: bytes) -> None:
+        result = impl.dump(schema_type, schema_type(data=data))
+        assert result == expected
+
+    @pytest.mark.parametrize(("schema_type", "data", "expected"), _WRAPPED_KEY_CASES)
+    def test_wrapped_key(self, impl: Serializer, schema_type: type, data: dict[Any, str], expected: bytes) -> None:
         result = impl.dump(schema_type, schema_type(data=data))
         assert result == expected
 
@@ -517,6 +537,11 @@ class TestDictLoad:
 
     @pytest.mark.parametrize(("schema_type", "expected", "data"), _KEY_CASES)
     def test_key(self, impl: Serializer, schema_type: type, expected: dict[Any, str], data: bytes) -> None:
+        result = impl.load(schema_type, data)
+        assert result == schema_type(data=expected)
+
+    @pytest.mark.parametrize(("schema_type", "expected", "data"), _WRAPPED_KEY_CASES)
+    def test_wrapped_key(self, impl: Serializer, schema_type: type, expected: dict[Any, str], data: bytes) -> None:
         result = impl.load(schema_type, data)
         assert result == schema_type(data=expected)
 
