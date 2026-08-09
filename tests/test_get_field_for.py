@@ -966,3 +966,49 @@ def test_get_field_for_global_decimal_places_ignored_for_non_decimal() -> None:
         field = mr.get_field_for(int, mr.Metadata({}), None, None, decimal_places=5)
         expected = m.fields.Int(required=True)
         assert_fields_equal(field, expected)
+
+
+def get_dict_key_field(field: m.fields.Field) -> Any:
+    if _MARSHMALLOW_VERSION_MAJOR >= 3:
+        return field.key_field  # type: ignore[attr-defined]
+    return field.keys  # type: ignore[attr-defined]
+
+
+def test_get_field_for_str_dict_key_has_no_key_field() -> None:
+    field = mr.get_field_for(dict[str, str], mr.Metadata({}), None, None)
+    assert get_dict_key_field(field) is None
+
+
+@pytest.mark.parametrize(
+    ("key_type", "value", "expected"),
+    [
+        pytest.param(int, 1, "1", id="int"),
+        pytest.param(float, 1.5, "1.5", id="float"),
+        pytest.param(bool, True, "true", id="bool"),
+        pytest.param(decimal.Decimal, decimal.Decimal("1.23"), "1.23", id="decimal"),
+        pytest.param(bytes, b"hi", "aGk=", id="bytes"),
+        pytest.param(datetime.date, datetime.date(2024, 1, 15), "2024-01-15", id="date"),
+    ],
+)
+def test_get_field_for_dict_key_serializes_to_str(key_type: type, value: Any, expected: str) -> None:
+    field = mr.get_field_for(dict[key_type, str], mr.Metadata({}), None, None)  # type: ignore[valid-type]
+    key_field = get_dict_key_field(field)
+    assert key_field._serialize(value, None, None) == expected
+
+
+@pytest.mark.parametrize(
+    "key_type",
+    [
+        pytest.param(Any, id="any"),
+        pytest.param(EmptyDataclass, id="dataclass"),
+        pytest.param(list[int], id="list"),
+        pytest.param(tuple[int, ...], id="tuple"),
+        pytest.param(frozenset[int], id="frozenset"),
+        pytest.param(dict[str, int], id="dict"),
+        pytest.param(int | str, id="union"),
+        pytest.param(int | None, id="optional"),
+    ],
+)
+def test_get_field_for_unsupported_dict_key(key_type: type) -> None:
+    with pytest.raises(ValueError, match="Unsupported dict key"):
+        mr.get_field_for(dict[key_type, str], mr.Metadata({}), None, None)  # type: ignore[valid-type]

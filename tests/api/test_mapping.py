@@ -26,6 +26,17 @@ from .conftest import (
     WithMappingValidation,
 )
 
+_MAPPING_KEY_CASES = [
+    pytest.param(MappingOf[int, str], {1: "x"}, b'{"data":{"1":"x"}}', id="int"),
+    pytest.param(
+        MappingOf[uuid.UUID, str],
+        {uuid.UUID("12345678-1234-5678-1234-567812345678"): "x"},
+        b'{"data":{"12345678-1234-5678-1234-567812345678":"x"}}',
+        id="uuid",
+    ),
+    pytest.param(MappingOf[Priority, str], {Priority.LOW: "x"}, b'{"data":{"1":"x"}}', id="int_enum"),
+]
+
 
 class TestMappingDump:
     @pytest.mark.parametrize(
@@ -70,6 +81,11 @@ class TestMappingDump:
     )
     def test_value(self, impl: Serializer, schema_type: type, obj: object, expected: bytes) -> None:
         result = impl.dump(schema_type, obj)
+        assert result == expected
+
+    @pytest.mark.parametrize(("schema_type", "data", "expected"), _MAPPING_KEY_CASES)
+    def test_key(self, impl: Serializer, schema_type: type, data: dict[Any, str], expected: bytes) -> None:
+        result = impl.dump(schema_type, schema_type(data=data))
         assert result == expected
 
     @pytest.mark.parametrize(
@@ -226,6 +242,11 @@ class TestMappingLoad:
     def test_value(self, impl: Serializer, schema_type: type, data: bytes, expected: object) -> None:
         result = impl.load(schema_type, data)
         assert result == expected
+
+    @pytest.mark.parametrize(("schema_type", "expected", "data"), _MAPPING_KEY_CASES)
+    def test_key(self, impl: Serializer, schema_type: type, expected: dict[Any, str], data: bytes) -> None:
+        result = impl.load(schema_type, data)
+        assert result == schema_type(data=expected)
 
     @pytest.mark.parametrize(
         ("schema_type", "data", "expected"),
