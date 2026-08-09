@@ -1,8 +1,12 @@
 import dataclasses
+import datetime
+import decimal
+import enum
 import types
 import typing
+import uuid
 from collections.abc import Mapping
-from typing import Annotated, Any, Generic, NewType, TypeAliasType, TypeVar, Union, get_args, get_origin
+from typing import Annotated, Any, Generic, Literal, NewType, TypeAliasType, TypeVar, Union, get_args, get_origin
 
 _GenericAlias: type[typing._GenericAlias] = typing._GenericAlias  # type: ignore
 
@@ -23,6 +27,41 @@ def unwrap_type_alias(cls: Any) -> Any:
 
 def is_union_type(t: Any) -> bool:
     return isinstance(t, types.UnionType) or get_origin(t) is Union
+
+
+_DICT_KEY_TYPES: frozenset[type] = frozenset(
+    {bool, bytes, datetime.date, datetime.datetime, datetime.time, decimal.Decimal, float, int, str, uuid.UUID}
+)
+
+
+def unwrap_dict_key_type(t: Any) -> Any:
+    """Strip TypeAliasType, NewType and Annotated wrappers from a dict key type."""
+    while True:
+        if isinstance(t, TypeAliasType):
+            t = t.__value__
+        elif isinstance(t, NewType):
+            t = t.__supertype__
+        elif get_origin(t) is Annotated:
+            t = get_args(t)[0]
+        else:
+            return t
+
+
+def validate_dict_key_type(t: Any) -> None:
+    """Reject dict key types that cannot be represented as a JSON object key.
+
+    JSON object keys are strings, so a key type is usable only when its field serialises
+    to a JSON scalar. Containers, nested dataclasses, ``Any``, unions and ``Optional``
+    have no key form and are rejected while the schema is built rather than on first dump.
+    """
+    unwrapped = unwrap_dict_key_type(t)
+    if unwrapped in _DICT_KEY_TYPES:
+        return
+    if get_origin(unwrapped) is Literal:
+        return
+    if isinstance(unwrapped, type) and issubclass(unwrapped, enum.Enum):
+        return
+    raise ValueError(f"Unsupported dict key {t=}")
 
 
 def extract_type(data: Any, cls: type | None) -> type:
@@ -160,9 +199,9 @@ def _subscript_with_any(t: TypeLike) -> TypeLike:
     if t is frozenset:
         return frozenset[Any]
     if t is dict:
-        return dict[Any, Any]
+        return dict[str, Any]
     if t is Mapping:
-        return Mapping[Any, Any]
+        return Mapping[str, Any]
     if t is tuple:
         return tuple[Any, ...]
     return t

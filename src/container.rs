@@ -75,6 +75,7 @@ pub enum FieldContainer {
     },
     Int {
         common: FieldCommon,
+        as_string: bool,
         gt: Option<RangeBound>,
         gte: Option<RangeBound>,
         lt: Option<RangeBound>,
@@ -82,6 +83,7 @@ pub enum FieldContainer {
     },
     Float {
         common: FieldCommon,
+        as_string: bool,
         gt: Option<RangeBound>,
         gte: Option<RangeBound>,
         lt: Option<RangeBound>,
@@ -89,6 +91,7 @@ pub enum FieldContainer {
     },
     Bool {
         common: FieldCommon,
+        as_string: bool,
     },
     Decimal {
         common: FieldCommon,
@@ -107,6 +110,7 @@ pub enum FieldContainer {
     },
     DateTime {
         common: FieldCommon,
+        as_string: bool,
         format: DateTimeFormat,
     },
     Uuid {
@@ -122,6 +126,7 @@ pub enum FieldContainer {
     },
     IntEnum {
         common: FieldCommon,
+        as_string: bool,
         enum_values: Vec<(Py<PyAny>, Py<PyAny>)>,
         enum_cls: Py<PyAny>,
     },
@@ -131,10 +136,12 @@ pub enum FieldContainer {
     },
     IntLiteral {
         common: FieldCommon,
+        as_string: bool,
         values: Vec<Py<PyAny>>,
     },
     BoolLiteral {
         common: FieldCommon,
+        as_string: bool,
         values: Vec<bool>,
     },
     Any {
@@ -150,6 +157,7 @@ pub enum FieldContainer {
     },
     Dict {
         common: FieldCommon,
+        key: Option<Box<FieldContainer>>,
         value: Box<FieldContainer>,
         value_validator: Option<Py<PyAny>>,
     },
@@ -181,12 +189,14 @@ impl Clone for FieldContainer {
             },
             Self::Int {
                 common,
+                as_string,
                 gt,
                 gte,
                 lt,
                 lte,
             } => Self::Int {
                 common: common.clone(),
+                as_string: *as_string,
                 gt: gt.clone(),
                 gte: gte.clone(),
                 lt: lt.clone(),
@@ -194,19 +204,22 @@ impl Clone for FieldContainer {
             },
             Self::Float {
                 common,
+                as_string,
                 gt,
                 gte,
                 lt,
                 lte,
             } => Self::Float {
                 common: common.clone(),
+                as_string: *as_string,
                 gt: gt.clone(),
                 gte: gte.clone(),
                 lt: lt.clone(),
                 lte: lte.clone(),
             },
-            Self::Bool { common } => Self::Bool {
+            Self::Bool { common, as_string } => Self::Bool {
                 common: common.clone(),
+                as_string: *as_string,
             },
             Self::Decimal {
                 common,
@@ -231,8 +244,13 @@ impl Clone for FieldContainer {
             Self::Time { common } => Self::Time {
                 common: common.clone(),
             },
-            Self::DateTime { common, format } => Self::DateTime {
+            Self::DateTime {
+                common,
+                as_string,
+                format,
+            } => Self::DateTime {
                 common: common.clone(),
+                as_string: *as_string,
                 format: format.clone(),
             },
             Self::Uuid { common } => Self::Uuid {
@@ -255,10 +273,12 @@ impl Clone for FieldContainer {
             },
             Self::IntEnum {
                 common,
+                as_string,
                 enum_values,
                 enum_cls,
             } => Self::IntEnum {
                 common: common.clone(),
+                as_string: *as_string,
                 enum_values: enum_values
                     .iter()
                     .map(|(k, v)| (k.clone_ref(py), v.clone_ref(py)))
@@ -269,12 +289,22 @@ impl Clone for FieldContainer {
                 common: common.clone(),
                 values: values.clone(),
             },
-            Self::IntLiteral { common, values } => Self::IntLiteral {
+            Self::IntLiteral {
+                common,
+                as_string,
+                values,
+            } => Self::IntLiteral {
                 common: common.clone(),
+                as_string: *as_string,
                 values: values.iter().map(|v| v.clone_ref(py)).collect(),
             },
-            Self::BoolLiteral { common, values } => Self::BoolLiteral {
+            Self::BoolLiteral {
+                common,
+                as_string,
+                values,
+            } => Self::BoolLiteral {
                 common: common.clone(),
+                as_string: *as_string,
                 values: values.clone(),
             },
             Self::Any { common } => Self::Any {
@@ -297,10 +327,12 @@ impl Clone for FieldContainer {
             },
             Self::Dict {
                 common,
+                key,
                 value,
                 value_validator,
             } => Self::Dict {
                 common: common.clone(),
+                key: key.clone(),
                 value: value.clone(),
                 value_validator: value_validator.as_ref().map(|v| v.clone_ref(py)),
             },
@@ -326,7 +358,7 @@ impl FieldContainer {
             Self::Str { common, .. }
             | Self::Int { common, .. }
             | Self::Float { common, .. }
-            | Self::Bool { common }
+            | Self::Bool { common, .. }
             | Self::Decimal { common, .. }
             | Self::Date { common }
             | Self::Time { common }
@@ -471,13 +503,28 @@ impl Clone for PrimitiveContainer {
 pub enum TypeContainer {
     Dataclass(usize),
     Primitive(PrimitiveContainer),
-    List { item: Box<Self> },
-    Dict { value: Box<Self> },
-    Optional { inner: Box<Self> },
-    Set { item: Box<Self> },
-    FrozenSet { item: Box<Self> },
-    Tuple { item: Box<Self> },
-    Union { variants: Vec<Self> },
+    List {
+        item: Box<Self>,
+    },
+    Dict {
+        key: Option<Box<FieldContainer>>,
+        value: Box<Self>,
+    },
+    Optional {
+        inner: Box<Self>,
+    },
+    Set {
+        item: Box<Self>,
+    },
+    FrozenSet {
+        item: Box<Self>,
+    },
+    Tuple {
+        item: Box<Self>,
+    },
+    Union {
+        variants: Vec<Self>,
+    },
 }
 
 impl Clone for TypeContainer {
@@ -486,7 +533,8 @@ impl Clone for TypeContainer {
             Self::Dataclass(idx) => Self::Dataclass(*idx),
             Self::Primitive(p) => Self::Primitive(p.clone()),
             Self::List { item } => Self::List { item: item.clone() },
-            Self::Dict { value } => Self::Dict {
+            Self::Dict { key, value } => Self::Dict {
+                key: key.clone(),
                 value: value.clone(),
             },
             Self::Optional { inner } => Self::Optional {
