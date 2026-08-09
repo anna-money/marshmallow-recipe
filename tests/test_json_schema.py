@@ -1155,3 +1155,23 @@ def test_nullable_list_keeps_item_count_constraints(meta: Any, expected_extra: d
     _assert_nullable_property(
         Annotated[list[int], meta], {"type": ["array", "null"], "items": {"type": "integer"}, **expected_extra}
     )
+
+
+@pytest.mark.parametrize(
+    "key_type",
+    [
+        pytest.param(Any, id="any"),
+        pytest.param(_Address, id="dataclass"),
+        pytest.param(list[int], id="list"),
+        pytest.param(tuple[int, ...], id="tuple"),
+        pytest.param(frozenset[int], id="frozenset"),
+        pytest.param(dict[str, int], id="dict"),
+        pytest.param(int | str, id="union"),
+        pytest.param(int | None, id="optional"),
+    ],
+)
+def test_unsupported_dict_key(key_type: Any) -> None:
+    cls = dataclasses.make_dataclass("WithUnsupportedKey", [("data", dict[key_type, str])], frozen=True, kw_only=True)
+
+    with pytest.raises(ValueError, match="Unsupported dict key"):
+        mr.json_schema(cls)
