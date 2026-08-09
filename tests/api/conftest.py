@@ -1415,6 +1415,16 @@ class WithIntKeyGte:
     data: dict[Annotated[int, mr.int_meta(gte=10)], str]
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAsStringMetadataValue:
+    data: dict[str, Annotated[int, mr.Metadata({"as_string": True})]]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAsStringMetadataKey:
+    data: dict[Annotated[int, mr.Metadata({"as_string": False})], str]
+
+
 type AliasKey = int
 
 NewTypeKey = NewType("NewTypeKey", int)

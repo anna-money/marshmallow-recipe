@@ -21,6 +21,8 @@ from .conftest import (
     Status,
     WithAliasKey,
     WithAnnotatedIntKey,
+    WithAsStringMetadataKey,
+    WithAsStringMetadataValue,
     WithBoolLiteralKey,
     WithDictInvalidError,
     WithDictMissing,
@@ -72,6 +74,54 @@ _KEY_CASES = [
     pytest.param(DictOf[Status, str], {Status.ACTIVE: "x"}, b'{"data":{"active":"x"}}', id="str_enum"),
     pytest.param(DictOf[Priority, str], {Priority.LOW: "x"}, b'{"data":{"1":"x"}}', id="int_enum"),
 ]
+
+_UNSUPPORTED_KEY_CASES = [
+    pytest.param(Any, id="any"),
+    pytest.param(Address, id="dataclass"),
+    pytest.param(list[int], id="list"),
+    pytest.param(tuple[int, ...], id="tuple"),
+    pytest.param(frozenset[int], id="frozenset"),
+    pytest.param(dict[str, int], id="dict"),
+    pytest.param(int | str, id="union"),
+    pytest.param(int | None, id="optional"),
+]
+
+_UNSUPPORTED_KEY_CONTAINERS = [pytest.param(dict, id="dict"), pytest.param(Mapping, id="mapping")]
+
+_KEY_AND_VALUE_ERROR_CASES = [
+    pytest.param(
+        DictOf[int, int],
+        {"not_int": "not_int"},
+        b'{"data":{"not_int":"not_int"}}',
+        {"data": {"not_int": {"key": ["Not a valid integer."], "value": ["Not a valid integer."]}}},
+        id="scalar_value",
+    ),
+    pytest.param(
+        DictOf[int, Address],
+        {"not_int": Address(street=1, city="NYC", zip_code="10001")},  # type: ignore[arg-type]
+        b'{"data":{"not_int":{"street":1,"city":"NYC","zip_code":"10001"}}}',
+        {"data": {"not_int": {"key": ["Not a valid integer."], "value": {"street": ["Not a valid string."]}}}},
+        id="dataclass_value",
+    ),
+]
+
+
+_ROOT_ERROR_CASES = [
+    pytest.param(dict[str, int], {"a": "x"}, b'{"a":"x"}', {"a": {"value": ["Not a valid integer."]}}, id="value"),
+    pytest.param(
+        dict[int, int],
+        {"a": "x"},
+        b'{"a":"x"}',
+        {"a": {"key": ["Not a valid integer."], "value": ["Not a valid integer."]}},
+        id="key_and_value",
+    ),
+]
+
+
+def _with_unsupported_key(container: Any, key_type: Any) -> type:
+    return dataclasses.make_dataclass(
+        "WithUnsupportedKey", [("data", container[key_type, str])], frozen=True, slots=True, kw_only=True
+    )
 
 
 class TestDictDump:
@@ -330,6 +380,40 @@ class TestDictDump:
             impl.dump(DictOf[int, str], obj)
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == {"data": {"not_int": {"key": ["Not a valid integer."]}}}
+
+    @pytest.mark.parametrize(("schema_type", "obj_data", "json_data", "error_messages"), _KEY_AND_VALUE_ERROR_CASES)
+    def test_key_and_value_wrong_type(
+        self,
+        impl: Serializer,
+        schema_type: type,
+        obj_data: dict[Any, Any],
+        json_data: bytes,
+        error_messages: dict[str, Any],
+    ) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(schema_type, schema_type(data=obj_data))
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == error_messages
+
+    @pytest.mark.parametrize("container", _UNSUPPORTED_KEY_CONTAINERS)
+    @pytest.mark.parametrize("key_type", _UNSUPPORTED_KEY_CASES)
+    def test_unsupported_key(self, impl: Serializer, key_type: Any, container: Any) -> None:
+        schema_type = _with_unsupported_key(container, key_type)
+        with pytest.raises(ValueError, match="Unsupported dict key"):
+            impl.dump(schema_type, schema_type(data={}))
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "expected"),
+        [
+            pytest.param(WithAsStringMetadataValue, {"a": 1}, b'{"data":{"a":1}}', id="value"),
+            pytest.param(WithAsStringMetadataKey, {1: "x"}, b'{"data":{"1":"x"}}', id="key"),
+        ],
+    )
+    def test_as_string_metadata_ignored(
+        self, impl: Serializer, schema_type: type, data: dict[Any, Any], expected: bytes
+    ) -> None:
+        result = impl.dump(schema_type, schema_type(data=data))
+        assert result == expected
 
 
 class TestDictLoad:
@@ -612,71 +696,25 @@ class TestDictLoad:
             impl.load(DictOf[int, str], b'{"data":{"not_int":"x"}}')
         assert exc.value.messages == {"data": {"not_int": {"key": ["Not a valid integer."]}}}
 
+    @pytest.mark.parametrize(("schema_type", "obj_data", "json_data", "error_messages"), _KEY_AND_VALUE_ERROR_CASES)
+    def test_key_and_value_wrong_type(
+        self,
+        impl: Serializer,
+        schema_type: type,
+        obj_data: dict[Any, Any],
+        json_data: bytes,
+        error_messages: dict[str, Any],
+    ) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(schema_type, json_data)
+        assert exc.value.messages == error_messages
 
-class TestUnsupportedDictKeys:
-    def test_any_key(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class WithAnyKey:
-            data: dict[Any, str]
-
+    @pytest.mark.parametrize("container", _UNSUPPORTED_KEY_CONTAINERS)
+    @pytest.mark.parametrize("key_type", _UNSUPPORTED_KEY_CASES)
+    def test_unsupported_key(self, impl: Serializer, key_type: Any, container: Any) -> None:
+        schema_type = _with_unsupported_key(container, key_type)
         with pytest.raises(ValueError, match="Unsupported dict key"):
-            impl.dump(WithAnyKey, WithAnyKey(data={}))
-
-    def test_dataclass_key(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class WithDataclassKey:
-            data: dict[Address, str]
-
-        with pytest.raises(ValueError, match="Unsupported dict key"):
-            impl.dump(WithDataclassKey, WithDataclassKey(data={}))
-
-    def test_list_key(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class WithListKey:
-            data: dict[list[int], str]
-
-        with pytest.raises(ValueError, match="Unsupported dict key"):
-            impl.dump(WithListKey, WithListKey(data={}))
-
-    def test_tuple_key(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class WithTupleKey:
-            data: dict[tuple[int, ...], str]
-
-        with pytest.raises(ValueError, match="Unsupported dict key"):
-            impl.dump(WithTupleKey, WithTupleKey(data={}))
-
-    def test_frozenset_key(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class WithFrozenSetKey:
-            data: dict[frozenset[int], str]
-
-        with pytest.raises(ValueError, match="Unsupported dict key"):
-            impl.dump(WithFrozenSetKey, WithFrozenSetKey(data={}))
-
-    def test_dict_key(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class WithDictKey:
-            data: dict[dict[str, int], str]
-
-        with pytest.raises(ValueError, match="Unsupported dict key"):
-            impl.dump(WithDictKey, WithDictKey(data={}))
-
-    def test_union_key(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class WithUnionKey:
-            data: dict[int | str, str]
-
-        with pytest.raises(ValueError, match="Unsupported dict key"):
-            impl.dump(WithUnionKey, WithUnionKey(data={}))
-
-    def test_optional_key(self, impl: Serializer) -> None:
-        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-        class WithOptionalKey:
-            data: dict[int | None, str]
-
-        with pytest.raises(ValueError, match="Unsupported dict key"):
-            impl.dump(WithOptionalKey, WithOptionalKey(data={}))
+            impl.load(schema_type, b'{"data":{}}')
 
 
 class TestRootDictDump:
@@ -740,6 +778,18 @@ class TestRootDictDump:
         result = impl.dump(schema_type, obj)
         assert result == expected
 
+    @pytest.mark.parametrize(("schema_type", "obj", "json_data", "error_messages"), _ROOT_ERROR_CASES)
+    def test_wrong_type(
+        self, impl: Serializer, schema_type: type, obj: object, json_data: bytes, error_messages: dict[str, Any]
+    ) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.dump(schema_type, obj)
+            return
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(schema_type, obj)
+        assert exc.value.messages == error_messages
+
 
 class TestRootDictLoad:
     @pytest.mark.parametrize(
@@ -801,3 +851,15 @@ class TestRootDictLoad:
             return
         result = impl.load(schema_type, data)
         assert result == expected
+
+    @pytest.mark.parametrize(("schema_type", "obj", "json_data", "error_messages"), _ROOT_ERROR_CASES)
+    def test_wrong_type(
+        self, impl: Serializer, schema_type: type, obj: object, json_data: bytes, error_messages: dict[str, Any]
+    ) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.load(schema_type, json_data)
+            return
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(schema_type, json_data)
+        assert exc.value.messages == error_messages
