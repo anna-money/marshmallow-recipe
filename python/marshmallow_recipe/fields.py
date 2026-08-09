@@ -107,9 +107,12 @@ def bool_field(
     description: str | None = None,
     **_: Any,
 ) -> m.fields.Field:
+    field_type: type[m.fields.Boolean] = BoolField if as_string else m.fields.Bool
+    as_string_fields: dict[str, Any] = {"as_string": True} if as_string else {}
+
     if default is m.missing:
-        return BoolField(
-            as_string=as_string,
+        return field_type(
+            **as_string_fields,
             allow_none=allow_none,
             validate=validate,
             **default_fields(m.missing),
@@ -124,8 +127,8 @@ def bool_field(
         if default is None:
             raise ValueError("Default value cannot be none")
 
-        return BoolField(
-            as_string=as_string,
+        return field_type(
+            **as_string_fields,
             required=True,
             allow_none=allow_none,
             validate=validate,
@@ -136,8 +139,8 @@ def bool_field(
             ),
         )
 
-    return BoolField(
-        as_string=as_string,
+    return field_type(
+        **as_string_fields,
         allow_none=allow_none,
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
@@ -1929,7 +1932,7 @@ else:
             if func:
                 try:
                     result = func(value)
-                except (TypeError, AttributeError, ValueError):
+                except (TypeError, AttributeError, ValueError, OverflowError, OSError):
                     raise self.fail("invalid")
             else:
                 try:

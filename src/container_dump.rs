@@ -4,7 +4,7 @@ use pyo3::types::{PyDict, PyList};
 
 use crate::container::{DataclassContainer, DataclassRegistry, FieldContainer, TypeContainer};
 use crate::error::{
-    SerializationError, accumulate_error, accumulate_key_error, pyerrors_to_serialization_error,
+    SerializationError, accumulate_entry_error, accumulate_error, pyerrors_to_serialization_error,
 };
 use crate::fields::{
     any, bool_literal, bool_type, bytes, collection, date, datetime, decimal, dict, float_type,
@@ -307,27 +307,32 @@ impl TypeContainer {
                 let mut errors: Option<Bound<'_, PyDict>> = None;
 
                 for (k, v) in dict.iter() {
-                    let dumped_key = match key_container {
-                        Some(key_schema) => match key_schema.dump_to_py(registry, &k) {
-                            Ok(dumped) => Some(dumped.into_bound(py)),
-                            Err(ref e) => {
-                                let key_str = k.str().map(|s| s.to_string()).unwrap_or_default();
-                                accumulate_key_error(py, &mut errors, key_str, e);
-                                continue;
+                    let mut key_ok = true;
+                    let dumped_key =
+                        key_container.as_deref().and_then(|key_schema| {
+                            match key_schema.dump_to_py(registry, &k) {
+                                Ok(dumped) => Some(dumped.into_bound(py)),
+                                Err(ref e) => {
+                                    let key_str =
+                                        k.str().map(|s| s.to_string()).unwrap_or_default();
+                                    accumulate_entry_error(py, &mut errors, &key_str, "key", e);
+                                    key_ok = false;
+                                    None
+                                }
                             }
-                        },
-                        None => None,
-                    };
+                        });
                     let target_key = dumped_key.as_ref().unwrap_or(&k);
                     match value_container.dump_to_py(registry, &v) {
                         Ok(dumped) => {
-                            result
-                                .set_item(target_key, dumped)
-                                .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+                            if key_ok {
+                                result
+                                    .set_item(target_key, dumped)
+                                    .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+                            }
                         }
                         Err(ref e) => {
                             let key_str = k.str().map(|s| s.to_string()).unwrap_or_default();
-                            accumulate_error(py, &mut errors, key_str, e);
+                            accumulate_entry_error(py, &mut errors, &key_str, "value", e);
                         }
                     }
                 }

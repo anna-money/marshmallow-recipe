@@ -191,6 +191,8 @@ def _get_field_for(
     as_string: bool = False,
 ) -> m.fields.Field:
     metadata = _wrap_metadata_validators(metadata)
+    if "as_string" in metadata:
+        metadata = Metadata({k: v for k, v in metadata.items() if k != "as_string"})
 
     while isinstance(t, TypeAliasType):
         t = t.__value__

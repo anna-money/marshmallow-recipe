@@ -8,7 +8,7 @@ use crate::container::{
     LoadStrategy, TypeContainer,
 };
 use crate::error::{
-    SerializationError, accumulate_error, accumulate_key_error, pyerrors_to_serialization_error,
+    SerializationError, accumulate_entry_error, accumulate_error, pyerrors_to_serialization_error,
 };
 use crate::fields::{
     any, bool_literal, bool_type, bytes, collection, date, datetime, decimal, dict, float_type,
@@ -772,23 +772,27 @@ impl TypeContainer {
                         .ok()
                         .and_then(|s| s.to_str().ok())
                         .unwrap_or("");
-                    let loaded_key = match key_container {
-                        Some(key_schema) => match key_schema.load_from_py(registry, &k) {
-                            Ok(loaded) => Some(loaded.into_bound(py)),
-                            Err(ref e) => {
-                                accumulate_key_error(py, &mut errors, key_str, e);
-                                return;
+                    let mut key_ok = true;
+                    let loaded_key =
+                        key_container.as_deref().and_then(|key_schema| {
+                            match key_schema.load_from_py(registry, &k) {
+                                Ok(loaded) => Some(loaded.into_bound(py)),
+                                Err(ref e) => {
+                                    accumulate_entry_error(py, &mut errors, key_str, "key", e);
+                                    key_ok = false;
+                                    None
+                                }
                             }
-                        },
-                        None => None,
-                    };
+                        });
                     let target_key = loaded_key.as_ref().unwrap_or(&k);
                     match value_container.load_from_py(py, registry, &v) {
                         Ok(py_val) => {
-                            let _ = result.set_item(target_key, py_val);
+                            if key_ok {
+                                let _ = result.set_item(target_key, py_val);
+                            }
                         }
                         Err(ref e) => {
-                            accumulate_error(py, &mut errors, key_str, e);
+                            accumulate_entry_error(py, &mut errors, key_str, "value", e);
                         }
                     }
                 };
