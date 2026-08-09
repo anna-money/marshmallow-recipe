@@ -3,9 +3,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyString};
 
 use crate::container::{DataclassRegistry, FieldContainer};
-use crate::error::{
-    SerializationError, accumulate_error, accumulate_key_error, pyerrors_to_serialization_error,
-};
+use crate::error::{SerializationError, accumulate_entry_error, pyerrors_to_serialization_error};
 use crate::utils::{call_validator, get_mapping_abc};
 
 pub fn load_from_py(
@@ -28,20 +26,21 @@ pub fn load_from_py(
             .and_then(|s| s.to_str().ok())
             .unwrap_or("");
 
-        let loaded_key = match key_schema {
-            Some(schema) => match schema.load_from_py(registry, &k) {
-                Ok(loaded) => Some(loaded.into_bound(py)),
-                Err(ref e) => {
-                    accumulate_key_error(py, &mut errors, key_str, e);
-                    return;
-                }
-            },
-            None => None,
-        };
+        let mut key_ok = true;
+        let loaded_key = key_schema.and_then(|schema| match schema.load_from_py(registry, &k) {
+            Ok(loaded) => Some(loaded.into_bound(py)),
+            Err(ref e) => {
+                accumulate_entry_error(py, &mut errors, key_str, "key", e);
+                key_ok = false;
+                None
+            }
+        });
         let target_key = loaded_key.as_ref().unwrap_or(&k);
 
         if v.is_none() {
-            let _ = result.set_item(target_key, py.None());
+            if key_ok {
+                let _ = result.set_item(target_key, py.None());
+            }
             return;
         }
         match value_schema.load_from_py(registry, &v) {
@@ -50,17 +49,15 @@ pub fn load_from_py(
                     && let Ok(Some(err_list)) = call_validator(py, validator, py_val.bind(py))
                 {
                     let e = pyerrors_to_serialization_error(py, &err_list);
-                    accumulate_error(py, &mut errors, key_str, &e);
+                    accumulate_entry_error(py, &mut errors, key_str, "value", &e);
                     return;
                 }
-                let _ = result.set_item(target_key, py_val);
+                if key_ok {
+                    let _ = result.set_item(target_key, py_val);
+                }
             }
-            Err(e) => {
-                let nested_dict = PyDict::new(py);
-                let _ =
-                    nested_dict.set_item("value", e.to_py_value(py).unwrap_or_else(|_| py.None()));
-                let wrapped = SerializationError::Dict(nested_dict.unbind());
-                accumulate_error(py, &mut errors, key_str, &wrapped);
+            Err(ref e) => {
+                accumulate_entry_error(py, &mut errors, key_str, "value", e);
             }
         }
     };
@@ -113,48 +110,48 @@ pub fn dump_to_py(
     let mut errors: Option<Bound<'_, PyDict>> = None;
 
     for (k, v) in dict.iter() {
-        let dumped_key = match key_schema {
-            Some(schema) => match schema.dump_to_py(registry, &k) {
-                Ok(dumped) => Some(dumped.into_bound(py)),
-                Err(ref e) => {
-                    let key_str = k.str().map(|s| s.to_string()).unwrap_or_default();
-                    accumulate_key_error(py, &mut errors, key_str.as_str(), e);
-                    continue;
-                }
-            },
-            None => None,
-        };
+        let mut failed_key: Option<String> = None;
+        let dumped_key = key_schema.and_then(|schema| match schema.dump_to_py(registry, &k) {
+            Ok(dumped) => Some(dumped.into_bound(py)),
+            Err(ref e) => {
+                let raw = k.str().map(|s| s.to_string()).unwrap_or_default();
+                accumulate_entry_error(py, &mut errors, raw.as_str(), "key", e);
+                failed_key = Some(raw);
+                None
+            }
+        });
         let target_key = dumped_key.as_ref().unwrap_or(&k);
-        let key_str = target_key
-            .cast::<PyString>()
-            .map_err(|_| {
-                SerializationError::Single(
-                    intern!(py, "Dict key must be a string").clone().unbind(),
-                )
-            })?
-            .to_str()
-            .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+        let key_str = match failed_key.as_deref() {
+            Some(raw) => raw,
+            None => target_key
+                .cast::<PyString>()
+                .map_err(|_| {
+                    SerializationError::Single(
+                        intern!(py, "Dict key must be a string").clone().unbind(),
+                    )
+                })?
+                .to_str()
+                .map_err(|e| SerializationError::simple(py, &e.to_string()))?,
+        };
 
         if let Some(validator) = value_validator
             && let Ok(Some(err_list)) = call_validator(py, validator, &v)
         {
             let e = pyerrors_to_serialization_error(py, &err_list);
-            accumulate_error(py, &mut errors, key_str, &e);
+            accumulate_entry_error(py, &mut errors, key_str, "value", &e);
             continue;
         }
 
         match value_schema.dump_to_py(registry, &v) {
             Ok(dumped) => {
-                result
-                    .set_item(target_key, dumped)
-                    .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+                if failed_key.is_none() {
+                    result
+                        .set_item(target_key, dumped)
+                        .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+                }
             }
-            Err(e) => {
-                let nested_dict = PyDict::new(py);
-                let _ =
-                    nested_dict.set_item("value", e.to_py_value(py).unwrap_or_else(|_| py.None()));
-                let wrapped = SerializationError::Dict(nested_dict.unbind());
-                accumulate_error(py, &mut errors, key_str, &wrapped);
+            Err(ref e) => {
+                accumulate_entry_error(py, &mut errors, key_str, "value", e);
             }
         }
     }

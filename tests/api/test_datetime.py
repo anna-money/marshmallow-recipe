@@ -856,8 +856,15 @@ class TestDatetimeLoad:
         result = impl.load(WithDateTimeFormatTimestamp, data)
         assert result == expected
 
-    @pytest.mark.parametrize("value", ['"not_a_number"', '""', '"-1"'])
+    @pytest.mark.parametrize("value", ['"not_a_number"', '""', '"-1"', '"1e300"', '"inf"', '"1e18"'])
     def test_format_timestamp_invalid_string_rejected(self, impl: Serializer, value: str) -> None:
+        data = f'{{"created_at":{value}}}'.encode()
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDateTimeFormatTimestamp, data)
+        assert exc.value.messages == {"created_at": ["Not a valid datetime."]}
+
+    @pytest.mark.parametrize("value", ["-1", "1e300", "1e18"])
+    def test_format_timestamp_out_of_range_number_rejected(self, impl: Serializer, value: str) -> None:
         data = f'{{"created_at":{value}}}'.encode()
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithDateTimeFormatTimestamp, data)
