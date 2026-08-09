@@ -3,7 +3,9 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 
 use crate::container::{DataclassContainer, DataclassRegistry, FieldContainer, TypeContainer};
-use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
+use crate::error::{
+    SerializationError, accumulate_error, accumulate_key_error, pyerrors_to_serialization_error,
+};
 use crate::fields::{
     any, bool_literal, bool_type, bytes, collection, date, datetime, decimal, dict, float_type,
     int_enum, int_literal, int_type, str_enum, str_literal, str_type, time, union, uuid,
@@ -37,9 +39,15 @@ impl FieldContainer {
                 max_length.as_ref(),
             ),
             Self::Int {
-                gt, gte, lt, lte, ..
+                as_string,
+                gt,
+                gte,
+                lt,
+                lte,
+                ..
             } => int_type::dump_to_py(
                 value,
+                *as_string,
                 &common.invalid_error,
                 gt.as_ref(),
                 gte.as_ref(),
@@ -47,16 +55,24 @@ impl FieldContainer {
                 lte.as_ref(),
             ),
             Self::Float {
-                gt, gte, lt, lte, ..
+                as_string,
+                gt,
+                gte,
+                lt,
+                lte,
+                ..
             } => float_type::dump_to_py(
                 value,
+                *as_string,
                 &common.invalid_error,
                 gt.as_ref(),
                 gte.as_ref(),
                 lt.as_ref(),
                 lte.as_ref(),
             ),
-            Self::Bool { .. } => bool_type::dump_to_py(value, &common.invalid_error),
+            Self::Bool { as_string, .. } => {
+                bool_type::dump_to_py(value, *as_string, &common.invalid_error)
+            }
             Self::Decimal {
                 decimal_places,
                 rounding,
@@ -77,16 +93,23 @@ impl FieldContainer {
             ),
             Self::Date { .. } => date::dump_to_py(value, &common.invalid_error),
             Self::Time { .. } => time::dump_to_py(value, &common.invalid_error),
-            Self::DateTime { format, .. } => {
-                datetime::dump_to_py(value, format, &common.invalid_error)
-            }
+            Self::DateTime {
+                as_string, format, ..
+            } => datetime::dump_to_py(value, *as_string, format, &common.invalid_error),
             Self::Uuid { .. } => uuid::dump_to_py(value, &common.invalid_error),
             Self::Bytes { .. } => bytes::dump_to_py(value, &common.invalid_error),
             Self::IntEnum {
                 common,
+                as_string,
                 enum_values,
                 enum_cls,
-            } => int_enum::dump_to_py(value, enum_values, enum_cls, &common.invalid_error),
+            } => int_enum::dump_to_py(
+                value,
+                *as_string,
+                enum_values,
+                enum_cls,
+                &common.invalid_error,
+            ),
             Self::StrEnum {
                 common,
                 enum_values,
@@ -95,12 +118,16 @@ impl FieldContainer {
             Self::StrLiteral { common, values } => {
                 str_literal::dump_to_py(value, values, &common.invalid_error)
             }
-            Self::IntLiteral { common, values } => {
-                int_literal::dump_to_py(value, values, &common.invalid_error)
-            }
-            Self::BoolLiteral { common, values } => {
-                bool_literal::dump_to_py(value, values, &common.invalid_error)
-            }
+            Self::IntLiteral {
+                common,
+                as_string,
+                values,
+            } => int_literal::dump_to_py(value, *as_string, values, &common.invalid_error),
+            Self::BoolLiteral {
+                common,
+                as_string,
+                values,
+            } => bool_literal::dump_to_py(value, *as_string, values, &common.invalid_error),
             Self::Any { .. } => any::dump_to_py(value),
             Self::Collection {
                 kind,
@@ -120,12 +147,14 @@ impl FieldContainer {
                 max_length.as_ref(),
             ),
             Self::Dict {
+                key: key_schema,
                 value: value_schema,
                 value_validator,
                 ..
             } => dict::dump_to_py(
                 registry,
                 value,
+                key_schema.as_deref(),
                 value_schema,
                 value_validator.as_ref(),
                 &common.invalid_error,
@@ -268,6 +297,7 @@ impl TypeContainer {
                 Ok(result.into_any().unbind())
             }
             Self::Dict {
+                key: key_container,
                 value: value_container,
             } => {
                 let dict = value.cast::<PyDict>().map_err(|_| {
@@ -277,10 +307,22 @@ impl TypeContainer {
                 let mut errors: Option<Bound<'_, PyDict>> = None;
 
                 for (k, v) in dict.iter() {
+                    let dumped_key = match key_container {
+                        Some(key_schema) => match key_schema.dump_to_py(registry, &k) {
+                            Ok(dumped) => Some(dumped.into_bound(py)),
+                            Err(ref e) => {
+                                let key_str = k.str().map(|s| s.to_string()).unwrap_or_default();
+                                accumulate_key_error(py, &mut errors, key_str, e);
+                                continue;
+                            }
+                        },
+                        None => None,
+                    };
+                    let target_key = dumped_key.as_ref().unwrap_or(&k);
                     match value_container.dump_to_py(registry, &v) {
                         Ok(dumped) => {
                             result
-                                .set_item(k, dumped)
+                                .set_item(target_key, dumped)
                                 .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
                         }
                         Err(ref e) => {

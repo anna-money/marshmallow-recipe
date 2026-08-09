@@ -3,12 +3,15 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyString};
 
 use crate::container::{DataclassRegistry, FieldContainer};
-use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
+use crate::error::{
+    SerializationError, accumulate_error, accumulate_key_error, pyerrors_to_serialization_error,
+};
 use crate::utils::{call_validator, get_mapping_abc};
 
 pub fn load_from_py(
     registry: &DataclassRegistry,
     value: &Bound<'_, PyAny>,
+    key_schema: Option<&FieldContainer>,
     value_schema: &FieldContainer,
     value_validator: Option<&Py<PyAny>>,
     invalid_error: &Py<PyString>,
@@ -25,8 +28,20 @@ pub fn load_from_py(
             .and_then(|s| s.to_str().ok())
             .unwrap_or("");
 
+        let loaded_key = match key_schema {
+            Some(schema) => match schema.load_from_py(registry, &k) {
+                Ok(loaded) => Some(loaded.into_bound(py)),
+                Err(ref e) => {
+                    accumulate_key_error(py, &mut errors, key_str, e);
+                    return;
+                }
+            },
+            None => None,
+        };
+        let target_key = loaded_key.as_ref().unwrap_or(&k);
+
         if v.is_none() {
-            let _ = result.set_item(&k, py.None());
+            let _ = result.set_item(target_key, py.None());
             return;
         }
         match value_schema.load_from_py(registry, &v) {
@@ -38,7 +53,7 @@ pub fn load_from_py(
                     accumulate_error(py, &mut errors, key_str, &e);
                     return;
                 }
-                let _ = result.set_item(&k, py_val);
+                let _ = result.set_item(target_key, py_val);
             }
             Err(e) => {
                 let nested_dict = PyDict::new(py);
@@ -83,6 +98,7 @@ pub fn load_from_py(
 pub fn dump_to_py(
     registry: &DataclassRegistry,
     value: &Bound<'_, PyAny>,
+    key_schema: Option<&FieldContainer>,
     value_schema: &FieldContainer,
     value_validator: Option<&Py<PyAny>>,
     invalid_error: &Py<PyString>,
@@ -97,7 +113,19 @@ pub fn dump_to_py(
     let mut errors: Option<Bound<'_, PyDict>> = None;
 
     for (k, v) in dict.iter() {
-        let key_str = k
+        let dumped_key = match key_schema {
+            Some(schema) => match schema.dump_to_py(registry, &k) {
+                Ok(dumped) => Some(dumped.into_bound(py)),
+                Err(ref e) => {
+                    let key_str = k.str().map(|s| s.to_string()).unwrap_or_default();
+                    accumulate_key_error(py, &mut errors, key_str.as_str(), e);
+                    continue;
+                }
+            },
+            None => None,
+        };
+        let target_key = dumped_key.as_ref().unwrap_or(&k);
+        let key_str = target_key
             .cast::<PyString>()
             .map_err(|_| {
                 SerializationError::Single(
@@ -118,7 +146,7 @@ pub fn dump_to_py(
         match value_schema.dump_to_py(registry, &v) {
             Ok(dumped) => {
                 result
-                    .set_item(k, dumped)
+                    .set_item(target_key, dumped)
                     .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
             }
             Err(e) => {

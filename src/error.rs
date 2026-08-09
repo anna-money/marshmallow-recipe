@@ -82,6 +82,17 @@ pub fn accumulate_error<'py, K: IntoPyObject<'py>>(
     let _ = err_dict.set_item(key, error.to_py_value(py).unwrap_or_else(|_| py.None()));
 }
 
+pub fn accumulate_key_error<'py, K: IntoPyObject<'py>>(
+    py: Python<'py>,
+    errors: &mut Option<Bound<'py, PyDict>>,
+    key: K,
+    error: &SerializationError,
+) {
+    let nested = PyDict::new(py);
+    let _ = nested.set_item("key", error.to_py_value(py).unwrap_or_else(|_| py.None()));
+    accumulate_error(py, errors, key, &SerializationError::Dict(nested.unbind()));
+}
+
 pub fn pyerrors_to_serialization_error(py: Python<'_>, errors: &Py<PyAny>) -> SerializationError {
     let error = pyany_to_serialization_error(py, errors.bind(py));
     maybe_wrap_nested_error(py, error)
