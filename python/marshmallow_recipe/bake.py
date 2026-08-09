@@ -46,7 +46,7 @@ from .fields import (
     uuid_field,
     with_type_checks_on_serialize,
 )
-from .generics import TypeLike, get_fields_type_map
+from .generics import TypeLike, get_fields_type_map, validate_dict_key_type
 from .hooks import get_pre_loads
 from .metadata import EMPTY_METADATA, Metadata, build_metadata, is_metadata
 from .missing import MISSING
@@ -188,6 +188,7 @@ def _get_field_for(
     none_value_handling: NoneValueHandling | None,
     field_decimal_places: int | None,
     decimal_places: int | None,
+    as_string: bool = False,
 ) -> m.fields.Field:
     metadata = _wrap_metadata_validators(metadata)
 
@@ -240,7 +241,8 @@ def _get_field_for(
 
     if inspect.isclass(t) and issubclass(t, enum.Enum):
         return with_type_checks_on_serialize(
-            enum_field(enum_type=t, required=required, allow_none=allow_none, **metadata), type_guards=t
+            enum_field(enum_type=t, required=required, allow_none=allow_none, as_string=as_string, **metadata),
+            type_guards=t,
         )
 
     if (unsubscripted_type := get_origin(t) or t) and dataclasses.is_dataclass(unsubscripted_type):
@@ -347,6 +349,7 @@ def _get_field_for(
             )
 
         if origin is dict or origin is collections.abc.Mapping:
+            validate_dict_key_type(arguments[0])
             keys_field = (
                 None
                 if arguments[0] is str
@@ -358,6 +361,7 @@ def _get_field_for(
                     none_value_handling=none_value_handling,
                     field_decimal_places=field_decimal_places,
                     decimal_places=decimal_places,
+                    as_string=True,
                 )
             )
             values_field = (
@@ -418,6 +422,7 @@ def _get_field_for(
                 none_value_handling=none_value_handling,
                 field_decimal_places=field_decimal_places,
                 decimal_places=decimal_places,
+                as_string=as_string,
             )
 
         if origin is Literal:
@@ -433,14 +438,18 @@ def _get_field_for(
                 )
                 merged["metadata"] = {"enum": subset_values, **merged.get("metadata", {})}
                 return with_type_checks_on_serialize(
-                    enum_field(enum_type=enum_type, required=required, allow_none=allow_none, **merged),
+                    enum_field(
+                        enum_type=enum_type, required=required, allow_none=allow_none, as_string=as_string, **merged
+                    ),
                     type_guards=enum_type,
                 )
-            return literal_field(values=arguments, required=required, allow_none=allow_none, **metadata)
+            return literal_field(
+                values=arguments, required=required, allow_none=allow_none, as_string=as_string, **metadata
+            )
 
     if t in _SIMPLE_TYPE_FIELD_FACTORIES:
         field_factory = _SIMPLE_TYPE_FIELD_FACTORIES[t]
-        field_kwargs: dict[str, Any] = dict(required=required, allow_none=allow_none, **metadata)
+        field_kwargs: dict[str, Any] = dict(required=required, allow_none=allow_none, as_string=as_string, **metadata)
 
         if t is decimal.Decimal and field_decimal_places is not MISSING:
             field_kwargs.setdefault("places", field_decimal_places)

@@ -4,7 +4,9 @@ use arrayvec::ArrayString;
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
-use pyo3::types::{PyList, PyString, PyType};
+use pyo3::types::{PyBool, PyList, PyString, PyType};
+
+use crate::error::SerializationError;
 
 pub fn new_presized_list(py: Python<'_>, size: usize) -> Bound<'_, PyList> {
     unsafe {
@@ -16,6 +18,21 @@ pub fn display_to_py<const N: usize, T: Display>(py: Python<'_>, value: &T) -> P
     let mut buf = ArrayString::<N>::new();
     write!(&mut buf, "{value}").expect("buffer overflow");
     PyString::new(py, &buf).into_any().unbind()
+}
+
+pub fn py_str(value: &Bound<'_, PyAny>) -> Result<Py<PyAny>, SerializationError> {
+    let py = value.py();
+    if value.is_instance_of::<PyBool>() {
+        let flag = value
+            .extract::<bool>()
+            .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+        let text = if flag { "true" } else { "false" };
+        return Ok(PyString::new(py, text).into_any().unbind());
+    }
+    value
+        .str()
+        .map(|s| s.into_any().unbind())
+        .map_err(|e| SerializationError::simple(py, &e.to_string()))
 }
 
 pub fn extract_error_args(py: Python, e: &PyErr) -> Py<PyAny> {
