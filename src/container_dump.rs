@@ -331,7 +331,8 @@ impl TypeContainer {
                             }
                         }
                         Err(ref e) => {
-                            let key_str = k.str().map(|s| s.to_string()).unwrap_or_default();
+                            let key_str =
+                                target_key.str().map(|s| s.to_string()).unwrap_or_default();
                             accumulate_entry_error(py, &mut errors, &key_str, "value", e);
                         }
                     }

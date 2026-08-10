@@ -48,7 +48,7 @@ impl FieldContainer {
         let common = self.common();
 
         if value.is_none() {
-            if common.optional {
+            if common.optional || matches!(self, Self::Any { .. }) {
                 return Ok(py.None());
             }
             return Err(common.none_error.as_ref().map_or_else(

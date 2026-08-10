@@ -37,12 +37,6 @@ pub fn load_from_py(
         });
         let target_key = loaded_key.as_ref().unwrap_or(&k);
 
-        if v.is_none() {
-            if key_ok {
-                let _ = result.set_item(target_key, py.None());
-            }
-            return;
-        }
         match value_schema.load_from_py(registry, &v) {
             Ok(py_val) => {
                 if let Some(validator) = value_validator

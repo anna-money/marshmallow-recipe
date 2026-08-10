@@ -109,6 +109,13 @@ _KEY_AND_VALUE_ERROR_CASES = [
 _ROOT_ERROR_CASES = [
     pytest.param(dict[str, int], {"a": "x"}, b'{"a":"x"}', {"a": {"value": ["Not a valid integer."]}}, id="value"),
     pytest.param(
+        dict[bool, int],
+        {True: "x"},
+        b'{"true":"x"}',
+        {"true": {"value": ["Not a valid integer."]}},
+        id="value_under_non_str_key",
+    ),
+    pytest.param(
         dict[int, int],
         {"a": "x"},
         b'{"a":"x"}',
@@ -707,6 +714,30 @@ class TestDictLoad:
     ) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(schema_type, json_data)
+        assert exc.value.messages == error_messages
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "error_messages"),
+        [
+            pytest.param(
+                DictOf[str, int],
+                b'{"data":{"a":null}}',
+                {"data": {"a": {"value": ["Field may not be null."]}}},
+                id="null_value",
+            ),
+            pytest.param(
+                DictOf[int, str],
+                b'{"data":{"not_int":null}}',
+                {"data": {"not_int": {"key": ["Not a valid integer."], "value": ["Field may not be null."]}}},
+                id="bad_key_and_null_value",
+            ),
+        ],
+    )
+    def test_null_value_rejected(
+        self, impl: Serializer, schema_type: type, data: bytes, error_messages: dict[str, Any]
+    ) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(schema_type, data)
         assert exc.value.messages == error_messages
 
     @pytest.mark.parametrize("container", _UNSUPPORTED_KEY_CONTAINERS)
