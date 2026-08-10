@@ -273,3 +273,12 @@ class TestSetLoad:
     def test_missing(self, impl: Serializer, data: bytes, expected: WithSetMissing) -> None:
         result = impl.load(WithSetMissing, data)
         assert result == expected
+
+    def test_null_item_rejected(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(SetOf[int], b'{"items":[null]}')
+        assert exc.value.messages == {"items": {0: ["Field may not be null."]}}
+
+    def test_optional_item(self, impl: Serializer) -> None:
+        result = impl.load(SetOf[int | None], b'{"items":[1,null]}')
+        assert result == SetOf[int | None](items={1, None})
