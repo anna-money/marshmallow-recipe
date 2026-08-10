@@ -525,6 +525,11 @@ class TestListLoad:
             impl.load(schema_type, data)
         assert exc.value.messages == error_messages
 
+    def test_null_item_rejected(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(ListOf[int], b'{"items":[null]}')
+        assert exc.value.messages == {"items": {0: ["Field may not be null."]}}
+
 
 class TestRootListDump:
     @pytest.mark.parametrize(
