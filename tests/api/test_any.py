@@ -428,6 +428,11 @@ class TestAnyLoad:
         result = impl.load(WithRequiredAny, data)
         assert result == WithRequiredAny(data=[1, "two", 3.0], name="test")
 
+    def test_required_none(self, impl: Serializer) -> None:
+        data = b'{"data":null,"name":"test"}'
+        result = impl.load(WithRequiredAny, data)
+        assert result == WithRequiredAny(data=None, name="test")
+
     def test_list_any_mixed_types(self, impl: Serializer) -> None:
         data = b'{"items":[1,"two",3.0,true],"name":"test"}'
         result = impl.load(WithListAny, data)
