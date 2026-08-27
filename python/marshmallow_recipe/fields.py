@@ -108,7 +108,7 @@ def bool_field(
     **_: Any,
 ) -> m.fields.Field:
     field_type: type[m.fields.Boolean] = BoolField if as_string else m.fields.Bool
-    as_string_fields: dict[str, Any] = {"as_string": True} if as_string else {}
+    as_string_fields: dict[str, Any] = {"_as_string": True} if as_string else {}
 
     if default is m.missing:
         return field_type(
@@ -491,7 +491,7 @@ def datetime_field(
 ) -> m.fields.Field:
     if default is m.missing:
         return DateTimeField(
-            as_string=as_string,
+            _as_string=as_string,
             allow_none=allow_none,
             validate=validate,
             format=format,
@@ -507,7 +507,7 @@ def datetime_field(
         if default is None:
             raise ValueError("Default value cannot be none")
         return DateTimeField(
-            as_string=as_string,
+            _as_string=as_string,
             required=True,
             allow_none=allow_none,
             validate=validate,
@@ -520,7 +520,7 @@ def datetime_field(
         )
 
     return DateTimeField(
-        as_string=as_string,
+        _as_string=as_string,
         allow_none=allow_none,
         validate=validate,
         format=format,
@@ -1005,7 +1005,7 @@ def enum_field(
     if default is m.missing:
         return EnumField(
             enum_type=enum_type,
-            as_string=as_string,
+            _as_string=as_string,
             allow_none=allow_none,
             validate=validate,
             metadata=merged_metadata,
@@ -1022,7 +1022,7 @@ def enum_field(
             raise ValueError("Default value cannot be none")
         return EnumField(
             enum_type=enum_type,
-            as_string=as_string,
+            _as_string=as_string,
             required=True,
             allow_none=allow_none,
             validate=validate,
@@ -1036,7 +1036,7 @@ def enum_field(
 
     return EnumField(
         enum_type=enum_type,
-        as_string=as_string,
+        _as_string=as_string,
         allow_none=allow_none,
         validate=validate,
         metadata=merged_metadata,
@@ -1067,7 +1067,7 @@ def literal_field(
     if default is m.missing:
         return LiteralField(
             values=values,
-            as_string=as_string,
+            _as_string=as_string,
             allow_none=allow_none,
             validate=validate,
             **default_fields(m.missing),
@@ -1083,7 +1083,7 @@ def literal_field(
             raise ValueError("Default value cannot be none")
         return LiteralField(
             values=values,
-            as_string=as_string,
+            _as_string=as_string,
             required=True,
             allow_none=allow_none,
             validate=validate,
@@ -1096,7 +1096,7 @@ def literal_field(
 
     return LiteralField(
         values=values,
-        as_string=as_string,
+        _as_string=as_string,
         allow_none=allow_none,
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
@@ -1372,13 +1372,13 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     FloatField = FloatFieldV3
 
     class BoolFieldV3(m.fields.Boolean):
-        def __init__(self, as_string: bool = False, **kwargs: Any):
+        def __init__(self, _as_string: bool = False, **kwargs: Any):
             super().__init__(**kwargs)
-            self.as_string = as_string
+            self._as_string = _as_string
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
             result = super()._serialize(value, attr, obj, **kwargs)
-            if self.as_string and result is not None:
+            if self._as_string and result is not None:
                 return "true" if result else "false"
             return result
 
@@ -1435,9 +1435,9 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 return result
             return result.astimezone(datetime.UTC)
 
-        def __init__(self, as_string: bool = False, **kwargs: Any):
+        def __init__(self, _as_string: bool = False, **kwargs: Any):
             super().__init__(**kwargs)
-            self.as_string = as_string
+            self._as_string = _as_string
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
             if value is None:
@@ -1447,7 +1447,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 value = value.replace(tzinfo=datetime.UTC)
 
             result = super()._serialize(value, attr, obj, **kwargs)
-            if self.as_string and not isinstance(result, str):
+            if self._as_string and not isinstance(result, str):
                 return as_key_string(result)
             return result
 
@@ -1498,11 +1498,11 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             error_messages: dict[str, str] | None = None,
             metadata: dict[str, Any] | None = None,
             allow_none: bool = False,
-            as_string: bool = False,
+            _as_string: bool = False,
             **kwargs: Any,
         ):
             self.enum_type = enum_type
-            self.as_string = as_string
+            self._as_string = _as_string
             if error_messages is None or "invalid" not in error_messages:
                 error_messages = {
                     **(error_messages or {}),
@@ -1525,7 +1525,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 raise self.make_error("invalid")
             if isinstance(value, self.enum_type):
                 return value
-            if self.as_string and isinstance(value, str):
+            if self._as_string and isinstance(value, str):
                 for member in self.enum_type:
                     if as_key_string(member.value) == value:
                         return member
@@ -1538,7 +1538,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
             if value is None:
                 return None
-            if self.as_string:
+            if self._as_string:
                 return as_key_string(value.value)
             return value.value
 
@@ -1557,11 +1557,11 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             error_messages: dict[str, str] | None = None,
             metadata: dict[str, str] | None = None,
             allow_none: bool = False,
-            as_string: bool = False,
+            _as_string: bool = False,
             **kwargs: Any,
         ):
             self.values = values
-            self.as_string = as_string
+            self._as_string = _as_string
             if error_messages is None or "invalid" not in error_messages:
                 error_messages = {
                     **(error_messages or {}),
@@ -1583,7 +1583,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             for v in self.values:
                 if type(value) is type(v) and value == v:
                     return value
-            if self.as_string and isinstance(value, str):
+            if self._as_string and isinstance(value, str):
                 for v in self.values:
                     if as_key_string(v) == value:
                         return v
@@ -1593,7 +1593,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             if value is None:
                 return None
             validated = self._validated(value)
-            if self.as_string:
+            if self._as_string:
                 return as_key_string(validated)
             return validated
 
@@ -1812,13 +1812,13 @@ else:
     FloatField = FloatFieldV2
 
     class BoolFieldV2(m.fields.Boolean):
-        def __init__(self, as_string: bool = False, **kwargs: Any):
+        def __init__(self, _as_string: bool = False, **kwargs: Any):
             super().__init__(**kwargs)
-            self.as_string = as_string
+            self._as_string = _as_string
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **_: Any) -> Any:
             result = super()._serialize(value, attr, obj)
-            if self.as_string and result is not None:
+            if self._as_string and result is not None:
                 return "true" if result else "false"
             return result
 
@@ -1897,10 +1897,10 @@ else:
             "format": '"{input}" cannot be formatted as a datetime.',
         }
 
-        def __init__(self, format: str | None = None, as_string: bool = False, **kwargs: Any):
+        def __init__(self, format: str | None = None, _as_string: bool = False, **kwargs: Any):
             super().__init__(**kwargs)
             self.format = format or "iso"
-            self.as_string = as_string
+            self._as_string = _as_string
 
         def _add_to_schema(self, field_name: str, schema: Any) -> None:
             super()._add_to_schema(field_name, schema)  # type: ignore[misc]
@@ -1921,7 +1921,7 @@ else:
                     result = value.strftime(self.format)
                 except (AttributeError, ValueError):
                     self.fail("format", input=value)
-            if self.as_string and not isinstance(result, str):
+            if self._as_string and not isinstance(result, str):
                 return as_key_string(result)
             return result
 
@@ -1995,11 +1995,11 @@ else:
             error_messages: dict[str, str] | None = None,
             metadata: dict[str, Any] | None = None,
             allow_none: bool = False,
-            as_string: bool = False,
+            _as_string: bool = False,
             **kwargs: Any,
         ):
             self.enum_type = enum_type
-            self.as_string = as_string
+            self._as_string = _as_string
             if error_messages is None or "invalid" not in error_messages:
                 error_messages = {
                     **(error_messages or {}),
@@ -2018,7 +2018,7 @@ else:
                 self.fail("invalid")
             if isinstance(value, self.enum_type):
                 return value
-            if self.as_string and isinstance(value, str):
+            if self._as_string and isinstance(value, str):
                 for member in self.enum_type:
                     if as_key_string(member.value) == value:
                         return member
@@ -2031,7 +2031,7 @@ else:
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
             if value is None:
                 return None
-            if self.as_string:
+            if self._as_string:
                 return as_key_string(value.value)
             return value.value
 
@@ -2049,11 +2049,11 @@ else:
             values: tuple[Any, ...],
             error_messages: dict[str, str] | None = None,
             allow_none: bool = False,
-            as_string: bool = False,
+            _as_string: bool = False,
             **kwargs: Any,
         ):
             self.values = values
-            self.as_string = as_string
+            self._as_string = _as_string
             if error_messages is None or "invalid" not in error_messages:
                 error_messages = {
                     **(error_messages or {}),
@@ -2070,7 +2070,7 @@ else:
             for v in self.values:
                 if type(value) is type(v) and value == v:
                     return value
-            if self.as_string and isinstance(value, str):
+            if self._as_string and isinstance(value, str):
                 for v in self.values:
                     if as_key_string(v) == value:
                         return v
@@ -2081,7 +2081,7 @@ else:
             if value is None:
                 return None
             validated = self._validated(value)
-            if self.as_string:
+            if self._as_string:
                 return as_key_string(validated)
             return validated
 
