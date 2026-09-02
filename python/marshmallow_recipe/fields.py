@@ -1187,7 +1187,7 @@ def union_field(
 
 
 BoolField: type[m.fields.Boolean]
-DateTimeField: type[m.fields.Field]
+DateTimeField: type[m.fields.DateTime]
 DateField: type[m.fields.Date]
 DecimalField: type[m.fields.Decimal]
 EnumField: type[m.fields.Field]
