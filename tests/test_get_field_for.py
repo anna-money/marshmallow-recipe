@@ -1012,3 +1012,20 @@ def test_get_field_for_dict_key_serializes_to_str(key_type: type, value: Any, ex
 def test_get_field_for_unsupported_dict_key(key_type: type) -> None:
     with pytest.raises(ValueError, match="Unsupported dict key"):
         mr.get_field_for(dict[key_type, str], mr.Metadata({}), None, None)  # type: ignore[valid-type]
+
+
+@pytest.mark.parametrize(
+    "field_type",
+    [
+        pytest.param(mr.DateTimeField, id="datetime"),
+        pytest.param(mr.EnumField, id="enum"),
+        pytest.param(mr.LiteralField, id="literal"),
+    ],
+)
+def test_as_string_is_keyword_only(field_type: type) -> None:
+    parameter = inspect.signature(field_type.__init__).parameters["_as_string"]
+    assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+
+
+def test_datetime_field_keeps_format_as_first_positional() -> None:
+    assert mr.DateTimeField("%Y-%m-%d").format == "%Y-%m-%d"
