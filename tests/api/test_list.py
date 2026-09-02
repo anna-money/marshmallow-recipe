@@ -618,6 +618,24 @@ class TestRootListLoad:
         result = impl.load(schema_type, data)
         assert result == expected
 
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "error_messages"),
+        [
+            pytest.param(list[int], b"[null]", {0: ["Field may not be null."]}, id="null_item"),
+            pytest.param(list[list[int]], b"[[null]]", {0: {0: ["Field may not be null."]}}, id="null_nested_item"),
+        ],
+    )
+    def test_null_item_rejected(
+        self, impl: Serializer, schema_type: type, data: bytes, error_messages: dict[int, Any]
+    ) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.load(schema_type, data)
+            return
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(schema_type, data)
+        assert exc.value.messages == error_messages
+
 
 class TestListMetaValidation:
     @pytest.mark.parametrize("bound_name", ["min_length", "max_length"])

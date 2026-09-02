@@ -894,3 +894,24 @@ class TestRootDictLoad:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(schema_type, json_data)
         assert exc.value.messages == error_messages
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "error_messages"),
+        [
+            pytest.param(dict[str, int], b'{"a":null}', {"a": {"value": ["Field may not be null."]}}, id="null_value"),
+            pytest.param(dict[str, int | None], b'{"a":null}', None, id="optional_value_allows_null"),
+        ],
+    )
+    def test_null_value(
+        self, impl: Serializer, schema_type: type, data: bytes, error_messages: dict[str, Any] | None
+    ) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.load(schema_type, data)
+            return
+        if error_messages is None:
+            assert impl.load(schema_type, data) == {"a": None}
+            return
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(schema_type, data)
+        assert exc.value.messages == error_messages
