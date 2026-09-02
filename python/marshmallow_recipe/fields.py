@@ -1372,7 +1372,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
     FloatField = FloatFieldV3
 
     class BoolFieldV3(m.fields.Boolean):
-        def __init__(self, _as_string: bool = False, **kwargs: Any):
+        def __init__(self, *, _as_string: bool = False, **kwargs: Any):
             super().__init__(**kwargs)
             self._as_string = _as_string
 
@@ -1435,8 +1435,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                 return result
             return result.astimezone(datetime.UTC)
 
-        def __init__(self, _as_string: bool = False, **kwargs: Any):
-            super().__init__(**kwargs)
+        def __init__(self, format: str | None = None, *, _as_string: bool = False, **kwargs: Any):
+            super().__init__(format, **kwargs)
             self._as_string = _as_string
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
@@ -1812,7 +1812,7 @@ else:
     FloatField = FloatFieldV2
 
     class BoolFieldV2(m.fields.Boolean):
-        def __init__(self, _as_string: bool = False, **kwargs: Any):
+        def __init__(self, *, _as_string: bool = False, **kwargs: Any):
             super().__init__(**kwargs)
             self._as_string = _as_string
 
@@ -1897,7 +1897,7 @@ else:
             "format": '"{input}" cannot be formatted as a datetime.',
         }
 
-        def __init__(self, format: str | None = None, _as_string: bool = False, **kwargs: Any):
+        def __init__(self, format: str | None = None, *, _as_string: bool = False, **kwargs: Any):
             super().__init__(**kwargs)
             self.format = format or "iso"
             self._as_string = _as_string

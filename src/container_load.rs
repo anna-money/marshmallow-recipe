@@ -727,12 +727,7 @@ impl TypeContainer {
     ) -> Result<Py<PyAny>, SerializationError> {
         match self {
             Self::Dataclass(idx) => registry.get(*idx).load_from_py(registry, value),
-            Self::Primitive(p) => {
-                if value.is_none() {
-                    return Ok(py.None());
-                }
-                p.field.load_from_py(registry, value)
-            }
+            Self::Primitive(p) => p.field.load_from_py(registry, value),
             Self::List { item } => {
                 let list = value.cast::<PyList>().map_err(|_| {
                     SerializationError::Single(intern!(py, "Expected a list").clone().unbind())
