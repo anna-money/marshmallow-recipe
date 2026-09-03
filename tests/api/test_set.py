@@ -14,6 +14,7 @@ from .conftest import (
     Serializer,
     SetOf,
     Status,
+    WithAnnotatedSetItemValidation,
     WithSetInvalidError,
     WithSetItemTwoValidators,
     WithSetItemValidation,
@@ -187,15 +188,23 @@ class TestSetLoad:
         result = impl.load(OptionalSetOf[int], data)
         assert result == expected
 
-    def test_item_validation_pass(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "cls",
+        [pytest.param(WithSetItemValidation, id="field"), pytest.param(WithAnnotatedSetItemValidation, id="annotated")],
+    )
+    def test_item_validation_pass(self, impl: Serializer, cls: type) -> None:
         data = b'{"tags":["a","b","c"]}'
-        result = impl.load(WithSetItemValidation, data)
-        assert result == WithSetItemValidation(tags={"a", "b", "c"})
+        result = impl.load(cls, data)
+        assert result == cls(tags={"a", "b", "c"})
 
-    def test_item_validation_empty_fail(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "cls",
+        [pytest.param(WithSetItemValidation, id="field"), pytest.param(WithAnnotatedSetItemValidation, id="annotated")],
+    )
+    def test_item_validation_empty_fail(self, impl: Serializer, cls: type) -> None:
         data = b'{"tags":["a","","c"]}'
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithSetItemValidation, data)
+            impl.load(cls, data)
         assert exc.value.messages == {"tags": {1: ["Invalid value."]}}
 
     def test_item_two_validators_pass(self, impl: Serializer) -> None:

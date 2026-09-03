@@ -647,6 +647,11 @@ class WithListItemValidation:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAnnotatedListItemValidation:
+    items: Annotated[list[int], mr.list_meta(validate_item=lambda x: x > 0)]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithListItemTwoValidators:
     items: list[int] = dataclasses.field(metadata=mr.list_meta(validate_item=[lambda x: x > 0, lambda x: x < 100]))
 
@@ -654,6 +659,11 @@ class WithListItemTwoValidators:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithSetItemValidation:
     tags: set[str] = dataclasses.field(metadata=mr.set_meta(validate_item=lambda x: len(x) > 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAnnotatedSetItemValidation:
+    tags: Annotated[set[str], mr.set_meta(validate_item=lambda x: len(x) > 0)]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -669,6 +679,11 @@ class WithTupleItemValidation:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAnnotatedTupleItemValidation:
+    values: Annotated[tuple[int, ...], mr.tuple_meta(validate_item=lambda x: x != 0)]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithTupleItemTwoValidators:
     values: tuple[int, ...] = dataclasses.field(
         metadata=mr.tuple_meta(validate_item=[lambda x: x > 0, lambda x: x < 100])
@@ -678,6 +693,11 @@ class WithTupleItemTwoValidators:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithFrozenSetItemValidation:
     codes: frozenset[str] = dataclasses.field(metadata=mr.frozenset_meta(validate_item=lambda x: len(x) == 3))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAnnotatedFrozenSetItemValidation:
+    codes: Annotated[frozenset[str], mr.frozenset_meta(validate_item=lambda x: len(x) == 3)]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -969,6 +989,11 @@ class WithSequenceValidation:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAnnotatedSequenceValidation:
+    items: Annotated[Sequence[int], mr.sequence_meta(validate_item=lambda x: x > 0)]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithSequenceTwoValidators:
     items: Sequence[int] = dataclasses.field(
         metadata=mr.sequence_meta(validate_item=[lambda x: x > 0, lambda x: x < 100])
@@ -1001,8 +1026,18 @@ class WithStrRequiredError:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAnnotatedStrRequiredError:
+    value: Annotated[str, mr.str_meta(required_error="Custom required message")]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithStrNoneError:
     value: str = dataclasses.field(metadata=mr.str_meta(none_error="Custom none message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAnnotatedStrNoneError:
+    value: Annotated[str, mr.str_meta(none_error="Custom none message")]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1011,8 +1046,18 @@ class WithIntInvalidError:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAnnotatedIntInvalidError:
+    value: Annotated[int, mr.meta(invalid_error="Custom invalid message")]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithStrInvalidError:
     value: str = dataclasses.field(metadata=mr.str_meta(invalid_error="Custom invalid message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAnnotatedStrInvalidError:
+    value: Annotated[str, mr.str_meta(invalid_error="Custom invalid message")]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1046,8 +1091,18 @@ class WithIntRequiredError:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAnnotatedIntRequiredError:
+    value: Annotated[int, mr.meta(required_error="Custom required message")]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithIntNoneError:
     value: int = dataclasses.field(metadata=mr.meta(none_error="Custom none message"))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAnnotatedIntNoneError:
+    value: Annotated[int, mr.meta(none_error="Custom none message")]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

@@ -18,6 +18,7 @@ from .conftest import (
     Serializer,
     Status,
     TupleOf,
+    WithAnnotatedTupleItemValidation,
     WithTupleInvalidError,
     WithTupleItemTwoValidators,
     WithTupleItemValidation,
@@ -231,15 +232,29 @@ class TestTupleLoad:
         result = impl.load(OptionalTupleOf[int], data)
         assert result == expected
 
-    def test_item_validation_pass(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "cls",
+        [
+            pytest.param(WithTupleItemValidation, id="field"),
+            pytest.param(WithAnnotatedTupleItemValidation, id="annotated"),
+        ],
+    )
+    def test_item_validation_pass(self, impl: Serializer, cls: type) -> None:
         data = b'{"values":[1,2,3]}'
-        result = impl.load(WithTupleItemValidation, data)
-        assert result == WithTupleItemValidation(values=(1, 2, 3))
+        result = impl.load(cls, data)
+        assert result == cls(values=(1, 2, 3))
 
-    def test_item_validation_fail(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "cls",
+        [
+            pytest.param(WithTupleItemValidation, id="field"),
+            pytest.param(WithAnnotatedTupleItemValidation, id="annotated"),
+        ],
+    )
+    def test_item_validation_fail(self, impl: Serializer, cls: type) -> None:
         data = b'{"values":[1,0,3]}'
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithTupleItemValidation, data)
+            impl.load(cls, data)
         assert exc.value.messages == {"values": {1: ["Invalid value."]}}
 
     def test_two_validators_pass(self, impl: Serializer) -> None:

@@ -15,6 +15,9 @@ from .conftest import (
     SetOf,
     TupleOf,
     ValueOf,
+    WithAnnotatedIntInvalidError,
+    WithAnnotatedIntNoneError,
+    WithAnnotatedIntRequiredError,
     WithIntDefault,
     WithIntInvalidError,
     WithIntMissing,
@@ -316,22 +319,33 @@ class TestIntLoad:
         result = impl.load(WithIntDefault, data)
         assert result == expected
 
-    def test_custom_required_error(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "cls",
+        [pytest.param(WithIntRequiredError, id="field"), pytest.param(WithAnnotatedIntRequiredError, id="annotated")],
+    )
+    def test_custom_required_error(self, impl: Serializer, cls: type) -> None:
         data = b"{}"
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithIntRequiredError, data)
+            impl.load(cls, data)
         assert exc.value.messages == {"value": ["Custom required message"]}
 
-    def test_custom_none_error(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "cls", [pytest.param(WithIntNoneError, id="field"), pytest.param(WithAnnotatedIntNoneError, id="annotated")]
+    )
+    def test_custom_none_error(self, impl: Serializer, cls: type) -> None:
         data = b'{"value":null}'
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithIntNoneError, data)
+            impl.load(cls, data)
         assert exc.value.messages == {"value": ["Custom none message"]}
 
-    def test_custom_invalid_error(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "cls",
+        [pytest.param(WithIntInvalidError, id="field"), pytest.param(WithAnnotatedIntInvalidError, id="annotated")],
+    )
+    def test_custom_invalid_error(self, impl: Serializer, cls: type) -> None:
         data = b'{"value":"not-a-number"}'
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithIntInvalidError, data)
+            impl.load(cls, data)
         assert exc.value.messages == {"value": ["Custom invalid message"]}
 
     @pytest.mark.parametrize(
