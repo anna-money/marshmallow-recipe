@@ -14,6 +14,7 @@ from .conftest import (
     Priority,
     Serializer,
     Status,
+    WithAnnotatedFrozenSetItemValidation,
     WithFrozenSetInvalidError,
     WithFrozenSetItemTwoValidators,
     WithFrozenSetItemValidation,
@@ -218,15 +219,29 @@ class TestFrozenSetLoad:
         result = impl.load(OptionalFrozenSetOf[int], data)
         assert result == expected
 
-    def test_item_validation_pass(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "cls",
+        [
+            pytest.param(WithFrozenSetItemValidation, id="field"),
+            pytest.param(WithAnnotatedFrozenSetItemValidation, id="annotated"),
+        ],
+    )
+    def test_item_validation_pass(self, impl: Serializer, cls: type) -> None:
         data = b'{"codes":["ABC","XYZ","DEF"]}'
-        result = impl.load(WithFrozenSetItemValidation, data)
-        assert result == WithFrozenSetItemValidation(codes=frozenset(["ABC", "XYZ", "DEF"]))
+        result = impl.load(cls, data)
+        assert result == cls(codes=frozenset(["ABC", "XYZ", "DEF"]))
 
-    def test_item_validation_short_fail(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "cls",
+        [
+            pytest.param(WithFrozenSetItemValidation, id="field"),
+            pytest.param(WithAnnotatedFrozenSetItemValidation, id="annotated"),
+        ],
+    )
+    def test_item_validation_short_fail(self, impl: Serializer, cls: type) -> None:
         data = b'{"codes":["ABC","X","DEF"]}'
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithFrozenSetItemValidation, data)
+            impl.load(cls, data)
         assert exc.value.messages == {"codes": {1: ["Invalid value."]}}
 
     def test_item_two_validators_pass(self, impl: Serializer) -> None:

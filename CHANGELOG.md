@@ -1,3 +1,8 @@
+## v0.0.102 (2026-09-03)
+
+* [Fix nuked ignoring `validate_item` and custom error messages supplied via `Annotated`](https://github.com/anna-money/marshmallow-recipe/pull/314)
+
+
 ## v0.0.101 (2026-08-03)
 
 * [Fix nuked crash on collection fields with `CAMEL_CASE` naming](https://github.com/anna-money/marshmallow-recipe/pull/311)

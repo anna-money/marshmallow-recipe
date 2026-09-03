@@ -449,6 +449,7 @@ class _BuildContext:
         field_max_length: int | None = None
         field_max_length_error: str | None = None
 
+        # Keep in sync with the Annotated branch below: both must read the same metadata keys.
         if metadata:
             data_key = metadata.get("name")
             strip_whitespaces = metadata.get("strip_whitespaces", False)
@@ -506,6 +507,7 @@ class _BuildContext:
             field_type = args[0]
             for arg in args[1:]:
                 if isinstance(arg, Mapping):
+                    # Keep in sync with the metadata branch above: both must read the same metadata keys.
                     if "name" in arg:
                         data_key = arg["name"]
                     if "strip_whitespaces" in arg:
@@ -551,9 +553,20 @@ class _BuildContext:
                         datetime_format = arg["format"]
                     if "post_load" in arg:
                         post_load_callback = arg["post_load"]
+                    if "required_error" in arg:
+                        required_error_msg = arg["required_error"]
+                    if "none_error" in arg:
+                        none_error_msg = arg["none_error"]
+                    if "invalid_error" in arg:
+                        invalid_error_msg = arg["invalid_error"]
                     if "validate" in arg:
                         validate = arg["validate"]
                         validators = list(validate) if isinstance(validate, list | tuple) else [validate]
+                    if "validate_item" in arg:
+                        validate_item = arg["validate_item"]
+                        item_validators = (
+                            list(validate_item) if isinstance(validate_item, list | tuple) else [validate_item]
+                        )
                     if "min_length" in arg:
                         field_min_length = arg["min_length"]
                     if "min_length_error" in arg:

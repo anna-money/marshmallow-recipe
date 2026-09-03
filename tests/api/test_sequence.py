@@ -17,6 +17,7 @@ from .conftest import (
     SequenceOf,
     Serializer,
     Status,
+    WithAnnotatedSequenceValidation,
     WithSequenceInvalidError,
     WithSequenceMissing,
     WithSequenceNoneError,
@@ -283,15 +284,29 @@ class TestSequenceLoad:
         result = impl.load(OptionalSequenceOf[int], data)
         assert result == expected
 
-    def test_item_validation_pass(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "cls",
+        [
+            pytest.param(WithSequenceValidation, id="field"),
+            pytest.param(WithAnnotatedSequenceValidation, id="annotated"),
+        ],
+    )
+    def test_item_validation_pass(self, impl: Serializer, cls: type) -> None:
         data = b'{"items":[1,2,3]}'
-        result = impl.load(WithSequenceValidation, data)
-        assert result == WithSequenceValidation(items=[1, 2, 3])
+        result = impl.load(cls, data)
+        assert result == cls(items=[1, 2, 3])
 
-    def test_item_validation_negative_fail(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "cls",
+        [
+            pytest.param(WithSequenceValidation, id="field"),
+            pytest.param(WithAnnotatedSequenceValidation, id="annotated"),
+        ],
+    )
+    def test_item_validation_negative_fail(self, impl: Serializer, cls: type) -> None:
         data = b'{"items":[1,-1,3]}'
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithSequenceValidation, data)
+            impl.load(cls, data)
         assert exc.value.messages == {"items": {1: ["Invalid value."]}}
 
     def test_item_two_validators_pass(self, impl: Serializer) -> None:

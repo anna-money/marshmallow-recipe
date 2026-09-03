@@ -7,6 +7,9 @@ from .conftest import (
     OptionalValueOf,
     Serializer,
     ValueOf,
+    WithAnnotatedStrInvalidError,
+    WithAnnotatedStrNoneError,
+    WithAnnotatedStrRequiredError,
     WithOptionalPostLoadAndStrip,
     WithOptionalStrStripWhitespace,
     WithPostLoadAndStrip,
@@ -266,22 +269,33 @@ class TestStrLoad:
         result = impl.load(WithStrDefault, data)
         assert result == WithStrDefault(value="custom")
 
-    def test_custom_required_error(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "cls",
+        [pytest.param(WithStrRequiredError, id="field"), pytest.param(WithAnnotatedStrRequiredError, id="annotated")],
+    )
+    def test_custom_required_error(self, impl: Serializer, cls: type) -> None:
         data = b"{}"
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithStrRequiredError, data)
+            impl.load(cls, data)
         assert exc.value.messages == {"value": ["Custom required message"]}
 
-    def test_custom_none_error(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "cls", [pytest.param(WithStrNoneError, id="field"), pytest.param(WithAnnotatedStrNoneError, id="annotated")]
+    )
+    def test_custom_none_error(self, impl: Serializer, cls: type) -> None:
         data = b'{"value":null}'
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithStrNoneError, data)
+            impl.load(cls, data)
         assert exc.value.messages == {"value": ["Custom none message"]}
 
-    def test_custom_invalid_error(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "cls",
+        [pytest.param(WithStrInvalidError, id="field"), pytest.param(WithAnnotatedStrInvalidError, id="annotated")],
+    )
+    def test_custom_invalid_error(self, impl: Serializer, cls: type) -> None:
         data = b'{"value":123}'
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithStrInvalidError, data)
+            impl.load(cls, data)
         assert exc.value.messages == {"value": ["Custom invalid message"]}
 
     @pytest.mark.parametrize(

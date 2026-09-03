@@ -1,9 +1,10 @@
+import dataclasses
 import datetime
 import decimal
 import json
 import uuid
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Annotated, Any
 
 import marshmallow
 import pytest
@@ -18,6 +19,7 @@ from .conftest import (
     Priority,
     Serializer,
     Status,
+    WithAnnotatedListItemValidation,
     WithListInvalidError,
     WithListItemTwoValidators,
     WithListItemValidation,
@@ -348,11 +350,35 @@ class TestListLoad:
         result = impl.load(OptionalListOf[int], data)
         assert result == expected
 
-    def test_item_validation_pass(self, impl: Serializer) -> None:
+    @pytest.mark.parametrize(
+        "cls",
+        [
+            pytest.param(WithListItemValidation, id="field"),
+            pytest.param(WithAnnotatedListItemValidation, id="annotated"),
+        ],
+    )
+    def test_item_validation_pass(self, impl: Serializer, cls: type) -> None:
         data = b'{"items":[1,2,3]}'
-        result = impl.load(WithListItemValidation, data)
-        assert result == WithListItemValidation(items=[1, 2, 3])
+        result = impl.load(cls, data)
+        assert result == cls(items=[1, 2, 3])
 
+    def test_item_annotated_custom_invalid_error(self, impl: Serializer) -> None:
+        @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+        class DC:
+            items: list[Annotated[int, mr.meta(invalid_error="Custom invalid message")]]
+
+        data = b'{"items":[1,"zz",3]}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(DC, data)
+        assert exc.value.messages == {"items": {1: ["Custom invalid message"]}}
+
+    @pytest.mark.parametrize(
+        "cls",
+        [
+            pytest.param(WithListItemValidation, id="field"),
+            pytest.param(WithAnnotatedListItemValidation, id="annotated"),
+        ],
+    )
     @pytest.mark.parametrize(
         ("data", "error_messages"),
         [
@@ -361,10 +387,10 @@ class TestListLoad:
         ],
     )
     def test_item_validation_fail(
-        self, impl: Serializer, data: bytes, error_messages: dict[str, dict[int, list[str]]]
+        self, impl: Serializer, cls: type, data: bytes, error_messages: dict[str, dict[int, list[str]]]
     ) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.load(WithListItemValidation, data)
+            impl.load(cls, data)
         assert exc.value.messages == error_messages
 
     def test_item_two_validators_pass(self, impl: Serializer) -> None:
