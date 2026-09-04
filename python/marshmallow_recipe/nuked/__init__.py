@@ -957,8 +957,27 @@ ContainerKey = tuple[Any, NamingCase | None, NoneValueHandling | None, int | Non
 _container_cache: dict[ContainerKey, Any] = {}
 
 
+# --- Cache keys for union-typed roots ------------------------------------------------
+#
+# Python treats a union as a *set* of members: `A | B == B | A`, and their hashes match,
+# so a dict keyed on the type object cannot tell the two apart. Load is order-sensitive
+# though — build_root_type tries members in the order get_args reports and returns the
+# first that fits — so for us `A | B` and `B | A` are different types.
+#
+# Keying the container cache on the type object therefore served whichever order was
+# built first in the process: `load(B | A, data)` could answer an `A`, with the fields
+# only `B` declares silently dropped, purely because `A | B` had been loaded earlier.
+#
+# The order is not lost, only ignored by == and hash — get_args still reports it. So the
+# key is rebuilt from get_args, and only for types that contain a union; every other key
+# stays exactly what it was.
+
+
 @functools.cache
 def _contains_union(tp: Any) -> bool:
+    # Memoising this by value is safe even though the argument may be an order-blind
+    # union: the answer does not depend on member order, so `A | B` and `B | A` sharing
+    # one entry is correct here. _cache_key itself must never be cached this way.
     origin = get_origin(tp)
     if origin is types.UnionType or origin is Union:
         return True
@@ -966,6 +985,10 @@ def _contains_union(tp: Any) -> bool:
 
 
 def _ordered_key(tp: Any) -> Any:
+    # (origin, ordered args), recursively, because a nested union makes the enclosing
+    # type order-blind as well: `list[A | B] == list[B | A]` is True, alias equality
+    # being (origin, args) with args that compare equal. Tuples compare element-wise,
+    # which is what restores the order.
     args = get_args(tp)
     if not args:
         return tp
@@ -973,16 +996,26 @@ def _ordered_key(tp: Any) -> Any:
 
 
 def _cache_key(tp: Any) -> Any:
-    """Cache key that keeps union member order, which type equality throws away.
+    """Key for the container and schema caches that keeps union member order.
 
-    ``A | B`` and ``B | A`` are equal and hash equally, but load tries members in
-    declaration order and returns the first that fits, so they are different types
-    here. Rebuilding the key from ``get_args`` restores that order. Never cache this
-    function by its argument: that is the collision it exists to avoid.
+    Plain classes and type aliases come back unchanged: each is a distinct object per
+    declaration, so identity alone tells `type First = A | B` from
+    `type Second = B | A`. That also makes an alias the cheapest correct way to spell a
+    union root — but declare it at module level, since an alias created inside a
+    function is a new object on every call and so never hits the cache. The builder
+    still unwraps aliases, as it must; only the key does not.
 
-    Union-free types keep their current key, so nothing else moves.
+    Anything containing a union gets a structural key instead, and union-free types keep
+    the key they always had.
+
+    Never wrap this function in a cache keyed on `tp`: `A | B` and `B | A` are the same
+    key there, which is the collision it exists to remove.
+
+    One case cannot be fixed here — a generic dataclass parametrised by a union.
+    `typing` interns those parametrisations, so `Box[B | A] is Box[A | B]` once either
+    exists, and the order is gone before this function sees the type.
     """
-    if isinstance(tp, type):
+    if isinstance(tp, type | TypeAliasType):
         return tp
     return _ordered_key(tp) if _contains_union(tp) else tp
 

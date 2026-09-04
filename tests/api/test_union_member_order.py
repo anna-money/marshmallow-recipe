@@ -76,3 +76,36 @@ class TestUnionInsideRootCollectionMemberOrder:
 
         assert impl.load(dict[str, Narrow | Wide], b'{"k":' + BOTH + b"}") == {"k": Narrow(a=1)}
         assert impl.load(dict[str, Wide | Narrow], b'{"k":' + BOTH + b"}") == {"k": Wide(a=1, extra="given")}
+
+
+# A type alias is a distinct object per declaration, so its identity carries the member
+# order even though the two values it wraps compare equal.
+type NarrowFirstAlias = Narrow | Wide
+type WideFirstAlias = Wide | Narrow
+
+# The alias value can be arbitrarily deep; keying it by identity does not care.
+type NarrowFirstDeep = Narrow | Wide | list[Narrow | Wide]
+type WideFirstDeep = Wide | Narrow | list[Wide | Narrow]
+
+
+class TestUnionBehindTypeAlias:
+    def test_both_aliases_in_one_process(self, impl: Serializer) -> None:
+        if not impl.supports_root_type_alias_union:
+            pytest.skip("does not support root type alias union")
+
+        assert impl.load(NarrowFirstAlias, BOTH) == Narrow(a=1)  # type: ignore[arg-type]
+        assert impl.load(WideFirstAlias, BOTH) == Wide(a=1, extra="given")  # type: ignore[arg-type]
+
+    def test_alias_inside_a_root_collection(self, impl: Serializer) -> None:
+        if not impl.supports_root_non_dataclasses:
+            pytest.skip("does not support root non-dataclasses")
+
+        assert impl.load(list[NarrowFirstAlias], b"[" + BOTH + b"]") == [Narrow(a=1)]
+        assert impl.load(list[WideFirstAlias], b"[" + BOTH + b"]") == [Wide(a=1, extra="given")]
+
+    def test_alias_over_a_union_that_also_contains_a_collection(self, impl: Serializer) -> None:
+        if not impl.supports_root_type_alias_union:
+            pytest.skip("does not support root type alias union")
+
+        assert impl.load(NarrowFirstDeep, BOTH) == Narrow(a=1)  # type: ignore[arg-type]
+        assert impl.load(WideFirstDeep, BOTH) == Wide(a=1, extra="given")  # type: ignore[arg-type]
