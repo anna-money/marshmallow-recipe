@@ -1,6 +1,6 @@
 ## v0.0.103 (2026-09-05)
 
-* [Fix nuked returning the wrong union member when both member orders occur in one process](https://github.com/anna-money/marshmallow-recipe/pull/316)
+* [Fix nuked returning the wrong union member](https://github.com/anna-money/marshmallow-recipe/pull/316)
 
 
 ## v0.0.102 (2026-09-03)
