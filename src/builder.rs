@@ -406,6 +406,7 @@ impl ContainerBuilder {
         let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
             .unwrap_or_else(|| intern!(py, "Not a valid integer.").clone().unbind());
         let common = build_field_common(optional, &kwargs, invalid_error)?;
+        let as_string = extract_bool(&kwargs, "as_string", false)?;
 
         let gt = extract_int_range_bound(py, &kwargs, "gt", "gt_error", "Must be greater than ")?;
         let gte = extract_int_range_bound(
@@ -426,6 +427,7 @@ impl ContainerBuilder {
 
         let container = FieldContainer::Int {
             common,
+            as_string,
             gt,
             gte,
             lt,
@@ -450,6 +452,7 @@ impl ContainerBuilder {
         let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
             .unwrap_or_else(|| intern!(py, "Not a valid number.").clone().unbind());
         let common = build_field_common(optional, &kwargs, invalid_error)?;
+        let as_string = extract_bool(&kwargs, "as_string", false)?;
 
         let gt = extract_float_range_bound(py, &kwargs, "gt", "gt_error", "Must be greater than ")?;
         let gte = extract_float_range_bound(
@@ -470,6 +473,7 @@ impl ContainerBuilder {
 
         let container = FieldContainer::Float {
             common,
+            as_string,
             gt,
             gte,
             lt,
@@ -490,14 +494,18 @@ impl ContainerBuilder {
         optional: bool,
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
-        self.__build_field(
-            py,
-            name,
-            optional,
-            intern!(py, "Not a valid boolean.").clone().unbind(),
-            |common| FieldContainer::Bool { common },
-            kwargs,
-        )
+        let kwargs = get_kwargs(py, kwargs);
+        let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
+            .unwrap_or_else(|| intern!(py, "Not a valid boolean.").clone().unbind());
+        let common = build_field_common(optional, &kwargs, invalid_error)?;
+        let as_string = extract_bool(&kwargs, "as_string", false)?;
+
+        let container = FieldContainer::Bool { common, as_string };
+        let builder_field = build_builder_field(py, name, &kwargs, container)?;
+
+        let idx = self.fields.len();
+        self.fields.push(builder_field);
+        Ok(FieldHandle(idx))
     }
 
     #[pyo3(signature = (name, optional, **kwargs))]
@@ -611,11 +619,16 @@ impl ContainerBuilder {
         let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
             .unwrap_or_else(|| intern!(py, "Not a valid datetime.").clone().unbind());
         let common = build_field_common(optional, &kwargs, invalid_error)?;
+        let as_string = extract_bool(&kwargs, "as_string", false)?;
 
         let datetime_format = extract_optional_string(&kwargs, "datetime_format")?;
         let format = parse_datetime_format(datetime_format.as_deref());
 
-        let container = FieldContainer::DateTime { common, format };
+        let container = FieldContainer::DateTime {
+            common,
+            as_string,
+            format,
+        };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
         let idx = self.fields.len();
@@ -731,6 +744,7 @@ impl ContainerBuilder {
         let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
             .unwrap_or_else(|| intern!(py, "Not a valid enum.").clone().unbind());
         let common = build_field_common(optional, &kwargs, invalid_error)?;
+        let as_string = extract_bool(&kwargs, "as_string", false)?;
 
         let values: Vec<(Py<PyAny>, Py<PyAny>)> = enum_values
             .iter()
@@ -744,6 +758,7 @@ impl ContainerBuilder {
 
         let container = FieldContainer::IntEnum {
             common,
+            as_string,
             enum_values: values,
             enum_cls,
         };
@@ -792,13 +807,18 @@ impl ContainerBuilder {
         let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
             .unwrap_or_else(|| intern!(py, "Not a valid value.").clone().unbind());
         let common = build_field_common(optional, &kwargs, invalid_error)?;
+        let as_string = extract_bool(&kwargs, "as_string", false)?;
 
         let values: Vec<Py<PyAny>> = literal_values
             .iter()
             .map(|item| Ok(item.unbind()))
             .collect::<PyResult<_>>()?;
 
-        let container = FieldContainer::IntLiteral { common, values };
+        let container = FieldContainer::IntLiteral {
+            common,
+            as_string,
+            values,
+        };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
         let idx = self.fields.len();
@@ -819,9 +839,11 @@ impl ContainerBuilder {
         let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
             .unwrap_or_else(|| intern!(py, "Not a valid value.").clone().unbind());
         let common = build_field_common(optional, &kwargs, invalid_error)?;
+        let as_string = extract_bool(&kwargs, "as_string", false)?;
 
         let container = FieldContainer::BoolLiteral {
             common,
+            as_string,
             values: literal_values,
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
@@ -911,13 +933,14 @@ impl ContainerBuilder {
         )
     }
 
-    #[pyo3(signature = (name, optional, value, **kwargs))]
+    #[pyo3(signature = (name, optional, value, key=None, **kwargs))]
     fn dict_field(
         &mut self,
         py: Python<'_>,
         name: &str,
         optional: bool,
         value: FieldHandle,
+        key: Option<FieldHandle>,
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
         let kwargs = get_kwargs(py, kwargs);
@@ -926,9 +949,13 @@ impl ContainerBuilder {
         let common = build_field_common(optional, &kwargs, invalid_error)?;
         let value_validator = extract_optional_py(&kwargs, "value_validator");
         let value_container = self.__resolve_field_handle(value)?;
+        let key_container = key
+            .map(|handle| self.__resolve_field_handle(handle))
+            .transpose()?;
 
         let container = FieldContainer::Dict {
             common,
+            key: key_container.map(Box::new),
             value: Box::new(value_container),
             value_validator,
         };
@@ -1041,9 +1068,14 @@ impl ContainerBuilder {
         }))
     }
 
-    fn type_dict(&mut self, value: TypeHandle) -> PyResult<TypeHandle> {
+    #[pyo3(signature = (value, key=None))]
+    fn type_dict(&mut self, value: TypeHandle, key: Option<FieldHandle>) -> PyResult<TypeHandle> {
         let resolved = self.__resolve_type_handle(value)?;
+        let key_container = key
+            .map(|handle| self.__resolve_field_handle(handle))
+            .transpose()?;
         Ok(self.__push_type(TypeContainer::Dict {
+            key: key_container.map(Box::new),
             value: Box::new(resolved),
         }))
     }

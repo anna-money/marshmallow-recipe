@@ -59,10 +59,6 @@ pub fn load_from_py(
 
     for (idx, item_result) in iter.enumerate() {
         let v = item_result.map_err(|e| SerializationError::simple(py, &e.to_string()))?;
-        if v.is_none() {
-            items.push(py.None());
-            continue;
-        }
         match item.load_from_py(registry, &v) {
             Ok(py_val) => {
                 if let Some(validator) = item_validator

@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyInt, PyString};
 
 use crate::error::SerializationError;
+use crate::utils::py_str;
 
 pub fn load_from_py(
     value: &Bound<'_, PyAny>,
@@ -37,11 +38,15 @@ pub fn load_from_py(
 
 pub fn dump_to_py(
     value: &Bound<'_, PyAny>,
+    as_string: bool,
     invalid_error: &Py<PyString>,
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
     if !value.is_instance_of::<PyBool>() {
         return Err(SerializationError::Single(invalid_error.clone_ref(py)));
+    }
+    if as_string {
+        return py_str(value);
     }
     Ok(value.clone().unbind())
 }

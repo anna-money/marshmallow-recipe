@@ -10,6 +10,7 @@ use pyo3::types::{
 
 use crate::error::SerializationError;
 use crate::utils::display_to_py;
+use crate::utils::py_str;
 use crate::utils::{parse_datetime_with_format, python_to_chrono_format};
 
 const ISO_WITH_MICROS: &str = "%Y-%m-%dT%H:%M:%S%.6f%:z";
@@ -80,6 +81,13 @@ pub fn load_from_py(
                     .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
                 return load_from_timestamp(py, f, invalid_error);
             }
+            if let Ok(py_str) = value.cast::<PyString>()
+                && let Ok(s) = py_str.to_str()
+                && let Ok(f) = s.trim().parse::<f64>()
+                && f.is_finite()
+            {
+                return load_from_timestamp(py, f, invalid_error);
+            }
         }
         DateTimeFormat::Strftime(chrono_fmt) => {
             if let Ok(py_str) = value.cast::<PyString>()
@@ -98,6 +106,7 @@ pub fn load_from_py(
 
 pub fn dump_to_py(
     value: &Bound<'_, PyAny>,
+    as_string: bool,
     format: &DateTimeFormat,
     invalid_error: &Py<PyString>,
 ) -> Result<Py<PyAny>, SerializationError> {
@@ -117,8 +126,13 @@ pub fn dump_to_py(
         DateTimeFormat::Timestamp => {
             let ts = datetime_to_timestamp(&dt)
                 .ok_or_else(|| SerializationError::Single(invalid_error.clone_ref(py)))?;
-            ts.into_py_any(py)
-                .map_err(|e| SerializationError::simple(py, &e.to_string()))
+            let result = ts
+                .into_py_any(py)
+                .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+            if as_string {
+                return py_str(result.bind(py));
+            }
+            Ok(result)
         }
         DateTimeFormat::Strftime(chrono_fmt) => {
             let formatted = dt.format(chrono_fmt).to_string();

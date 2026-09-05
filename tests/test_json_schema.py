@@ -5,7 +5,7 @@ import datetime
 import decimal
 import enum
 import uuid
-from typing import Annotated, Any, Generic, Literal, TypeVar
+from typing import Annotated, Any, Generic, Literal, NewType, TypeVar
 
 import pytest
 
@@ -1155,3 +1155,47 @@ def test_nullable_list_keeps_item_count_constraints(meta: Any, expected_extra: d
     _assert_nullable_property(
         Annotated[list[int], meta], {"type": ["array", "null"], "items": {"type": "integer"}, **expected_extra}
     )
+
+
+@pytest.mark.parametrize(
+    "key_type",
+    [
+        pytest.param(Any, id="any"),
+        pytest.param(_Address, id="dataclass"),
+        pytest.param(list[int], id="list"),
+        pytest.param(tuple[int, ...], id="tuple"),
+        pytest.param(frozenset[int], id="frozenset"),
+        pytest.param(dict[str, int], id="dict"),
+        pytest.param(int | str, id="union"),
+        pytest.param(int | None, id="optional"),
+    ],
+)
+def test_unsupported_dict_key(key_type: Any) -> None:
+    cls = dataclasses.make_dataclass("WithUnsupportedKey", [("data", dict[key_type, str])], frozen=True, kw_only=True)
+
+    with pytest.raises(ValueError, match="Unsupported dict key"):
+        mr.json_schema(cls)
+
+
+_UserId = NewType("_UserId", int)
+
+type _AliasId = int
+
+
+@pytest.mark.parametrize(
+    ("field_type", "expected_property"),
+    [
+        pytest.param(_UserId, {"type": "integer"}, id="new_type"),
+        pytest.param(_AliasId, {"type": "integer"}, id="type_alias"),
+    ],
+)
+def test_wrapped_scalar(field_type: Any, expected_property: dict[str, object]) -> None:
+    cls = dataclasses.make_dataclass("M", [("v", field_type)], frozen=True, slots=True, kw_only=True)
+
+    assert mr.json_schema(cls) == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "M",
+        "properties": {"v": expected_property},
+        "required": ["v"],
+    }

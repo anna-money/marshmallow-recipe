@@ -828,6 +828,48 @@ class TestDatetimeLoad:
         result = impl.load(WithDateTimeFormatTimestamp, data)
         assert result == expected
 
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(
+                b'{"created_at":"1718461845"}',
+                WithDateTimeFormatTimestamp(created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=datetime.UTC)),
+                id="integral",
+            ),
+            pytest.param(
+                b'{"created_at":"1718461845.123456"}',
+                WithDateTimeFormatTimestamp(
+                    created_at=datetime.datetime(2024, 6, 15, 14, 30, 45, 123456, tzinfo=datetime.UTC)
+                ),
+                id="with_microseconds",
+            ),
+            pytest.param(
+                b'{"created_at":"0"}',
+                WithDateTimeFormatTimestamp(created_at=datetime.datetime(1970, 1, 1, 0, 0, 0, tzinfo=datetime.UTC)),
+                id="epoch",
+            ),
+        ],
+    )
+    def test_format_timestamp_from_string(
+        self, impl: Serializer, data: bytes, expected: WithDateTimeFormatTimestamp
+    ) -> None:
+        result = impl.load(WithDateTimeFormatTimestamp, data)
+        assert result == expected
+
+    @pytest.mark.parametrize("value", ['"not_a_number"', '""', '"-1"', '"1e300"', '"inf"', '"1e18"'])
+    def test_format_timestamp_invalid_string_rejected(self, impl: Serializer, value: str) -> None:
+        data = f'{{"created_at":{value}}}'.encode()
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDateTimeFormatTimestamp, data)
+        assert exc.value.messages == {"created_at": ["Not a valid datetime."]}
+
+    @pytest.mark.parametrize("value", ["-1", "1e300", "1e18"])
+    def test_format_timestamp_out_of_range_number_rejected(self, impl: Serializer, value: str) -> None:
+        data = f'{{"created_at":{value}}}'.encode()
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDateTimeFormatTimestamp, data)
+        assert exc.value.messages == {"created_at": ["Not a valid datetime."]}
+
     @pytest.mark.parametrize("value", ["true", "false"])
     def test_format_timestamp_bool_rejected(self, impl: Serializer, value: str) -> None:
         data = f'{{"created_at":{value}}}'.encode()
