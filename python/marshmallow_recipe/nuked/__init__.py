@@ -18,6 +18,7 @@ import dataclasses
 import datetime
 import decimal
 import enum
+import functools
 import importlib.metadata
 import types
 import uuid
@@ -951,15 +952,78 @@ class _BuildContext:
         return field_handle
 
 
-ContainerKey = tuple[type, NamingCase | None, NoneValueHandling | None, int | None]
+ContainerKey = tuple[Any, NamingCase | None, NoneValueHandling | None, int | None]
 
 _container_cache: dict[ContainerKey, Any] = {}
 
 
+# --- Cache keys for union-typed roots ------------------------------------------------
+#
+# Python treats a union as a *set* of members: `A | B == B | A`, and their hashes match,
+# so a dict keyed on the type object cannot tell the two apart. Load is order-sensitive
+# though — build_root_type tries members in the order get_args reports and returns the
+# first that fits — so for us `A | B` and `B | A` are different types.
+#
+# Keying the container cache on the type object therefore served whichever order was
+# built first in the process: `load(B | A, data)` could answer an `A`, with the fields
+# only `B` declares silently dropped, purely because `A | B` had been loaded earlier.
+#
+# The order is not lost, only ignored by == and hash — get_args still reports it. So the
+# key is rebuilt from get_args, and only for types that contain a union; every other key
+# stays exactly what it was.
+
+
+@functools.cache
+def _contains_union(tp: Any) -> bool:
+    # Memoising this by value is safe even though the argument may be an order-blind
+    # union: the answer does not depend on member order, so `A | B` and `B | A` sharing
+    # one entry is correct here. _cache_key itself must never be cached this way.
+    origin = get_origin(tp)
+    if origin is types.UnionType or origin is Union:
+        return True
+    return any(_contains_union(arg) for arg in get_args(tp))
+
+
+def _ordered_key(tp: Any) -> Any:
+    # (origin, ordered args), recursively, because a nested union makes the enclosing
+    # type order-blind as well: `list[A | B] == list[B | A]` is True, alias equality
+    # being (origin, args) with args that compare equal. Tuples compare element-wise,
+    # which is what restores the order.
+    args = get_args(tp)
+    if not args:
+        return tp
+    return (get_origin(tp), tuple(_ordered_key(arg) for arg in args))
+
+
+def _cache_key(tp: Any) -> Any:
+    """Key for the container and schema caches that keeps union member order.
+
+    Plain classes and type aliases come back unchanged: each is a distinct object per
+    declaration, so identity alone tells `type First = A | B` from
+    `type Second = B | A`. That also makes an alias the cheapest correct way to spell a
+    union root — but declare it at module level, since an alias created inside a
+    function is a new object on every call and so never hits the cache. The builder
+    still unwraps aliases, as it must; only the key does not.
+
+    Anything containing a union gets a structural key instead, and union-free types keep
+    the key they always had.
+
+    Never wrap this function in a cache keyed on `tp`: `A | B` and `B | A` are the same
+    key there, which is the collision it exists to remove.
+
+    One case cannot be fixed here — a generic dataclass parametrised by a union.
+    `typing` interns those parametrisations, so `Box[B | A] is Box[A | B]` once either
+    exists, and the order is gone before this function sees the type.
+    """
+    if isinstance(tp, type | TypeAliasType):
+        return tp
+    return _ordered_key(tp) if _contains_union(tp) else tp
+
+
 def _get_container(
-    cls: type, naming_case: NamingCase | None, none_value_handling: NoneValueHandling | None, decimal_places: int | None
+    cls: Any, naming_case: NamingCase | None, none_value_handling: NoneValueHandling | None, decimal_places: int | None
 ) -> Any:
-    key: ContainerKey = (cls, naming_case, none_value_handling, decimal_places)
+    key: ContainerKey = (_cache_key(cls), naming_case, none_value_handling, decimal_places)
     container = _container_cache.get(key)
     if container is None:
         container = build_container(cls, naming_case, none_value_handling, decimal_places)
@@ -1015,7 +1079,7 @@ def load[T](
     return container.load(data)  # type: ignore[return-value]
 
 
-SchemaKey = tuple[type, bool, NamingCase | None, NoneValueHandling | None, int | None]
+SchemaKey = tuple[Any, bool, NamingCase | None, NoneValueHandling | None, int | None]
 
 _nuked_schemas: dict[SchemaKey, marshmallow.Schema] = {}
 
@@ -1049,7 +1113,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             Cached marshmallow Schema instance with Rust-backed load/dump.
         """
         validate_decimal_places(decimal_places)
-        key: SchemaKey = (cls, many, naming_case, none_value_handling, decimal_places)
+        key: SchemaKey = (_cache_key(cls), many, naming_case, none_value_handling, decimal_places)
         existent = _nuked_schemas.get(key)
         if existent is not None:
             return existent
@@ -1090,7 +1154,7 @@ else:
         decimal_places: int | None = MISSING,
     ) -> marshmallow.Schema:
         validate_decimal_places(decimal_places)
-        key: SchemaKey = (cls, many, naming_case, none_value_handling, decimal_places)
+        key: SchemaKey = (_cache_key(cls), many, naming_case, none_value_handling, decimal_places)
         existent = _nuked_schemas.get(key)
         if existent is not None:
             return existent
