@@ -5,6 +5,7 @@ use pyo3::types::{PyBool, PyInt, PyString};
 use crate::error::SerializationError;
 use crate::fields::range::{RangeBound, validate_range};
 use crate::utils::get_int_cls;
+use crate::utils::py_str;
 
 pub fn load_from_py(
     value: &Bound<'_, PyAny>,
@@ -48,6 +49,7 @@ pub fn load_from_py(
 
 pub fn dump_to_py(
     value: &Bound<'_, PyAny>,
+    as_string: bool,
     invalid_error: &Py<PyString>,
     gt: Option<&RangeBound>,
     gte: Option<&RangeBound>,
@@ -59,5 +61,8 @@ pub fn dump_to_py(
         return Err(SerializationError::Single(invalid_error.clone_ref(py)));
     }
     validate_range(value, gt, gte, lt, lte)?;
+    if as_string {
+        return py_str(value);
+    }
     Ok(value.clone().unbind())
 }
