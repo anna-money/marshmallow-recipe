@@ -1,6 +1,6 @@
 ## v0.0.104 (2026-10-12)
 
-* `mr.nuked.dump(obj)` infers the type from an instance of a non-generic dataclass, like `mr.dump(obj)`; pyright/mypy reject non-dataclass arguments. **Breaking:** `cls` and `data` of `mr.nuked.dump` are now positional-only, as in `mr.dump`.
+* [Infer the type in `mr.nuked.dump(obj)` for non-generic dataclasses](https://github.com/anna-money/marshmallow-recipe/pull/323). **Breaking:** `cls` and `data` of `mr.nuked.dump` are now positional-only, as in `mr.dump`.
 
 
 ## v0.0.103 (2026-09-05)
