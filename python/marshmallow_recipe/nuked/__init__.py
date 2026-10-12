@@ -4,6 +4,7 @@ Drop-in replacement for mr.dump/mr.load/mr.schema.
 Indicative improvement: ~20x for dump, ~10x for load.
 
 Core API:
+    mr.nuked.dump(obj)              Serialize non-generic dataclass to dict.
     mr.nuked.dump(cls, obj)         Serialize dataclass to dict.
     mr.nuked.load(cls, data)        Deserialize dict to dataclass.
     mr.nuked.schema(cls)            Get cached Schema with Rust-backed load/dump.
@@ -23,7 +24,7 @@ import importlib.metadata
 import types
 import uuid
 from collections.abc import Callable, Mapping, Sequence
-from typing import Annotated, Any, ClassVar, Literal, NewType, TypeAliasType, Union, get_args, get_origin
+from typing import Annotated, Any, ClassVar, Literal, NewType, TypeAliasType, Union, get_args, get_origin, overload
 
 import marshmallow
 
@@ -33,6 +34,7 @@ from ..generics import get_fields_type_map
 from ..hooks import get_pre_loads
 from ..missing import MISSING
 from ..options import NoneValueHandling, try_get_options_for
+from ..serialization import Dataclass
 from ..utils import validate_decimal_places
 
 __all__ = ("dump", "load", "schema")
@@ -955,6 +957,9 @@ class _BuildContext:
 ContainerKey = tuple[Any, NamingCase | None, NoneValueHandling | None, int | None]
 
 _container_cache: dict[ContainerKey, Any] = {}
+_inferred_container_cache: dict[ContainerKey, Any] = {}
+
+_NO_DATA: Any = object()
 
 
 # --- Cache keys for union-typed roots ------------------------------------------------
@@ -1031,9 +1036,55 @@ def _get_container(
     return container
 
 
+def _get_inferred_container(
+    data: Any, naming_case: NamingCase | None, none_value_handling: NoneValueHandling | None, decimal_places: int | None
+) -> Any:
+    """Get the container for ``dump(data)``, using ``type(data)`` as the type.
+
+    The type is validated only when it is first seen, so this cache is kept apart from
+    ``_container_cache``: sharing it would let an earlier ``dump(int, 42)`` make a later
+    ``dump(42)`` succeed instead of raising.
+    """
+    cls = type(data)
+    key: ContainerKey = (cls, naming_case, none_value_handling, decimal_places)
+    container = _inferred_container_cache.get(key)
+    if container is None:
+        if not dataclasses.is_dataclass(cls):
+            raise ValueError(f"{cls} is not a dataclass")
+        if getattr(cls, "__parameters__", None):
+            raise ValueError(f"Explicit cls required for unsubscripted type {cls}")
+        container = _get_container(cls, naming_case, none_value_handling, decimal_places)
+        _inferred_container_cache[key] = container
+    return container
+
+
+@overload
+def dump(
+    data: Dataclass,
+    /,
+    *,
+    naming_case: NamingCase | None = None,
+    none_value_handling: NoneValueHandling | None = None,
+    decimal_places: int | None = MISSING,
+) -> dict[str, Any]: ...
+
+
+@overload
 def dump[T](
     cls: type[T],
     data: T,
+    /,
+    *,
+    naming_case: NamingCase | None = None,
+    none_value_handling: NoneValueHandling | None = None,
+    decimal_places: int | None = MISSING,
+) -> Any: ...
+
+
+def dump(
+    cls_or_data: Any,
+    data: Any = _NO_DATA,
+    /,
     *,
     naming_case: NamingCase | None = None,
     none_value_handling: NoneValueHandling | None = None,
@@ -1043,18 +1094,29 @@ def dump[T](
 
     Returns a JSON-compatible value (dict, list, or primitive).
 
+    Call as ``dump(data)`` or ``dump(cls, data)``. ``cls`` can be omitted for instances of
+    non-generic dataclasses: the type is taken from ``type(data)`` and a dict is returned.
+
     Args:
         cls: Dataclass type or root collection type (e.g. ``list[User]``, ``dict[str, User]``).
+            Required for generic dataclasses (e.g. ``Page[User]``), root collections, unions
+            and type aliases.
         data: Instance to serialize.
         naming_case: Convert field names. Use ``mr.CAMEL_CASE``,
             ``mr.CAPITAL_CAMEL_CASE``, or ``mr.UPPER_SNAKE_CASE``.
         none_value_handling: Controls None field output.
             ``mr.NoneValueHandling.INCLUDE`` keeps None fields, default excludes them.
         decimal_places: Validate maximum decimal places for all Decimal fields.
+
+    Raises:
+        ValueError: If ``cls`` is omitted and ``data`` is not an instance of a non-generic dataclass.
     """
     validate_decimal_places(decimal_places)
 
-    container = _get_container(cls, naming_case, none_value_handling, decimal_places)
+    if data is _NO_DATA:
+        container = _get_inferred_container(cls_or_data, naming_case, none_value_handling, decimal_places)
+        return container.dump(cls_or_data)
+    container = _get_container(cls_or_data, naming_case, none_value_handling, decimal_places)
     return container.dump(data)
 
 

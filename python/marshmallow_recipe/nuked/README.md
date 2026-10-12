@@ -25,8 +25,8 @@ The `nuked` module provides significantly faster dataclass serialization/deseria
 │                                                              │
 │  _container_cache: dict[ContainerKey, Container]             │
 │       │                                                      │
-│  dump(cls, data) ─→ container.dump(data) ─→ dict/list       │
-│  load(cls, data) ─→ container.load(data) ─→ dataclass       │
+│  dump([cls,] data) ─→ container.dump(data) ─→ dict/list      │
+│  load(cls, data) ─→ container.load(data) ─→ dataclass        │
 └──────────────────────────────────────────────────────────────┘
                          ↓ FFI
 ┌──────────────────────────────────────────────────────────────┐

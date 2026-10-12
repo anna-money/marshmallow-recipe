@@ -2,6 +2,8 @@
 
 Using `mr.nuked.dump()` and `mr.nuked.load()` with root-level collections of primitive types, without wrapping in a dataclass.
 
+Root-level collections always need the type: `mr.nuked.dump(obj)` without it only works for instances of non-generic dataclasses.
+
 ## Basic Primitives
 
 ```python

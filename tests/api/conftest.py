@@ -82,6 +82,10 @@ class Serializer(abc.ABC):
     def supports_proper_validation_errors_on_dump(self) -> bool:
         return True
 
+    @property
+    def supports_dump_without_cls(self) -> bool:
+        return False
+
     @abc.abstractmethod
     def dump[T](
         self,
@@ -98,6 +102,16 @@ class Serializer(abc.ABC):
         self,
         cls: type[T],
         obj: list[T],
+        naming_case: mr.NamingCase | None = None,
+        none_value_handling: mr.NoneValueHandling | None = None,
+        decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
+    ) -> bytes:
+        raise NotImplementedError
+
+    def dump_without_cls(
+        self,
+        obj: Any,
         naming_case: mr.NamingCase | None = None,
         none_value_handling: mr.NoneValueHandling | None = None,
         decimal_places: int | None = mr.MISSING,
@@ -138,6 +152,10 @@ class MarshmallowSerializer(Serializer):
     def supports_proper_validation_errors_on_dump(self) -> bool:
         return False
 
+    @property
+    def supports_dump_without_cls(self) -> bool:
+        return True
+
     def dump[T](
         self,
         cls: type[T],
@@ -149,6 +167,19 @@ class MarshmallowSerializer(Serializer):
     ) -> bytes:
         result = mr.dump(
             cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
+        )
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
+
+    def dump_without_cls(
+        self,
+        obj: Any,
+        naming_case: mr.NamingCase | None = None,
+        none_value_handling: mr.NoneValueHandling | None = None,
+        decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
+    ) -> bytes:
+        result = mr.dump(
+            obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
         return json.dumps(result, separators=(",", ":")).encode(encoding)
 
@@ -196,6 +227,10 @@ class NukedSerializer(Serializer):
     def supports_root_non_dataclasses(self) -> bool:
         return True
 
+    @property
+    def supports_dump_without_cls(self) -> bool:
+        return True
+
     def dump[T](
         self,
         cls: type[T],
@@ -207,6 +242,19 @@ class NukedSerializer(Serializer):
     ) -> bytes:
         result = mr.nuked.dump(
             cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
+        )
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
+
+    def dump_without_cls(
+        self,
+        obj: Any,
+        naming_case: mr.NamingCase | None = None,
+        none_value_handling: mr.NoneValueHandling | None = None,
+        decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
+    ) -> bytes:
+        result = mr.nuked.dump(
+            obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
         return json.dumps(result, separators=(",", ":")).encode(encoding)
 
@@ -253,6 +301,38 @@ class NukedMissingSentinelSerializer(NukedSerializer):
         data_json = json.loads(data.decode(encoding))
         return mr.nuked.load(
             cls, _wrap_in_missing_mapping(data_json), naming_case=naming_case, decimal_places=decimal_places
+        )
+
+
+class NukedInferredTypeSerializer(NukedSerializer):
+    """Dumps via mr.nuked.dump(obj) whenever cls is exactly the instance's non-generic dataclass."""
+
+    __slots__ = ()
+
+    def dump[T](
+        self,
+        cls: type[T],
+        obj: T,
+        naming_case: mr.NamingCase | None = None,
+        none_value_handling: mr.NoneValueHandling | None = None,
+        decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
+    ) -> bytes:
+        if type(obj) is cls and dataclasses.is_dataclass(cls) and not getattr(cls, "__parameters__", None):
+            return self.dump_without_cls(
+                obj,
+                naming_case=naming_case,
+                none_value_handling=none_value_handling,
+                decimal_places=decimal_places,
+                encoding=encoding,
+            )
+        return super().dump(
+            cls,
+            obj,
+            naming_case=naming_case,
+            none_value_handling=none_value_handling,
+            decimal_places=decimal_places,
+            encoding=encoding,
         )
 
 
@@ -357,8 +437,9 @@ class NukedSchemaSerializer(Serializer):
         NukedSchemaSerializer(),
         NukedMappingSerializer(),
         NukedMissingSentinelSerializer(),
+        NukedInferredTypeSerializer(),
     ],
-    ids=["marshmallow", "nuked", "nuked_schema", "nuked_mapping", "nuked_missing_sentinel"],
+    ids=["marshmallow", "nuked", "nuked_schema", "nuked_mapping", "nuked_missing_sentinel", "nuked_inferred_type"],
 )
 def impl(request: pytest.FixtureRequest) -> Serializer:
     return request.param
