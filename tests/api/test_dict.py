@@ -1,3 +1,4 @@
+import dataclasses
 import datetime
 import decimal
 import json
@@ -18,13 +19,116 @@ from .conftest import (
     Priority,
     Serializer,
     Status,
+    WithAliasKey,
+    WithAnnotatedIntKey,
+    WithAsStringMetadataKey,
+    WithAsStringMetadataValue,
+    WithBoolLiteralKey,
     WithDictInvalidError,
     WithDictMissing,
     WithDictNoneError,
     WithDictRequiredError,
     WithDictTwoValidators,
     WithDictValidation,
+    WithIntKeyGte,
+    WithIntLiteralKey,
+    WithNewTypeKey,
+    WithStrKeyMinLength,
+    WithStrLiteralKey,
+    WithTimestampKey,
 )
+
+_WRAPPED_KEY_CASES = [
+    pytest.param(WithAliasKey, {1: "x"}, b'{"data":{"1":"x"}}', id="type_alias"),
+    pytest.param(WithNewTypeKey, {1: "x"}, b'{"data":{"1":"x"}}', id="new_type"),
+    pytest.param(WithAnnotatedIntKey, {1: "x"}, b'{"data":{"1":"x"}}', id="annotated"),
+    pytest.param(WithStrLiteralKey, {"a": "x"}, b'{"data":{"a":"x"}}', id="str_literal"),
+    pytest.param(WithIntLiteralKey, {1: "x"}, b'{"data":{"1":"x"}}', id="int_literal"),
+    pytest.param(WithBoolLiteralKey, {True: "x"}, b'{"data":{"true":"x"}}', id="bool_literal"),
+]
+
+_KEY_UUID = uuid.UUID("12345678-1234-5678-1234-567812345678")
+_KEY_DATETIME = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.UTC)
+
+_KEY_CASES = [
+    pytest.param(DictOf[str, str], {"a": "x"}, b'{"data":{"a":"x"}}', id="str"),
+    pytest.param(DictOf[int, str], {1: "x"}, b'{"data":{"1":"x"}}', id="int"),
+    pytest.param(DictOf[float, str], {1.5: "x"}, b'{"data":{"1.5":"x"}}', id="float"),
+    pytest.param(DictOf[bool, str], {True: "x", False: "y"}, b'{"data":{"true":"x","false":"y"}}', id="bool"),
+    pytest.param(DictOf[decimal.Decimal, str], {decimal.Decimal("1.23"): "x"}, b'{"data":{"1.23":"x"}}', id="decimal"),
+    pytest.param(DictOf[bytes, str], {b"hi": "x"}, b'{"data":{"aGk=":"x"}}', id="bytes"),
+    pytest.param(
+        DictOf[uuid.UUID, str], {_KEY_UUID: "x"}, b'{"data":{"12345678-1234-5678-1234-567812345678":"x"}}', id="uuid"
+    ),
+    pytest.param(
+        DictOf[datetime.date, str], {datetime.date(2024, 1, 15): "x"}, b'{"data":{"2024-01-15":"x"}}', id="date"
+    ),
+    pytest.param(DictOf[datetime.time, str], {datetime.time(10, 30, 0): "x"}, b'{"data":{"10:30:00":"x"}}', id="time"),
+    pytest.param(
+        DictOf[datetime.datetime, str],
+        {_KEY_DATETIME: "x"},
+        b'{"data":{"2024-01-15T10:30:00+00:00":"x"}}',
+        id="datetime",
+    ),
+    pytest.param(WithTimestampKey, {_KEY_DATETIME: "x"}, b'{"data":{"1705314600.0":"x"}}', id="datetime_timestamp"),
+    pytest.param(DictOf[Status, str], {Status.ACTIVE: "x"}, b'{"data":{"active":"x"}}', id="str_enum"),
+    pytest.param(DictOf[Priority, str], {Priority.LOW: "x"}, b'{"data":{"1":"x"}}', id="int_enum"),
+]
+
+_UNSUPPORTED_KEY_CASES = [
+    pytest.param(Any, id="any"),
+    pytest.param(Address, id="dataclass"),
+    pytest.param(list[int], id="list"),
+    pytest.param(tuple[int, ...], id="tuple"),
+    pytest.param(frozenset[int], id="frozenset"),
+    pytest.param(dict[str, int], id="dict"),
+    pytest.param(int | str, id="union"),
+    pytest.param(int | None, id="optional"),
+]
+
+_UNSUPPORTED_KEY_CONTAINERS = [pytest.param(dict, id="dict"), pytest.param(Mapping, id="mapping")]
+
+_KEY_AND_VALUE_ERROR_CASES = [
+    pytest.param(
+        DictOf[int, int],
+        {"not_int": "not_int"},
+        b'{"data":{"not_int":"not_int"}}',
+        {"data": {"not_int": {"key": ["Not a valid integer."], "value": ["Not a valid integer."]}}},
+        id="scalar_value",
+    ),
+    pytest.param(
+        DictOf[int, Address],
+        {"not_int": Address(street=1, city="NYC", zip_code="10001")},  # type: ignore[arg-type]
+        b'{"data":{"not_int":{"street":1,"city":"NYC","zip_code":"10001"}}}',
+        {"data": {"not_int": {"key": ["Not a valid integer."], "value": {"street": ["Not a valid string."]}}}},
+        id="dataclass_value",
+    ),
+]
+
+
+_ROOT_ERROR_CASES = [
+    pytest.param(dict[str, int], {"a": "x"}, b'{"a":"x"}', {"a": {"value": ["Not a valid integer."]}}, id="value"),
+    pytest.param(
+        dict[bool, int],
+        {True: "x"},
+        b'{"true":"x"}',
+        {"true": {"value": ["Not a valid integer."]}},
+        id="value_under_non_str_key",
+    ),
+    pytest.param(
+        dict[int, int],
+        {"a": "x"},
+        b'{"a":"x"}',
+        {"a": {"key": ["Not a valid integer."], "value": ["Not a valid integer."]}},
+        id="key_and_value",
+    ),
+]
+
+
+def _with_unsupported_key(container: Any, key_type: Any) -> type:
+    return dataclasses.make_dataclass(
+        "WithUnsupportedKey", [("data", container[key_type, str])], frozen=True, slots=True, kw_only=True
+    )
 
 
 class TestDictDump:
@@ -212,6 +316,111 @@ class TestDictDump:
             assert exc.value.messages == {
                 "data": {"a": {"value": ["Not a valid integer."]}, "b": {"value": ["Not a valid integer."]}}
             }
+
+    @pytest.mark.parametrize(("schema_type", "data", "expected"), _KEY_CASES)
+    def test_key(self, impl: Serializer, schema_type: type, data: dict[Any, str], expected: bytes) -> None:
+        result = impl.dump(schema_type, schema_type(data=data))
+        assert result == expected
+
+    @pytest.mark.parametrize(("schema_type", "data", "expected"), _WRAPPED_KEY_CASES)
+    def test_wrapped_key(self, impl: Serializer, schema_type: type, data: dict[Any, str], expected: bytes) -> None:
+        result = impl.dump(schema_type, schema_type(data=data))
+        assert result == expected
+
+    def test_key_empty(self, impl: Serializer) -> None:
+        result = impl.dump(DictOf[int, str], DictOf[int, str](data={}))
+        assert result == b'{"data":{}}'
+
+    def test_key_optional(self, impl: Serializer) -> None:
+        result = impl.dump(OptionalDictOf[int, str], OptionalDictOf[int, str](data=None))
+        assert result == b"{}"
+
+    def test_key_none_value(self, impl: Serializer) -> None:
+        obj = DictOf[int, str | None](data={1: None})
+        result = impl.dump(DictOf[int, str | None], obj)
+        assert result == b'{"data":{"1":null}}'
+
+    def test_key_not_affected_by_naming_case(self, impl: Serializer) -> None:
+        obj = DictOf[str, int](data={"some_key": 1})
+        result = impl.dump(DictOf[str, int], obj, naming_case=mr.CAMEL_CASE)
+        assert result == b'{"data":{"some_key":1}}'
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "expected"),
+        [
+            pytest.param(WithStrKeyMinLength, {"abc": 1}, b'{"data":{"abc":1}}', id="str_min_length"),
+            pytest.param(WithIntKeyGte, {10: "x"}, b'{"data":{"10":"x"}}', id="int_gte"),
+        ],
+    )
+    def test_key_meta_pass(self, impl: Serializer, schema_type: type, data: dict[Any, Any], expected: bytes) -> None:
+        result = impl.dump(schema_type, schema_type(data=data))
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "error_messages"),
+        [
+            pytest.param(
+                WithStrKeyMinLength,
+                {"ab": 1},
+                {"data": {"ab": {"key": ["Shorter than minimum length 3."]}}},
+                id="str_min_length",
+            ),
+            pytest.param(
+                WithIntKeyGte,
+                {5: "x"},
+                {"data": {"5": {"key": ["Must be greater than or equal to 10."]}}},
+                id="int_gte",
+            ),
+        ],
+    )
+    def test_key_meta_fail(
+        self, impl: Serializer, schema_type: type, data: dict[Any, Any], error_messages: dict[str, Any]
+    ) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(schema_type, schema_type(data=data))
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == error_messages
+
+    def test_key_wrong_type(self, impl: Serializer) -> None:
+        obj = DictOf[int, str](**{"data": {"not_int": "x"}})  # type: ignore[dict-item]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(DictOf[int, str], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"data": {"not_int": {"key": ["Not a valid integer."]}}}
+
+    @pytest.mark.parametrize(("schema_type", "obj_data", "json_data", "error_messages"), _KEY_AND_VALUE_ERROR_CASES)
+    def test_key_and_value_wrong_type(
+        self,
+        impl: Serializer,
+        schema_type: type,
+        obj_data: dict[Any, Any],
+        json_data: bytes,
+        error_messages: dict[str, Any],
+    ) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(schema_type, schema_type(data=obj_data))
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == error_messages
+
+    @pytest.mark.parametrize("container", _UNSUPPORTED_KEY_CONTAINERS)
+    @pytest.mark.parametrize("key_type", _UNSUPPORTED_KEY_CASES)
+    def test_unsupported_key(self, impl: Serializer, key_type: Any, container: Any) -> None:
+        schema_type = _with_unsupported_key(container, key_type)
+        with pytest.raises(ValueError, match="Unsupported dict key"):
+            impl.dump(schema_type, schema_type(data={}))
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "expected"),
+        [
+            pytest.param(WithAsStringMetadataValue, {"a": 1}, b'{"data":{"a":1}}', id="value"),
+            pytest.param(WithAsStringMetadataKey, {1: "x"}, b'{"data":{"1":"x"}}', id="key"),
+        ],
+    )
+    def test_as_string_metadata_ignored(
+        self, impl: Serializer, schema_type: type, data: dict[Any, Any], expected: bytes
+    ) -> None:
+        result = impl.dump(schema_type, schema_type(data=data))
+        assert result == expected
 
 
 class TestDictLoad:
@@ -417,6 +626,127 @@ class TestDictLoad:
             "data": {"a": {"value": ["Not a valid integer."]}, "b": {"value": ["Not a valid integer."]}}
         }
 
+    @pytest.mark.parametrize(("schema_type", "expected", "data"), _KEY_CASES)
+    def test_key(self, impl: Serializer, schema_type: type, expected: dict[Any, str], data: bytes) -> None:
+        result = impl.load(schema_type, data)
+        assert result == schema_type(data=expected)
+
+    @pytest.mark.parametrize(("schema_type", "expected", "data"), _WRAPPED_KEY_CASES)
+    def test_wrapped_key(self, impl: Serializer, schema_type: type, expected: dict[Any, str], data: bytes) -> None:
+        result = impl.load(schema_type, data)
+        assert result == schema_type(data=expected)
+
+    def test_key_empty(self, impl: Serializer) -> None:
+        result = impl.load(DictOf[int, str], b'{"data":{}}')
+        assert result == DictOf[int, str](data={})
+
+    def test_key_optional(self, impl: Serializer) -> None:
+        result = impl.load(OptionalDictOf[int, str], b'{"data":null}')
+        assert result == OptionalDictOf[int, str](data=None)
+
+    def test_key_none_value(self, impl: Serializer) -> None:
+        result = impl.load(DictOf[int, str | None], b'{"data":{"1":null}}')
+        assert result == DictOf[int, str | None](data={1: None})
+
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b'{"data":{"true":"x"}}', {True: "x"}, id="lowercase_true"),
+            pytest.param(b'{"data":{"false":"x"}}', {False: "x"}, id="lowercase_false"),
+            pytest.param(b'{"data":{"True":"x"}}', {True: "x"}, id="capitalized_true"),
+            pytest.param(b'{"data":{"False":"x"}}', {False: "x"}, id="capitalized_false"),
+            pytest.param(b'{"data":{"1":"x"}}', {True: "x"}, id="numeric_true"),
+            pytest.param(b'{"data":{"0":"x"}}', {False: "x"}, id="numeric_false"),
+        ],
+    )
+    def test_bool_key_forms(self, impl: Serializer, data: bytes, expected: dict[bool, str]) -> None:
+        result = impl.load(DictOf[bool, str], data)
+        assert result == DictOf[bool, str](data=expected)
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "expected"),
+        [
+            pytest.param(WithStrKeyMinLength, b'{"data":{"abc":1}}', {"abc": 1}, id="str_min_length"),
+            pytest.param(WithIntKeyGte, b'{"data":{"10":"x"}}', {10: "x"}, id="int_gte"),
+        ],
+    )
+    def test_key_meta_pass(self, impl: Serializer, schema_type: type, data: bytes, expected: dict[Any, Any]) -> None:
+        result = impl.load(schema_type, data)
+        assert result == schema_type(data=expected)
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "error_messages"),
+        [
+            pytest.param(
+                WithStrKeyMinLength,
+                b'{"data":{"ab":1}}',
+                {"data": {"ab": {"key": ["Shorter than minimum length 3."]}}},
+                id="str_min_length",
+            ),
+            pytest.param(
+                WithIntKeyGte,
+                b'{"data":{"5":"x"}}',
+                {"data": {"5": {"key": ["Must be greater than or equal to 10."]}}},
+                id="int_gte",
+            ),
+        ],
+    )
+    def test_key_meta_fail(
+        self, impl: Serializer, schema_type: type, data: bytes, error_messages: dict[str, Any]
+    ) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(schema_type, data)
+        assert exc.value.messages == error_messages
+
+    def test_key_wrong_type(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(DictOf[int, str], b'{"data":{"not_int":"x"}}')
+        assert exc.value.messages == {"data": {"not_int": {"key": ["Not a valid integer."]}}}
+
+    @pytest.mark.parametrize(("schema_type", "obj_data", "json_data", "error_messages"), _KEY_AND_VALUE_ERROR_CASES)
+    def test_key_and_value_wrong_type(
+        self,
+        impl: Serializer,
+        schema_type: type,
+        obj_data: dict[Any, Any],
+        json_data: bytes,
+        error_messages: dict[str, Any],
+    ) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(schema_type, json_data)
+        assert exc.value.messages == error_messages
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "error_messages"),
+        [
+            pytest.param(
+                DictOf[str, int],
+                b'{"data":{"a":null}}',
+                {"data": {"a": {"value": ["Field may not be null."]}}},
+                id="null_value",
+            ),
+            pytest.param(
+                DictOf[int, str],
+                b'{"data":{"not_int":null}}',
+                {"data": {"not_int": {"key": ["Not a valid integer."], "value": ["Field may not be null."]}}},
+                id="bad_key_and_null_value",
+            ),
+        ],
+    )
+    def test_null_value_rejected(
+        self, impl: Serializer, schema_type: type, data: bytes, error_messages: dict[str, Any]
+    ) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(schema_type, data)
+        assert exc.value.messages == error_messages
+
+    @pytest.mark.parametrize("container", _UNSUPPORTED_KEY_CONTAINERS)
+    @pytest.mark.parametrize("key_type", _UNSUPPORTED_KEY_CASES)
+    def test_unsupported_key(self, impl: Serializer, key_type: Any, container: Any) -> None:
+        schema_type = _with_unsupported_key(container, key_type)
+        with pytest.raises(ValueError, match="Unsupported dict key"):
+            impl.load(schema_type, b'{"data":{}}')
+
 
 class TestRootDictDump:
     @pytest.mark.parametrize(
@@ -461,6 +791,36 @@ class TestRootDictDump:
         result = impl.dump(schema_type, obj)
         assert result == expected
 
+    @pytest.mark.parametrize(
+        ("schema_type", "obj", "expected"),
+        [
+            pytest.param(dict[int, str], {1: "x"}, b'{"1":"x"}', id="int"),
+            pytest.param(
+                dict[uuid.UUID, str], {_KEY_UUID: "x"}, b'{"12345678-1234-5678-1234-567812345678":"x"}', id="uuid"
+            ),
+            pytest.param(dict[Priority, str], {Priority.LOW: "x"}, b'{"1":"x"}', id="int_enum"),
+        ],
+    )
+    def test_key(self, impl: Serializer, schema_type: type, obj: object, expected: bytes) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.dump(schema_type, obj)
+            return
+        result = impl.dump(schema_type, obj)
+        assert result == expected
+
+    @pytest.mark.parametrize(("schema_type", "obj", "json_data", "error_messages"), _ROOT_ERROR_CASES)
+    def test_wrong_type(
+        self, impl: Serializer, schema_type: type, obj: object, json_data: bytes, error_messages: dict[str, Any]
+    ) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.dump(schema_type, obj)
+            return
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(schema_type, obj)
+        assert exc.value.messages == error_messages
+
 
 class TestRootDictLoad:
     @pytest.mark.parametrize(
@@ -504,3 +864,54 @@ class TestRootDictLoad:
             return
         result = impl.load(schema_type, data)
         assert result == expected
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "expected"),
+        [
+            pytest.param(dict[int, str], b'{"1":"x"}', {1: "x"}, id="int"),
+            pytest.param(
+                dict[uuid.UUID, str], b'{"12345678-1234-5678-1234-567812345678":"x"}', {_KEY_UUID: "x"}, id="uuid"
+            ),
+            pytest.param(dict[Priority, str], b'{"1":"x"}', {Priority.LOW: "x"}, id="int_enum"),
+        ],
+    )
+    def test_key(self, impl: Serializer, schema_type: type, data: bytes, expected: object) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.load(schema_type, data)
+            return
+        result = impl.load(schema_type, data)
+        assert result == expected
+
+    @pytest.mark.parametrize(("schema_type", "obj", "json_data", "error_messages"), _ROOT_ERROR_CASES)
+    def test_wrong_type(
+        self, impl: Serializer, schema_type: type, obj: object, json_data: bytes, error_messages: dict[str, Any]
+    ) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.load(schema_type, json_data)
+            return
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(schema_type, json_data)
+        assert exc.value.messages == error_messages
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "error_messages"),
+        [
+            pytest.param(dict[str, int], b'{"a":null}', {"a": {"value": ["Field may not be null."]}}, id="null_value"),
+            pytest.param(dict[str, int | None], b'{"a":null}', None, id="optional_value_allows_null"),
+        ],
+    )
+    def test_null_value(
+        self, impl: Serializer, schema_type: type, data: bytes, error_messages: dict[str, Any] | None
+    ) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.load(schema_type, data)
+            return
+        if error_messages is None:
+            assert impl.load(schema_type, data) == {"a": None}
+            return
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(schema_type, data)
+        assert exc.value.messages == error_messages
