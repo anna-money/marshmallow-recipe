@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main]
 env:
-  RUSTUP_INIT: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+  RUSTUP_INIT: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
 jobs:
   test:
     runs-on: ubuntu-latest
