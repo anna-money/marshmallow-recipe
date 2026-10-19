@@ -32,15 +32,13 @@ print(schema.fields)
 
 ## Dump Without Passing the Type
 
-`mr.nuked.dump` and `mr.nuked.load` can also be called directly. Like `mr.dump(user)`, `mr.nuked.dump(user)` takes the type from an instance of a non-generic dataclass:
+Like `mr.dump(user)`, `mr.nuked.dump(user)` takes the type from an instance of a non-generic dataclass and accepts the same parameters:
 
 ```python
 data = mr.nuked.dump(user)
 # {"id": 1, "name": "Alice", "email": "alice@example.com"}
 
 data = mr.nuked.dump(user, naming_case=mr.CAMEL_CASE, none_value_handling=mr.NoneValueHandling.INCLUDE)
-
-user = mr.nuked.load(User, data)
 ```
 
 Generic dataclasses, root-level collections, unions and type aliases still need the type:

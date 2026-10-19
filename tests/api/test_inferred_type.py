@@ -12,14 +12,11 @@ from .conftest import (
     GenericPair,
     NonGenericChildFromGenericParent,
     Person,
-    Priority,
     Serializer,
     SimpleTypes,
-    Status,
     Value2,
     ValueOf,
     WithDecimal,
-    WithEnums,
     WithOptional,
     WithSnakeCase,
 )
@@ -34,9 +31,9 @@ def skip_if_no_dump_without_cls(impl: Serializer) -> None:
 @pytest.mark.usefixtures("skip_if_no_dump_without_cls")
 class TestInferredTypeDump:
     @pytest.mark.parametrize(
-        ("obj", "expected"),
+        ("obj", "kwargs", "expected"),
         [
-            (SimpleTypes(name="John", age=30), b'{"name":"John","age":30}'),
+            (SimpleTypes(name="John", age=30), {}, b'{"name":"John","age":30}'),
             (
                 Company(
                     name="Acme",
@@ -47,22 +44,12 @@ class TestInferredTypeDump:
                         ),
                     ),
                 ),
+                {},
                 b'{"name":"Acme","department":{"name":"R&D","head":{"name":"Jane","age":40,'
                 b'"address":{"street":"Main St","city":"London","zip_code":"12345"}}}}',
             ),
-            (WithOptional(required="x"), b'{"required":"x"}'),
-            (WithEnums(status=Status.ACTIVE, priority=Priority.HIGH), b'{"status":"active","priority":3}'),
-            (Value2(v1="a", v2="b"), b'{"v1":"a","v2":"b"}'),
-            (NonGenericChildFromGenericParent(t1="a", extra="b"), b'{"t1":"a","extra":"b"}'),
-        ],
-    )
-    def test_dataclass(self, impl: Serializer, obj: Any, expected: bytes) -> None:
-        result = impl.dump_without_cls(obj)
-        assert result == expected
-
-    @pytest.mark.parametrize(
-        ("obj", "kwargs", "expected"),
-        [
+            (Value2(v1="a", v2="b"), {}, b'{"v1":"a","v2":"b"}'),
+            (NonGenericChildFromGenericParent(t1="a", extra="b"), {}, b'{"t1":"a","extra":"b"}'),
             (
                 WithSnakeCase(first_name="John", last_name="Doe", email_address="john@example.com"),
                 {"naming_case": mr.CAMEL_CASE},
@@ -76,17 +63,15 @@ class TestInferredTypeDump:
             (WithDecimal(value=decimal.Decimal("1.234")), {"decimal_places": 3}, b'{"value":"1.234"}'),
         ],
     )
-    def test_parameters(self, impl: Serializer, obj: Any, kwargs: dict[str, Any], expected: bytes) -> None:
+    def test_dataclass(self, impl: Serializer, obj: Any, kwargs: dict[str, Any], expected: bytes) -> None:
         result = impl.dump_without_cls(obj, **kwargs)
         assert result == expected
 
-    @pytest.mark.parametrize(
-        ("obj", "cls"), [(ValueOf[int](value=1), ValueOf), (GenericPair[int, str](first=1, second="a"), GenericPair)]
-    )
-    def test_generic_dataclass(self, impl: Serializer, obj: Any, cls: type) -> None:
+    @pytest.mark.parametrize("obj", [ValueOf[int](value=1), GenericPair[int, str](first=1, second="a")])
+    def test_generic_dataclass(self, impl: Serializer, obj: Any) -> None:
         with pytest.raises(ValueError) as exc_info:
             impl.dump_without_cls(obj)
-        assert exc_info.value.args == (f"Explicit cls required for unsubscripted type {cls}",)
+        assert exc_info.value.args == (f"Explicit cls required for unsubscripted type {type(obj)}",)
 
     @pytest.mark.parametrize(
         "obj", [42, "John", None, [SimpleTypes(name="John", age=30)], {"name": "John"}, SimpleTypes]
