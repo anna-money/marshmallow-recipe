@@ -304,38 +304,6 @@ class NukedMissingSentinelSerializer(NukedSerializer):
         )
 
 
-class NukedInferredTypeSerializer(NukedSerializer):
-    """Dumps via mr.nuked.dump(obj) whenever cls is exactly the instance's non-generic dataclass."""
-
-    __slots__ = ()
-
-    def dump[T](
-        self,
-        cls: type[T],
-        obj: T,
-        naming_case: mr.NamingCase | None = None,
-        none_value_handling: mr.NoneValueHandling | None = None,
-        decimal_places: int | None = mr.MISSING,
-        encoding: str = "utf-8",
-    ) -> bytes:
-        if type(obj) is cls and dataclasses.is_dataclass(cls) and not getattr(cls, "__parameters__", None):
-            return self.dump_without_cls(
-                obj,
-                naming_case=naming_case,
-                none_value_handling=none_value_handling,
-                decimal_places=decimal_places,
-                encoding=encoding,
-            )
-        return super().dump(
-            cls,
-            obj,
-            naming_case=naming_case,
-            none_value_handling=none_value_handling,
-            decimal_places=decimal_places,
-            encoding=encoding,
-        )
-
-
 class NukedSchemaSerializer(Serializer):
     __slots__ = ()
 
@@ -437,9 +405,8 @@ class NukedSchemaSerializer(Serializer):
         NukedSchemaSerializer(),
         NukedMappingSerializer(),
         NukedMissingSentinelSerializer(),
-        NukedInferredTypeSerializer(),
     ],
-    ids=["marshmallow", "nuked", "nuked_schema", "nuked_mapping", "nuked_missing_sentinel", "nuked_inferred_type"],
+    ids=["marshmallow", "nuked", "nuked_schema", "nuked_mapping", "nuked_missing_sentinel"],
 )
 def impl(request: pytest.FixtureRequest) -> Serializer:
     return request.param

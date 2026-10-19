@@ -26,3 +26,5 @@ def test_dump_without_cls_rejects_non_dataclass_statically() -> None:
         mr.nuked.dump([User(id=1, name="John")])  # type: ignore[call-overload]
     with pytest.raises(ValueError):
         mr.nuked.dump(None)  # type: ignore[call-overload]
+    with pytest.raises(ValueError):
+        mr.nuked.dump(User)  # type: ignore[call-overload]
