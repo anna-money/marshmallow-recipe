@@ -30,6 +30,34 @@ data = schema.dump(user)
 print(schema.fields)
 ```
 
+## Dump Without Passing the Type
+
+Like `mr.dump(user)`, `mr.nuked.dump(user)` takes the type from an instance of a non-generic dataclass and accepts the same parameters:
+
+```python
+data = mr.nuked.dump(user)
+# {"id": 1, "name": "Alice", "email": "alice@example.com"}
+
+data = mr.nuked.dump(user, naming_case=mr.CAMEL_CASE, none_value_handling=mr.NoneValueHandling.INCLUDE)
+```
+
+Generic dataclasses, root-level collections, unions and type aliases still need the type:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Page[T]:
+    items: list[T]
+
+
+mr.nuked.dump(Page[User], Page[User](items=[user]))
+mr.nuked.dump(list[User], [user])
+
+mr.nuked.dump(Page[User](items=[user]))
+# ValueError: Explicit cls required for unsubscripted type <class '__main__.Page'>
+```
+
+Type checkers (pyright, mypy) reject `mr.nuked.dump(obj)` when `obj` is not a dataclass instance, e.g. `mr.nuked.dump([user])`. Generic dataclasses can't be told apart statically, so for them the `ValueError` above is raised at runtime.
+
 ## Loading Many Items
 
 ```python

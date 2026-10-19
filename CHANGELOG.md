@@ -1,3 +1,9 @@
+## v0.0.104 (2026-10-12)
+
+* [Infer the type in `mr.nuked.dump(obj)` for non-generic dataclasses](https://github.com/anna-money/marshmallow-recipe/pull/323)
+* [Use the same `dump` overloads in `mr` and `mr.nuked`](https://github.com/anna-money/marshmallow-recipe/pull/323): pyright/mypy reject `mr.dump(obj)` unless `obj` is typed as a dataclass instance, `mr.dump` accepts `cls`/`data` as keywords, and `mr.nuked.dump(cls, obj)` returns `dict[str, Any]` for dataclasses
+
+
 ## v0.0.103 (2026-09-05)
 
 * [Fix union member order in nuked cache](https://github.com/anna-money/marshmallow-recipe/pull/316)

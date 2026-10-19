@@ -25,6 +25,10 @@ def is_union_type(t: Any) -> bool:
     return isinstance(t, types.UnionType) or get_origin(t) is Union
 
 
+def is_unsubscripted_type(t: TypeLike) -> bool:
+    return bool(_get_params(t)) or any(is_unsubscripted_type(arg) for arg in get_args(t) or [])
+
+
 def extract_type(data: Any, cls: type | None) -> type:
     if cls is not None:
         cls = unwrap_type_alias(cls)
@@ -33,7 +37,7 @@ def extract_type(data: Any, cls: type | None) -> type:
 
     data_type = _get_orig_class(data) or type(data)
 
-    if not _is_unsubscripted_type(data_type):
+    if not is_unsubscripted_type(data_type):
         if cls and data_type != cls:
             raise ValueError(f"{cls=} is invalid but can be removed, actual type is {data_type}")
         return data_type
@@ -41,7 +45,7 @@ def extract_type(data: Any, cls: type | None) -> type:
     if not cls:
         raise ValueError(f"Explicit cls required for unsubscripted type {data_type}")
 
-    if _is_unsubscripted_type(cls) or get_origin(cls) != data_type:
+    if is_unsubscripted_type(cls) or get_origin(cls) != data_type:
         raise ValueError(f"{cls=} is not subscripted version of {data_type}")
 
     return cls
@@ -134,10 +138,6 @@ def _build_class_type_var_map(t: TypeLike, class_type_var_map: ClassTypeVarMap) 
                 continue
             subscripted_base = build_subscripted_type(orig_base, type_var_map)
             _build_class_type_var_map(subscripted_base, class_type_var_map)
-
-
-def _is_unsubscripted_type(t: TypeLike) -> bool:
-    return bool(_get_params(t)) or any(_is_unsubscripted_type(arg) for arg in get_args(t) or [])
 
 
 def _get_orig_class(t: Any) -> type | None:
