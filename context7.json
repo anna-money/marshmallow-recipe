@@ -8,6 +8,7 @@
   "rules": [
     "Works with both marshmallow v2 and v3 - no version-specific code needed",
     "Basic usage: mr.dump(obj) to serialize, mr.load(Class, data) to deserialize",
+    "DUMP TYPING: mr.dump and mr.nuked.dump share overloads - pyright/mypy accept dump(obj) only when obj is typed as a dataclass instance (narrow X | None first, type wrapper parameters as mr.Dataclass); dump(cls, obj) also accepts cls=/data= keywords",
     "All Python types supported: str, int, float, bool, bytes, decimal.Decimal, datetime.datetime, datetime.date, datetime.time, uuid.UUID, enums, Literal, Any",
     "Collections: list[T], set[T], frozenset[T], tuple[T, ...], dict[K, V] - all work automatically",
     "MAPPING INPUTS: mr.load and mr.nuked.load accept any collections.abc.Mapping (e.g. types.MappingProxyType, OrderedDict, custom Mapping subclasses) at the root, in nested dataclass fields, and as dict[K, V] field values - the Rust backend reads non-dict Mappings without copying input on the hot path; PyDict path is unchanged. mr.load_many accepts list[Mapping[str, Any]].",
@@ -75,7 +76,6 @@
     "NUKED PERFORMANCE: mr.nuked is a drop-in replacement for mr with indicative improvement ~20x for dump, ~10x for load",
     "NUKED DUMP: mr.nuked.dump(obj) infers the type from an instance of a non-generic dataclass, like mr.dump(obj), and returns dict[str, Any]; pyright/mypy reject non-dataclass arguments",
     "NUKED DUMP: Pass the type explicitly with mr.nuked.dump(cls, obj) for generic dataclasses (mr.nuked.dump(Page[User], page)), root-level collections (list[User], dict[str, User]), unions and type aliases - mr.nuked.dump(generic_obj) raises ValueError",
-    "NUKED DUMP: cls and data are positional-only - mr.nuked.dump(User, user), not mr.nuked.dump(cls=User, data=user)",
     "NUKED SCHEMA: mr.nuked.schema(Class) generates marshmallow Schema for introspection (apispec), delegates load() and dump() to Rust backend — automatic speedup without extra effort",
     "NUKED SCHEMA: Schema fields available for apispec/OpenAPI, but actual serialization runs through Rust — drop-in replacement for mr.schema() with speedup",
     "NUKED SCHEMA: Supports many=True — mr.nuked.schema(Class, many=True).load(list_data) for batch loading",

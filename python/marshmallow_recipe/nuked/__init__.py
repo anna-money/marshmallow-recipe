@@ -1065,10 +1065,20 @@ def dump(
 
 
 @overload
+def dump[T: Dataclass](
+    cls: type[T],
+    data: T,
+    *,
+    naming_case: NamingCase | None = None,
+    none_value_handling: NoneValueHandling | None = None,
+    decimal_places: int | None = MISSING,
+) -> dict[str, Any]: ...
+
+
+@overload
 def dump[T](
     cls: type[T],
     data: T,
-    /,
     *,
     naming_case: NamingCase | None = None,
     none_value_handling: NoneValueHandling | None = None,
@@ -1077,9 +1087,8 @@ def dump[T](
 
 
 def dump(
-    cls_or_data: Any,
+    cls: Any,
     data: Any = _NO_DATA,
-    /,
     *,
     naming_case: NamingCase | None = None,
     none_value_handling: NoneValueHandling | None = None,
@@ -1105,12 +1114,13 @@ def dump(
     validate_decimal_places(decimal_places)
 
     if data is _NO_DATA:
-        key: ContainerKey = (type(cls_or_data), naming_case, none_value_handling, decimal_places)
+        data = cls
+        key: ContainerKey = (type(data), naming_case, none_value_handling, decimal_places)
         container = _inferred_container_cache.get(key)
         if container is None:
             container = _build_inferred_container(key)
-        return container.dump(cls_or_data)
-    container = _get_container(cls_or_data, naming_case, none_value_handling, decimal_places)
+    else:
+        container = _get_container(cls, naming_case, none_value_handling, decimal_places)
     return container.dump(data)
 
 

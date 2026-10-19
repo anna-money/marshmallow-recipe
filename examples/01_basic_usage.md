@@ -89,6 +89,16 @@ user_dict = mr.dump(user)
 # }
 ```
 
+Type checkers (pyright, mypy) accept `mr.dump(obj)` only when `obj` is typed as a dataclass instance. Narrow `User | None` first, and type wrapper parameters as `mr.Dataclass`:
+
+```python
+from typing import Any
+
+
+def to_json(obj: mr.Dataclass) -> dict[str, Any]:
+    return mr.dump(obj)
+```
+
 ## Deserialisation (load)
 
 ```python
