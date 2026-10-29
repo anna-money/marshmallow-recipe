@@ -51,6 +51,7 @@ pub fn load_from_py(
 
 pub fn dump_to_py(
     value: &Bound<'_, PyAny>,
+    as_string: bool,
     invalid_error: &Py<PyString>,
     gt: Option<&RangeBound>,
     gte: Option<&RangeBound>,
@@ -68,6 +69,9 @@ pub fn dump_to_py(
             return Err(SerializationError::Single(invalid_error.clone_ref(py)));
         }
         validate_range(value, gt, gte, lt, lte)?;
+        if as_string {
+            return crate::utils::py_str(value);
+        }
         return Ok(value.clone().unbind());
     }
     Err(SerializationError::Single(invalid_error.clone_ref(py)))

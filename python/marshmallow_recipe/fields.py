@@ -90,6 +90,7 @@ def bool_field(
     *,
     required: bool,
     allow_none: bool,
+    as_string: bool = False,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     validate: ValidationFunc | collections.abc.Sequence[ValidationFunc] | None = None,
@@ -100,7 +101,8 @@ def bool_field(
     **_: Any,
 ) -> m.fields.Field:
     if default is m.missing:
-        return m.fields.Bool(
+        return BoolField(
+            as_string=as_string,
             allow_none=allow_none,
             validate=validate,
             **default_fields(m.missing),
@@ -115,7 +117,8 @@ def bool_field(
         if default is None:
             raise ValueError("Default value cannot be none")
 
-        return m.fields.Bool(
+        return BoolField(
+            as_string=as_string,
             required=True,
             allow_none=allow_none,
             validate=validate,
@@ -126,7 +129,8 @@ def bool_field(
             ),
         )
 
-    return m.fields.Bool(
+    return BoolField(
+        as_string=as_string,
         allow_none=allow_none,
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
@@ -220,6 +224,7 @@ def int_field(
     *,
     required: bool,
     allow_none: bool,
+    as_string: bool = False,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     gt: int | None = None,
@@ -247,6 +252,7 @@ def int_field(
         validate = combine_validators(validate, Range(max=lte, max_inclusive=True, error=lte_error))
     if default is m.missing:
         field = m.fields.Int(
+            as_string=as_string,
             allow_none=allow_none,
             validate=validate,
             **default_fields(m.missing),
@@ -260,6 +266,7 @@ def int_field(
         if default is None:
             raise ValueError("Default value cannot be none")
         field = m.fields.Int(
+            as_string=as_string,
             required=True,
             allow_none=allow_none,
             validate=validate,
@@ -271,6 +278,7 @@ def int_field(
         )
     else:
         field = m.fields.Int(
+            as_string=as_string,
             allow_none=allow_none,
             validate=validate,
             **(default_fields(None) if default is dataclasses.MISSING else {}),
@@ -287,6 +295,7 @@ def float_field(
     *,
     required: bool,
     allow_none: bool,
+    as_string: bool = False,
     default: Any = dataclasses.MISSING,
     name: str | None = None,
     gt: float | int | None = None,
@@ -314,6 +323,7 @@ def float_field(
         validate = combine_validators(validate, Range(max=lte, max_inclusive=True, error=lte_error))
     if default is m.missing:
         return FloatField(
+            as_string=as_string,
             allow_none=allow_none,
             validate=validate,
             **default_fields(m.missing),
@@ -328,6 +338,7 @@ def float_field(
         if default is None:
             raise ValueError("Default value cannot be none")
         return FloatField(
+            as_string=as_string,
             required=True,
             allow_none=allow_none,
             validate=validate,
@@ -339,6 +350,7 @@ def float_field(
         )
 
     return FloatField(
+        as_string=as_string,
         allow_none=allow_none,
         validate=validate,
         **(default_fields(None) if default is dataclasses.MISSING else {}),
@@ -1152,7 +1164,8 @@ def union_field(
     )
 
 
-DateTimeField: type[m.fields.Field]
+BoolField: type[m.fields.Boolean]
+DateTimeField: type[m.fields.DateTime]
 DateField: type[m.fields.Date]
 DecimalField: type[m.fields.Decimal]
 EnumField: type[m.fields.Field]
@@ -1335,6 +1348,19 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             return super()._format_num(value)
 
     FloatField = FloatFieldV3
+
+    class BoolFieldV3(m.fields.Boolean):
+        def __init__(self, *, as_string: bool = False, **kwargs: Any):
+            super().__init__(**kwargs)
+            self.as_string = as_string
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            result = super()._serialize(value, attr, obj, **kwargs)
+            if self.as_string and result is not None:
+                return "true" if result else "false"
+            return result
+
+    BoolField = BoolFieldV3
 
     class DecimalFieldV3(m.fields.Decimal):
         default_error_messages = {"special": "Not a valid number."}  # noqa: RUF012
@@ -1738,6 +1764,19 @@ else:
 
     FloatField = FloatFieldV2
 
+    class BoolFieldV2(m.fields.Boolean):
+        def __init__(self, *, as_string: bool = False, **kwargs: Any):
+            super().__init__(**kwargs)
+            self.as_string = as_string
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **_: Any) -> Any:
+            result = super()._serialize(value, attr, obj)
+            if self.as_string and result is not None:
+                return "true" if result else "false"
+            return result
+
+    BoolField = BoolFieldV2
+
     class DecimalFieldV2(m.fields.Decimal):
         default_error_messages = {"special": "Not a valid number."}  # noqa: RUF012
 
@@ -1787,12 +1826,13 @@ else:
 
         @staticmethod
         def __timestamp_deserialize(value: Any) -> datetime.datetime:
-            if isinstance(value, bool) or not isinstance(value, float | int):
+            if isinstance(value, bool) or not isinstance(value, float | int | str):
                 raise TypeError("argument must be number")
-            if value < 0:
+            timestamp = float(value)
+            if timestamp < 0:
                 raise ValueError("Not a valid POSIX timestamp")
 
-            return datetime.datetime.fromtimestamp(value, tz=datetime.UTC)
+            return datetime.datetime.fromtimestamp(timestamp, tz=datetime.UTC)
 
         DATEFORMAT_SERIALIZATION_FUNCS = {  # noqa: RUF012
             "iso": __iso_serialize,
@@ -1841,7 +1881,7 @@ else:
             if func:
                 try:
                     result = func(value)
-                except (TypeError, AttributeError, ValueError):
+                except (TypeError, AttributeError, ValueError, OverflowError, OSError):
                     raise self.fail("invalid")
             else:
                 try:

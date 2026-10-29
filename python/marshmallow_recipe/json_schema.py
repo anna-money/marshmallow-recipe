@@ -5,9 +5,9 @@ import decimal
 import enum
 import types
 import uuid
-from typing import Annotated, Any, ClassVar, Literal, Protocol, TypeAliasType, cast, get_args, get_origin
+from typing import Annotated, Any, ClassVar, Literal, NewType, Protocol, TypeAliasType, cast, get_args, get_origin
 
-from .generics import TypeLike, get_fields_type_map
+from .generics import TypeLike, get_fields_type_map, validate_dict_key_type
 from .metadata import EMPTY_METADATA, Metadata, build_metadata
 from .missing import MISSING
 from .naming_case import NamingCase
@@ -329,6 +329,8 @@ def __build_leaf(
         return schema
 
     if origin is dict or origin is collections.abc.Mapping:
+        if args:
+            validate_dict_key_type(args[0])
         schema["type"] = __nullable_type("object", nullable)
         if args and len(args) >= 2 and args[1] is not types.NoneType:
             schema["additionalProperties"] = __convert_field_to_json_schema(args[1], EMPTY_METADATA, context)
@@ -352,6 +354,9 @@ def __convert_field_to_json_schema(
 ) -> dict[str, Any]:
     while isinstance(field_type, TypeAliasType):
         field_type = field_type.__value__
+
+    if isinstance(field_type, NewType):
+        field_type = field_type.__supertype__
 
     if get_origin(field_type) is Annotated:
         args = get_args(field_type)

@@ -3,7 +3,9 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 
 use crate::container::{DataclassContainer, DataclassRegistry, FieldContainer, TypeContainer};
-use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
+use crate::error::{
+    SerializationError, accumulate_entry_error, accumulate_error, pyerrors_to_serialization_error,
+};
 use crate::fields::{
     any, bool_literal, bool_type, bytes, collection, date, datetime, decimal, dict, float_type,
     int_enum, int_literal, int_type, str_enum, str_literal, str_type, time, union, uuid,
@@ -43,9 +45,15 @@ impl FieldContainer {
                 max_length.as_ref(),
             ),
             Self::Int {
-                gt, gte, lt, lte, ..
+                as_string,
+                gt,
+                gte,
+                lt,
+                lte,
+                ..
             } => int_type::dump_to_py(
                 value,
+                *as_string,
                 &common.invalid_error,
                 gt.as_ref(),
                 gte.as_ref(),
@@ -53,16 +61,24 @@ impl FieldContainer {
                 lte.as_ref(),
             ),
             Self::Float {
-                gt, gte, lt, lte, ..
+                as_string,
+                gt,
+                gte,
+                lt,
+                lte,
+                ..
             } => float_type::dump_to_py(
                 value,
+                *as_string,
                 &common.invalid_error,
                 gt.as_ref(),
                 gte.as_ref(),
                 lt.as_ref(),
                 lte.as_ref(),
             ),
-            Self::Bool { .. } => bool_type::dump_to_py(value, &common.invalid_error),
+            Self::Bool { as_string, .. } => {
+                bool_type::dump_to_py(value, *as_string, &common.invalid_error)
+            }
             Self::Decimal {
                 decimal_places,
                 rounding,
@@ -126,12 +142,14 @@ impl FieldContainer {
                 max_length.as_ref(),
             ),
             Self::Dict {
+                key: key_schema,
                 value: value_schema,
                 value_validator,
                 ..
             } => dict::dump_to_py(
                 registry,
                 value,
+                key_schema.as_deref(),
                 value_schema,
                 value_validator.as_ref(),
                 &common.invalid_error,
@@ -264,6 +282,7 @@ impl TypeContainer {
                 Ok(result.into_any().unbind())
             }
             Self::Dict {
+                key: key_container,
                 value: value_container,
             } => {
                 let dict = value.cast::<PyDict>().map_err(|_| {
@@ -273,15 +292,33 @@ impl TypeContainer {
                 let mut errors: Option<Bound<'_, PyDict>> = None;
 
                 for (k, v) in dict.iter() {
+                    let mut key_ok = true;
+                    let dumped_key =
+                        key_container.as_deref().and_then(|key_schema| {
+                            match key_schema.dump_to_py(registry, &k) {
+                                Ok(dumped) => Some(dumped.into_bound(py)),
+                                Err(ref e) => {
+                                    let key_str =
+                                        k.str().map(|s| s.to_string()).unwrap_or_default();
+                                    accumulate_entry_error(py, &mut errors, &key_str, "key", e);
+                                    key_ok = false;
+                                    None
+                                }
+                            }
+                        });
+                    let target_key = dumped_key.as_ref().unwrap_or(&k);
                     match value_container.dump_to_py(registry, &v) {
                         Ok(dumped) => {
-                            result
-                                .set_item(k, dumped)
-                                .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+                            if key_ok {
+                                result
+                                    .set_item(target_key, dumped)
+                                    .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+                            }
                         }
                         Err(ref e) => {
-                            let key_str = k.str().map(|s| s.to_string()).unwrap_or_default();
-                            accumulate_error(py, &mut errors, key_str, e);
+                            let key_str =
+                                target_key.str().map(|s| s.to_string()).unwrap_or_default();
+                            accumulate_entry_error(py, &mut errors, &key_str, "value", e);
                         }
                     }
                 }
