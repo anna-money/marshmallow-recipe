@@ -74,11 +74,6 @@ def _assert_json_object(value: Any) -> None:
             stack.extend(current)
 
 
-def _encode_json(value: Any, encoding: str) -> bytes:
-    _assert_json_object(value)
-    return json.dumps(value, separators=(",", ":")).encode(encoding)
-
-
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 
@@ -173,7 +168,8 @@ class MarshmallowSerializer(Serializer):
         result = mr.dump(
             cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
-        return _encode_json(result, encoding)
+        _assert_json_object(result)
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def dump_many[T](
         self,
@@ -187,7 +183,8 @@ class MarshmallowSerializer(Serializer):
         result = mr.dump_many(
             cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
-        return _encode_json(result, encoding)
+        _assert_json_object(result)
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def load[T](
         self,
@@ -231,7 +228,8 @@ class NukedSerializer(Serializer):
         result = mr.nuked.dump(
             cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
-        return _encode_json(result, encoding)
+        _assert_json_object(result)
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def load[T](
         self,
@@ -309,7 +307,8 @@ class NukedSchemaSerializer(Serializer):
             assert isinstance(dumped, marshmallow.MarshalResult)
             result = dumped.data  # type: ignore
 
-        return _encode_json(result, encoding)
+        _assert_json_object(result)
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def dump_many[T](
         self,
@@ -334,7 +333,8 @@ class NukedSchemaSerializer(Serializer):
             assert isinstance(dumped, marshmallow.MarshalResult)
             result = dumped.data  # type: ignore
 
-        return _encode_json(result, encoding)
+        _assert_json_object(result)
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def load[T](
         self,
