@@ -59,7 +59,7 @@ impl FieldContainer {
             ));
         }
 
-        match self {
+        let loaded = match self {
             Self::Str {
                 strip_whitespaces,
                 post_load,
@@ -173,7 +173,8 @@ impl FieldContainer {
                 dataclass_index, ..
             } => registry.get(*dataclass_index).load_from_py(registry, value),
             Self::Union { variants, .. } => union::load_from_py(registry, value, variants),
-        }
+        }?;
+        apply_validate(py, loaded, common.validator.as_ref())
     }
 }
 
@@ -243,7 +244,6 @@ impl DataclassContainer {
 
             if let Some(&idx) = self.field_lookup.get(key_str) {
                 let dc_field = &self.fields[idx];
-                let common = dc_field.field.common();
                 seen.set(idx, true);
 
                 if !dc_field.field_init {
@@ -251,14 +251,9 @@ impl DataclassContainer {
                 }
 
                 match dc_field.field.load_from_py(registry, &v) {
-                    Ok(py_val) => match apply_validate(py, py_val, common.validator.as_ref()) {
-                        Ok(validated) => {
-                            let _ = result.set_item(dc_field.name_interned.bind(py), validated);
-                        }
-                        Err(ref e) => {
-                            accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
-                        }
-                    },
+                    Ok(py_val) => {
+                        let _ = result.set_item(dc_field.name_interned.bind(py), py_val);
+                    }
                     Err(ref e) => {
                         accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
                     }
@@ -375,17 +370,11 @@ impl DataclassContainer {
 
             if let Some(&idx) = self.field_lookup.get(key_str) {
                 let dc_field = &self.fields[idx];
-                let common = dc_field.field.common();
 
                 match dc_field.field.load_from_py(registry, &v) {
-                    Ok(py_val) => match apply_validate(py, py_val, common.validator.as_ref()) {
-                        Ok(validated) => {
-                            field_values[idx] = Some(validated);
-                        }
-                        Err(ref e) => {
-                            accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
-                        }
-                    },
+                    Ok(py_val) => {
+                        field_values[idx] = Some(py_val);
+                    }
                     Err(ref e) => {
                         accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
                     }
@@ -465,10 +454,7 @@ impl DataclassContainer {
             };
 
             let py_val_result = if let Some(v) = present {
-                dc_field
-                    .field
-                    .load_from_py(registry, &v)
-                    .and_then(|loaded| apply_validate(py, loaded, common.validator.as_ref()))
+                dc_field.field.load_from_py(registry, &v)
             } else {
                 match get_default_value(py, common) {
                     Ok(Some(val)) => Ok(val),
@@ -558,13 +544,7 @@ impl DataclassContainer {
 
             let py_value: Py<PyAny> = if let Some(v) = present {
                 match dc_field.field.load_from_py(registry, &v) {
-                    Ok(val) => match apply_validate(py, val, common.validator.as_ref()) {
-                        Ok(validated) => validated,
-                        Err(ref e) => {
-                            accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
-                            continue;
-                        }
-                    },
+                    Ok(val) => val,
                     Err(ref e) => {
                         accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
                         continue;

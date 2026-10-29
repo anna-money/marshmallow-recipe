@@ -652,6 +652,11 @@ class WithAnnotatedListItemValidation:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithListAnnotatedItemValidation:
+    items: list[Annotated[int, mr.meta(validate=lambda x: x > 0)]]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithListItemTwoValidators:
     items: list[int] = dataclasses.field(metadata=mr.list_meta(validate_item=[lambda x: x > 0, lambda x: x < 100]))
 
@@ -1041,6 +1046,11 @@ class WithAnnotatedStrNoneError:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalIntValidation:
+    value: Annotated[int | None, mr.meta(validate=lambda x: x > 0)] = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithIntInvalidError:
     value: int = dataclasses.field(metadata=mr.meta(invalid_error="Custom invalid message"))
 
@@ -1416,6 +1426,11 @@ class PersonWithAddressTwoValidators:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithDictValidation:
     data: dict[str, int] = dataclasses.field(metadata=mr.meta(validate=lambda x: len(x) > 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDictAnnotatedValueValidation:
+    data: dict[str, Annotated[int, mr.meta(validate=lambda x: x > 0)]]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

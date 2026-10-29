@@ -17,11 +17,17 @@ impl FieldContainer {
         registry: &DataclassRegistry,
         value: &Bound<'_, PyAny>,
     ) -> Result<Py<PyAny>, SerializationError> {
+        let py = value.py();
         if value.is_none() {
-            return Ok(value.py().None());
+            return Ok(py.None());
         }
 
         let common = self.common();
+        if let Some(ref validator) = common.validator
+            && let Ok(Some(err_list)) = call_validator(py, validator, value)
+        {
+            return Err(pyerrors_to_serialization_error(py, &err_list));
+        }
         match self {
             Self::Str {
                 strip_whitespaces,
@@ -168,8 +174,6 @@ impl DataclassContainer {
                 continue;
             }
 
-            let common = dc_field.field.common();
-
             let py_value = match dc_field.slot_offset {
                 Some(offset) => {
                     match unsafe { crate::slots::get_slot_value_direct(py, value, offset) } {
@@ -185,14 +189,6 @@ impl DataclassContainer {
             };
 
             if py_value.is(missing_sentinel.as_any()) || (py_value.is_none() && self.ignore_none) {
-                continue;
-            }
-
-            if let Some(ref validator) = common.validator
-                && let Ok(Some(err_list)) = call_validator(py, validator, &py_value)
-            {
-                let e = pyerrors_to_serialization_error(py, &err_list);
-                accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), &e);
                 continue;
             }
 

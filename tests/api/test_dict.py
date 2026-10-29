@@ -18,6 +18,7 @@ from .conftest import (
     Priority,
     Serializer,
     Status,
+    WithDictAnnotatedValueValidation,
     WithDictInvalidError,
     WithDictMissing,
     WithDictNoneError,
@@ -28,6 +29,13 @@ from .conftest import (
 
 
 class TestDictDump:
+    def test_annotated_value_validation_fail(self, impl: Serializer) -> None:
+        obj = WithDictAnnotatedValueValidation(data={"a": 1, "b": 0})
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDictAnnotatedValueValidation, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"data": {"b": {"value": ["Invalid value."]}}}
+
     @pytest.mark.parametrize(
         ("schema_type", "obj", "expected"),
         [
@@ -322,6 +330,15 @@ class TestDictLoad:
     def test_optional(self, impl: Serializer, data: bytes, expected: OptionalDictOf[str, int]) -> None:
         result = impl.load(OptionalDictOf[str, int], data)
         assert result == expected
+
+    def test_annotated_value_validation_pass(self, impl: Serializer) -> None:
+        result = impl.load(WithDictAnnotatedValueValidation, b'{"data":{"a":1}}')
+        assert result == WithDictAnnotatedValueValidation(data={"a": 1})
+
+    def test_annotated_value_validation_fail(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDictAnnotatedValueValidation, b'{"data":{"a":1,"b":0}}')
+        assert exc.value.messages == {"data": {"b": {"value": ["Invalid value."]}}}
 
     def test_validation_pass(self, impl: Serializer) -> None:
         data = b'{"data":{"a":1}}'
