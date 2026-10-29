@@ -364,6 +364,9 @@ def impl(request: pytest.FixtureRequest) -> Serializer:
     return request.param
 
 
+PositiveInt = Annotated[int, mr.meta(validate=lambda x: x > 0)]
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class ValueOf[T]:
     value: T
@@ -2032,6 +2035,11 @@ class WithUnionStrDictOptional:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithUnionDictStrOptional:
     value: dict[str, Any] | str | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithUnionPositiveIntStr:
+    value: PositiveInt | str
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

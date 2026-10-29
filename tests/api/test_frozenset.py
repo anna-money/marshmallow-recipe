@@ -11,6 +11,7 @@ from .conftest import (
     CollectionHolder,
     FrozenSetOf,
     OptionalFrozenSetOf,
+    PositiveInt,
     Priority,
     Serializer,
     Status,
@@ -25,6 +26,11 @@ from .conftest import (
 
 
 class TestFrozenSetDump:
+    def test_annotated_item_validation_fail(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(FrozenSetOf[PositiveInt], FrozenSetOf[PositiveInt](items=frozenset({-1})))
+        assert exc.value.messages == {"items": {0: ["Invalid value."]}}
+
     @pytest.mark.parametrize(
         ("schema_type", "obj", "expected"),
         [
@@ -147,6 +153,15 @@ class TestFrozenSetDump:
 
 
 class TestFrozenSetLoad:
+    def test_annotated_item_validation_pass(self, impl: Serializer) -> None:
+        result = impl.load(FrozenSetOf[PositiveInt], b'{"items":[1]}')
+        assert result == FrozenSetOf[PositiveInt](items=frozenset({1}))
+
+    def test_annotated_item_validation_fail(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(FrozenSetOf[PositiveInt], b'{"items":[-1]}')
+        assert exc.value.messages == {"items": {0: ["Invalid value."]}}
+
     @pytest.mark.parametrize(
         ("schema_type", "data", "expected"),
         [

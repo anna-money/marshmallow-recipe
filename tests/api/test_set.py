@@ -10,6 +10,7 @@ import marshmallow_recipe as mr
 from .conftest import (
     CollectionHolder,
     OptionalSetOf,
+    PositiveInt,
     Priority,
     Serializer,
     SetOf,
@@ -25,6 +26,11 @@ from .conftest import (
 
 
 class TestSetDump:
+    def test_annotated_item_validation_fail(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(SetOf[PositiveInt], SetOf[PositiveInt](items={-1}))
+        assert exc.value.messages == {"items": {0: ["Invalid value."]}}
+
     @pytest.mark.parametrize(
         ("schema_type", "obj", "expected"),
         [
@@ -129,6 +135,15 @@ class TestSetDump:
 
 
 class TestSetLoad:
+    def test_annotated_item_validation_pass(self, impl: Serializer) -> None:
+        result = impl.load(SetOf[PositiveInt], b'{"items":[1]}')
+        assert result == SetOf[PositiveInt](items={1})
+
+    def test_annotated_item_validation_fail(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(SetOf[PositiveInt], b'{"items":[-1]}')
+        assert exc.value.messages == {"items": {0: ["Invalid value."]}}
+
     @pytest.mark.parametrize(
         ("schema_type", "data", "expected"),
         [
