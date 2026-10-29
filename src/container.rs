@@ -110,7 +110,6 @@ pub enum FieldContainer {
     },
     DateTime {
         common: FieldCommon,
-        as_string: bool,
         format: DateTimeFormat,
     },
     Uuid {
@@ -126,7 +125,6 @@ pub enum FieldContainer {
     },
     IntEnum {
         common: FieldCommon,
-        as_string: bool,
         enum_values: Vec<(Py<PyAny>, Py<PyAny>)>,
         enum_cls: Py<PyAny>,
     },
@@ -136,12 +134,10 @@ pub enum FieldContainer {
     },
     IntLiteral {
         common: FieldCommon,
-        as_string: bool,
         values: Vec<Py<PyAny>>,
     },
     BoolLiteral {
         common: FieldCommon,
-        as_string: bool,
         values: Vec<bool>,
     },
     Any {
@@ -244,13 +240,8 @@ impl Clone for FieldContainer {
             Self::Time { common } => Self::Time {
                 common: common.clone(),
             },
-            Self::DateTime {
-                common,
-                as_string,
-                format,
-            } => Self::DateTime {
+            Self::DateTime { common, format } => Self::DateTime {
                 common: common.clone(),
-                as_string: *as_string,
                 format: format.clone(),
             },
             Self::Uuid { common } => Self::Uuid {
@@ -273,12 +264,10 @@ impl Clone for FieldContainer {
             },
             Self::IntEnum {
                 common,
-                as_string,
                 enum_values,
                 enum_cls,
             } => Self::IntEnum {
                 common: common.clone(),
-                as_string: *as_string,
                 enum_values: enum_values
                     .iter()
                     .map(|(k, v)| (k.clone_ref(py), v.clone_ref(py)))
@@ -289,22 +278,12 @@ impl Clone for FieldContainer {
                 common: common.clone(),
                 values: values.clone(),
             },
-            Self::IntLiteral {
-                common,
-                as_string,
-                values,
-            } => Self::IntLiteral {
+            Self::IntLiteral { common, values } => Self::IntLiteral {
                 common: common.clone(),
-                as_string: *as_string,
                 values: values.iter().map(|v| v.clone_ref(py)).collect(),
             },
-            Self::BoolLiteral {
-                common,
-                as_string,
-                values,
-            } => Self::BoolLiteral {
+            Self::BoolLiteral { common, values } => Self::BoolLiteral {
                 common: common.clone(),
-                as_string: *as_string,
                 values: values.clone(),
             },
             Self::Any { common } => Self::Any {

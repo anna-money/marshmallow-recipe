@@ -619,16 +619,11 @@ impl ContainerBuilder {
         let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
             .unwrap_or_else(|| intern!(py, "Not a valid datetime.").clone().unbind());
         let common = build_field_common(optional, &kwargs, invalid_error)?;
-        let as_string = extract_bool(&kwargs, "as_string", false)?;
 
         let datetime_format = extract_optional_string(&kwargs, "datetime_format")?;
         let format = parse_datetime_format(datetime_format.as_deref());
 
-        let container = FieldContainer::DateTime {
-            common,
-            as_string,
-            format,
-        };
+        let container = FieldContainer::DateTime { common, format };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
         let idx = self.fields.len();
@@ -744,7 +739,6 @@ impl ContainerBuilder {
         let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
             .unwrap_or_else(|| intern!(py, "Not a valid enum.").clone().unbind());
         let common = build_field_common(optional, &kwargs, invalid_error)?;
-        let as_string = extract_bool(&kwargs, "as_string", false)?;
 
         let values: Vec<(Py<PyAny>, Py<PyAny>)> = enum_values
             .iter()
@@ -758,7 +752,6 @@ impl ContainerBuilder {
 
         let container = FieldContainer::IntEnum {
             common,
-            as_string,
             enum_values: values,
             enum_cls,
         };
@@ -807,18 +800,13 @@ impl ContainerBuilder {
         let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
             .unwrap_or_else(|| intern!(py, "Not a valid value.").clone().unbind());
         let common = build_field_common(optional, &kwargs, invalid_error)?;
-        let as_string = extract_bool(&kwargs, "as_string", false)?;
 
         let values: Vec<Py<PyAny>> = literal_values
             .iter()
             .map(|item| Ok(item.unbind()))
             .collect::<PyResult<_>>()?;
 
-        let container = FieldContainer::IntLiteral {
-            common,
-            as_string,
-            values,
-        };
+        let container = FieldContainer::IntLiteral { common, values };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
 
         let idx = self.fields.len();
@@ -839,11 +827,9 @@ impl ContainerBuilder {
         let invalid_error = extract_optional_py_string(&kwargs, "invalid_error")?
             .unwrap_or_else(|| intern!(py, "Not a valid value.").clone().unbind());
         let common = build_field_common(optional, &kwargs, invalid_error)?;
-        let as_string = extract_bool(&kwargs, "as_string", false)?;
 
         let container = FieldContainer::BoolLiteral {
             common,
-            as_string,
             values: literal_values,
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;

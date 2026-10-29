@@ -34,7 +34,7 @@ _MAPPING_KEY_CASES = [
         b'{"data":{"12345678-1234-5678-1234-567812345678":"x"}}',
         id="uuid",
     ),
-    pytest.param(MappingOf[Priority, str], {Priority.LOW: "x"}, b'{"data":{"1":"x"}}', id="int_enum"),
+    pytest.param(MappingOf[Status, str], {Status.ACTIVE: "x"}, b'{"data":{"active":"x"}}', id="str_enum"),
 ]
 
 

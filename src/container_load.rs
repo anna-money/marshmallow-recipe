@@ -130,23 +130,18 @@ impl FieldContainer {
             } => str_enum::load_from_py(value, enum_values, &common.invalid_error),
             Self::IntEnum {
                 common,
-                as_string,
                 enum_values,
                 ..
-            } => int_enum::load_from_py(value, *as_string, enum_values, &common.invalid_error),
+            } => int_enum::load_from_py(value, enum_values, &common.invalid_error),
             Self::StrLiteral { common, values } => {
                 str_literal::load_from_py(value, values, &common.invalid_error)
             }
-            Self::IntLiteral {
-                common,
-                as_string,
-                values,
-            } => int_literal::load_from_py(value, *as_string, values, &common.invalid_error),
-            Self::BoolLiteral {
-                common,
-                as_string,
-                values,
-            } => bool_literal::load_from_py(value, *as_string, values, &common.invalid_error),
+            Self::IntLiteral { common, values } => {
+                int_literal::load_from_py(value, values, &common.invalid_error)
+            }
+            Self::BoolLiteral { common, values } => {
+                bool_literal::load_from_py(value, values, &common.invalid_error)
+            }
             Self::Any { .. } => Ok(any::load_from_py(value)),
             Self::Collection {
                 kind,

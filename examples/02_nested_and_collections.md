@@ -137,7 +137,7 @@ mr.load(Report, mr.dump(report)) == report  # True
 
 Only primitive types may be used as keys — those whose value has a string form:
 `str`, `int`, `float`, `bool`, `decimal.Decimal`, `uuid.UUID`, `bytes`,
-`datetime.datetime`, `datetime.date`, `datetime.time`, enums and `Literal[...]`,
+`datetime.datetime`, `datetime.date`, `datetime.time`, `str` enums and `Literal` of strings,
 optionally wrapped in `NewType`, a PEP 695 `type` alias or `Annotated`.
 
 Anything else raises `ValueError` when the schema is built, because it has no JSON key
@@ -154,7 +154,11 @@ mr.dump(Invalid(data={}))
 ```
 
 Rejected key types: containers (`list`, `set`, `frozenset`, `tuple`, `dict`), nested
-dataclasses, `Any`, unions and `Optional`.
+dataclasses, `Any`, unions and `Optional`. A `datetime` key with `format="timestamp"` is
+rejected too, because a timestamp is a number; use the default ISO format or a strftime
+format such as `mr.datetime_meta(format="%Y-%m-%d")`. An `IntEnum` key and a `Literal` key
+of non-string values such as `Literal[1, 2]` are rejected as well; use a `str` enum, or `int` with a
+validator, instead.
 
 ## collections.abc Types
 

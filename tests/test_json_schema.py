@@ -1168,6 +1168,7 @@ def test_nullable_list_keeps_item_count_constraints(meta: Any, expected_extra: d
         pytest.param(dict[str, int], id="dict"),
         pytest.param(int | str, id="union"),
         pytest.param(int | None, id="optional"),
+        pytest.param(Annotated[datetime.datetime, mr.datetime_meta(format="timestamp")], id="datetime_timestamp"),
     ],
 )
 def test_unsupported_dict_key(key_type: Any) -> None:
