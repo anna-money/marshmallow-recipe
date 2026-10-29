@@ -24,6 +24,7 @@ from .conftest import (
     WithAnnotatedIntKey,
     WithAsStringMetadataKey,
     WithAsStringMetadataValue,
+    WithDictAnnotatedKeyValidation,
     WithDictAnnotatedValueValidation,
     WithDictInvalidError,
     WithDictMissing,
@@ -133,6 +134,12 @@ def _with_unsupported_key(container: Any, key_type: Any) -> type:
 
 
 class TestDictDump:
+    def test_annotated_key_validation_fail(self, impl: Serializer) -> None:
+        obj = WithDictAnnotatedKeyValidation(data={1: "x", 0: "y"})
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithDictAnnotatedKeyValidation, obj)
+        assert exc.value.messages == {"data": {"0": {"key": ["Invalid value."]}}}
+
     def test_annotated_value_validation_fail(self, impl: Serializer) -> None:
         obj = WithDictAnnotatedValueValidation(data={"a": 1, "b": 0})
         with pytest.raises(marshmallow.ValidationError) as exc:
@@ -538,6 +545,15 @@ class TestDictLoad:
     def test_optional(self, impl: Serializer, data: bytes, expected: OptionalDictOf[str, int]) -> None:
         result = impl.load(OptionalDictOf[str, int], data)
         assert result == expected
+
+    def test_annotated_key_validation_pass(self, impl: Serializer) -> None:
+        result = impl.load(WithDictAnnotatedKeyValidation, b'{"data":{"1":"x"}}')
+        assert result == WithDictAnnotatedKeyValidation(data={1: "x"})
+
+    def test_annotated_key_validation_fail(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDictAnnotatedKeyValidation, b'{"data":{"1":"x","0":"y"}}')
+        assert exc.value.messages == {"data": {"0": {"key": ["Invalid value."]}}}
 
     def test_annotated_value_validation_pass(self, impl: Serializer) -> None:
         result = impl.load(WithDictAnnotatedValueValidation, b'{"data":{"a":1}}')
