@@ -4,7 +4,7 @@ import decimal
 import json
 import uuid
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Annotated, Any, Literal
 
 import marshmallow
 import pytest
@@ -19,11 +19,11 @@ from .conftest import (
     Priority,
     Serializer,
     Status,
+    TimestampDateTime,
     WithAliasKey,
     WithAnnotatedIntKey,
     WithAsStringMetadataKey,
     WithAsStringMetadataValue,
-    WithBoolLiteralKey,
     WithDictAnnotatedValueValidation,
     WithDictInvalidError,
     WithDictMissing,
@@ -32,11 +32,9 @@ from .conftest import (
     WithDictTwoValidators,
     WithDictValidation,
     WithIntKeyGte,
-    WithIntLiteralKey,
     WithNewTypeKey,
     WithStrKeyMinLength,
     WithStrLiteralKey,
-    WithTimestampKey,
 )
 
 _WRAPPED_KEY_CASES = [
@@ -44,8 +42,6 @@ _WRAPPED_KEY_CASES = [
     pytest.param(WithNewTypeKey, {1: "x"}, b'{"data":{"1":"x"}}', id="new_type"),
     pytest.param(WithAnnotatedIntKey, {1: "x"}, b'{"data":{"1":"x"}}', id="annotated"),
     pytest.param(WithStrLiteralKey, {"a": "x"}, b'{"data":{"a":"x"}}', id="str_literal"),
-    pytest.param(WithIntLiteralKey, {1: "x"}, b'{"data":{"1":"x"}}', id="int_literal"),
-    pytest.param(WithBoolLiteralKey, {True: "x"}, b'{"data":{"true":"x"}}', id="bool_literal"),
 ]
 
 _KEY_UUID = uuid.UUID("12345678-1234-5678-1234-567812345678")
@@ -71,9 +67,7 @@ _KEY_CASES = [
         b'{"data":{"2024-01-15T10:30:00+00:00":"x"}}',
         id="datetime",
     ),
-    pytest.param(WithTimestampKey, {_KEY_DATETIME: "x"}, b'{"data":{"1705314600.0":"x"}}', id="datetime_timestamp"),
     pytest.param(DictOf[Status, str], {Status.ACTIVE: "x"}, b'{"data":{"active":"x"}}', id="str_enum"),
-    pytest.param(DictOf[Priority, str], {Priority.LOW: "x"}, b'{"data":{"1":"x"}}', id="int_enum"),
 ]
 
 _UNSUPPORTED_KEY_CASES = [
@@ -85,6 +79,12 @@ _UNSUPPORTED_KEY_CASES = [
     pytest.param(dict[str, int], id="dict"),
     pytest.param(int | str, id="union"),
     pytest.param(int | None, id="optional"),
+    pytest.param(Annotated[datetime.datetime, mr.datetime_meta(format="timestamp")], id="datetime_timestamp_annotated"),
+    pytest.param(TimestampDateTime, id="datetime_timestamp_alias"),
+    pytest.param(Priority, id="int_enum"),
+    pytest.param(Literal[Priority.LOW, Priority.HIGH], id="int_enum_literal"),
+    pytest.param(Literal[1, 2], id="int_literal"),
+    pytest.param(Literal[True, False], id="bool_literal"),
 ]
 
 _UNSUPPORTED_KEY_CONTAINERS = [pytest.param(dict, id="dict"), pytest.param(Mapping, id="mapping")]
@@ -814,7 +814,7 @@ class TestRootDictDump:
             pytest.param(
                 dict[uuid.UUID, str], {_KEY_UUID: "x"}, b'{"12345678-1234-5678-1234-567812345678":"x"}', id="uuid"
             ),
-            pytest.param(dict[Priority, str], {Priority.LOW: "x"}, b'{"1":"x"}', id="int_enum"),
+            pytest.param(dict[Status, str], {Status.ACTIVE: "x"}, b'{"active":"x"}', id="str_enum"),
         ],
     )
     def test_key(self, impl: Serializer, schema_type: type, obj: object, expected: bytes) -> None:
@@ -888,7 +888,7 @@ class TestRootDictLoad:
             pytest.param(
                 dict[uuid.UUID, str], b'{"12345678-1234-5678-1234-567812345678":"x"}', {_KEY_UUID: "x"}, id="uuid"
             ),
-            pytest.param(dict[Priority, str], b'{"1":"x"}', {Priority.LOW: "x"}, id="int_enum"),
+            pytest.param(dict[Status, str], b'{"active":"x"}', {Status.ACTIVE: "x"}, id="str_enum"),
         ],
     )
     def test_key(self, impl: Serializer, schema_type: type, data: bytes, expected: object) -> None:

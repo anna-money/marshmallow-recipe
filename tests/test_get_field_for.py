@@ -116,20 +116,16 @@ EMPTY_SCHEMA = m.Schema()
             mr.JsonRawField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: bool
-        (bool, {}, m.fields.Bool(required=True)),
-        (Optional[bool], {}, m.fields.Bool(allow_none=True, **default_fields(None))),
-        (bool | None, {}, m.fields.Bool(allow_none=True, **default_fields(None))),
-        (bool, mr.meta(name="i"), m.fields.Bool(required=True, **data_key_fields("i"))),
+        (bool, {}, mr.BoolField(required=True)),
+        (Optional[bool], {}, mr.BoolField(allow_none=True, **default_fields(None))),
+        (bool | None, {}, mr.BoolField(allow_none=True, **default_fields(None))),
+        (bool, mr.meta(name="i"), mr.BoolField(required=True, **data_key_fields("i"))),
         (
             Optional[bool],
             mr.meta(name="i"),
-            m.fields.Bool(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.BoolField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
-        (
-            bool | None,
-            mr.meta(name="i"),
-            m.fields.Bool(allow_none=True, **default_fields(None), **data_key_fields("i")),
-        ),
+        (bool | None, mr.meta(name="i"), mr.BoolField(allow_none=True, **default_fields(None), **data_key_fields("i"))),
         # simple types: str
         (str, {}, mr.StrField(required=True)),
         (Optional[str], {}, mr.StrField(allow_none=True, **default_fields(None))),
@@ -338,30 +334,22 @@ EMPTY_SCHEMA = m.Schema()
             mr.NestedField(EMPTY_SCHEMA, allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # containers: list[T]
-        (list[bool], {}, m.fields.List(m.fields.Bool(required=True), required=True)),
-        (
-            list[Optional[bool]],
-            {},
-            m.fields.List(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
-        ),
-        (list[bool | None], {}, m.fields.List(m.fields.Bool(allow_none=True, **default_fields(None)), required=True)),
-        (
-            Optional[list[bool]],
-            {},
-            m.fields.List(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
-        ),
+        (list[bool], {}, m.fields.List(mr.BoolField(required=True), required=True)),
+        (list[Optional[bool]], {}, m.fields.List(mr.BoolField(allow_none=True, **default_fields(None)), required=True)),
+        (list[bool | None], {}, m.fields.List(mr.BoolField(allow_none=True, **default_fields(None)), required=True)),
+        (Optional[list[bool]], {}, m.fields.List(mr.BoolField(required=True), allow_none=True, **default_fields(None))),
         (
             Optional[list[Optional[bool]]],
             {},
             m.fields.List(
-                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+                mr.BoolField(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
         (
             list[bool | None] | None,
             {},
             m.fields.List(
-                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+                mr.BoolField(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
         # containers: list[T] where T: dataclass
@@ -400,34 +388,34 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # containers: collections.abc.Sequence[T]
-        (collections.abc.Sequence[bool], {}, m.fields.List(m.fields.Bool(required=True), required=True)),
+        (collections.abc.Sequence[bool], {}, m.fields.List(mr.BoolField(required=True), required=True)),
         (
             collections.abc.Sequence[Optional[bool]],
             {},
-            m.fields.List(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+            m.fields.List(mr.BoolField(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             collections.abc.Sequence[bool | None],
             {},
-            m.fields.List(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+            m.fields.List(mr.BoolField(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[collections.abc.Sequence[bool]],
             {},
-            m.fields.List(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
+            m.fields.List(mr.BoolField(required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[collections.abc.Sequence[Optional[bool]]],
             {},
             m.fields.List(
-                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+                mr.BoolField(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
         (
             collections.abc.Sequence[bool | None] | None,
             {},
             m.fields.List(
-                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+                mr.BoolField(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
         # containers: collections.abc.Sequence[T] where T: dataclass
@@ -470,34 +458,34 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # containers: frozenset[T]
-        (frozenset[bool], {}, mr.FrozenSetField(m.fields.Bool(required=True), required=True)),
+        (frozenset[bool], {}, mr.FrozenSetField(mr.BoolField(required=True), required=True)),
         (
             frozenset[Optional[bool]],
             {},
-            mr.FrozenSetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+            mr.FrozenSetField(mr.BoolField(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             frozenset[bool | None],
             {},
-            mr.FrozenSetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+            mr.FrozenSetField(mr.BoolField(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[frozenset[bool]],
             {},
-            mr.FrozenSetField(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
+            mr.FrozenSetField(mr.BoolField(required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[frozenset[Optional[bool]]],
             {},
             mr.FrozenSetField(
-                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+                mr.BoolField(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
         (
             frozenset[bool | None] | None,
             {},
             mr.FrozenSetField(
-                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+                mr.BoolField(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
         # containers: frozenset[T] where T: dataclass
@@ -536,23 +524,19 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # containers: set[T]
-        (set[bool], {}, mr.SetField(m.fields.Bool(required=True), required=True)),
-        (set[Optional[bool]], {}, mr.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True)),
-        (set[bool | None], {}, mr.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True)),
-        (Optional[set[bool]], {}, mr.SetField(m.fields.Bool(required=True), allow_none=True, **default_fields(None))),
+        (set[bool], {}, mr.SetField(mr.BoolField(required=True), required=True)),
+        (set[Optional[bool]], {}, mr.SetField(mr.BoolField(allow_none=True, **default_fields(None)), required=True)),
+        (set[bool | None], {}, mr.SetField(mr.BoolField(allow_none=True, **default_fields(None)), required=True)),
+        (Optional[set[bool]], {}, mr.SetField(mr.BoolField(required=True), allow_none=True, **default_fields(None))),
         (
             Optional[set[Optional[bool]]],
             {},
-            mr.SetField(
-                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
-            ),
+            mr.SetField(mr.BoolField(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)),
         ),
         (
             set[bool | None] | None,
             {},
-            mr.SetField(
-                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
-            ),
+            mr.SetField(mr.BoolField(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)),
         ),
         # containers: set[T] where T: dataclass
         (set[EmptyDataclass], {}, mr.SetField(mr.NestedField(EMPTY_SCHEMA, required=True), required=True)),
@@ -590,35 +574,31 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # containers: collections.abc.Set[T]
-        (collections.abc.Set[bool], {}, mr.SetField(m.fields.Bool(required=True), required=True)),
+        (collections.abc.Set[bool], {}, mr.SetField(mr.BoolField(required=True), required=True)),
         (
             collections.abc.Set[Optional[bool]],
             {},
-            mr.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+            mr.SetField(mr.BoolField(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             collections.abc.Set[bool | None],
             {},
-            mr.SetField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+            mr.SetField(mr.BoolField(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[collections.abc.Set[bool]],
             {},
-            mr.SetField(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
+            mr.SetField(mr.BoolField(required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[collections.abc.Set[Optional[bool]]],
             {},
-            mr.SetField(
-                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
-            ),
+            mr.SetField(mr.BoolField(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)),
         ),
         (
             collections.abc.Set[bool | None] | None,
             {},
-            mr.SetField(
-                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
-            ),
+            mr.SetField(mr.BoolField(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)),
         ),
         # containers: collections.abc.Set[T] where T: dataclass
         (
@@ -660,34 +640,34 @@ EMPTY_SCHEMA = m.Schema()
             ),
         ),
         # containers: tuple[T, ...]
-        (tuple[bool, ...], {}, mr.TupleField(m.fields.Bool(required=True), required=True)),
+        (tuple[bool, ...], {}, mr.TupleField(mr.BoolField(required=True), required=True)),
         (
             tuple[Optional[bool], ...],
             {},
-            mr.TupleField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+            mr.TupleField(mr.BoolField(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             tuple[bool | None, ...],
             {},
-            mr.TupleField(m.fields.Bool(allow_none=True, **default_fields(None)), required=True),
+            mr.TupleField(mr.BoolField(allow_none=True, **default_fields(None)), required=True),
         ),
         (
             Optional[tuple[bool, ...]],
             {},
-            mr.TupleField(m.fields.Bool(required=True), allow_none=True, **default_fields(None)),
+            mr.TupleField(mr.BoolField(required=True), allow_none=True, **default_fields(None)),
         ),
         (
             Optional[tuple[Optional[bool], ...]],
             {},
             mr.TupleField(
-                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+                mr.BoolField(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
         (
             tuple[bool | None, ...] | None,
             {},
             mr.TupleField(
-                m.fields.Bool(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
+                mr.BoolField(allow_none=True, **default_fields(None)), allow_none=True, **default_fields(None)
             ),
         ),
         # containers: tuple[T, ...] where T: dataclass
@@ -1007,25 +987,9 @@ def test_get_field_for_dict_key_serializes_to_str(key_type: type, value: Any, ex
         pytest.param(dict[str, int], id="dict"),
         pytest.param(int | str, id="union"),
         pytest.param(int | None, id="optional"),
+        pytest.param(Annotated[datetime.datetime, mr.datetime_meta(format="timestamp")], id="datetime_timestamp"),
     ],
 )
 def test_get_field_for_unsupported_dict_key(key_type: type) -> None:
     with pytest.raises(ValueError, match="Unsupported dict key"):
         mr.get_field_for(dict[key_type, str], mr.Metadata({}), None, None)  # type: ignore[valid-type]
-
-
-@pytest.mark.parametrize(
-    "field_type",
-    [
-        pytest.param(mr.DateTimeField, id="datetime"),
-        pytest.param(mr.EnumField, id="enum"),
-        pytest.param(mr.LiteralField, id="literal"),
-    ],
-)
-def test_as_string_is_keyword_only(field_type: type) -> None:
-    parameter = inspect.signature(field_type.__init__).parameters["_as_string"]
-    assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
-
-
-def test_datetime_field_keeps_format_as_first_positional() -> None:
-    assert mr.DateTimeField("%Y-%m-%d").format == "%Y-%m-%d"

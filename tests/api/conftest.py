@@ -1414,11 +1414,6 @@ type TimestampDateTime = Annotated[datetime.datetime, mr.datetime_meta(format="t
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithTimestampKey:
-    data: dict[TimestampDateTime, str]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithStrKeyMinLength:
     data: dict[Annotated[str, mr.str_meta(min_length=3)], int]
 
@@ -1461,16 +1456,6 @@ class WithAnnotatedIntKey:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithStrLiteralKey:
     data: dict[Literal["a", "b"], str]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithIntLiteralKey:
-    data: dict[Literal[1, 2], str]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithBoolLiteralKey:
-    data: dict[Literal[True, False], str]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

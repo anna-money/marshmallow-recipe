@@ -34,32 +34,38 @@ _DICT_KEY_TYPES: frozenset[type] = frozenset(
 )
 
 
-def unwrap_dict_key_type(t: Any) -> Any:
-    """Strip TypeAliasType, NewType and Annotated wrappers from a dict key type."""
-    while True:
-        if isinstance(t, TypeAliasType):
-            t = t.__value__
-        elif isinstance(t, NewType):
-            t = t.__supertype__
-        elif get_origin(t) is Annotated:
-            t = get_args(t)[0]
-        else:
-            return t
-
-
 def validate_dict_key_type(t: Any) -> None:
     """Reject dict key types that cannot be represented as a JSON object key.
 
     JSON object keys are strings, so a key type is usable only when its field serialises
     to a JSON scalar. Containers, nested dataclasses, ``Any``, unions and ``Optional``
     have no key form and are rejected while the schema is built rather than on first dump.
+    A ``datetime`` key must use a format that produces a string, so ``format="timestamp"``
+    is rejected too, and an enum or ``Literal`` key must hold strings.
     """
-    unwrapped = unwrap_dict_key_type(t)
+    unwrapped = t
+    datetime_format = None
+    while True:
+        if isinstance(unwrapped, TypeAliasType):
+            unwrapped = unwrapped.__value__
+        elif isinstance(unwrapped, NewType):
+            unwrapped = unwrapped.__supertype__
+        elif get_origin(unwrapped) is Annotated:
+            unwrapped, *annotations = get_args(unwrapped)
+            for annotation in annotations:
+                if isinstance(annotation, Mapping) and "format" in annotation:
+                    datetime_format = annotation["format"]
+        else:
+            break
+    if unwrapped is datetime.datetime and datetime_format == "timestamp":
+        raise ValueError(
+            f"Unsupported dict key {t=}: format='timestamp' does not produce a string, use an iso or strftime format"
+        )
     if unwrapped in _DICT_KEY_TYPES:
         return
-    if get_origin(unwrapped) is Literal:
+    if get_origin(unwrapped) is Literal and all(isinstance(value, str) for value in get_args(unwrapped)):
         return
-    if isinstance(unwrapped, type) and issubclass(unwrapped, enum.Enum):
+    if isinstance(unwrapped, type) and issubclass(unwrapped, enum.Enum) and issubclass(unwrapped, str):
         return
     raise ValueError(f"Unsupported dict key {t=}")
 

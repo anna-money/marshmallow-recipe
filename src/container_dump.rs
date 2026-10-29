@@ -99,23 +99,16 @@ impl FieldContainer {
             ),
             Self::Date { .. } => date::dump_to_py(value, &common.invalid_error),
             Self::Time { .. } => time::dump_to_py(value, &common.invalid_error),
-            Self::DateTime {
-                as_string, format, ..
-            } => datetime::dump_to_py(value, *as_string, format, &common.invalid_error),
+            Self::DateTime { format, .. } => {
+                datetime::dump_to_py(value, format, &common.invalid_error)
+            }
             Self::Uuid { .. } => uuid::dump_to_py(value, &common.invalid_error),
             Self::Bytes { .. } => bytes::dump_to_py(value, &common.invalid_error),
             Self::IntEnum {
                 common,
-                as_string,
                 enum_values,
                 enum_cls,
-            } => int_enum::dump_to_py(
-                value,
-                *as_string,
-                enum_values,
-                enum_cls,
-                &common.invalid_error,
-            ),
+            } => int_enum::dump_to_py(value, enum_values, enum_cls, &common.invalid_error),
             Self::StrEnum {
                 common,
                 enum_values,
@@ -124,16 +117,12 @@ impl FieldContainer {
             Self::StrLiteral { common, values } => {
                 str_literal::dump_to_py(value, values, &common.invalid_error)
             }
-            Self::IntLiteral {
-                common,
-                as_string,
-                values,
-            } => int_literal::dump_to_py(value, *as_string, values, &common.invalid_error),
-            Self::BoolLiteral {
-                common,
-                as_string,
-                values,
-            } => bool_literal::dump_to_py(value, *as_string, values, &common.invalid_error),
+            Self::IntLiteral { common, values } => {
+                int_literal::dump_to_py(value, values, &common.invalid_error)
+            }
+            Self::BoolLiteral { common, values } => {
+                bool_literal::dump_to_py(value, values, &common.invalid_error)
+            }
             Self::Any { .. } => any::dump_to_py(value),
             Self::Collection {
                 kind,
