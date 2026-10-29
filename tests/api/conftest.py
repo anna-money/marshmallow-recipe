@@ -1508,6 +1508,11 @@ class WithDictAnnotatedValueValidation:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDictAnnotatedKeyValidation:
+    data: dict[Annotated[int, mr.meta(validate=lambda x: x > 0)], str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithDictTwoValidators:
     data: dict[str, int] = dataclasses.field(metadata=mr.meta(validate=[lambda x: len(x) > 0, lambda x: len(x) < 10]))
 
