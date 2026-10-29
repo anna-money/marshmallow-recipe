@@ -20,6 +20,7 @@ from .conftest import (
     Serializer,
     Status,
     WithAnnotatedListItemValidation,
+    WithListAnnotatedItemValidation,
     WithListInvalidError,
     WithListItemTwoValidators,
     WithListItemValidation,
@@ -154,6 +155,12 @@ class TestListDump:
         obj = WithListItemValidation(items=[5, 10, 15])
         result = impl.dump(WithListItemValidation, obj)
         assert result == b'{"items":[5,10,15]}'
+
+    def test_annotated_item_validation_fail(self, impl: Serializer) -> None:
+        obj = WithListAnnotatedItemValidation(items=[1, 0, 3])
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithListAnnotatedItemValidation, obj)
+        assert exc.value.messages == {"items": {1: ["Invalid value."]}}
 
     @pytest.mark.parametrize(
         ("obj", "expected"), [(WithListMissing(), b"{}"), (WithListMissing(items=[1, 2, 3]), b'{"items":[1,2,3]}')]
@@ -355,6 +362,7 @@ class TestListLoad:
         [
             pytest.param(WithListItemValidation, id="field"),
             pytest.param(WithAnnotatedListItemValidation, id="annotated"),
+            pytest.param(WithListAnnotatedItemValidation, id="annotated_item"),
         ],
     )
     def test_item_validation_pass(self, impl: Serializer, cls: type) -> None:
@@ -377,6 +385,7 @@ class TestListLoad:
         [
             pytest.param(WithListItemValidation, id="field"),
             pytest.param(WithAnnotatedListItemValidation, id="annotated"),
+            pytest.param(WithListAnnotatedItemValidation, id="annotated_item"),
         ],
     )
     @pytest.mark.parametrize(

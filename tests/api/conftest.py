@@ -364,6 +364,9 @@ def impl(request: pytest.FixtureRequest) -> Serializer:
     return request.param
 
 
+PositiveInt = Annotated[int, mr.meta(validate=lambda x: x > 0)]
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class ValueOf[T]:
     value: T
@@ -649,6 +652,11 @@ class WithListItemValidation:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithAnnotatedListItemValidation:
     items: Annotated[list[int], mr.list_meta(validate_item=lambda x: x > 0)]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithListAnnotatedItemValidation:
+    items: list[Annotated[int, mr.meta(validate=lambda x: x > 0)]]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1041,6 +1049,11 @@ class WithAnnotatedStrNoneError:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalIntValidation:
+    value: Annotated[int | None, mr.meta(validate=lambda x: x > 0)] = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithIntInvalidError:
     value: int = dataclasses.field(metadata=mr.meta(invalid_error="Custom invalid message"))
 
@@ -1416,6 +1429,11 @@ class PersonWithAddressTwoValidators:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithDictValidation:
     data: dict[str, int] = dataclasses.field(metadata=mr.meta(validate=lambda x: len(x) > 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDictAnnotatedValueValidation:
+    data: dict[str, Annotated[int, mr.meta(validate=lambda x: x > 0)]]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -2017,6 +2035,11 @@ class WithUnionStrDictOptional:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithUnionDictStrOptional:
     value: dict[str, Any] | str | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithUnionPositiveIntStr:
+    value: PositiveInt | str
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

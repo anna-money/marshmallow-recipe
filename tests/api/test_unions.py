@@ -18,6 +18,7 @@ from .conftest import (
     WithUnionIntFloat,
     WithUnionIntStrOptional,
     WithUnionMissing,
+    WithUnionPositiveIntStr,
     WithUnionStrDict,
     WithUnionStrDictOptional,
     WithUnionStrInt,
@@ -25,6 +26,14 @@ from .conftest import (
 
 
 class TestUnionDump:
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [pytest.param(5, b'{"value":5}', id="int"), pytest.param("a", b'{"value":"a"}', id="str")],
+    )
+    def test_member_validation_pass(self, impl: Serializer, value: int | str, expected: bytes) -> None:
+        result = impl.dump(WithUnionPositiveIntStr, WithUnionPositiveIntStr(value=value))
+        assert result == expected
+
     def test_int(self, impl: Serializer) -> None:
         obj = WithUnion(value=42, optional_value=None)
         result = impl.dump(WithUnion, obj)
@@ -168,6 +177,18 @@ class TestUnionDump:
 
 
 class TestUnionLoad:
+    @pytest.mark.parametrize(
+        ("data", "expected"), [pytest.param(b'{"value":5}', 5, id="int"), pytest.param(b'{"value":"a"}', "a", id="str")]
+    )
+    def test_member_validation_pass(self, impl: Serializer, data: bytes, expected: int | str) -> None:
+        result = impl.load(WithUnionPositiveIntStr, data)
+        assert result == WithUnionPositiveIntStr(value=expected)
+
+    def test_member_validation_fail(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithUnionPositiveIntStr, b'{"value":-1}')
+        assert exc.value.messages == {"value": [["Invalid value."], ["Not a valid string."]]}
+
     def test_int(self, impl: Serializer) -> None:
         data = b'{"value":100}'
         result = impl.load(WithUnion, data)

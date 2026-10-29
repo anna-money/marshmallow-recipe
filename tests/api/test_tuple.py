@@ -14,6 +14,7 @@ from .conftest import (
     Address,
     CollectionHolder,
     OptionalTupleOf,
+    PositiveInt,
     Priority,
     Serializer,
     Status,
@@ -29,6 +30,11 @@ from .conftest import (
 
 
 class TestTupleDump:
+    def test_annotated_item_validation_fail(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(TupleOf[PositiveInt], TupleOf[PositiveInt](items=(-1,)))
+        assert exc.value.messages == {"items": {0: ["Invalid value."]}}
+
     @pytest.mark.parametrize(
         "schema_type,obj,expected",
         [
@@ -155,6 +161,15 @@ class TestTupleDump:
 
 
 class TestTupleLoad:
+    def test_annotated_item_validation_pass(self, impl: Serializer) -> None:
+        result = impl.load(TupleOf[PositiveInt], b'{"items":[1]}')
+        assert result == TupleOf[PositiveInt](items=(1,))
+
+    def test_annotated_item_validation_fail(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(TupleOf[PositiveInt], b'{"items":[-1]}')
+        assert exc.value.messages == {"items": {0: ["Invalid value."]}}
+
     @pytest.mark.parametrize(
         "schema_type,data,expected",
         [

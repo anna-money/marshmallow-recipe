@@ -25,6 +25,7 @@ from .conftest import (
     WithIntRequiredError,
     WithIntTwoValidators,
     WithIntValidation,
+    WithOptionalIntValidation,
 )
 
 
@@ -86,6 +87,11 @@ class TestIntDump:
     def test_none_handling_include(self, impl: Serializer) -> None:
         obj = OptionalValueOf[int](value=None)
         result = impl.dump(OptionalValueOf[int], obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
+        assert result == b'{"value":null}'
+
+    def test_none_skips_validation(self, impl: Serializer) -> None:
+        obj = WithOptionalIntValidation(value=None)
+        result = impl.dump(WithOptionalIntValidation, obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
         assert result == b'{"value":null}'
 
     def test_none_handling_include_with_value(self, impl: Serializer) -> None:
@@ -214,6 +220,10 @@ class TestIntDump:
 
 
 class TestIntLoad:
+    def test_none_skips_validation(self, impl: Serializer) -> None:
+        result = impl.load(WithOptionalIntValidation, b'{"value":null}')
+        assert result == WithOptionalIntValidation(value=None)
+
     @pytest.mark.parametrize(
         "value",
         [
