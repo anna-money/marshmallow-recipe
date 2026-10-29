@@ -33,8 +33,7 @@ class TestDictDump:
         obj = WithDictAnnotatedValueValidation(data={"a": 1, "b": 0})
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(WithDictAnnotatedValueValidation, obj)
-        if impl.supports_proper_validation_errors_on_dump:
-            assert exc.value.messages == {"data": {"b": {"value": ["Invalid value."]}}}
+        assert exc.value.messages == {"data": {"b": {"value": ["Invalid value."]}}}
 
     @pytest.mark.parametrize(
         ("schema_type", "obj", "expected"),

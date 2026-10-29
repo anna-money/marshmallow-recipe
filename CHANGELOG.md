@@ -1,3 +1,8 @@
+## v0.0.104 (2026-10-29)
+
+* [Fix nuked ignoring `validate=` on dict values and collection items](https://github.com/anna-money/marshmallow-recipe/pull/326)
+
+
 ## v0.0.103 (2026-09-05)
 
 * [Fix union member order in nuked cache](https://github.com/anna-money/marshmallow-recipe/pull/316)

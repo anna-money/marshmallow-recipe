@@ -160,8 +160,7 @@ class TestListDump:
         obj = WithListAnnotatedItemValidation(items=[1, 0, 3])
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(WithListAnnotatedItemValidation, obj)
-        if impl.supports_proper_validation_errors_on_dump:
-            assert exc.value.messages == {"items": {1: ["Invalid value."]}}
+        assert exc.value.messages == {"items": {1: ["Invalid value."]}}
 
     @pytest.mark.parametrize(
         ("obj", "expected"), [(WithListMissing(), b"{}"), (WithListMissing(items=[1, 2, 3]), b'{"items":[1,2,3]}')]
