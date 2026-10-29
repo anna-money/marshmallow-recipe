@@ -1,3 +1,8 @@
+## v0.0.105 (2026-10-29)
+
+* **Breaking:** [Key nuked validation errors by the serialised field name](https://github.com/anna-money/marshmallow-recipe/pull/327) — the `name=` override or the `naming_case` form, as `mr` does, instead of the Python attribute name
+
+
 ## v0.0.104 (2026-10-29)
 
 * [Fix nuked ignoring `validate=` on dict values and collection items](https://github.com/anna-money/marshmallow-recipe/pull/326)
