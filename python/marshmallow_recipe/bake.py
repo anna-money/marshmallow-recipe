@@ -353,7 +353,7 @@ def _get_field_for(
             validate_dict_key_type(arguments[0])
             keys_field = (
                 None
-                if arguments[0] is str
+                if arguments[0] is str or arguments[0] is Any
                 else _get_field_for(
                     arguments[0],
                     metadata=EMPTY_METADATA,

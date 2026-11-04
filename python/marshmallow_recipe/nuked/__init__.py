@@ -949,7 +949,7 @@ class _BuildContext:
             return None
         key_type = args[0]
         validate_dict_key_type(key_type)
-        if key_type is str:
+        if key_type is str or key_type is Any:
             return None
         return self.__build_key_field(key_type, naming_case)
 

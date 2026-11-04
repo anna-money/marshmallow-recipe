@@ -38,11 +38,14 @@ def validate_dict_key_type(t: Any) -> None:
     """Reject dict key types that cannot be represented as a JSON object key.
 
     JSON object keys are strings, so a key type is usable only when its field serialises
-    to a JSON scalar. Containers, nested dataclasses, ``Any``, unions and ``Optional``
-    have no key form and are rejected while the schema is built rather than on first dump.
-    A ``datetime`` key must use a format that produces a string, so ``format="timestamp"``
-    is rejected too, and an enum or ``Literal`` key must hold strings.
+    to a JSON scalar. Containers, nested dataclasses, unions and ``Optional`` have no key
+    form and are rejected while the schema is built rather than on first dump. A
+    ``datetime`` key must use a format that produces a string, so ``format="timestamp"``
+    is rejected too, and an enum or ``Literal`` key must hold strings. An ``Any`` key is
+    accepted and passed through unchecked, as an unsubscripted ``dict`` is.
     """
+    if t is Any:
+        return
     unwrapped = t
     datetime_format = None
     while True:
@@ -205,9 +208,9 @@ def _subscript_with_any(t: TypeLike) -> TypeLike:
     if t is frozenset:
         return frozenset[Any]
     if t is dict:
-        return dict[str, Any]
+        return dict[Any, Any]
     if t is Mapping:
-        return Mapping[str, Any]
+        return Mapping[Any, Any]
     if t is tuple:
         return tuple[Any, ...]
     return t

@@ -9,6 +9,7 @@ import dataclasses
 import datetime
 import decimal
 import uuid
+from typing import Any
 
 import marshmallow_recipe as mr
 
@@ -154,11 +155,25 @@ mr.dump(Invalid(data={}))
 ```
 
 Rejected key types: containers (`list`, `set`, `frozenset`, `tuple`, `dict`), nested
-dataclasses, `Any`, unions and `Optional`. A `datetime` key with `format="timestamp"` is
+dataclasses, unions and `Optional`. A `datetime` key with `format="timestamp"` is
 rejected too, because a timestamp is a number; use the default ISO format or a strftime
 format such as `mr.datetime_meta(format="%Y-%m-%d")`. An `IntEnum` key and a `Literal` key
 of non-string values such as `Literal[1, 2]` are rejected as well; use a `str` enum, or `int` with a
 validator, instead.
+
+An `Any` key, a `str` key and an unsubscripted `dict` or `Mapping` are not checked: keys are
+passed through as they are, by both backends. Annotate the key type to have it converted and
+validated.
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Loose:
+    data: dict[Any, str]
+
+
+mr.dump(Loose(data={1: "x"}))
+# {"data": {1: "x"}}  — the key is left as an int
+```
 
 ## collections.abc Types
 

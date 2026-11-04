@@ -1,4 +1,3 @@
-use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyString};
 
@@ -115,17 +114,18 @@ pub fn dump_to_py(
             }
         });
         let target_key = dumped_key.as_ref().unwrap_or(&k);
+        let key_repr: String;
         let key_str = match failed_key.as_deref() {
             Some(raw) => raw,
-            None => target_key
-                .cast::<PyString>()
-                .map_err(|_| {
-                    SerializationError::Single(
-                        intern!(py, "Dict key must be a string").clone().unbind(),
-                    )
-                })?
-                .to_str()
-                .map_err(|e| SerializationError::simple(py, &e.to_string()))?,
+            None => {
+                if let Ok(s) = target_key.cast::<PyString>() {
+                    s.to_str()
+                        .map_err(|e| SerializationError::simple(py, &e.to_string()))?
+                } else {
+                    key_repr = target_key.str().map(|s| s.to_string()).unwrap_or_default();
+                    key_repr.as_str()
+                }
+            }
         };
 
         if let Some(validator) = value_validator
