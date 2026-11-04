@@ -706,6 +706,31 @@ class WithListAnnotatedItemValidation:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalListItemValidation:
+    items: list[int | None] = dataclasses.field(metadata=mr.list_meta(validate_item=lambda x: x > 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalSetItemValidation:
+    items: set[int | None] = dataclasses.field(metadata=mr.set_meta(validate_item=lambda x: x > 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalFrozenSetItemValidation:
+    items: frozenset[int | None] = dataclasses.field(metadata=mr.frozenset_meta(validate_item=lambda x: x > 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalTupleItemValidation:
+    items: tuple[int | None, ...] = dataclasses.field(metadata=mr.tuple_meta(validate_item=lambda x: x > 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalSequenceItemValidation:
+    items: Sequence[int | None] = dataclasses.field(metadata=mr.sequence_meta(validate_item=lambda x: x > 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithListItemTwoValidators:
     items: list[int] = dataclasses.field(metadata=mr.list_meta(validate_item=[lambda x: x > 0, lambda x: x < 100]))
 

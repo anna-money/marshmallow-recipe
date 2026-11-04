@@ -20,6 +20,7 @@ from .conftest import (
     Status,
     TupleOf,
     WithAnnotatedTupleItemValidation,
+    WithOptionalTupleItemValidation,
     WithTupleInvalidError,
     WithTupleItemTwoValidators,
     WithTupleItemValidation,
@@ -161,6 +162,10 @@ class TestTupleDump:
 
 
 class TestTupleLoad:
+    def test_item_validation_skips_null(self, impl: Serializer) -> None:
+        result = impl.load(WithOptionalTupleItemValidation, b'{"items":[null,1]}')
+        assert result == WithOptionalTupleItemValidation(items=(None, 1))
+
     def test_annotated_item_validation_pass(self, impl: Serializer) -> None:
         result = impl.load(TupleOf[PositiveInt], b'{"items":[1]}')
         assert result == TupleOf[PositiveInt](items=(1,))

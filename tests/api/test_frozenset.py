@@ -23,6 +23,7 @@ from .conftest import (
     WithFrozenSetMissing,
     WithFrozenSetNoneError,
     WithFrozenSetRequiredError,
+    WithOptionalFrozenSetItemValidation,
 )
 
 
@@ -154,6 +155,10 @@ class TestFrozenSetDump:
 
 
 class TestFrozenSetLoad:
+    def test_item_validation_skips_null(self, impl: Serializer) -> None:
+        result = impl.load(WithOptionalFrozenSetItemValidation, b'{"items":[null,1]}')
+        assert result == WithOptionalFrozenSetItemValidation(items=frozenset({None, 1}))
+
     def test_annotated_item_validation_pass(self, impl: Serializer) -> None:
         result = impl.load(FrozenSetOf[PositiveInt], b'{"items":[1]}')
         assert result == FrozenSetOf[PositiveInt](items=frozenset({1}))

@@ -17,6 +17,7 @@ from .conftest import (
     SetOf,
     Status,
     WithAnnotatedSetItemValidation,
+    WithOptionalSetItemValidation,
     WithSetInvalidError,
     WithSetItemTwoValidators,
     WithSetItemValidation,
@@ -136,6 +137,10 @@ class TestSetDump:
 
 
 class TestSetLoad:
+    def test_item_validation_skips_null(self, impl: Serializer) -> None:
+        result = impl.load(WithOptionalSetItemValidation, b'{"items":[null,1]}')
+        assert result == WithOptionalSetItemValidation(items={None, 1})
+
     def test_annotated_item_validation_pass(self, impl: Serializer) -> None:
         result = impl.load(SetOf[PositiveInt], b'{"items":[1]}')
         assert result == SetOf[PositiveInt](items={1})

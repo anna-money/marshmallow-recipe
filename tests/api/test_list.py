@@ -34,6 +34,7 @@ from .conftest import (
     WithListPostLoad,
     WithListRequiredError,
     WithListStripWhitespace,
+    WithOptionalListItemValidation,
 )
 
 
@@ -258,6 +259,10 @@ class TestListDump:
 
 
 class TestListLoad:
+    def test_item_validation_skips_null(self, impl: Serializer) -> None:
+        result = impl.load(WithOptionalListItemValidation, b'{"items":[null,1]}')
+        assert result == WithOptionalListItemValidation(items=[None, 1])
+
     @pytest.mark.parametrize(
         ("schema_type", "data", "expected"),
         [
