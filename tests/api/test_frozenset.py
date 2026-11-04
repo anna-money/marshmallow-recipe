@@ -1,6 +1,7 @@
 import datetime
 import decimal
 import uuid
+from typing import Any
 
 import marshmallow
 import pytest
@@ -22,6 +23,7 @@ from .conftest import (
     WithFrozenSetMissing,
     WithFrozenSetNoneError,
     WithFrozenSetRequiredError,
+    WithOptionalFrozenSetItemValidation,
 )
 
 
@@ -153,6 +155,10 @@ class TestFrozenSetDump:
 
 
 class TestFrozenSetLoad:
+    def test_item_validation_skips_null(self, impl: Serializer) -> None:
+        result = impl.load(WithOptionalFrozenSetItemValidation, b'{"items":[null,1]}')
+        assert result == WithOptionalFrozenSetItemValidation(items=frozenset({None, 1}))
+
     def test_annotated_item_validation_pass(self, impl: Serializer) -> None:
         result = impl.load(FrozenSetOf[PositiveInt], b'{"items":[1]}')
         assert result == FrozenSetOf[PositiveInt](items=frozenset({1}))
@@ -329,3 +335,38 @@ class TestFrozenSetLoad:
     def test_missing(self, impl: Serializer, data: bytes, expected: WithFrozenSetMissing) -> None:
         result = impl.load(WithFrozenSetMissing, data)
         assert result == expected
+
+    def test_null_item_rejected(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(FrozenSetOf[int], b'{"items":[null]}')
+        assert exc.value.messages == {"items": {0: ["Field may not be null."]}}
+
+    def test_optional_item(self, impl: Serializer) -> None:
+        result = impl.load(FrozenSetOf[int | None], b'{"items":[1,null]}')
+        assert result == FrozenSetOf[int | None](items=frozenset({1, None}))
+
+
+class TestRootFrozenSetDump:
+    @pytest.mark.parametrize(
+        "schema_type", [pytest.param(frozenset[Any], id="any"), pytest.param(frozenset, id="unsubscripted")]
+    )
+    def test_value(self, impl: Serializer, schema_type: Any) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.dump(schema_type, frozenset({"a"}))
+            return
+        result = impl.dump(schema_type, frozenset({"a"}))
+        assert result == b'["a"]'
+
+
+class TestRootFrozenSetLoad:
+    @pytest.mark.parametrize(
+        "schema_type", [pytest.param(frozenset[Any], id="any"), pytest.param(frozenset, id="unsubscripted")]
+    )
+    def test_value(self, impl: Serializer, schema_type: Any) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.load(schema_type, b'["a"]')
+            return
+        result = impl.load(schema_type, b'["a"]')
+        assert result == frozenset({"a"})

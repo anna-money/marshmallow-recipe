@@ -9,6 +9,7 @@ import dataclasses
 import datetime
 import decimal
 import uuid
+from typing import Any
 
 import marshmallow_recipe as mr
 
@@ -106,19 +107,72 @@ product_dict = mr.dump(product)
 loaded_product = mr.load(Product, product_dict)
 ```
 
-## Dictionary with Complex Keys
+## Dictionary with Non-String Keys
 
-Date keys are automatically converted:
+JSON object keys are always strings, so a dict key is serialised to its string form and
+parsed back on load. This applies to both backends identically:
 
 ```python
-# Serialisation: datetime.date → str
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Report:
+    by_date: dict[datetime.date, decimal.Decimal]
+    by_id: dict[int, str]
+    enabled: dict[bool, str]
+
+
+report = Report(
+    by_date={datetime.date(2024, 1, 1): decimal.Decimal("100.00")},
+    by_id={42: "answer"},
+    enabled={True: "on"},
+)
+
+mr.dump(report)
 # {
-#     "2024-01-01": "100.00",
-#     "2024-02-01": "150.50"
+#     "by_date": {"2024-01-01": "100.00"},
+#     "by_id": {"42": "answer"},
+#     "enabled": {"true": "on"},
 # }
 
-# Deserialisation: str → datetime.date
-# Automatic conversion both ways
+mr.load(Report, mr.dump(report)) == report  # True
+```
+
+Only primitive types may be used as keys — those whose value has a string form:
+`str`, `int`, `float`, `bool`, `decimal.Decimal`, `uuid.UUID`, `bytes`,
+`datetime.datetime`, `datetime.date`, `datetime.time`, `str` enums and `Literal` of strings,
+optionally wrapped in `NewType`, a PEP 695 `type` alias or `Annotated`.
+
+Anything else raises `ValueError` when the schema is built, because it has no JSON key
+form:
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Invalid:
+    data: dict[Address, str]
+
+
+mr.dump(Invalid(data={}))
+# ValueError: Unsupported dict key t=<class 'Address'>
+```
+
+Rejected key types: containers (`list`, `set`, `frozenset`, `tuple`, `dict`), nested
+dataclasses, unions and `Optional`. A `datetime` key with `format="timestamp"` is
+rejected too, because a timestamp is a number; use the default ISO format or a strftime
+format such as `mr.datetime_meta(format="%Y-%m-%d")`. An `IntEnum` key and a `Literal` key
+of non-string values such as `Literal[1, 2]` are rejected as well; use a `str` enum, or `int` with a
+validator, instead.
+
+An `Any` key, a `str` key and an unsubscripted `dict` or `Mapping` are not checked: keys are
+passed through as they are, by both backends. Annotate the key type to have it converted and
+validated.
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Loose:
+    data: dict[Any, str]
+
+
+mr.dump(Loose(data={1: "x"}))
+# {"data": {1: "x"}}  — the key is left as an int
 ```
 
 ## collections.abc Types

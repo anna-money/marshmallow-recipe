@@ -80,6 +80,13 @@ pub fn load_from_py(
                     .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
                 return load_from_timestamp(py, f, invalid_error);
             }
+            if let Ok(py_str) = value.cast::<PyString>()
+                && let Ok(s) = py_str.to_str()
+                && let Ok(f) = s.trim().parse::<f64>()
+                && f.is_finite()
+            {
+                return load_from_timestamp(py, f, invalid_error);
+            }
         }
         DateTimeFormat::Strftime(chrono_fmt) => {
             if let Ok(py_str) = value.cast::<PyString>()

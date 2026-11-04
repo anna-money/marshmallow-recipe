@@ -1,6 +1,7 @@
 import datetime
 import decimal
 import uuid
+from typing import Any
 
 import marshmallow
 import pytest
@@ -16,6 +17,7 @@ from .conftest import (
     SetOf,
     Status,
     WithAnnotatedSetItemValidation,
+    WithOptionalSetItemValidation,
     WithSetInvalidError,
     WithSetItemTwoValidators,
     WithSetItemValidation,
@@ -135,6 +137,10 @@ class TestSetDump:
 
 
 class TestSetLoad:
+    def test_item_validation_skips_null(self, impl: Serializer) -> None:
+        result = impl.load(WithOptionalSetItemValidation, b'{"items":[null,1]}')
+        assert result == WithOptionalSetItemValidation(items={None, 1})
+
     def test_annotated_item_validation_pass(self, impl: Serializer) -> None:
         result = impl.load(SetOf[PositiveInt], b'{"items":[1]}')
         assert result == SetOf[PositiveInt](items={1})
@@ -288,3 +294,34 @@ class TestSetLoad:
     def test_missing(self, impl: Serializer, data: bytes, expected: WithSetMissing) -> None:
         result = impl.load(WithSetMissing, data)
         assert result == expected
+
+    def test_null_item_rejected(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(SetOf[int], b'{"items":[null]}')
+        assert exc.value.messages == {"items": {0: ["Field may not be null."]}}
+
+    def test_optional_item(self, impl: Serializer) -> None:
+        result = impl.load(SetOf[int | None], b'{"items":[1,null]}')
+        assert result == SetOf[int | None](items={1, None})
+
+
+class TestRootSetDump:
+    @pytest.mark.parametrize("schema_type", [pytest.param(set[Any], id="any"), pytest.param(set, id="unsubscripted")])
+    def test_value(self, impl: Serializer, schema_type: Any) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.dump(schema_type, {"a"})
+            return
+        result = impl.dump(schema_type, {"a"})
+        assert result == b'["a"]'
+
+
+class TestRootSetLoad:
+    @pytest.mark.parametrize("schema_type", [pytest.param(set[Any], id="any"), pytest.param(set, id="unsubscripted")])
+    def test_value(self, impl: Serializer, schema_type: Any) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.load(schema_type, b'["a"]')
+            return
+        result = impl.load(schema_type, b'["a"]')
+        assert result == {"a"}

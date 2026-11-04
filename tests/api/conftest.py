@@ -56,6 +56,24 @@ def _wrap_in_missing_mapping(value: Any) -> Any:
     return value
 
 
+def _assert_json_object(value: Any) -> None:
+    """Assert every mapping key in a dumped value is already a string.
+
+    ``json.dumps`` silently coerces int/float/bool/None keys, so a bytes-level
+    assertion cannot tell ``{1: "x"}`` from ``{"1": "x"}``. Serializers must produce
+    JSON-compatible output on their own.
+    """
+    stack = [value]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, dict):
+            for key, item in current.items():
+                assert isinstance(key, str), f"Non-str dict key {key!r} of type {type(key).__name__}"
+                stack.append(item)
+        elif isinstance(current, list):
+            stack.extend(current)
+
+
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 
@@ -83,6 +101,10 @@ class Serializer(abc.ABC):
         return True
 
     @abc.abstractmethod
+    def dump_raw[T](self, cls: type[T], obj: T) -> Any:
+        """Dump without JSON encoding, so keys ``json.dumps`` would coerce stay observable."""
+        raise NotImplementedError
+
     def dump[T](
         self,
         cls: type[T],
@@ -138,6 +160,9 @@ class MarshmallowSerializer(Serializer):
     def supports_proper_validation_errors_on_dump(self) -> bool:
         return False
 
+    def dump_raw[T](self, cls: type[T], obj: T) -> Any:
+        return mr.dump(cls, obj)
+
     def dump[T](
         self,
         cls: type[T],
@@ -150,6 +175,7 @@ class MarshmallowSerializer(Serializer):
         result = mr.dump(
             cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
+        _assert_json_object(result)
         return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def dump_many[T](
@@ -164,6 +190,7 @@ class MarshmallowSerializer(Serializer):
         result = mr.dump_many(
             cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
+        _assert_json_object(result)
         return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def load[T](
@@ -196,6 +223,9 @@ class NukedSerializer(Serializer):
     def supports_root_non_dataclasses(self) -> bool:
         return True
 
+    def dump_raw[T](self, cls: type[T], obj: T) -> Any:
+        return mr.nuked.dump(cls, obj)
+
     def dump[T](
         self,
         cls: type[T],
@@ -208,6 +238,7 @@ class NukedSerializer(Serializer):
         result = mr.nuked.dump(
             cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
+        _assert_json_object(result)
         return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def load[T](
@@ -267,6 +298,13 @@ class NukedSchemaSerializer(Serializer):
     def supports_root_type_alias_union(self) -> bool:
         return False
 
+    def dump_raw[T](self, cls: type[T], obj: T) -> Any:
+        dumped = mr.nuked.schema(cls).dump(obj)
+        if _MARSHMALLOW_VERSION_MAJOR >= 3:
+            return dumped
+        assert isinstance(dumped, marshmallow.MarshalResult)
+        return dumped.data  # type: ignore
+
     def dump[T](
         self,
         cls: type[T],
@@ -286,6 +324,7 @@ class NukedSchemaSerializer(Serializer):
             assert isinstance(dumped, marshmallow.MarshalResult)
             result = dumped.data  # type: ignore
 
+        _assert_json_object(result)
         return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def dump_many[T](
@@ -311,6 +350,7 @@ class NukedSchemaSerializer(Serializer):
             assert isinstance(dumped, marshmallow.MarshalResult)
             result = dumped.data  # type: ignore
 
+        _assert_json_object(result)
         return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def load[T](
@@ -663,6 +703,31 @@ class WithAnnotatedListItemValidation:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithListAnnotatedItemValidation:
     items: list[Annotated[int, mr.meta(validate=lambda x: x > 0)]]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalListItemValidation:
+    items: list[int | None] = dataclasses.field(metadata=mr.list_meta(validate_item=lambda x: x > 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalSetItemValidation:
+    items: set[int | None] = dataclasses.field(metadata=mr.set_meta(validate_item=lambda x: x > 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalFrozenSetItemValidation:
+    items: frozenset[int | None] = dataclasses.field(metadata=mr.frozenset_meta(validate_item=lambda x: x > 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalTupleItemValidation:
+    items: tuple[int | None, ...] = dataclasses.field(metadata=mr.tuple_meta(validate_item=lambda x: x > 0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalSequenceItemValidation:
+    items: Sequence[int | None] = dataclasses.field(metadata=mr.sequence_meta(validate_item=lambda x: x > 0))
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1393,6 +1458,64 @@ class WithDictInvalidError:
     data: dict[str, int] = dataclasses.field(metadata=mr.meta(invalid_error="Custom invalid message"))
 
 
+type TimestampDateTime = Annotated[datetime.datetime, mr.datetime_meta(format="timestamp")]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrKeyMinLength:
+    data: dict[Annotated[str, mr.str_meta(min_length=3)], int]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntKeyGte:
+    data: dict[Annotated[int, mr.int_meta(gte=10)], str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAsStringMetadataValue:
+    data: dict[str, Annotated[int, mr.Metadata({"as_string": True})]]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAsStringMetadataKey:
+    data: dict[Annotated[int, mr.Metadata({"as_string": False})], str]
+
+
+type AliasKey = int
+
+NewTypeKey = NewType("NewTypeKey", int)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAliasKey:
+    data: dict[AliasKey, str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithNewTypeKey:
+    data: dict[NewTypeKey, str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithAnnotatedIntKey:
+    data: dict[Annotated[int, mr.int_meta(gte=0)], str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrLiteralKey:
+    data: dict[Literal["a", "b"], str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBareDict:
+    data: dict
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBareMapping:
+    data: Mapping
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithMappingRequiredError:
     data: Mapping[str, int] = dataclasses.field(metadata=mr.meta(required_error="Custom required message"))
@@ -1440,6 +1563,11 @@ class WithDictValidation:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithDictAnnotatedValueValidation:
     data: dict[str, Annotated[int, mr.meta(validate=lambda x: x > 0)]]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDictAnnotatedKeyValidation:
+    data: dict[Annotated[int, mr.meta(validate=lambda x: x > 0)], str]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

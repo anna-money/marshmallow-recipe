@@ -1,3 +1,13 @@
+## v0.0.106 (2026-11-04)
+
+* [Support non-string `dict` keys in `mr.nuked` the same way as in `mr`](https://github.com/anna-money/marshmallow-recipe/pull/317), fixing the dict-key part of [#325](https://github.com/anna-money/marshmallow-recipe/issues/325)
+  * A typed `dict` key is dumped in its string form and parsed back on load, identically in both backends: `dict[int, V]` dumps as `{"1": ...}`, `dict[date, V]` as `{"2024-01-15": ...}`.
+  * A key type with no string form — containers, dataclasses, unions, `Optional`, `IntEnum`, non-string `Literal`, `datetime` with `format="timestamp"` — raises `ValueError` when the schema is built.
+  * `Any` keys, `str` keys and an unsubscripted `dict`/`Mapping` are not checked: keys pass through unchanged in both backends.
+  * `mr.nuked.load` rejects `null` as a `dict` value or collection item when the element type is not optional, as `mr` does.
+  * Smaller fixes along the way: `datetime` with `format="timestamp"` loads from a numeric string in every backend, `mr.nuked.load(int, None)` at the root is a validation error, and `mr.json_schema()` renders `NewType("UserId", int)` as `{"type": "integer"}`.
+
+
 ## v0.0.105 (2026-11-04)
 
 * [Key nuked validation errors by the serialised field name](https://github.com/anna-money/marshmallow-recipe/pull/327) — the `name=` override or the `naming_case` form, as `mr` does, instead of the Python attribute name

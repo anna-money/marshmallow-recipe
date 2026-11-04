@@ -75,6 +75,7 @@ pub enum FieldContainer {
     },
     Int {
         common: FieldCommon,
+        as_string: bool,
         gt: Option<RangeBound>,
         gte: Option<RangeBound>,
         lt: Option<RangeBound>,
@@ -82,6 +83,7 @@ pub enum FieldContainer {
     },
     Float {
         common: FieldCommon,
+        as_string: bool,
         gt: Option<RangeBound>,
         gte: Option<RangeBound>,
         lt: Option<RangeBound>,
@@ -89,6 +91,7 @@ pub enum FieldContainer {
     },
     Bool {
         common: FieldCommon,
+        as_string: bool,
     },
     Decimal {
         common: FieldCommon,
@@ -150,6 +153,7 @@ pub enum FieldContainer {
     },
     Dict {
         common: FieldCommon,
+        key: Option<Box<FieldContainer>>,
         value: Box<FieldContainer>,
         value_validator: Option<Py<PyAny>>,
     },
@@ -181,12 +185,14 @@ impl Clone for FieldContainer {
             },
             Self::Int {
                 common,
+                as_string,
                 gt,
                 gte,
                 lt,
                 lte,
             } => Self::Int {
                 common: common.clone(),
+                as_string: *as_string,
                 gt: gt.clone(),
                 gte: gte.clone(),
                 lt: lt.clone(),
@@ -194,19 +200,22 @@ impl Clone for FieldContainer {
             },
             Self::Float {
                 common,
+                as_string,
                 gt,
                 gte,
                 lt,
                 lte,
             } => Self::Float {
                 common: common.clone(),
+                as_string: *as_string,
                 gt: gt.clone(),
                 gte: gte.clone(),
                 lt: lt.clone(),
                 lte: lte.clone(),
             },
-            Self::Bool { common } => Self::Bool {
+            Self::Bool { common, as_string } => Self::Bool {
                 common: common.clone(),
+                as_string: *as_string,
             },
             Self::Decimal {
                 common,
@@ -297,10 +306,12 @@ impl Clone for FieldContainer {
             },
             Self::Dict {
                 common,
+                key,
                 value,
                 value_validator,
             } => Self::Dict {
                 common: common.clone(),
+                key: key.clone(),
                 value: value.clone(),
                 value_validator: value_validator.as_ref().map(|v| v.clone_ref(py)),
             },
@@ -326,7 +337,7 @@ impl FieldContainer {
             Self::Str { common, .. }
             | Self::Int { common, .. }
             | Self::Float { common, .. }
-            | Self::Bool { common }
+            | Self::Bool { common, .. }
             | Self::Decimal { common, .. }
             | Self::Date { common }
             | Self::Time { common }
@@ -471,13 +482,28 @@ impl Clone for PrimitiveContainer {
 pub enum TypeContainer {
     Dataclass(usize),
     Primitive(PrimitiveContainer),
-    List { item: Box<Self> },
-    Dict { value: Box<Self> },
-    Optional { inner: Box<Self> },
-    Set { item: Box<Self> },
-    FrozenSet { item: Box<Self> },
-    Tuple { item: Box<Self> },
-    Union { variants: Vec<Self> },
+    List {
+        item: Box<Self>,
+    },
+    Dict {
+        key: Option<Box<FieldContainer>>,
+        value: Box<Self>,
+    },
+    Optional {
+        inner: Box<Self>,
+    },
+    Set {
+        item: Box<Self>,
+    },
+    FrozenSet {
+        item: Box<Self>,
+    },
+    Tuple {
+        item: Box<Self>,
+    },
+    Union {
+        variants: Vec<Self>,
+    },
 }
 
 impl Clone for TypeContainer {
@@ -486,7 +512,8 @@ impl Clone for TypeContainer {
             Self::Dataclass(idx) => Self::Dataclass(*idx),
             Self::Primitive(p) => Self::Primitive(p.clone()),
             Self::List { item } => Self::List { item: item.clone() },
-            Self::Dict { value } => Self::Dict {
+            Self::Dict { key, value } => Self::Dict {
+                key: key.clone(),
                 value: value.clone(),
             },
             Self::Optional { inner } => Self::Optional {

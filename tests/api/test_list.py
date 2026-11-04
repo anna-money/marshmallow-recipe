@@ -34,6 +34,7 @@ from .conftest import (
     WithListPostLoad,
     WithListRequiredError,
     WithListStripWhitespace,
+    WithOptionalListItemValidation,
 )
 
 
@@ -258,6 +259,10 @@ class TestListDump:
 
 
 class TestListLoad:
+    def test_item_validation_skips_null(self, impl: Serializer) -> None:
+        result = impl.load(WithOptionalListItemValidation, b'{"items":[null,1]}')
+        assert result == WithOptionalListItemValidation(items=[None, 1])
+
     @pytest.mark.parametrize(
         ("schema_type", "data", "expected"),
         [
@@ -534,6 +539,11 @@ class TestListLoad:
             impl.load(schema_type, data)
         assert exc.value.messages == error_messages
 
+    def test_null_item_rejected(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(ListOf[int], b'{"items":[null]}')
+        assert exc.value.messages == {"items": {0: ["Field may not be null."]}}
+
 
 class TestRootListDump:
     @pytest.mark.parametrize(
@@ -567,6 +577,7 @@ class TestRootListDump:
             (list[dict[str, int]], [{"a": 1}, {"b": 2}], b'[{"a":1},{"b":2}]'),
             (list[int | None], [1, None, 2], b"[1,null,2]"),
             (list[Any], [1, "two", None], b'[1,"two",null]'),
+            (list, [1, "two", None], b'[1,"two",null]'),
             (list[int], [], b"[]"),
         ],
     )
@@ -611,6 +622,7 @@ class TestRootListLoad:
             (list[dict[str, int]], b'[{"a":1},{"b":2}]', [{"a": 1}, {"b": 2}]),
             (list[int | None], b"[1,null,2]", [1, None, 2]),
             (list[Any], b'[1,"two",null]', [1, "two", None]),
+            (list, b'[1,"two",null]', [1, "two", None]),
             (list[int], b"[]", []),
         ],
     )
@@ -621,6 +633,24 @@ class TestRootListLoad:
             return
         result = impl.load(schema_type, data)
         assert result == expected
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "error_messages"),
+        [
+            pytest.param(list[int], b"[null]", {0: ["Field may not be null."]}, id="null_item"),
+            pytest.param(list[list[int]], b"[[null]]", {0: {0: ["Field may not be null."]}}, id="null_nested_item"),
+        ],
+    )
+    def test_null_item_rejected(
+        self, impl: Serializer, schema_type: type, data: bytes, error_messages: dict[int, Any]
+    ) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.load(schema_type, data)
+            return
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(schema_type, data)
+        assert exc.value.messages == error_messages
 
 
 class TestListMetaValidation:

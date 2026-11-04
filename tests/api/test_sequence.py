@@ -18,6 +18,7 @@ from .conftest import (
     Serializer,
     Status,
     WithAnnotatedSequenceValidation,
+    WithOptionalSequenceItemValidation,
     WithSequenceInvalidError,
     WithSequenceMissing,
     WithSequenceNoneError,
@@ -174,6 +175,10 @@ class TestSequenceDump:
 
 
 class TestSequenceLoad:
+    def test_item_validation_skips_null(self, impl: Serializer) -> None:
+        result = impl.load(WithOptionalSequenceItemValidation, b'{"items":[null,1]}')
+        assert result == WithOptionalSequenceItemValidation(items=[None, 1])
+
     @pytest.mark.parametrize(
         ("schema_type", "data", "expected"),
         [

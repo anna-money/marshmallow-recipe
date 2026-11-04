@@ -20,6 +20,7 @@ from .conftest import (
     Status,
     TupleOf,
     WithAnnotatedTupleItemValidation,
+    WithOptionalTupleItemValidation,
     WithTupleInvalidError,
     WithTupleItemTwoValidators,
     WithTupleItemValidation,
@@ -161,6 +162,10 @@ class TestTupleDump:
 
 
 class TestTupleLoad:
+    def test_item_validation_skips_null(self, impl: Serializer) -> None:
+        result = impl.load(WithOptionalTupleItemValidation, b'{"items":[null,1]}')
+        assert result == WithOptionalTupleItemValidation(items=(None, 1))
+
     def test_annotated_item_validation_pass(self, impl: Serializer) -> None:
         result = impl.load(TupleOf[PositiveInt], b'{"items":[1]}')
         assert result == TupleOf[PositiveInt](items=(1,))
@@ -329,3 +334,34 @@ class TestTupleLoad:
     def test_missing(self, impl: Serializer, data: bytes, expected: WithTupleMissing) -> None:
         result = impl.load(WithTupleMissing, data)
         assert result == expected
+
+    def test_null_item_rejected(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(TupleOf[int], b'{"items":[null]}')
+        assert exc.value.messages == {"items": {0: ["Field may not be null."]}}
+
+
+class TestRootTupleDump:
+    @pytest.mark.parametrize(
+        "schema_type", [pytest.param(tuple[Any, ...], id="any"), pytest.param(tuple, id="unsubscripted")]
+    )
+    def test_value(self, impl: Serializer, schema_type: Any) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.dump(schema_type, (1, "two", None))
+            return
+        result = impl.dump(schema_type, (1, "two", None))
+        assert result == b'[1,"two",null]'
+
+
+class TestRootTupleLoad:
+    @pytest.mark.parametrize(
+        "schema_type", [pytest.param(tuple[Any, ...], id="any"), pytest.param(tuple, id="unsubscripted")]
+    )
+    def test_value(self, impl: Serializer, schema_type: Any) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.load(schema_type, b'[1,"two",null]')
+            return
+        result = impl.load(schema_type, b'[1,"two",null]')
+        assert result == (1, "two", None)
