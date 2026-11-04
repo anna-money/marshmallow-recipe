@@ -255,7 +255,7 @@ impl DataclassContainer {
                         let _ = result.set_item(dc_field.name_interned.bind(py), py_val);
                     }
                     Err(ref e) => {
-                        accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+                        accumulate_error(py, &mut errors, dc_field.data_key_interned.bind(py), e);
                     }
                 }
             }
@@ -263,10 +263,10 @@ impl DataclassContainer {
 
         for (idx, dc_field) in self.fields.iter().enumerate() {
             let common = dc_field.field.common();
-            if errors
-                .as_ref()
-                .is_some_and(|e| e.contains(dc_field.name_interned.bind(py)).unwrap_or(false))
-            {
+            if errors.as_ref().is_some_and(|e| {
+                e.contains(dc_field.data_key_interned.bind(py))
+                    .unwrap_or(false)
+            }) {
                 continue;
             }
             if !seen[idx] && dc_field.field_init {
@@ -277,11 +277,11 @@ impl DataclassContainer {
                     Ok(None) => push_required_error(
                         py,
                         &mut errors,
-                        dc_field.name_interned.bind(py),
+                        dc_field.data_key_interned.bind(py),
                         common,
                     ),
                     Err(ref e) => {
-                        accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+                        accumulate_error(py, &mut errors, dc_field.data_key_interned.bind(py), e);
                     }
                 }
             }
@@ -376,7 +376,7 @@ impl DataclassContainer {
                         field_values[idx] = Some(py_val);
                     }
                     Err(ref e) => {
-                        accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+                        accumulate_error(py, &mut errors, dc_field.data_key_interned.bind(py), e);
                     }
                 }
             }
@@ -384,10 +384,10 @@ impl DataclassContainer {
 
         for (idx, dc_field) in self.fields.iter().enumerate() {
             let common = dc_field.field.common();
-            if errors
-                .as_ref()
-                .is_some_and(|e| e.contains(dc_field.name_interned.bind(py)).unwrap_or(false))
-            {
+            if errors.as_ref().is_some_and(|e| {
+                e.contains(dc_field.data_key_interned.bind(py))
+                    .unwrap_or(false)
+            }) {
                 continue;
             }
             let py_value = if let Some(value) = field_values[idx].take() {
@@ -399,13 +399,13 @@ impl DataclassContainer {
                         push_required_error(
                             py,
                             &mut errors,
-                            dc_field.name_interned.bind(py),
+                            dc_field.data_key_interned.bind(py),
                             common,
                         );
                         continue;
                     }
                     Err(ref e) => {
-                        accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+                        accumulate_error(py, &mut errors, dc_field.data_key_interned.bind(py), e);
                         continue;
                     }
                 }
@@ -446,7 +446,7 @@ impl DataclassContainer {
                     accumulate_error(
                         py,
                         &mut errors,
-                        dc_field.name_interned.bind(py),
+                        dc_field.data_key_interned.bind(py),
                         &SerializationError::from_pyerr(py, &e),
                     );
                     continue;
@@ -462,13 +462,13 @@ impl DataclassContainer {
                         push_required_error(
                             py,
                             &mut errors,
-                            dc_field.name_interned.bind(py),
+                            dc_field.data_key_interned.bind(py),
                             common,
                         );
                         continue;
                     }
                     Err(ref e) => {
-                        accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+                        accumulate_error(py, &mut errors, dc_field.data_key_interned.bind(py), e);
                         continue;
                     }
                 }
@@ -479,7 +479,7 @@ impl DataclassContainer {
                     let _ = result.set_item(dc_field.name_interned.bind(py), val);
                 }
                 Err(ref e) => {
-                    accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+                    accumulate_error(py, &mut errors, dc_field.data_key_interned.bind(py), e);
                 }
             }
         }
@@ -535,7 +535,7 @@ impl DataclassContainer {
                     accumulate_error(
                         py,
                         &mut errors,
-                        dc_field.name_interned.bind(py),
+                        dc_field.data_key_interned.bind(py),
                         &SerializationError::from_pyerr(py, &e),
                     );
                     continue;
@@ -546,7 +546,7 @@ impl DataclassContainer {
                 match dc_field.field.load_from_py(registry, &v) {
                     Ok(val) => val,
                     Err(ref e) => {
-                        accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+                        accumulate_error(py, &mut errors, dc_field.data_key_interned.bind(py), e);
                         continue;
                     }
                 }
@@ -557,13 +557,13 @@ impl DataclassContainer {
                         push_required_error(
                             py,
                             &mut errors,
-                            dc_field.name_interned.bind(py),
+                            dc_field.data_key_interned.bind(py),
                             common,
                         );
                         continue;
                     }
                     Err(ref e) => {
-                        accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+                        accumulate_error(py, &mut errors, dc_field.data_key_interned.bind(py), e);
                         continue;
                     }
                 }
@@ -604,7 +604,7 @@ fn write_field_to_slot_or_attr<'py>(
         if !unsafe { set_slot_value_direct(instance, offset, py_value) } {
             let err_dict = errors.get_or_insert_with(|| PyDict::new(py));
             let _ = err_dict.set_item(
-                dc_field.name_interned.bind(py),
+                dc_field.data_key_interned.bind(py),
                 PyList::new(
                     py,
                     [intern!(py, "Failed to set slot value: null object pointer")],

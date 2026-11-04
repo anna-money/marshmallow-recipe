@@ -1,9 +1,36 @@
+import marshmallow
+import pytest
+
 import marshmallow_recipe as mr
 
-from .conftest import Address, Person, Serializer, WithCollections, WithCustomName, WithNestedList, WithSnakeCase
+from .conftest import (
+    Address,
+    Person,
+    Serializer,
+    WithCollections,
+    WithCustomName,
+    WithNestedList,
+    WithRenamedValidated,
+    WithSnakeCase,
+)
 
 
 class TestNamingDump:
+    @pytest.mark.parametrize(
+        ("naming_case", "error_messages"),
+        [
+            pytest.param(None, {"id": ["Invalid value."]}, id="custom_name"),
+            pytest.param(mr.CAMEL_CASE, {"id": ["Invalid value."]}, id="custom_name_camel_case"),
+        ],
+    )
+    def test_error_keys(
+        self, impl: Serializer, naming_case: mr.NamingCase | None, error_messages: dict[str, list[str]]
+    ) -> None:
+        obj = WithRenamedValidated(internal_id=-1, user_age=1)
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithRenamedValidated, obj, naming_case=naming_case)
+        assert exc.value.messages == error_messages
+
     def test_camel_case(self, impl: Serializer) -> None:
         obj = WithSnakeCase(first_name="John", last_name="Doe", email_address="john@example.com")
         result = impl.dump(WithSnakeCase, obj, naming_case=mr.CAMEL_CASE)
@@ -64,6 +91,43 @@ class TestNamingDump:
 
 
 class TestNamingLoad:
+    @pytest.mark.parametrize(
+        ("data", "naming_case", "error_messages"),
+        [
+            pytest.param(
+                b'{"id":"x","user_age":"y"}',
+                None,
+                {"id": ["Not a valid integer."], "user_age": ["Not a valid integer."]},
+                id="invalid_type",
+            ),
+            pytest.param(
+                b'{"id":"x","userAge":"y"}',
+                mr.CAMEL_CASE,
+                {"id": ["Not a valid integer."], "userAge": ["Not a valid integer."]},
+                id="invalid_type_camel_case",
+            ),
+            pytest.param(
+                b"{}",
+                mr.CAMEL_CASE,
+                {"id": ["Missing data for required field."], "userAge": ["Missing data for required field."]},
+                id="missing_camel_case",
+            ),
+            pytest.param(b'{"id":-1,"userAge":1}', mr.CAMEL_CASE, {"id": ["Invalid value."]}, id="validate_camel_case"),
+        ],
+    )
+    def test_error_keys(
+        self, impl: Serializer, data: bytes, naming_case: mr.NamingCase | None, error_messages: dict[str, list[str]]
+    ) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithRenamedValidated, data, naming_case=naming_case)
+        assert exc.value.messages == error_messages
+
+    def test_nested_error_keys_camel_case(self, impl: Serializer) -> None:
+        data = b'{"name":"Test","age":25,"address":{"street":"Main St","city":"NYC","zipCode":1}}'
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(Person, data, naming_case=mr.CAMEL_CASE)
+        assert exc.value.messages == {"address": {"zipCode": ["Not a valid string."]}}
+
     def test_camel_case(self, impl: Serializer) -> None:
         data = b'{"firstName":"Jane","lastName":"Smith","emailAddress":"jane@example.com"}'
         result = impl.load(WithSnakeCase, data, naming_case=mr.CAMEL_CASE)

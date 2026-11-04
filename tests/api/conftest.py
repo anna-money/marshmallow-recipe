@@ -504,6 +504,12 @@ class WithCustomName:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithRenamedValidated:
+    internal_id: int = dataclasses.field(metadata=mr.meta(name="id", validate=lambda x: x > 0))
+    user_age: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class GenericContainer[T]:
     items: list[T]
 

@@ -207,7 +207,7 @@ impl DataclassContainer {
                             .map_err(|e| SerializationError::simple(py, &e.to_string()))?;
                     }
                     Err(ref e) => {
-                        accumulate_error(py, &mut errors, dc_field.name_interned.bind(py), e);
+                        accumulate_error(py, &mut errors, dc_field.data_key_interned.bind(py), e);
                     }
                 }
             }
