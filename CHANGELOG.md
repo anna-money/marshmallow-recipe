@@ -1,10 +1,10 @@
 ## v0.0.106 (2026-11-04)
 
-* [Serialise non-string `dict` keys the same way in `mr` and `mr.nuked`](https://github.com/anna-money/marshmallow-recipe/pull/317), fixing the dict-key part of [#325](https://github.com/anna-money/marshmallow-recipe/issues/325)
-  * **Breaking:** a typed `dict` key is dumped in its string form and parsed back on load, identically in both backends: `dict[int, V]` dumps as `{"1": ...}`, `dict[date, V]` as `{"2024-01-15": ...}`. Previously `mr.dump` emitted native keys and `mr.nuked` neither converted nor validated them.
-  * **Breaking:** a key type with no string form — containers, dataclasses, unions, `Optional`, `IntEnum`, non-string `Literal`, `datetime` with `format="timestamp"` — raises `ValueError` when the schema is built.
+* [Support non-string `dict` keys in `mr.nuked` the same way as in `mr`](https://github.com/anna-money/marshmallow-recipe/pull/317), fixing the dict-key part of [#325](https://github.com/anna-money/marshmallow-recipe/issues/325)
+  * A typed `dict` key is dumped in its string form and parsed back on load, identically in both backends: `dict[int, V]` dumps as `{"1": ...}`, `dict[date, V]` as `{"2024-01-15": ...}`.
+  * A key type with no string form — containers, dataclasses, unions, `Optional`, `IntEnum`, non-string `Literal`, `datetime` with `format="timestamp"` — raises `ValueError` when the schema is built.
   * `Any` keys, `str` keys and an unsubscripted `dict`/`Mapping` are not checked: keys pass through unchanged in both backends.
-  * **Breaking:** `mr.nuked.load` rejects `null` as a `dict` value or collection item when the element type is not optional, as `mr` does.
+  * `mr.nuked.load` rejects `null` as a `dict` value or collection item when the element type is not optional, as `mr` does.
 
 
 ## v0.0.105 (2026-11-04)
