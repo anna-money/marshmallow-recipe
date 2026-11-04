@@ -1,6 +1,7 @@
 import datetime
 import decimal
 import uuid
+from typing import Any
 
 import marshmallow
 import pytest
@@ -338,3 +339,29 @@ class TestFrozenSetLoad:
     def test_optional_item(self, impl: Serializer) -> None:
         result = impl.load(FrozenSetOf[int | None], b'{"items":[1,null]}')
         assert result == FrozenSetOf[int | None](items=frozenset({1, None}))
+
+
+class TestRootFrozenSetDump:
+    @pytest.mark.parametrize(
+        "schema_type", [pytest.param(frozenset[Any], id="any"), pytest.param(frozenset, id="unsubscripted")]
+    )
+    def test_value(self, impl: Serializer, schema_type: Any) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.dump(schema_type, frozenset({"a"}))
+            return
+        result = impl.dump(schema_type, frozenset({"a"}))
+        assert result == b'["a"]'
+
+
+class TestRootFrozenSetLoad:
+    @pytest.mark.parametrize(
+        "schema_type", [pytest.param(frozenset[Any], id="any"), pytest.param(frozenset, id="unsubscripted")]
+    )
+    def test_value(self, impl: Serializer, schema_type: Any) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.load(schema_type, b'["a"]')
+            return
+        result = impl.load(schema_type, b'["a"]')
+        assert result == frozenset({"a"})

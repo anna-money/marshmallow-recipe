@@ -572,6 +572,7 @@ class TestRootListDump:
             (list[dict[str, int]], [{"a": 1}, {"b": 2}], b'[{"a":1},{"b":2}]'),
             (list[int | None], [1, None, 2], b"[1,null,2]"),
             (list[Any], [1, "two", None], b'[1,"two",null]'),
+            (list, [1, "two", None], b'[1,"two",null]'),
             (list[int], [], b"[]"),
         ],
     )
@@ -616,6 +617,7 @@ class TestRootListLoad:
             (list[dict[str, int]], b'[{"a":1},{"b":2}]', [{"a": 1}, {"b": 2}]),
             (list[int | None], b"[1,null,2]", [1, None, 2]),
             (list[Any], b'[1,"two",null]', [1, "two", None]),
+            (list, b'[1,"two",null]', [1, "two", None]),
             (list[int], b"[]", []),
         ],
     )

@@ -86,7 +86,12 @@ _UNCHECKED_KEY_TYPES = [
     pytest.param(CollectionHolder[Mapping], "items", id="generic_bare_mapping"),
 ]
 
-_UNCHECKED_ROOT_KEY_TYPES = [pytest.param(dict[Any, str], id="any"), pytest.param(dict[str, str], id="str")]
+_UNCHECKED_ROOT_KEY_TYPES = [
+    pytest.param(dict[Any, str], id="any"),
+    pytest.param(dict[str, str], id="str"),
+    pytest.param(dict, id="bare_dict"),
+    pytest.param(Mapping, id="bare_mapping"),
+]
 
 _UNSUPPORTED_KEY_CASES = [
     pytest.param(Address, id="dataclass"),

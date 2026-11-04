@@ -1,6 +1,7 @@
 import datetime
 import decimal
 import uuid
+from typing import Any
 
 import marshmallow
 import pytest
@@ -297,3 +298,25 @@ class TestSetLoad:
     def test_optional_item(self, impl: Serializer) -> None:
         result = impl.load(SetOf[int | None], b'{"items":[1,null]}')
         assert result == SetOf[int | None](items={1, None})
+
+
+class TestRootSetDump:
+    @pytest.mark.parametrize("schema_type", [pytest.param(set[Any], id="any"), pytest.param(set, id="unsubscripted")])
+    def test_value(self, impl: Serializer, schema_type: Any) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.dump(schema_type, {"a"})
+            return
+        result = impl.dump(schema_type, {"a"})
+        assert result == b'["a"]'
+
+
+class TestRootSetLoad:
+    @pytest.mark.parametrize("schema_type", [pytest.param(set[Any], id="any"), pytest.param(set, id="unsubscripted")])
+    def test_value(self, impl: Serializer, schema_type: Any) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.load(schema_type, b'["a"]')
+            return
+        result = impl.load(schema_type, b'["a"]')
+        assert result == {"a"}
