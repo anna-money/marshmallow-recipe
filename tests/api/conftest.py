@@ -101,6 +101,10 @@ class Serializer(abc.ABC):
         return True
 
     @abc.abstractmethod
+    def dump_raw[T](self, cls: type[T], obj: T) -> Any:
+        """Dump without JSON encoding, so keys ``json.dumps`` would coerce stay observable."""
+        raise NotImplementedError
+
     def dump[T](
         self,
         cls: type[T],
@@ -155,6 +159,9 @@ class MarshmallowSerializer(Serializer):
     @property
     def supports_proper_validation_errors_on_dump(self) -> bool:
         return False
+
+    def dump_raw[T](self, cls: type[T], obj: T) -> Any:
+        return mr.dump(cls, obj)
 
     def dump[T](
         self,
@@ -215,6 +222,9 @@ class NukedSerializer(Serializer):
     @property
     def supports_root_non_dataclasses(self) -> bool:
         return True
+
+    def dump_raw[T](self, cls: type[T], obj: T) -> Any:
+        return mr.nuked.dump(cls, obj)
 
     def dump[T](
         self,
@@ -287,6 +297,13 @@ class NukedSchemaSerializer(Serializer):
     @property
     def supports_root_type_alias_union(self) -> bool:
         return False
+
+    def dump_raw[T](self, cls: type[T], obj: T) -> Any:
+        dumped = mr.nuked.schema(cls).dump(obj)
+        if _MARSHMALLOW_VERSION_MAJOR >= 3:
+            return dumped
+        assert isinstance(dumped, marshmallow.MarshalResult)
+        return dumped.data  # type: ignore
 
     def dump[T](
         self,
@@ -1462,6 +1479,16 @@ class WithAnnotatedIntKey:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithStrLiteralKey:
     data: dict[Literal["a", "b"], str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBareDict:
+    data: dict
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithBareMapping:
+    data: Mapping
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

@@ -15,6 +15,7 @@ from .conftest import (
     Address,
     CollectionHolder,
     DictOf,
+    MappingOf,
     OptionalDictOf,
     Priority,
     Serializer,
@@ -24,6 +25,8 @@ from .conftest import (
     WithAnnotatedIntKey,
     WithAsStringMetadataKey,
     WithAsStringMetadataValue,
+    WithBareDict,
+    WithBareMapping,
     WithDictAnnotatedKeyValidation,
     WithDictAnnotatedValueValidation,
     WithDictInvalidError,
@@ -71,8 +74,21 @@ _KEY_CASES = [
     pytest.param(DictOf[Status, str], {Status.ACTIVE: "x"}, b'{"data":{"active":"x"}}', id="str_enum"),
 ]
 
+_UNCHECKED_KEYS: dict[Any, str] = {1: "a", None: "b", _KEY_UUID: "c", (1, 2): "d"}
+
+_UNCHECKED_KEY_TYPES = [
+    pytest.param(DictOf[Any, str], "data", id="any"),
+    pytest.param(DictOf[str, str], "data", id="str"),
+    pytest.param(MappingOf[Any, str], "data", id="mapping_any"),
+    pytest.param(WithBareDict, "data", id="bare_dict"),
+    pytest.param(WithBareMapping, "data", id="bare_mapping"),
+    pytest.param(CollectionHolder[dict], "items", id="generic_bare_dict"),
+    pytest.param(CollectionHolder[Mapping], "items", id="generic_bare_mapping"),
+]
+
+_UNCHECKED_ROOT_KEY_TYPES = [pytest.param(dict[Any, str], id="any"), pytest.param(dict[str, str], id="str")]
+
 _UNSUPPORTED_KEY_CASES = [
-    pytest.param(Any, id="any"),
     pytest.param(Address, id="dataclass"),
     pytest.param(list[int], id="list"),
     pytest.param(tuple[int, ...], id="tuple"),
@@ -422,6 +438,18 @@ class TestDictDump:
         schema_type = _with_unsupported_key(container, key_type)
         with pytest.raises(ValueError, match="Unsupported dict key"):
             impl.dump(schema_type, schema_type(data={}))
+
+    @pytest.mark.parametrize(("schema_type", "field"), _UNCHECKED_KEY_TYPES)
+    def test_unchecked_key_passed_through(self, impl: Serializer, schema_type: type, field: str) -> None:
+        result = impl.dump_raw(schema_type, schema_type(**{field: _UNCHECKED_KEYS}))
+        assert result == {field: _UNCHECKED_KEYS}
+
+    def test_unchecked_key_value_wrong_type(self, impl: Serializer) -> None:
+        obj = DictOf[Any, int](data={1: "x"})  # type: ignore[dict-item]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump_raw(DictOf[Any, int], obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"data": {"1": {"value": ["Not a valid integer."]}}}
 
     @pytest.mark.parametrize(
         ("schema_type", "data", "expected"),
@@ -779,6 +807,11 @@ class TestDictLoad:
         with pytest.raises(ValueError, match="Unsupported dict key"):
             impl.load(schema_type, b'{"data":{}}')
 
+    @pytest.mark.parametrize(("schema_type", "field"), _UNCHECKED_KEY_TYPES)
+    def test_unchecked_key(self, impl: Serializer, schema_type: type, field: str) -> None:
+        result = impl.load(schema_type, json.dumps({field: {"1": "a", "b": "c"}}).encode())
+        assert result == schema_type(**{field: {"1": "a", "b": "c"}})
+
 
 class TestRootDictDump:
     @pytest.mark.parametrize(
@@ -852,6 +885,15 @@ class TestRootDictDump:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(schema_type, obj)
         assert exc.value.messages == error_messages
+
+    @pytest.mark.parametrize("schema_type", _UNCHECKED_ROOT_KEY_TYPES)
+    def test_unchecked_key_passed_through(self, impl: Serializer, schema_type: Any) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.dump_raw(schema_type, _UNCHECKED_KEYS)
+            return
+        result = impl.dump_raw(schema_type, _UNCHECKED_KEYS)
+        assert result == _UNCHECKED_KEYS
 
 
 class TestRootDictLoad:
@@ -947,3 +989,12 @@ class TestRootDictLoad:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(schema_type, data)
         assert exc.value.messages == error_messages
+
+    @pytest.mark.parametrize("schema_type", _UNCHECKED_ROOT_KEY_TYPES)
+    def test_unchecked_key(self, impl: Serializer, schema_type: Any) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.load(schema_type, b'{"1":"a","b":"c"}')
+            return
+        result = impl.load(schema_type, b'{"1":"a","b":"c"}')
+        assert result == {"1": "a", "b": "c"}

@@ -979,7 +979,6 @@ def test_get_field_for_dict_key_serializes_to_str(key_type: type, value: Any, ex
 @pytest.mark.parametrize(
     "key_type",
     [
-        pytest.param(Any, id="any"),
         pytest.param(EmptyDataclass, id="dataclass"),
         pytest.param(list[int], id="list"),
         pytest.param(tuple[int, ...], id="tuple"),

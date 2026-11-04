@@ -1160,7 +1160,6 @@ def test_nullable_list_keeps_item_count_constraints(meta: Any, expected_extra: d
 @pytest.mark.parametrize(
     "key_type",
     [
-        pytest.param(Any, id="any"),
         pytest.param(_Address, id="dataclass"),
         pytest.param(list[int], id="list"),
         pytest.param(tuple[int, ...], id="tuple"),
@@ -1176,6 +1175,25 @@ def test_unsupported_dict_key(key_type: Any) -> None:
 
     with pytest.raises(ValueError, match="Unsupported dict key"):
         mr.json_schema(cls)
+
+
+@pytest.mark.parametrize(
+    ("field_type", "expected_property"),
+    [
+        pytest.param(dict[Any, int], {"type": "object", "additionalProperties": {"type": "integer"}}, id="any_key"),
+        pytest.param(dict, {"type": "object", "additionalProperties": {"type": "object"}}, id="bare_dict"),
+    ],
+)
+def test_unchecked_dict_key(field_type: Any, expected_property: dict[str, object]) -> None:
+    cls = dataclasses.make_dataclass("M", [("v", field_type)], frozen=True, slots=True, kw_only=True)
+
+    assert mr.json_schema(cls) == {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "title": "M",
+        "properties": {"v": expected_property},
+        "required": ["v"],
+    }
 
 
 _UserId = NewType("_UserId", int)
