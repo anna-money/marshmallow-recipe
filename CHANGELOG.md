@@ -11,6 +11,7 @@
   * `Any` accepts an explicit `null` in `mr.nuked`, both as a required field and as a `dict[str, Any]` value. A missing `Any` field still differs: `mr` fills in `None`, while `mr.nuked` reports `Missing data for required field.`
   * `datetime` with `format="timestamp"` now loads from a string such as `"1705314600.0"` in every backend. Previously only `mr` on marshmallow 3 accepted it. On marshmallow 2, an out-of-range value such as `1e300` now gives a `ValidationError` instead of an `OverflowError`.
   * `bool` fields are now built as `mr.BoolField`, a `marshmallow.fields.Boolean` subclass, so `mr.get_field_for(bool, ...)` returns it. It takes `as_string` like `marshmallow.fields.Int` and `Float`. The flag is set internally for `dict` keys and is not exposed through `mr.*_meta`.
+  * `mr.nuked` accepts an unsubscripted `dict`, `Mapping`, `list`, `set`, `frozenset` or `tuple` as the root type, reading it as its `Any`-subscripted form as a dataclass field already did. Previously `mr.nuked.dump(dict, ...)` and `mr.nuked.load(list, ...)` raised `NotImplementedError`.
   * `mr.json_schema()` now looks through `NewType`, so `NewType("UserId", int)` renders as `{"type": "integer"}` rather than `{"type": "object"}`.
 
 

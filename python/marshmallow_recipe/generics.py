@@ -146,7 +146,7 @@ def build_subscripted_type(t: TypeLike, type_var_map: TypeVarMap) -> TypeLike:
     if origin and isinstance(t, _GenericAlias):
         return _GenericAlias(origin, tuple(build_subscripted_type(x, type_var_map) for x in get_args(t)))
 
-    return _subscript_with_any(t)
+    return subscript_with_any(t)
 
 
 def get_class_type_var_map(t: TypeLike) -> ClassTypeVarMap:
@@ -200,7 +200,8 @@ def _get_orig_bases(t: Any) -> tuple[TypeLike, ...] | None:
     return getattr(t, "__orig_bases__", None)
 
 
-def _subscript_with_any(t: TypeLike) -> TypeLike:
+def subscript_with_any(t: TypeLike) -> TypeLike:
+    """Subscript an unsubscripted container with ``Any``, so bare ``dict`` reads as ``dict[Any, Any]``."""
     if t is list:
         return list[Any]
     if t is set:

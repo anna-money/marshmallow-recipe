@@ -29,7 +29,7 @@ import marshmallow
 
 from .. import NamingCase, _nuked as nuked  # type: ignore[attr-defined]
 from ..bake import bake_schema
-from ..generics import get_fields_type_map, validate_dict_key_type
+from ..generics import get_fields_type_map, subscript_with_any, validate_dict_key_type
 from ..hooks import get_pre_loads
 from ..missing import MISSING
 from ..options import NoneValueHandling, try_get_options_for
@@ -259,6 +259,7 @@ class _BuildContext:
     def build_root_type(self, cls: Any, naming_case: NamingCase | None) -> Any:
         while isinstance(cls, TypeAliasType):
             cls = cls.__value__
+        cls = subscript_with_any(cls)
         origin = get_origin(cls)
         args = get_args(cls)
 
