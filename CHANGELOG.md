@@ -1,4 +1,4 @@
-## v0.0.105 (2026-10-29)
+## v0.0.106 (2026-11-04)
 
 * **Breaking:** `dict[K, V]` with a non-string key is now serialised the same way by `mr` and `mr.nuked`. JSON object keys are strings, so a key is serialised to its string form and parsed back on load: `dict[int, V]` dumps as `{"1": ...}`, and `dict[bool, V]` as `{"true": ...}`. Previously `mr.dump` emitted native `int`/`float`/`bool` keys, producing output that was not JSON-compatible on its own, while `mr.nuked.dump` raised `Dict key must be a string` and `mr.nuked.load` returned raw string keys without parsing them. Key *constraints* such as `dict[Annotated[str, mr.str_meta(min_length=3)], V]` or `mr.int_meta(gte=10)` were silently ignored by `mr.nuked` and are now applied by both.
 * **Breaking:** only primitives may be used as a `dict` key — `str`, `int`, `float`, `bool`, `decimal.Decimal`, `uuid.UUID`, `bytes`, `datetime`/`date`/`time`, `str` enums and `Literal` of strings, optionally wrapped in `NewType`, a PEP 695 `type` alias or `Annotated`. Containers, nested dataclasses, `Any`, unions and `Optional` have no JSON key form and now raise `ValueError` when the schema is built rather than producing nonsense at dump time. So does a `datetime` key with `format="timestamp"`, which dumps a number: use the default ISO format or a strftime format for a `datetime` key. So does an enum key whose values are not strings, such as an `IntEnum`, and a `Literal` key of non-string values such as `Literal[1, 2]` or `Literal[True, False]`: use a `str` enum, or `int`/`bool` with a validator. An unsubscripted `dict` or `Mapping` annotation is read as `dict[str, Any]`, so its keys are still passed through unchecked and the two backends still disagree about a non-string key there — annotate the key type to get the behaviour above.
@@ -12,6 +12,11 @@
 * `datetime` with `format="timestamp"` no longer lets `OverflowError`/`OSError` escape on marshmallow 2 for out-of-range values such as `1e300`; they are reported as `ValidationError`, as they already were on marshmallow 3.
 * `bool` fields are now built as `mr.BoolField`, a `marshmallow.fields.Boolean` subclass that takes `as_string` like `marshmallow.fields.Int` and `Float` do; `mr.get_field_for(bool, ...)` returns it instead of `marshmallow.fields.Boolean`. `as_string` is set internally for `dict` keys and is not exposed through `mr.*_meta`.
 * `mr.json_schema()` now looks through `NewType`, so `NewType("UserId", int)` renders as `{"type": "integer"}` instead of falling back to `{"type": "object"}`.
+
+
+## v0.0.105 (2026-11-04)
+
+* [Key nuked validation errors by the serialised field name](https://github.com/anna-money/marshmallow-recipe/pull/327) — the `name=` override or the `naming_case` form, as `mr` does, instead of the Python attribute name
 
 
 ## v0.0.104 (2026-10-29)
