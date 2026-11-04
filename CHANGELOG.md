@@ -5,6 +5,7 @@
   * A key type with no string form — containers, dataclasses, unions, `Optional`, `IntEnum`, non-string `Literal`, `datetime` with `format="timestamp"` — raises `ValueError` when the schema is built.
   * `Any` keys, `str` keys and an unsubscripted `dict`/`Mapping` are not checked: keys pass through unchanged in both backends.
   * `mr.nuked.load` rejects `null` as a `dict` value or collection item when the element type is not optional, as `mr` does.
+  * Smaller fixes along the way: `datetime` with `format="timestamp"` loads from a numeric string in every backend, `mr.nuked.load(int, None)` at the root is a validation error, and `mr.json_schema()` renders `NewType("UserId", int)` as `{"type": "integer"}`.
 
 
 ## v0.0.105 (2026-11-04)
