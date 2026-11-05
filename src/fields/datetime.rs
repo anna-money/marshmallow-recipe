@@ -1,4 +1,4 @@
-use chrono::{DateTime, Duration, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{DateTime, Duration, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use pyo3::conversion::IntoPyObjectExt;
 use pyo3::exceptions::PyValueError;
 use pyo3::intern;
@@ -49,8 +49,17 @@ pub fn load_from_py(
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
 
-    if value.is_instance_of::<PyDateTime>() {
-        return Ok(value.clone().unbind());
+    if let Ok(dt) = value.cast::<PyDateTime>() {
+        if let Some(tzinfo) = dt.get_tzinfo()
+            && tzinfo
+                .is(PyTzInfo::utc(py)
+                    .map_err(|e| SerializationError::simple(py, &e.to_string()))?)
+        {
+            return Ok(value.clone().unbind());
+        }
+        return extract_datetime(value)
+            .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))
+            .and_then(|dt| to_utc_py(py, &dt, invalid_error));
     }
 
     match format {
@@ -65,10 +74,7 @@ pub fn load_from_py(
                 });
                 return dt
                     .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))
-                    .and_then(|dt| {
-                        dt.into_py_any(py)
-                            .map_err(|e| SerializationError::simple(py, &e.to_string()))
-                    });
+                    .and_then(|dt| to_utc_py(py, &dt, invalid_error));
             }
         }
         DateTimeFormat::Timestamp => {
@@ -93,9 +99,7 @@ pub fn load_from_py(
                 && let Ok(s) = py_str.to_str()
                 && let Some(dt) = parse_datetime_with_format(s, chrono_fmt)
             {
-                return dt
-                    .into_py_any(py)
-                    .map_err(|e| SerializationError::simple(py, &e.to_string()));
+                return to_utc_py(py, &dt, invalid_error);
             }
         }
     }
@@ -189,8 +193,15 @@ fn load_from_timestamp(
 ) -> Result<Py<PyAny>, SerializationError> {
     timestamp_to_datetime(timestamp)
         .ok_or_else(|| SerializationError::Single(invalid_error.clone_ref(py)))
-        .and_then(|dt| {
-            dt.into_py_any(py)
-                .map_err(|e| SerializationError::simple(py, &e.to_string()))
-        })
+        .and_then(|dt| to_utc_py(py, &dt, invalid_error))
+}
+
+fn to_utc_py(
+    py: Python,
+    dt: &DateTime<FixedOffset>,
+    invalid_error: &Py<PyString>,
+) -> Result<Py<PyAny>, SerializationError> {
+    dt.with_timezone(&Utc)
+        .into_py_any(py)
+        .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))
 }

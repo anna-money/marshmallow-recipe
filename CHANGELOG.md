@@ -1,3 +1,10 @@
+## v0.0.109 (2026-11-06)
+
+* [Convert a loaded `datetime` to UTC in `mr.nuked.load` the same way as in `mr`](https://github.com/anna-money/marshmallow-recipe/pull/329), fixing the offset part of [#325](https://github.com/anna-money/marshmallow-recipe/issues/325)
+  * A string with an offset, in the ISO format or a custom `format` with `%z`, loads as the same instant in UTC: `"2026-06-01T00:00:00+01:00"` loads as `2026-05-31T23:00:00+00:00`; before, `mr.nuked.load` kept a fixed `UTC+01:00` offset.
+  * A `datetime` object passed to `mr.nuked.load` is converted to UTC too, and a naive one gets UTC; before, it was returned unchanged. `mr.load` still rejects a `datetime` object.
+
+
 ## v0.0.108 (2026-11-06)
 
 * [Support Python 3.15](https://github.com/anna-money/marshmallow-recipe/pull/330)

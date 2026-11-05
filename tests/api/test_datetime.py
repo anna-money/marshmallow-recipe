@@ -591,6 +591,50 @@ class TestDatetimeLoad:
         result = impl.load(ValueOf[datetime.datetime], data)
         assert result == expected
 
+    @pytest.mark.parametrize(
+        ("data", "expected"),
+        [
+            pytest.param(b'{"value":"2026-06-01T00:00:00+01:00"}', "2026-05-31T23:00:00+00:00", id="london_summer"),
+            pytest.param(b'{"value":"2024-12-26T10:30:45-05:00"}', "2024-12-26T15:30:45+00:00", id="negative_offset"),
+            pytest.param(b'{"value":"2024-12-26T10:30:45+05:30"}', "2024-12-26T05:00:45+00:00", id="offset_minutes"),
+            pytest.param(b'{"value":"2024-12-26T10:30:45"}', "2024-12-26T10:30:45+00:00", id="naive"),
+        ],
+    )
+    def test_value_converted_to_utc(self, impl: Serializer, data: bytes, expected: str) -> None:
+        result = impl.load(ValueOf[datetime.datetime], data)
+        assert (result.value.isoformat(), result.value.tzinfo) == (expected, datetime.UTC)
+
+    def test_dumped_zoneinfo_loads_as_utc(self, impl: Serializer) -> None:
+        dumped = impl.dump(
+            ValueOf[datetime.datetime], ValueOf[datetime.datetime](value=datetime.datetime(2026, 6, 1, tzinfo=LONDON))
+        )
+        result = impl.load(ValueOf[datetime.datetime], dumped)
+        assert (result.value.isoformat(), result.value.tzinfo) == ("2026-05-31T23:00:00+00:00", datetime.UTC)
+
+    def test_format_with_timezone_converted_to_utc(self, impl: Serializer) -> None:
+        result = impl.load(WithDateTimeCustomFormatTimezone, b'{"created_at":"2026-06-01T00:00:00+0100"}')
+        assert (result.created_at.isoformat(), result.created_at.tzinfo) == ("2026-05-31T23:00:00+00:00", datetime.UTC)
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            pytest.param(datetime.datetime(2026, 6, 1, tzinfo=LONDON), "2026-05-31T23:00:00+00:00", id="zoneinfo"),
+            pytest.param(
+                datetime.datetime(2026, 6, 1, tzinfo=datetime.timezone(datetime.timedelta(hours=-5))),
+                "2026-06-01T05:00:00+00:00",
+                id="fixed_offset",
+            ),
+            pytest.param(
+                datetime.datetime(2026, 6, 1, tzinfo=CustomTzInfo()), "2026-05-31T22:00:00+00:00", id="custom"
+            ),
+            pytest.param(datetime.datetime(2026, 6, 1), "2026-06-01T00:00:00+00:00", id="naive"),
+            pytest.param(datetime.datetime(2026, 6, 1, tzinfo=datetime.UTC), "2026-06-01T00:00:00+00:00", id="utc"),
+        ],
+    )
+    def test_nuked_datetime_object_converted_to_utc(self, value: datetime.datetime, expected: str) -> None:
+        result = mr.nuked.load(ValueOf[datetime.datetime], {"value": value})
+        assert (result.value.isoformat(), result.value.tzinfo) == (expected, datetime.UTC)
+
     def test_format_date_only(self, impl: Serializer) -> None:
         data = b'{"scheduled_at":"2024/12/25"}'
         result = impl.load(WithDateTimeCustomFormat, data)
