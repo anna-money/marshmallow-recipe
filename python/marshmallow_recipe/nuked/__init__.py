@@ -333,7 +333,6 @@ class _BuildContext:
 
         for field in dataclasses.fields(origin):
             field_type = type_hints[field.name]
-            has_default = field.default is not dataclasses.MISSING or field.default_factory is not dataclasses.MISSING
             default_value = field.default if field.default is not dataclasses.MISSING else dataclasses.MISSING
             default_factory = field.default_factory if field.default_factory is not dataclasses.MISSING else None
 
@@ -343,7 +342,6 @@ class _BuildContext:
                 field_type,
                 field.metadata,
                 opts.effective_naming_case,
-                has_default,
                 default_value=default_value,
                 default_factory=default_factory,
                 field_init=field.init,
@@ -403,7 +401,6 @@ class _BuildContext:
         field_type: Any,
         metadata: Mapping[str, Any] | None,
         naming_case: NamingCase | None,
-        has_default: bool,
         default_value: Any = dataclasses.MISSING,
         default_factory: Callable[[], Any] | None = None,
         field_init: bool = True,
@@ -411,7 +408,7 @@ class _BuildContext:
         nested_naming_case: NamingCase | None = None,
         as_string: bool = False,
     ) -> tuple[Any, str | None]:
-        optional = has_default
+        optional = False
         data_key = None
         strip_whitespaces = False
         decimal_places: int | None = None
@@ -939,7 +936,6 @@ class _BuildContext:
             field_type,
             None,
             naming_case,
-            False,
             default_decimal_places=self.__decimal_places,
             nested_naming_case=naming_case,
         )
@@ -961,7 +957,6 @@ class _BuildContext:
             field_type,
             None,
             naming_case,
-            False,
             default_decimal_places=self.__decimal_places,
             nested_naming_case=naming_case,
             as_string=True,
@@ -975,7 +970,6 @@ class _BuildContext:
             field_type,
             None,
             naming_case,
-            False,
             default_decimal_places=self.__decimal_places,
             nested_naming_case=naming_case,
         )

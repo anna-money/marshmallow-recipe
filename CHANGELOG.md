@@ -1,3 +1,10 @@
+## v0.0.107 (2026-11-05)
+
+* Reject `null` for a field with a default in `mr.nuked.load` the same way as in `mr`
+  * A field whose type is not optional loads `null` as `Field may not be null.` whether or not it has a default; before, `mr.nuked.load` put `None` into it.
+  * A `strip_whitespaces` `str` field with a default loads and dumps a blank string as `""`, as `mr` does, instead of `None`.
+
+
 ## v0.0.106 (2026-11-04)
 
 * [Support non-string `dict` keys in `mr.nuked` the same way as in `mr`](https://github.com/anna-money/marshmallow-recipe/pull/317), fixing the dict-key part of [#325](https://github.com/anna-money/marshmallow-recipe/issues/325)

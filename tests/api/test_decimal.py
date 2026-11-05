@@ -1081,6 +1081,11 @@ class TestDecimalLoad:
             impl.load(DC, data)
         assert exc.value.messages == expected_messages
 
+    def test_null_with_default(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDecimalDefault, b'{"value":null}')
+        assert exc.value.messages == {"value": ["Field may not be null."]}
+
 
 class TestDecimalNoPlaces:
     @pytest.mark.parametrize(

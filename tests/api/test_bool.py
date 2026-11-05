@@ -185,6 +185,11 @@ class TestBoolLoad:
         result = impl.load(WithBoolMissing, data)
         assert result == expected
 
+    def test_null_with_default(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithBoolDefault, b'{"value":null}')
+        assert exc.value.messages == {"value": ["Field may not be null."]}
+
 
 class TestBoolDumpInvalidType:
     """Test that invalid types in bool fields raise ValidationError on dump."""

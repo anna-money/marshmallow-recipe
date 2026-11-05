@@ -1085,6 +1085,11 @@ class WithStrDefault:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrStripWhitespaceDefault:
+    value: str = dataclasses.field(default="default", metadata=mr.str_meta(strip_whitespaces=True))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithIntDefault:
     value: int = 42
 

@@ -297,6 +297,11 @@ class TestStrLiteralLoad:
             impl.load(WithStrLiteralInvalidError, data)
         assert exc.value.messages == {"value": ["Custom invalid message"]}
 
+    def test_null_with_default(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrLiteralDefault, b'{"value":null}')
+        assert exc.value.messages == {"value": ["Field may not be null."]}
+
 
 class TestIntLiteralLoad:
     def test_value(self, impl: Serializer) -> None:
@@ -381,6 +386,11 @@ class TestIntLiteralLoad:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithIntLiteralInvalidError, data)
         assert exc.value.messages == {"value": ["Custom invalid message"]}
+
+    def test_null_with_default(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithIntLiteralDefault, b'{"value":null}')
+        assert exc.value.messages == {"value": ["Field may not be null."]}
 
 
 class TestBoolLiteralLoad:
@@ -476,6 +486,11 @@ class TestBoolLiteralLoad:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithBoolLiteralInvalidError, data)
         assert exc.value.messages == {"value": ["Custom invalid message"]}
+
+    def test_null_with_default(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithBoolLiteralDefault, b'{"value":null}')
+        assert exc.value.messages == {"value": ["Field may not be null."]}
 
 
 class TestUnsupportedLiterals:
@@ -683,6 +698,11 @@ class TestStrEnumLiteralLoad:
             impl.load(WithStrEnumLiteralInvalidError, data)
         assert exc.value.messages == {"value": ["Custom invalid message"]}
 
+    def test_null_with_default(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrEnumLiteralDefault, b'{"value":null}')
+        assert exc.value.messages == {"value": ["Field may not be null."]}
+
 
 class TestIntEnumLiteralDump:
     def test_value(self, impl: Serializer) -> None:
@@ -840,6 +860,11 @@ class TestIntEnumLiteralLoad:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(WithIntEnumLiteralInvalidError, data)
         assert exc.value.messages == {"value": ["Custom invalid message"]}
+
+    def test_null_with_default(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithIntEnumLiteralDefault, b'{"value":null}')
+        assert exc.value.messages == {"value": ["Field may not be null."]}
 
 
 class TestLegacyStrEnumLiteralDump:
