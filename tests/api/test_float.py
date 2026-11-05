@@ -555,6 +555,11 @@ class TestFloatLoad:
         result = impl.load(DC, b'{"value":null}')
         assert result == DC(value=None)
 
+    def test_null_with_default(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithFloatDefault, b'{"value":null}')
+        assert exc.value.messages == {"value": ["Field may not be null."]}
+
 
 class TestFloatMetaValidation:
     @pytest.mark.parametrize("bound_name", ["gt", "gte", "lt", "lte"])

@@ -20,6 +20,7 @@ from .conftest import (
     Serializer,
     Status,
     WithAnnotatedListItemValidation,
+    WithDefaults,
     WithListAnnotatedItemValidation,
     WithListInvalidError,
     WithListItemTwoValidators,
@@ -543,6 +544,11 @@ class TestListLoad:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(ListOf[int], b'{"items":[null]}')
         assert exc.value.messages == {"items": {0: ["Field may not be null."]}}
+
+    def test_null_with_default(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDefaults, b'{"name":"n","items":null}')
+        assert exc.value.messages == {"items": ["Field may not be null."]}
 
 
 class TestRootListDump:

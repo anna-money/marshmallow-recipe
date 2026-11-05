@@ -17,6 +17,7 @@ from .conftest import (
     SetOf,
     Status,
     WithAnnotatedSetItemValidation,
+    WithDefaults,
     WithOptionalSetItemValidation,
     WithSetInvalidError,
     WithSetItemTwoValidators,
@@ -303,6 +304,11 @@ class TestSetLoad:
     def test_optional_item(self, impl: Serializer) -> None:
         result = impl.load(SetOf[int | None], b'{"items":[1,null]}')
         assert result == SetOf[int | None](items={1, None})
+
+    def test_null_with_default(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithDefaults, b'{"name":"n","tags":null}')
+        assert exc.value.messages == {"tags": ["Field may not be null."]}
 
 
 class TestRootSetDump:

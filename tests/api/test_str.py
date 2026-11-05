@@ -25,6 +25,7 @@ from .conftest import (
     WithStrMissing,
     WithStrNoneError,
     WithStrRequiredError,
+    WithStrStripWhitespaceDefault,
     WithStrTwoValidators,
     WithStrValidation,
 )
@@ -203,6 +204,10 @@ class TestStrDump:
             impl.dump(schema_type, obj)
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == error_messages
+
+    def test_strip_whitespaces_blank_with_default(self, impl: Serializer) -> None:
+        result = impl.dump(WithStrStripWhitespaceDefault, WithStrStripWhitespaceDefault(value="   "))
+        assert result == b'{"value":""}'
 
 
 class TestStrLoad:
@@ -412,6 +417,15 @@ class TestStrLoad:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.load(schema_type, data)
         assert exc.value.messages == error_messages
+
+    def test_null_with_default(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithStrDefault, b'{"value":null}')
+        assert exc.value.messages == {"value": ["Field may not be null."]}
+
+    def test_strip_whitespaces_blank_with_default(self, impl: Serializer) -> None:
+        result = impl.load(WithStrStripWhitespaceDefault, b'{"value":"   "}')
+        assert result == WithStrStripWhitespaceDefault(value="")
 
 
 class TestStrMetaValidation:

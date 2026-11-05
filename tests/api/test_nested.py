@@ -158,6 +158,11 @@ class TestNestedLoad:
         result = impl.load(WithNestedDefault, data)
         assert result == WithNestedDefault()
 
+    def test_null_with_default(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.load(WithNestedDefault, b'{"int_container":null}')
+        assert exc.value.messages == {"int_container": ["Field may not be null."]}
+
 
 class TestCyclicLoad:
     def test_cyclic_self_reference_none(self, impl: Serializer) -> None:
