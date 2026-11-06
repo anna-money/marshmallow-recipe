@@ -9,12 +9,12 @@ env:
   RUSTUP_INIT: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --component clippy --component rustfmt
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.13", "3.14"]
+        python-version: ["3.12", "3.13", "3.14", "3.15"]
         combo:
           - {marshmallow: "marshmallow==2.20.5", webargs: "webargs>=6,<7"}
           - {marshmallow: "marshmallow[reco]==2.20.5", webargs: "webargs>=6,<7"}
@@ -38,24 +38,26 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-24.04
+          - os: ubuntu-26.04
             target: x86_64-unknown-linux-gnu
             manylinux: "2_28"
-          - os: ubuntu-24.04-arm
+          - os: ubuntu-26.04-arm
             target: aarch64-unknown-linux-gnu
             manylinux: "2_28"
-          - os: ubuntu-24.04
+          - os: ubuntu-26.04
             target: x86_64-unknown-linux-musl
             manylinux: musllinux_1_2
-          - os: ubuntu-24.04-arm
+          - os: ubuntu-26.04-arm
             target: aarch64-unknown-linux-musl
             manylinux: musllinux_1_2
-          - os: macos-14
+          - os: macos-26
             target: aarch64-apple-darwin
             manylinux: "auto"
-          - os: macos-15-intel
+            macosx-deployment-target: "11.0"
+          - os: macos-26-intel
             target: x86_64-apple-darwin
             manylinux: "auto"
+            macosx-deployment-target: "10.12"
     steps:
       - uses: actions/checkout@v6
       - name: Set version from tag
@@ -63,12 +65,18 @@ jobs:
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           sed -i.bak "s/^version = .*/version = \"$VERSION\"/" Cargo.toml && rm Cargo.toml.bak
+      - uses: actions/setup-python@v6
+        if: runner.os == 'macOS'
+        with:
+          python-version: "3.15"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
+        env:
+          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macosx-deployment-target }}
         with:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
-          args: --release --out dist -i python3.12 -i python3.13 -i python3.14
+          args: --release --out dist -i python3.12 -i python3.13 -i python3.14 -i python3.15
       - uses: actions/upload-artifact@v4
         if: startsWith(github.ref, 'refs/tags/v')
         with:
@@ -81,31 +89,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-24.04
-            python-version: "3.12"
-          - os: ubuntu-24.04
-            python-version: "3.13"
-          - os: ubuntu-24.04
-            python-version: "3.14"
-          - os: ubuntu-24.04-arm
-            python-version: "3.12"
-          - os: ubuntu-24.04-arm
-            python-version: "3.13"
-          - os: ubuntu-24.04-arm
-            python-version: "3.14"
-          - os: macos-14
-            python-version: "3.12"
-          - os: macos-14
-            python-version: "3.13"
-          - os: macos-14
-            python-version: "3.14"
-          - os: macos-15-intel
-            python-version: "3.12"
-          - os: macos-15-intel
-            python-version: "3.13"
-          - os: macos-15-intel
-            python-version: "3.14"
+        os: [ubuntu-26.04, ubuntu-26.04-arm, macos-26, macos-26-intel]
+        python-version: ["3.12", "3.13", "3.14", "3.15"]
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
@@ -119,7 +104,7 @@ jobs:
       - run: uv pip install marshmallow-recipe --find-links dist --no-index --no-deps
       - run: uv run --no-sync python -c "import marshmallow_recipe"
   sdist:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
@@ -137,7 +122,7 @@ jobs:
           path: dist/*.tar.gz
   publish:
     needs: [test, build, sdist, test-wheel]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: astral-sh/setup-uv@v7
