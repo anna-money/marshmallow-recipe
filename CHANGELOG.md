@@ -1,7 +1,6 @@
 ## v0.0.108 (2026-11-06)
 
 * [Support Python 3.15](https://github.com/anna-money/marshmallow-recipe/pull/330)
-  * Wheels are built and tested for CPython 3.15, and CI runs the full test matrix on it.
   * CI runs on pinned `ubuntu-26.04`, `ubuntu-26.04-arm`, `macos-26` and `macos-26-intel` runners, since GitHub retired `macos-14`; macOS wheels set `MACOSX_DEPLOYMENT_TARGET` explicitly (11.0 for arm64, 10.12 for x86_64), keeping their current platform tags.
 
 
