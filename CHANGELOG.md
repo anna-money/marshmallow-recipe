@@ -1,6 +1,6 @@
 ## v0.0.111 (2026-11-09)
 
-* [Run dump validators on the loaded-back value in `mr.nuked.dump` the same way as in `mr`](https://github.com/anna-money/marshmallow-recipe/pulls), part of [#332](https://github.com/anna-money/marshmallow-recipe/issues/332)
+* [Run dump validators on the loaded-back value in `mr.nuked.dump` the same way as in `mr`](https://github.com/anna-money/marshmallow-recipe/pull/335), part of [#332](https://github.com/anna-money/marshmallow-recipe/issues/332)
   * `mr.dump` validates `load(dump(obj))`, so `validate` and `validate_item` see the value as it would load back. `mr.nuked.dump` passed the raw attribute instead, before stripping, rounding or converting it.
   * `str_meta(strip_whitespaces=True, validate=mr.email_validate())` dumps `" a@b.co "` as `"a@b.co"`; before, `mr.nuked.dump` raised `Not a valid email address.`. A `str | None` field that strips to `None` skips its validator.
   * A validator sees the `post_load` result of a `str`, a naive or offset `datetime` as UTC, a `datetime` in a `date` field as a `date`, a `Decimal` after `rounding`, a nested dataclass rebuilt from its dumped fields, and a `list`, `set`, `frozenset`, `tuple`, `dict` or union value as it loads back.
