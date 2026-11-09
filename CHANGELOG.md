@@ -1,3 +1,8 @@
+## v0.0.110 (2026-11-09)
+
+* [Name the `mr.nuked.schema` class after the dataclass, as `mr.schema` does](https://github.com/anna-money/marshmallow-recipe/pull/331), fixing [#318](https://github.com/anna-money/marshmallow-recipe/issues/318): it was always `_NukedSchema`, so apispec named every definition `_Nuked`, `_Nuked1`, …
+
+
 ## v0.0.109 (2026-11-06)
 
 * [Convert a loaded `datetime` to UTC in `mr.nuked.load` the same way as in `mr`](https://github.com/anna-money/marshmallow-recipe/pull/329), fixing the offset part of [#325](https://github.com/anna-money/marshmallow-recipe/issues/325)
