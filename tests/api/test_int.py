@@ -8,9 +8,14 @@ import marshmallow_recipe as mr
 from .conftest import (
     DictOf,
     FrozenSetOf,
+    IntDiscriminator,
+    IntFlagValue,
+    IntSubclass,
+    IntSubclassWithDunders,
     ListOf,
     OptionalValueOf,
     Person,
+    Priority,
     Serializer,
     SetOf,
     TupleOf,
@@ -19,6 +24,8 @@ from .conftest import (
     WithAnnotatedIntNoneError,
     WithAnnotatedIntRequiredError,
     WithIntDefault,
+    WithIntExactTypeValidation,
+    WithIntGte,
     WithIntInvalidError,
     WithIntMissing,
     WithIntNoneError,
@@ -26,6 +33,7 @@ from .conftest import (
     WithIntTwoValidators,
     WithIntValidation,
     WithOptionalIntValidation,
+    exactly,
 )
 
 
@@ -217,6 +225,30 @@ class TestIntDump:
 
         result = impl.dump(DC, DC(value=None))
         assert result == b"{}"
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param(IntDiscriminator.TWO, id="int_enum"),
+            pytest.param(Priority.MEDIUM, id="int_mixin_enum"),
+            pytest.param(IntFlagValue.TWO, id="int_flag"),
+            pytest.param(IntSubclass(2), id="subclass"),
+            pytest.param(IntSubclassWithDunders(2), id="subclass_overriding_int"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "schema_type",
+        [
+            pytest.param(ValueOf[int], id="plain"),
+            pytest.param(OptionalValueOf[int], id="optional"),
+            pytest.param(WithIntGte, id="gte"),
+            pytest.param(WithIntValidation, id="validator"),
+            pytest.param(WithIntExactTypeValidation, id="validator_sees_exact_int"),
+        ],
+    )
+    def test_subclass_dumped_as_exact_int(self, impl: Serializer, schema_type: type, value: int) -> None:
+        result = impl.dump_raw(schema_type, schema_type(value=value))
+        assert exactly(result) == exactly({"value": 2})
 
 
 class TestIntLoad:

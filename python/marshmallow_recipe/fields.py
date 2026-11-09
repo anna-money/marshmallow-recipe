@@ -251,7 +251,7 @@ def int_field(
     if lte is not None:
         validate = combine_validators(validate, Range(max=lte, max_inclusive=True, error=lte_error))
     if default is m.missing:
-        field = m.fields.Int(
+        field = IntField(
             as_string=as_string,
             allow_none=allow_none,
             validate=validate,
@@ -265,7 +265,7 @@ def int_field(
     elif required:
         if default is None:
             raise ValueError("Default value cannot be none")
-        field = m.fields.Int(
+        field = IntField(
             as_string=as_string,
             required=True,
             allow_none=allow_none,
@@ -277,7 +277,7 @@ def int_field(
             ),
         )
     else:
-        field = m.fields.Int(
+        field = IntField(
             as_string=as_string,
             allow_none=allow_none,
             validate=validate,
@@ -1207,6 +1207,37 @@ def build_uuid_error_messages(
     return error_messages if error_messages else None
 
 
+def exact_str(value: Any) -> Any:
+    """Return a ``str`` subclass instance (e.g. a ``StrEnum`` member) as an exact ``str`` of its stored characters.
+
+    ``str.__str__`` copies the data without dispatching to an overridden ``__str__``; any other value is returned as is.
+    """
+    if isinstance(value, str):
+        return str.__str__(value)
+    return value
+
+
+def exact_int(value: Any) -> Any:
+    """Return an ``int`` subclass instance (e.g. an ``IntEnum`` member) as an exact ``int`` of its stored value.
+
+    ``int.__int__`` copies the value without dispatching to an overridden ``__int__``; ``bool`` and any other value
+    are returned as is.
+    """
+    if isinstance(value, int) and not isinstance(value, bool):
+        return int.__int__(value)
+    return value
+
+
+def exact_number(value: Any) -> Any:
+    """Return a ``float`` or ``int`` subclass instance as an exact ``float`` or ``int`` of its stored value.
+
+    ``float.__float__`` copies the value without dispatching to an overridden ``__float__``; see ``exact_int``.
+    """
+    if isinstance(value, float):
+        return float.__float__(value)
+    return exact_int(value)
+
+
 if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     def with_type_checks_on_serialize_v3[TField: m.fields.Field](
@@ -1279,7 +1310,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             self.strip_whitespaces = strip_whitespaces
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
-            result = super()._serialize(value, attr, obj, **kwargs)
+            result = super()._serialize(exact_str(value), attr, obj, **kwargs)
             if self.strip_whitespaces and result is not None:
                 result = result.strip()
                 if self.allow_none and len(result) == 0:
@@ -1334,6 +1365,12 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
 
     BytesField = BytesFieldV3
 
+    class IntFieldV3(m.fields.Int):
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            return super()._serialize(exact_int(value), attr, obj, **kwargs)
+
+    IntField = IntFieldV3
+
     class FloatFieldV3(m.fields.Float):
         default_error_messages = {"special": "Not a valid number."}  # noqa: RUF012
 
@@ -1346,6 +1383,9 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             if isinstance(value, int):
                 return value
             return super()._format_num(value)
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **kwargs: Any) -> Any:
+            return super()._serialize(exact_number(value), attr, obj, **kwargs)
 
     FloatField = FloatFieldV3
 
@@ -1694,7 +1734,7 @@ else:
             self.strip_whitespaces = strip_whitespaces
 
         def _serialize(self, value: Any, attr: Any, obj: Any, **_: Any) -> Any:
-            result = super()._serialize(value, attr, obj)
+            result = super()._serialize(exact_str(value), attr, obj)
             if self.strip_whitespaces and result is not None:
                 result = result.strip()
                 if self.allow_none and len(result) == 0:
@@ -1750,6 +1790,12 @@ else:
 
     BytesField = BytesFieldV2
 
+    class IntFieldV2(m.fields.Int):
+        def _serialize(self, value: Any, attr: Any, obj: Any, **_: Any) -> Any:
+            return super()._serialize(exact_int(value), attr, obj)
+
+    IntField = IntFieldV2
+
     class FloatFieldV2(m.fields.Float):
         def _validated(self, value: Any) -> float:
             num = super()._validated(value)
@@ -1761,6 +1807,9 @@ else:
             if isinstance(value, int):
                 return value
             return super()._format_num(value)
+
+        def _serialize(self, value: Any, attr: Any, obj: Any, **_: Any) -> Any:
+            return super()._serialize(exact_number(value), attr, obj)
 
     FloatField = FloatFieldV2
 

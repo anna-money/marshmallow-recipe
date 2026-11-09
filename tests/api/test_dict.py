@@ -15,11 +15,18 @@ from .conftest import (
     Address,
     CollectionHolder,
     DictOf,
+    FloatMixinEnum,
+    FloatSubclassWithDunders,
+    IntDiscriminator,
+    IntSubclassWithDunders,
     MappingOf,
     OptionalDictOf,
     Priority,
     Serializer,
     Status,
+    StrDiscriminator,
+    StrSubclass,
+    StrSubclassWithDunders,
     TimestampDateTime,
     WithAliasKey,
     WithAnnotatedIntKey,
@@ -28,6 +35,7 @@ from .conftest import (
     WithBareDict,
     WithBareMapping,
     WithDictAnnotatedKeyValidation,
+    WithDictAnnotatedStrExactTypeValidation,
     WithDictAnnotatedValueValidation,
     WithDictInvalidError,
     WithDictMissing,
@@ -39,6 +47,7 @@ from .conftest import (
     WithNewTypeKey,
     WithStrKeyMinLength,
     WithStrLiteralKey,
+    exactly,
 )
 
 _WRAPPED_KEY_CASES = [
@@ -468,6 +477,57 @@ class TestDictDump:
     ) -> None:
         result = impl.dump(schema_type, schema_type(data=data))
         assert result == expected
+
+    @pytest.mark.parametrize(
+        ("schema_type", "data", "expected"),
+        [
+            pytest.param(
+                DictOf[str, str],
+                {"a": StrDiscriminator.DOG, "b": Status.ACTIVE, "c": StrSubclassWithDunders("x")},
+                {"a": "DOG", "b": "active", "c": "x"},
+                id="str_values",
+            ),
+            pytest.param(
+                DictOf[str, int],
+                {"a": IntDiscriminator.ONE, "b": Priority.MEDIUM, "c": IntSubclassWithDunders(3)},
+                {"a": 1, "b": 2, "c": 3},
+                id="int_values",
+            ),
+            pytest.param(
+                DictOf[str, float],
+                {"a": FloatSubclassWithDunders(1.5), "b": FloatMixinEnum.HALF, "c": IntDiscriminator.ONE},
+                {"a": 1.5, "b": 1.5, "c": 1},
+                id="float_values",
+            ),
+            pytest.param(DictOf[str, list[str]], {"a": [StrDiscriminator.DOG]}, {"a": ["DOG"]}, id="list_values"),
+            pytest.param(
+                WithDictAnnotatedStrExactTypeValidation,
+                {"a": StrDiscriminator.DOG, "b": StrSubclass("x")},
+                {"a": "DOG", "b": "x"},
+                id="value_validator_sees_exact_str",
+            ),
+            pytest.param(
+                DictOf[int, str],
+                {IntDiscriminator.ONE: "a", Priority.MEDIUM: "b", IntSubclassWithDunders(3): "c"},
+                {"1": "a", "2": "b", "3": "c"},
+                id="int_keys",
+            ),
+            pytest.param(
+                DictOf[float, str],
+                {FloatMixinEnum.HALF: "a", FloatSubclassWithDunders(2.5): "b"},
+                {"1.5": "a", "2.5": "b"},
+                id="float_keys",
+            ),
+            pytest.param(
+                DictOf[str, int], {StrDiscriminator.DOG: 1}, {StrDiscriminator.DOG: 1}, id="str_keys_passed_through"
+            ),
+        ],
+    )
+    def test_subclass_dumped_as_exact_builtins(
+        self, impl: Serializer, schema_type: type, data: dict[Any, Any], expected: dict[Any, Any]
+    ) -> None:
+        result = impl.dump_raw(schema_type, schema_type(data=data))
+        assert exactly(result) == exactly({"data": expected})
 
 
 class TestDictLoad:

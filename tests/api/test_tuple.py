@@ -13,11 +13,18 @@ import marshmallow_recipe as mr
 from .conftest import (
     Address,
     CollectionHolder,
+    FloatMixinEnum,
+    FloatSubclass,
+    IntDiscriminator,
+    IntFlagValue,
+    IntSubclassWithDunders,
     OptionalTupleOf,
     PositiveInt,
     Priority,
     Serializer,
     Status,
+    StrDiscriminator,
+    StrSubclassWithDunders,
     TupleOf,
     WithAnnotatedTupleItemValidation,
     WithOptionalTupleItemValidation,
@@ -27,6 +34,7 @@ from .conftest import (
     WithTupleMissing,
     WithTupleNoneError,
     WithTupleRequiredError,
+    exactly,
 )
 
 
@@ -159,6 +167,35 @@ class TestTupleDump:
             impl.dump(WithTupleInvalidError, obj)
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == {"items": ["Custom invalid message"]}
+
+    @pytest.mark.parametrize(
+        ("schema_type", "obj", "expected"),
+        [
+            pytest.param(
+                TupleOf[str],
+                TupleOf[str](items=(StrDiscriminator.DOG, Status.ACTIVE, StrSubclassWithDunders("x"))),
+                {"items": ["DOG", "active", "x"]},
+                id="str",
+            ),
+            pytest.param(
+                TupleOf[int],
+                TupleOf[int](items=(IntDiscriminator.ONE, IntFlagValue.TWO, IntSubclassWithDunders(3))),
+                {"items": [1, 2, 3]},
+                id="int",
+            ),
+            pytest.param(
+                TupleOf[float],
+                TupleOf[float](items=(FloatSubclass(1.5), FloatMixinEnum.HALF)),
+                {"items": [1.5, 1.5]},
+                id="float",
+            ),
+        ],
+    )
+    def test_subclass_items_dumped_as_exact_builtins(
+        self, impl: Serializer, schema_type: type, obj: object, expected: dict[str, Any]
+    ) -> None:
+        result = impl.dump_raw(schema_type, obj)
+        assert exactly(result) == exactly(expected)
 
 
 class TestTupleLoad:

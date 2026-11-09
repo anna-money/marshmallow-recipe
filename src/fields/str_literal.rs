@@ -30,7 +30,7 @@ pub fn dump_to_py(
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
 
-    if let Ok(py_str) = value.cast::<PyString>()
+    if let Ok(py_str) = value.cast_exact::<PyString>()
         && let Ok(s) = py_str.to_str()
     {
         for allowed in values {

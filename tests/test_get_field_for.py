@@ -146,30 +146,30 @@ EMPTY_SCHEMA = m.Schema()
             mr.StrField(allow_none=True, strip_whitespaces=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: int
-        (int, {}, m.fields.Int(required=True)),
-        (Optional[int], {}, m.fields.Int(allow_none=True, **default_fields(None))),
-        (int | None, {}, m.fields.Int(allow_none=True, **default_fields(None))),
-        (int, mr.meta(name="i"), m.fields.Int(required=True, **data_key_fields("i"))),
+        (int, {}, mr.IntField(required=True)),
+        (Optional[int], {}, mr.IntField(allow_none=True, **default_fields(None))),
+        (int | None, {}, mr.IntField(allow_none=True, **default_fields(None))),
+        (int, mr.meta(name="i"), mr.IntField(required=True, **data_key_fields("i"))),
         (
             Optional[int],
             mr.meta(name="i"),
-            m.fields.Int(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.IntField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
-        (int | None, mr.meta(name="i"), m.fields.Int(allow_none=True, **default_fields(None), **data_key_fields("i"))),
+        (int | None, mr.meta(name="i"), mr.IntField(allow_none=True, **default_fields(None), **data_key_fields("i"))),
         # simple types: NewType(..., int)
-        (NewInt, {}, m.fields.Int(required=True)),
-        (Optional[NewInt], {}, m.fields.Int(allow_none=True, **default_fields(None))),
-        (NewInt | None, {}, m.fields.Int(allow_none=True, **default_fields(None))),
-        (NewInt, mr.meta(name="i"), m.fields.Int(required=True, **data_key_fields("i"))),
+        (NewInt, {}, mr.IntField(required=True)),
+        (Optional[NewInt], {}, mr.IntField(allow_none=True, **default_fields(None))),
+        (NewInt | None, {}, mr.IntField(allow_none=True, **default_fields(None))),
+        (NewInt, mr.meta(name="i"), mr.IntField(required=True, **data_key_fields("i"))),
         (
             Optional[NewInt],
             mr.meta(name="i"),
-            m.fields.Int(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.IntField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         (
             NewInt | None,
             mr.meta(name="i"),
-            m.fields.Int(allow_none=True, **default_fields(None), **data_key_fields("i")),
+            mr.IntField(allow_none=True, **default_fields(None), **data_key_fields("i")),
         ),
         # simple types: float
         (float, {}, mr.FloatField(required=True)),
@@ -724,14 +724,14 @@ EMPTY_SCHEMA = m.Schema()
         (
             dict[datetime.date, int],
             {},
-            mr.DictField(keys=mr.DateField(required=True), values=m.fields.Int(required=True), required=True),
+            mr.DictField(keys=mr.DateField(required=True), values=mr.IntField(required=True), required=True),
         ),
         (
             dict[datetime.date, int],
             mr.meta(name="i"),
             mr.DictField(
                 keys=mr.DateField(required=True),
-                values=m.fields.Int(required=True),
+                values=mr.IntField(required=True),
                 required=True,
                 **data_key_fields("i"),
             ),
@@ -741,7 +741,7 @@ EMPTY_SCHEMA = m.Schema()
             {},
             mr.DictField(
                 keys=mr.DateField(required=True),
-                values=m.fields.Int(required=True),
+                values=mr.IntField(required=True),
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -751,7 +751,7 @@ EMPTY_SCHEMA = m.Schema()
             mr.meta(name="i"),
             mr.DictField(
                 keys=mr.DateField(required=True),
-                values=m.fields.Int(required=True),
+                values=mr.IntField(required=True),
                 allow_none=True,
                 **default_fields(None),
                 **data_key_fields("i"),
@@ -762,7 +762,7 @@ EMPTY_SCHEMA = m.Schema()
             {},
             mr.DictField(
                 keys=mr.DateField(required=True),
-                values=m.fields.Int(required=True),
+                values=mr.IntField(required=True),
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -772,7 +772,7 @@ EMPTY_SCHEMA = m.Schema()
             mr.meta(name="i"),
             mr.DictField(
                 keys=mr.DateField(required=True),
-                values=m.fields.Int(required=True),
+                values=mr.IntField(required=True),
                 allow_none=True,
                 **default_fields(None),
                 **data_key_fields("i"),
@@ -797,14 +797,14 @@ EMPTY_SCHEMA = m.Schema()
         (
             collections.abc.Mapping[datetime.date, int],
             {},
-            mr.DictField(keys=mr.DateField(required=True), values=m.fields.Int(required=True), required=True),
+            mr.DictField(keys=mr.DateField(required=True), values=mr.IntField(required=True), required=True),
         ),
         (
             collections.abc.Mapping[datetime.date, int],
             mr.meta(name="i"),
             mr.DictField(
                 keys=mr.DateField(required=True),
-                values=m.fields.Int(required=True),
+                values=mr.IntField(required=True),
                 required=True,
                 **data_key_fields("i"),
             ),
@@ -814,7 +814,7 @@ EMPTY_SCHEMA = m.Schema()
             {},
             mr.DictField(
                 keys=mr.DateField(required=True),
-                values=m.fields.Int(required=True),
+                values=mr.IntField(required=True),
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -824,7 +824,7 @@ EMPTY_SCHEMA = m.Schema()
             mr.meta(name="i"),
             mr.DictField(
                 keys=mr.DateField(required=True),
-                values=m.fields.Int(required=True),
+                values=mr.IntField(required=True),
                 allow_none=True,
                 **default_fields(None),
                 **data_key_fields("i"),
@@ -835,7 +835,7 @@ EMPTY_SCHEMA = m.Schema()
             {},
             mr.DictField(
                 keys=mr.DateField(required=True),
-                values=m.fields.Int(required=True),
+                values=mr.IntField(required=True),
                 allow_none=True,
                 **default_fields(None),
             ),
@@ -845,35 +845,33 @@ EMPTY_SCHEMA = m.Schema()
             mr.meta(name="i"),
             mr.DictField(
                 keys=mr.DateField(required=True),
-                values=m.fields.Int(required=True),
+                values=mr.IntField(required=True),
                 allow_none=True,
                 **default_fields(None),
                 **data_key_fields("i"),
             ),
         ),
         # unions...
-        (int | str, {}, mr.UnionField(fields=[m.fields.Int(required=True), mr.StrField(required=True)], required=True)),
+        (int | str, {}, mr.UnionField(fields=[mr.IntField(required=True), mr.StrField(required=True)], required=True)),
         (
             int | str,
             mr.meta(name="i"),
             mr.UnionField(
-                fields=[m.fields.Int(required=True), mr.StrField(required=True)], required=True, **data_key_fields("i")
+                fields=[mr.IntField(required=True), mr.StrField(required=True)], required=True, **data_key_fields("i")
             ),
         ),
         (
             int | str | None,
             {},
             mr.UnionField(
-                fields=[m.fields.Int(required=True), mr.StrField(required=True)],
-                allow_none=True,
-                **default_fields(None),
+                fields=[mr.IntField(required=True), mr.StrField(required=True)], allow_none=True, **default_fields(None)
             ),
         ),
         (
             int | str | None,
             mr.meta(name="i"),
             mr.UnionField(
-                fields=[m.fields.Int(required=True), mr.StrField(required=True)],
+                fields=[mr.IntField(required=True), mr.StrField(required=True)],
                 allow_none=True,
                 **default_fields(None),
                 **data_key_fields("i"),
@@ -885,7 +883,7 @@ EMPTY_SCHEMA = m.Schema()
             mr.str_meta(description="String field"),
             mr.StrField(required=True, **description_fields("String field")),
         ),
-        (int, mr.meta(description="Int field"), m.fields.Int(required=True, **description_fields("Int field"))),
+        (int, mr.meta(description="Int field"), mr.IntField(required=True, **description_fields("Int field"))),
         (
             decimal.Decimal,
             mr.decimal_meta(description="Decimal field"),
@@ -899,7 +897,7 @@ EMPTY_SCHEMA = m.Schema()
         (
             list[int],
             mr.list_meta(description="List field"),
-            m.fields.List(m.fields.Int(required=True), required=True, **description_fields("List field")),
+            m.fields.List(mr.IntField(required=True), required=True, **description_fields("List field")),
         ),
         (
             str,
@@ -944,7 +942,7 @@ def test_get_field_for_global_decimal_places_ignored_for_non_decimal() -> None:
         bake_schema.return_value = EMPTY_SCHEMA
 
         field = mr.get_field_for(int, mr.Metadata({}), None, None, decimal_places=5)
-        expected = m.fields.Int(required=True)
+        expected = mr.IntField(required=True)
         assert_fields_equal(field, expected)
 
 

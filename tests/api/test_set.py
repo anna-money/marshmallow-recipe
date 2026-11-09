@@ -10,12 +10,15 @@ import marshmallow_recipe as mr
 
 from .conftest import (
     CollectionHolder,
+    FloatSubclassWithDunders,
+    IntDiscriminator,
     OptionalSetOf,
     PositiveInt,
     Priority,
     Serializer,
     SetOf,
     Status,
+    StrDiscriminator,
     WithAnnotatedSetItemValidation,
     WithDefaults,
     WithOptionalSetItemValidation,
@@ -25,6 +28,7 @@ from .conftest import (
     WithSetMissing,
     WithSetNoneError,
     WithSetRequiredError,
+    exactly,
 )
 
 
@@ -135,6 +139,23 @@ class TestSetDump:
             impl.dump(WithSetInvalidError, obj)
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == {"items": ["Custom invalid message"]}
+
+    @pytest.mark.parametrize(
+        ("schema_type", "obj", "expected"),
+        [
+            pytest.param(SetOf[str], SetOf[str](items={StrDiscriminator.DOG}), {"items": ["DOG"]}, id="str_enum"),
+            pytest.param(SetOf[str], SetOf[str](items={Status.ACTIVE}), {"items": ["active"]}, id="str_mixin_enum"),
+            pytest.param(SetOf[int], SetOf[int](items={IntDiscriminator.ONE}), {"items": [1]}, id="int_enum"),
+            pytest.param(
+                SetOf[float], SetOf[float](items={FloatSubclassWithDunders(1.5)}), {"items": [1.5]}, id="float_subclass"
+            ),
+        ],
+    )
+    def test_subclass_items_dumped_as_exact_builtins(
+        self, impl: Serializer, schema_type: type, obj: object, expected: dict[str, Any]
+    ) -> None:
+        result = impl.dump_raw(schema_type, obj)
+        assert exactly(result) == exactly(expected)
 
 
 class TestSetLoad:

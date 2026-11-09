@@ -14,6 +14,19 @@ use crate::utils::{call_validator, new_presized_list};
 
 #[allow(clippy::cast_sign_loss, clippy::unused_self)]
 impl FieldContainer {
+    pub fn to_exact_builtin<'py>(
+        &self,
+        value: &Bound<'py, PyAny>,
+    ) -> Result<Option<Bound<'py, PyAny>>, SerializationError> {
+        match self {
+            Self::Str { .. } => str_type::to_exact(value),
+            Self::Int { .. } => int_type::to_exact(value),
+            Self::Float { .. } => float_type::to_exact(value),
+            _ => Ok(None),
+        }
+        .map_err(|e| SerializationError::simple(value.py(), &e.to_string()))
+    }
+
     pub fn dump_to_py(
         &self,
         registry: &DataclassRegistry,
@@ -25,10 +38,13 @@ impl FieldContainer {
         }
 
         let common = self.common();
-        if let Some(ref validator) = common.validator
-            && let Ok(Some(err_list)) = call_validator(py, validator, value)
-        {
-            return Err(pyerrors_to_serialization_error(py, &err_list));
+        if let Some(ref validator) = common.validator {
+            let exact = self.to_exact_builtin(value)?;
+            if let Ok(Some(err_list)) =
+                call_validator(py, validator, exact.as_ref().unwrap_or(value))
+            {
+                return Err(pyerrors_to_serialization_error(py, &err_list));
+            }
         }
         match self {
             Self::Str {

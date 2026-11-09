@@ -127,6 +127,10 @@ pub fn dump_to_py(
 
     for item_result in iter {
         let item_value = item_result.map_err(|e| SerializationError::simple(py, &e.to_string()))?;
+        let item_value = match item_validator {
+            Some(_) => item.to_exact_builtin(&item_value)?.unwrap_or(item_value),
+            None => item_value,
+        };
 
         if let Some(validator) = item_validator
             && let Ok(Some(err_list)) = call_validator(py, validator, &item_value)

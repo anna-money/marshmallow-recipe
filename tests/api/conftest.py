@@ -1943,6 +1943,113 @@ class IntDiscriminator(enum.IntEnum):
     THREE = 3
 
 
+class IntFlagValue(enum.IntFlag):
+    ONE = 1
+    TWO = 2
+
+
+class FloatMixinEnum(float, enum.Enum):
+    HALF = 1.5
+
+
+class StrSubclass(str):
+    __slots__ = ()
+
+
+class StrSubclassWithDunders(str):
+    __slots__ = ()
+
+    def __str__(self) -> str:
+        return "overridden"
+
+
+class IntSubclass(int):
+    __slots__ = ()
+
+
+class IntSubclassWithDunders(int):
+    __slots__ = ()
+
+    def __int__(self) -> int:
+        return 99
+
+    def __index__(self) -> int:
+        return 99
+
+    def __str__(self) -> str:
+        return "overridden"
+
+    def __repr__(self) -> str:
+        return "overridden"
+
+
+class FloatSubclass(float):
+    __slots__ = ()
+
+
+class FloatSubclassWithDunders(float):
+    __slots__ = ()
+
+    def __float__(self) -> float:
+        return 99.0
+
+    def __str__(self) -> str:
+        return "overridden"
+
+    def __repr__(self) -> str:
+        return "overridden"
+
+
+def exactly(value: Any) -> Any:
+    """Pair every node of a dumped value with its exact type, so equality also tells ``1`` from ``True``
+    and ``"a"`` from a ``str`` subclass or enum member equal to it."""
+    if isinstance(value, dict):
+        return dict, [(exactly(k), exactly(v)) for k, v in value.items()]
+    if isinstance(value, list):
+        return list, [exactly(v) for v in value]
+    return type(value), value
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrExactTypeValidation:
+    value: str = dataclasses.field(metadata=mr.meta(validate=lambda x: type(x) is str))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntExactTypeValidation:
+    value: int = dataclasses.field(metadata=mr.meta(validate=lambda x: type(x) is int))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithFloatExactTypeValidation:
+    value: float = dataclasses.field(metadata=mr.meta(validate=lambda x: type(x) in (float, int)))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithIntGte:
+    value: int = dataclasses.field(metadata=mr.int_meta(gte=0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithFloatGte:
+    value: float = dataclasses.field(metadata=mr.float_meta(gte=0))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithListStrExactTypeItemValidation:
+    items: list[str] = dataclasses.field(metadata=mr.list_meta(validate_item=lambda x: type(x) is str))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithListAnnotatedStrExactTypeValidation:
+    items: list[Annotated[str, mr.meta(validate=lambda x: type(x) is str)]]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDictAnnotatedStrExactTypeValidation:
+    data: dict[str, Annotated[str, mr.meta(validate=lambda x: type(x) is str)]]
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithStrEnumLiteral:
     value: Literal[StrDiscriminator.DOG, StrDiscriminator.CAT]

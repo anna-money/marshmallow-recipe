@@ -1,3 +1,6 @@
+import uuid
+from typing import Literal
+
 import marshmallow
 import pytest
 
@@ -6,9 +9,14 @@ import marshmallow_recipe as mr
 from .conftest import (
     CatVariant,
     DogVariant,
+    FloatSubclass,
     Inner,
+    IntDiscriminator,
+    Priority,
     Serializer,
+    Status,
     StrDiscriminator,
+    ValueOf,
     WithDiscriminatedUnion,
     WithUnion,
     WithUnionDictDataclass,
@@ -22,6 +30,7 @@ from .conftest import (
     WithUnionStrDict,
     WithUnionStrDictOptional,
     WithUnionStrInt,
+    exactly,
 )
 
 
@@ -174,6 +183,27 @@ class TestUnionDump:
     def test_optional_union_with_none_include(self, impl: Serializer, cls: type, obj: object) -> None:
         result = impl.dump(cls, obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
         assert result == b'{"value":null}'
+
+    @pytest.mark.parametrize(
+        ("schema_type", "value", "expected"),
+        [
+            pytest.param(ValueOf[int | str], StrDiscriminator.DOG, "DOG", id="int_str_with_str_enum"),
+            pytest.param(ValueOf[int | str], IntDiscriminator.ONE, 1, id="int_str_with_int_enum"),
+            pytest.param(ValueOf[str | int], Priority.MEDIUM, 2, id="str_int_with_int_mixin_enum"),
+            pytest.param(ValueOf[float | str], FloatSubclass(1.5), 1.5, id="float_str_with_float_subclass"),
+            pytest.param(ValueOf[uuid.UUID | str], Status.ACTIVE, "active", id="uuid_str_with_str_mixin_enum"),
+            pytest.param(
+                ValueOf[str | StrDiscriminator], StrDiscriminator.DOG, "DOG", id="str_before_enum_with_str_enum"
+            ),
+            pytest.param(ValueOf[Literal["DOG"] | str], StrDiscriminator.DOG, "DOG", id="literal_str_with_str_enum"),
+            pytest.param(ValueOf[Literal[1] | int], IntDiscriminator.ONE, 1, id="literal_int_with_int_enum"),
+        ],
+    )
+    def test_subclass_dumped_as_exact_builtin(
+        self, impl: Serializer, schema_type: type, value: object, expected: object
+    ) -> None:
+        result = impl.dump_raw(schema_type, schema_type(value=value))
+        assert exactly(result) == exactly({"value": expected})
 
 
 class TestUnionLoad:

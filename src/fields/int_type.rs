@@ -7,6 +7,17 @@ use crate::fields::range::{RangeBound, validate_range};
 use crate::utils::get_int_cls;
 use crate::utils::py_str;
 
+pub fn to_exact<'py>(value: &Bound<'py, PyAny>) -> PyResult<Option<Bound<'py, PyAny>>> {
+    if value.is_exact_instance_of::<PyInt>()
+        || !value.is_instance_of::<PyInt>()
+        || value.is_instance_of::<PyBool>()
+    {
+        return Ok(None);
+    }
+    unsafe { Bound::from_owned_ptr_or_err(value.py(), pyo3::ffi::PyNumber_Index(value.as_ptr())) }
+        .map(Some)
+}
+
 pub fn load_from_py(
     value: &Bound<'_, PyAny>,
     invalid_error: &Py<PyString>,
@@ -56,13 +67,29 @@ pub fn dump_to_py(
     lt: Option<&RangeBound>,
     lte: Option<&RangeBound>,
 ) -> Result<Py<PyAny>, SerializationError> {
-    let py = value.py();
-    if !value.is_instance_of::<PyInt>() || value.is_instance_of::<PyBool>() {
-        return Err(SerializationError::Single(invalid_error.clone_ref(py)));
+    if !value.is_exact_instance_of::<PyInt>() {
+        return dump_inexact_to_py(value, as_string, invalid_error, gt, gte, lt, lte);
     }
     validate_range(value, gt, gte, lt, lte)?;
     if as_string {
         return py_str(value);
     }
     Ok(value.clone().unbind())
+}
+
+#[cold]
+fn dump_inexact_to_py(
+    value: &Bound<'_, PyAny>,
+    as_string: bool,
+    invalid_error: &Py<PyString>,
+    gt: Option<&RangeBound>,
+    gte: Option<&RangeBound>,
+    lt: Option<&RangeBound>,
+    lte: Option<&RangeBound>,
+) -> Result<Py<PyAny>, SerializationError> {
+    let py = value.py();
+    let exact = to_exact(value)
+        .map_err(|e| SerializationError::simple(py, &e.to_string()))?
+        .ok_or_else(|| SerializationError::Single(invalid_error.clone_ref(py)))?;
+    dump_to_py(&exact, as_string, invalid_error, gt, gte, lt, lte)
 }

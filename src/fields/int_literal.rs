@@ -28,7 +28,7 @@ pub fn dump_to_py(
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
 
-    if value.is_instance_of::<PyInt>() && !value.is_instance_of::<PyBool>() {
+    if value.is_exact_instance_of::<PyInt>() {
         for allowed in values {
             if value.eq(allowed.bind(py)).unwrap_or(false) {
                 return Ok(value.clone().unbind());

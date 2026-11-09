@@ -6,16 +6,25 @@ import pytest
 import marshmallow_recipe as mr
 
 from .conftest import (
+    FloatMixinEnum,
+    FloatSubclass,
+    FloatSubclassWithDunders,
+    IntDiscriminator,
+    IntSubclassWithDunders,
     OptionalValueOf,
+    Priority,
     Serializer,
     ValueOf,
     WithFloatDefault,
+    WithFloatExactTypeValidation,
+    WithFloatGte,
     WithFloatInvalidError,
     WithFloatMissing,
     WithFloatNoneError,
     WithFloatRequiredError,
     WithFloatTwoValidators,
     WithFloatValidation,
+    exactly,
 )
 
 
@@ -224,6 +233,33 @@ class TestFloatDump:
 
         result = impl.dump(DC, DC(value=None))
         assert result == b"{}"
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            pytest.param(FloatSubclass(1.5), 1.5, id="subclass"),
+            pytest.param(FloatSubclassWithDunders(1.5), 1.5, id="subclass_overriding_float"),
+            pytest.param(FloatMixinEnum.HALF, 1.5, id="float_mixin_enum"),
+            pytest.param(IntDiscriminator.TWO, 2, id="int_enum"),
+            pytest.param(Priority.MEDIUM, 2, id="int_mixin_enum"),
+            pytest.param(IntSubclassWithDunders(2), 2, id="int_subclass_overriding_int"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "schema_type",
+        [
+            pytest.param(ValueOf[float], id="plain"),
+            pytest.param(OptionalValueOf[float], id="optional"),
+            pytest.param(WithFloatGte, id="gte"),
+            pytest.param(WithFloatValidation, id="validator"),
+            pytest.param(WithFloatExactTypeValidation, id="validator_sees_exact_number"),
+        ],
+    )
+    def test_subclass_dumped_as_exact_number(
+        self, impl: Serializer, schema_type: type, value: float, expected: float
+    ) -> None:
+        result = impl.dump_raw(schema_type, schema_type(value=value))
+        assert exactly(result) == exactly({"value": expected})
 
 
 class TestFloatLoad:

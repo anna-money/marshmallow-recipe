@@ -295,9 +295,9 @@ Python's string interning guarantees pointer equality for identical strings, mak
 
 | Type | Load | Dump |
 |------|------|------|
-| `str` | pass-through (optional whitespace strip) | pass-through |
-| `int` | pass-through (rejects bool) | pass-through |
-| `float` | pass-through | pass-through |
+| `str` | pass-through (optional whitespace strip) | exact `str`: a subclass or enum member is copied to a plain `str` (optional whitespace strip) |
+| `int` | pass-through (rejects bool) | exact `int`: a subclass or enum member is copied to a plain `int` (rejects bool) |
+| `float` | pass-through | exact `float`/`int`: a subclass or enum member is copied to a plain `float`/`int` |
 | `bool` | pass-through | pass-through |
 | `Decimal` | from string/number, optional quantize | validate precision (or quantize with rounding) + format |
 | `UUID` | from Python UUID or string (via `uuid` crate) | to hyphenated string |

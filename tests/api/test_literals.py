@@ -7,10 +7,14 @@ import pytest
 
 from .conftest import (
     IntDiscriminator,
+    IntFlagValue,
+    IntSubclass,
     Priority,
     Serializer,
     Status,
     StrDiscriminator,
+    StrSubclass,
+    ValueOf,
     WithBoolLiteral,
     WithBoolLiteralDefault,
     WithBoolLiteralInvalidError,
@@ -104,6 +108,32 @@ class TestStrLiteralDump:
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == {"value": ["Custom invalid message"]}
 
+    @pytest.mark.parametrize(
+        ("schema_type", "value", "error"),
+        [
+            pytest.param(
+                ValueOf[Literal["DOG"]],
+                StrDiscriminator.DOG,
+                "Not a valid value. Allowed values: ['DOG']",
+                id="str_enum",
+            ),
+            pytest.param(
+                ValueOf[Literal["active"]],
+                Status.ACTIVE,
+                "Not a valid value. Allowed values: ['active']",
+                id="str_mixin_enum",
+            ),
+            pytest.param(
+                WithStrLiteral, StrSubclass("a"), "Not a valid value. Allowed values: ['a', 'b', 'c']", id="subclass"
+            ),
+        ],
+    )
+    def test_subclass_rejected(self, impl: Serializer, schema_type: type, value: str, error: str) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump_raw(schema_type, schema_type(value=value))
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": [error]}
+
 
 class TestIntLiteralDump:
     def test_value(self, impl: Serializer) -> None:
@@ -161,6 +191,21 @@ class TestIntLiteralDump:
             impl.dump(WithIntLiteralInvalidError, obj)
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == {"value": ["Custom invalid message"]}
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param(IntDiscriminator.ONE, id="int_enum"),
+            pytest.param(Priority.LOW, id="int_mixin_enum"),
+            pytest.param(IntFlagValue.ONE, id="int_flag"),
+            pytest.param(IntSubclass(1), id="subclass"),
+        ],
+    )
+    def test_subclass_rejected(self, impl: Serializer, value: int) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump_raw(WithIntLiteral, WithIntLiteral(**{"value": value}))  # type: ignore[arg-type]
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Not a valid value. Allowed values: [1, 2, 3]"]}
 
 
 class TestBoolLiteralDump:
