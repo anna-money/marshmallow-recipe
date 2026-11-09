@@ -13,8 +13,11 @@ import marshmallow_recipe as mr
 
 from .conftest import (
     Address,
+    AnyAlias,
     CollectionHolder,
     DictOf,
+    JsonDict,
+    JsonObject,
     MappingOf,
     OptionalDictOf,
     Priority,
@@ -29,6 +32,7 @@ from .conftest import (
     WithBareMapping,
     WithDictAnnotatedKeyValidation,
     WithDictAnnotatedValueValidation,
+    WithDictAnyValidation,
     WithDictInvalidError,
     WithDictMissing,
     WithDictNoneError,
@@ -91,6 +95,90 @@ _UNCHECKED_ROOT_KEY_TYPES = [
     pytest.param(dict[str, str], id="str"),
     pytest.param(dict, id="bare_dict"),
     pytest.param(Mapping, id="bare_mapping"),
+]
+
+_NAN = float("nan")
+
+_UNCHECKED_VALUES: dict[str, Any] = {
+    "uuid": _KEY_UUID,
+    "decimal": decimal.Decimal("1.5"),
+    "datetime": _KEY_DATETIME,
+    "bytes": b"x",
+    "tuple": (1, 2),
+    "set": {1},
+    "nan": _NAN,
+    "non_str_key": {1: 2},
+    "dataclass": Address(street="s", city="c", zip_code="z"),
+}
+
+_UNCHECKED_VALUE_TYPES = [
+    pytest.param(DictOf[str, Any], "data", id="str_any"),
+    pytest.param(DictOf[Any, Any], "data", id="any_any"),
+    pytest.param(MappingOf[str, Any], "data", id="mapping_str_any"),
+    pytest.param(WithBareDict, "data", id="bare_dict"),
+    pytest.param(WithBareMapping, "data", id="bare_mapping"),
+    pytest.param(CollectionHolder[dict], "items", id="generic_bare_dict"),
+    pytest.param(CollectionHolder[Mapping], "items", id="generic_bare_mapping"),
+    pytest.param(CollectionHolder[dict[str, Any] | None], "items", id="optional"),
+    pytest.param(CollectionHolder[JsonObject], "items", id="type_alias"),
+    pytest.param(CollectionHolder[JsonDict], "items", id="new_type"),
+    pytest.param(CollectionHolder[Annotated[dict[str, Any], mr.meta(description="x")]], "items", id="annotated"),
+]
+
+_UNCHECKED_NESTED_VALUE_CASES = [
+    pytest.param(list[dict[str, Any]], [_UNCHECKED_VALUES], [_UNCHECKED_VALUES], id="list"),
+    pytest.param(tuple[dict[str, Any], ...], (_UNCHECKED_VALUES,), [_UNCHECKED_VALUES], id="tuple"),
+    pytest.param(dict[str, dict[str, Any]], {"a": _UNCHECKED_VALUES}, {"a": _UNCHECKED_VALUES}, id="dict"),
+    pytest.param(dict[int, Any], {1: _KEY_UUID}, {"1": _KEY_UUID}, id="int_key"),
+    pytest.param(dict[str, Any] | int, _UNCHECKED_VALUES, _UNCHECKED_VALUES, id="union_dict_first"),
+    pytest.param(int | dict[str, Any], _UNCHECKED_VALUES, _UNCHECKED_VALUES, id="union_dict_last"),
+]
+
+_UNCHECKED_ROOT_VALUE_CASES = [
+    pytest.param(dict[str, Any], _UNCHECKED_VALUES, _UNCHECKED_VALUES, id="str_any"),
+    pytest.param(dict[Any, Any], _UNCHECKED_VALUES, _UNCHECKED_VALUES, id="any_any"),
+    pytest.param(Mapping[str, Any], _UNCHECKED_VALUES, _UNCHECKED_VALUES, id="mapping_str_any"),
+    pytest.param(dict, _UNCHECKED_VALUES, _UNCHECKED_VALUES, id="bare_dict"),
+    pytest.param(Mapping, _UNCHECKED_VALUES, _UNCHECKED_VALUES, id="bare_mapping"),
+    pytest.param(dict[str, Any] | None, _UNCHECKED_VALUES, _UNCHECKED_VALUES, id="optional"),
+    pytest.param(JsonObject, _UNCHECKED_VALUES, _UNCHECKED_VALUES, id="type_alias"),
+    pytest.param(dict[int, Any], {1: _KEY_UUID}, {"1": _KEY_UUID}, id="int_key"),
+    pytest.param(list[dict[str, Any]], [_UNCHECKED_VALUES], [_UNCHECKED_VALUES], id="list"),
+    pytest.param(dict[str, dict[str, Any]], {"a": _UNCHECKED_VALUES}, {"a": _UNCHECKED_VALUES}, id="dict"),
+]
+
+_JSON_VALUES: dict[str, Any] = {"list": [1, "a", None], "nested": {"b": 1.5, "c": {"d": True}}, "none": None}
+
+_UNCHECKED_ROOT_LOAD_CASES = [
+    pytest.param(dict[str, Any], json.dumps(_JSON_VALUES).encode(), _JSON_VALUES, id="str_any"),
+    pytest.param(dict[Any, Any], json.dumps(_JSON_VALUES).encode(), _JSON_VALUES, id="any_any"),
+    pytest.param(Mapping[str, Any], json.dumps(_JSON_VALUES).encode(), _JSON_VALUES, id="mapping_str_any"),
+    pytest.param(dict, json.dumps(_JSON_VALUES).encode(), _JSON_VALUES, id="bare_dict"),
+    pytest.param(Mapping, json.dumps(_JSON_VALUES).encode(), _JSON_VALUES, id="bare_mapping"),
+    pytest.param(dict[int, Any], b'{"1":{"a":[1]}}', {1: {"a": [1]}}, id="int_key"),
+    pytest.param(list[dict[str, Any]], json.dumps([_JSON_VALUES]).encode(), [_JSON_VALUES], id="list"),
+    pytest.param(dict[str, dict[str, Any]], json.dumps({"a": _JSON_VALUES}).encode(), {"a": _JSON_VALUES}, id="dict"),
+]
+
+_CHECKED_ANY_VALUE_CASES = [
+    pytest.param(
+        dict[str, AnyAlias],
+        {"a": _KEY_UUID},
+        {"items": {"a": {"value": ["Not a valid JSON-serializable value."]}}},
+        id="type_alias",
+    ),
+    pytest.param(
+        dict[str, Annotated[Any, mr.meta(description="x")]],
+        {"a": _KEY_UUID},
+        {"items": {"a": {"value": ["Not a valid JSON-serializable value."]}}},
+        id="annotated",
+    ),
+    pytest.param(
+        dict[str, list[Any]],
+        {"a": [_KEY_UUID]},
+        {"items": {"a": {"value": {0: ["Not a valid JSON-serializable value."]}}}},
+        id="list",
+    ),
 ]
 
 _UNSUPPORTED_KEY_CASES = [
@@ -456,6 +544,35 @@ class TestDictDump:
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == {"data": {"1": {"value": ["Not a valid integer."]}}}
 
+    @pytest.mark.parametrize(("schema_type", "field"), _UNCHECKED_VALUE_TYPES)
+    def test_unchecked_value_passed_through(self, impl: Serializer, schema_type: type, field: str) -> None:
+        result = impl.dump_raw(schema_type, schema_type(**{field: _UNCHECKED_VALUES}))
+        expected = {field: _UNCHECKED_VALUES}
+        assert (result, repr(result)) == (expected, repr(expected))
+
+    @pytest.mark.parametrize(("items_type", "items", "expected_items"), _UNCHECKED_NESTED_VALUE_CASES)
+    def test_unchecked_value_nested_passed_through(
+        self, impl: Serializer, items_type: Any, items: Any, expected_items: Any
+    ) -> None:
+        schema_type = CollectionHolder[items_type]
+        result = impl.dump_raw(schema_type, schema_type(items=items))
+        expected = {"items": expected_items}
+        assert (result, repr(result)) == (expected, repr(expected))
+
+    def test_unchecked_value_with_validate(self, impl: Serializer) -> None:
+        result = impl.dump_raw(WithDictAnyValidation, WithDictAnyValidation(data=_UNCHECKED_VALUES))
+        expected = {"data": _UNCHECKED_VALUES}
+        assert (result, repr(result)) == (expected, repr(expected))
+
+    @pytest.mark.parametrize(("items_type", "items", "error_messages"), _CHECKED_ANY_VALUE_CASES)
+    def test_checked_any_value(
+        self, impl: Serializer, items_type: Any, items: Any, error_messages: dict[str, Any]
+    ) -> None:
+        schema_type = CollectionHolder[items_type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump_raw(schema_type, schema_type(items=items))
+        assert exc.value.messages == error_messages
+
     @pytest.mark.parametrize(
         ("schema_type", "data", "expected"),
         [
@@ -817,6 +934,11 @@ class TestDictLoad:
         result = impl.load(schema_type, json.dumps({field: {"1": "a", "b": "c"}}).encode())
         assert result == schema_type(**{field: {"1": "a", "b": "c"}})
 
+    @pytest.mark.parametrize(("schema_type", "field"), _UNCHECKED_VALUE_TYPES)
+    def test_unchecked_value(self, impl: Serializer, schema_type: type, field: str) -> None:
+        result = impl.load(schema_type, json.dumps({field: _JSON_VALUES}).encode())
+        assert result == schema_type(**{field: _JSON_VALUES})
+
 
 class TestRootDictDump:
     @pytest.mark.parametrize(
@@ -899,6 +1021,15 @@ class TestRootDictDump:
             return
         result = impl.dump_raw(schema_type, _UNCHECKED_KEYS)
         assert result == _UNCHECKED_KEYS
+
+    @pytest.mark.parametrize(("schema_type", "obj", "expected"), _UNCHECKED_ROOT_VALUE_CASES)
+    def test_unchecked_value_passed_through(self, impl: Serializer, schema_type: Any, obj: Any, expected: Any) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.dump_raw(schema_type, obj)
+            return
+        result = impl.dump_raw(schema_type, obj)
+        assert (result, repr(result)) == (expected, repr(expected))
 
 
 class TestRootDictLoad:
@@ -1003,3 +1134,12 @@ class TestRootDictLoad:
             return
         result = impl.load(schema_type, b'{"1":"a","b":"c"}')
         assert result == {"1": "a", "b": "c"}
+
+    @pytest.mark.parametrize(("schema_type", "data", "expected"), _UNCHECKED_ROOT_LOAD_CASES)
+    def test_unchecked_value(self, impl: Serializer, schema_type: Any, data: bytes, expected: Any) -> None:
+        if not impl.supports_root_non_dataclasses:
+            with pytest.raises(ValueError):
+                impl.load(schema_type, data)
+            return
+        result = impl.load(schema_type, data)
+        assert result == expected

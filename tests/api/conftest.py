@@ -1521,6 +1521,18 @@ class WithBareMapping:
     data: Mapping
 
 
+type AnyAlias = Any
+
+type JsonObject = dict[str, Any]
+
+JsonDict = NewType("JsonDict", dict[str, Any])
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDictAnyValidation:
+    data: dict[str, Any] = dataclasses.field(metadata=mr.meta(validate=lambda x: isinstance(x["uuid"], uuid.UUID)))
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithMappingRequiredError:
     data: Mapping[str, int] = dataclasses.field(metadata=mr.meta(required_error="Custom required message"))

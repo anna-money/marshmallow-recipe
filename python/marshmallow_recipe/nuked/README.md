@@ -306,13 +306,14 @@ Python's string interning guarantees pointer equality for identical strings, mak
 | `time` | ISO string (via `chrono::NaiveTime`) | ISO string |
 | `list[T]`, `set[T]`, `frozenset[T]` | recursive element conversion | recursive element conversion |
 | `dict[K, V]` | recursive value conversion | recursive value conversion |
+| `dict[K, Any]`, bare `dict`/`Mapping` | values passed through unchecked | values passed through unchecked |
 | `tuple[T, ...]` | **homogeneous only** | homogeneous only |
 | `Optional[T]`, `T \| None` | None handling | None handling |
 | `Union[T1, T2, ...]` | try each variant | try each variant |
 | `StrEnum`, `IntEnum` | lookup by value | `.getattr("value")` |
 | Nested dataclass | recursive schema | recursive schema |
 | Generic dataclass | TypeVars resolved at build time | TypeVars resolved at build time |
-| `Any` | pass-through | pass-through |
+| `Any` | pass-through | pass-through, must be JSON-serializable |
 
 ## Error Handling
 
