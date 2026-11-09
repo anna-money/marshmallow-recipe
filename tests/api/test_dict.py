@@ -29,6 +29,7 @@ from .conftest import (
     WithBareMapping,
     WithDictAnnotatedKeyValidation,
     WithDictAnnotatedValueValidation,
+    WithDictAwareValidation,
     WithDictInvalidError,
     WithDictMissing,
     WithDictNoneError,
@@ -486,6 +487,12 @@ class TestDictDump:
                 WithDictStrippedValidation(data={"k": " a "}),
                 {"data": {"k": "a"}},
                 id="validate_stripped",
+            ),
+            pytest.param(
+                WithDictAwareValidation,
+                WithDictAwareValidation(data={"k": datetime.datetime(2020, 1, 1)}),
+                {"data": {"k": "2020-01-01T00:00:00+00:00"}},
+                id="validate_naive_datetime",
             ),
         ],
     )

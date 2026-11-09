@@ -22,6 +22,7 @@ from .conftest import (
     WithUnionIntStrOptional,
     WithUnionMissing,
     WithUnionPositiveIntStr,
+    WithUnionStrDatetimeStrValidation,
     WithUnionStrDict,
     WithUnionStrDictOptional,
     WithUnionStrInt,
@@ -194,6 +195,12 @@ class TestUnionDump:
                 WithUnionDatetimeStrAwareValidation(value=datetime.datetime(2020, 1, 1)),
                 {"value": "2020-01-01T00:00:00+00:00"},
                 id="union_validate_naive_datetime",
+            ),
+            pytest.param(
+                WithUnionStrDatetimeStrValidation,
+                WithUnionStrDatetimeStrValidation(value=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC)),
+                {"value": "2020-01-01T00:00:00+00:00"},
+                id="union_validate_first_loading_variant",
             ),
         ],
     )

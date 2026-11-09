@@ -2387,3 +2387,22 @@ class WithUnionDatetimeStrAwareValidation:
     value: datetime.datetime | str = dataclasses.field(
         metadata=mr.meta(validate=lambda x: isinstance(x, str) or _is_aware(x))
     )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithUnionStrDatetimeStrValidation:
+    value: str | datetime.datetime = dataclasses.field(metadata=mr.meta(validate=lambda x: isinstance(x, str)))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDatetimeSecondsFormatValidation:
+    value: datetime.datetime = dataclasses.field(
+        metadata=mr.datetime_meta(format="%Y-%m-%dT%H:%M:%S", validate=lambda x: x.microsecond == 0)
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithDictAwareValidation:
+    data: dict[str, datetime.datetime] = dataclasses.field(
+        metadata=mr.meta(validate=lambda x: all(_is_aware(item) for item in x.values()))
+    )

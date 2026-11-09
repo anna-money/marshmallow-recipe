@@ -27,6 +27,7 @@ from .conftest import (
     WithDatetimeMissing,
     WithDatetimeNoneError,
     WithDatetimeRequiredError,
+    WithDatetimeSecondsFormatValidation,
     WithDatetimeTwoValidators,
     WithDatetimeUtcValidation,
     WithDatetimeValidation,
@@ -543,6 +544,12 @@ class TestDatetimeDump:
                 WithDatetimeDateFormatMidnightValidation(value=datetime.datetime(2020, 1, 1, 10, tzinfo=datetime.UTC)),
                 {"value": "2020-01-01"},
                 id="format_truncates",
+            ),
+            pytest.param(
+                WithDatetimeSecondsFormatValidation,
+                WithDatetimeSecondsFormatValidation(value=datetime.datetime(2020, 1, 1, 10, 0, 0, 500, datetime.UTC)),
+                {"value": "2020-01-01T10:00:00"},
+                id="format_drops_microseconds",
             ),
         ],
     )
