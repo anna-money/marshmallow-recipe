@@ -925,7 +925,7 @@ impl ContainerBuilder {
         py: Python<'_>,
         name: &str,
         optional: bool,
-        value: FieldHandle,
+        value: Option<FieldHandle>,
         key: Option<FieldHandle>,
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<FieldHandle> {
@@ -934,7 +934,9 @@ impl ContainerBuilder {
             .unwrap_or_else(|| intern!(py, "Not a valid dict.").clone().unbind());
         let common = build_field_common(optional, &kwargs, invalid_error)?;
         let value_validator = extract_optional_py(&kwargs, "value_validator");
-        let value_container = self.__resolve_field_handle(value)?;
+        let value_container = value
+            .map(|handle| self.__resolve_field_handle(handle))
+            .transpose()?;
         let key_container = key
             .map(|handle| self.__resolve_field_handle(handle))
             .transpose()?;
@@ -942,7 +944,7 @@ impl ContainerBuilder {
         let container = FieldContainer::Dict {
             common,
             key: key_container.map(Box::new),
-            value: Box::new(value_container),
+            value: value_container.map(Box::new),
             value_validator,
         };
         let builder_field = build_builder_field(py, name, &kwargs, container)?;
@@ -1055,14 +1057,20 @@ impl ContainerBuilder {
     }
 
     #[pyo3(signature = (value, key=None))]
-    fn type_dict(&mut self, value: TypeHandle, key: Option<FieldHandle>) -> PyResult<TypeHandle> {
-        let resolved = self.__resolve_type_handle(value)?;
+    fn type_dict(
+        &mut self,
+        value: Option<TypeHandle>,
+        key: Option<FieldHandle>,
+    ) -> PyResult<TypeHandle> {
+        let resolved = value
+            .map(|handle| self.__resolve_type_handle(handle))
+            .transpose()?;
         let key_container = key
             .map(|handle| self.__resolve_field_handle(handle))
             .transpose()?;
         Ok(self.__push_type(TypeContainer::Dict {
             key: key_container.map(Box::new),
-            value: Box::new(resolved),
+            value: resolved.map(Box::new),
         }))
     }
 

@@ -9,11 +9,22 @@ pub fn load_from_py(
     registry: &DataclassRegistry,
     value: &Bound<'_, PyAny>,
     key_schema: Option<&FieldContainer>,
-    value_schema: &FieldContainer,
+    value_schema: Option<&FieldContainer>,
     value_validator: Option<&Py<PyAny>>,
     invalid_error: &Py<PyString>,
 ) -> Result<Py<PyAny>, SerializationError> {
     let py = value.py();
+
+    if key_schema.is_none()
+        && value_schema.is_none()
+        && value_validator.is_none()
+        && let Ok(dict) = value.cast::<PyDict>()
+    {
+        return dict
+            .copy()
+            .map(|copied| copied.into_any().unbind())
+            .map_err(|e| SerializationError::simple(py, &e.to_string()));
+    }
 
     let result = PyDict::new(py);
     let mut errors: Option<Bound<'_, PyDict>> = None;
@@ -36,7 +47,11 @@ pub fn load_from_py(
         });
         let target_key = loaded_key.as_ref().unwrap_or(&k);
 
-        match value_schema.load_from_py(registry, &v) {
+        let loaded = value_schema.map_or_else(
+            || Ok(v.clone().unbind()),
+            |schema| schema.load_from_py(registry, &v),
+        );
+        match loaded {
             Ok(py_val) => {
                 if let Some(validator) = value_validator
                     && let Ok(Some(err_list)) = call_validator(py, validator, py_val.bind(py))
@@ -89,7 +104,7 @@ pub fn dump_to_py(
     registry: &DataclassRegistry,
     value: &Bound<'_, PyAny>,
     key_schema: Option<&FieldContainer>,
-    value_schema: &FieldContainer,
+    value_schema: Option<&FieldContainer>,
     value_validator: Option<&Py<PyAny>>,
     invalid_error: &Py<PyString>,
 ) -> Result<Py<PyAny>, SerializationError> {
@@ -98,6 +113,13 @@ pub fn dump_to_py(
     let dict = value
         .cast::<PyDict>()
         .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
+
+    if key_schema.is_none() && value_schema.is_none() && value_validator.is_none() {
+        return dict
+            .copy()
+            .map(|copied| copied.into_any().unbind())
+            .map_err(|e| SerializationError::simple(py, &e.to_string()));
+    }
 
     let result = PyDict::new(py);
     let mut errors: Option<Bound<'_, PyDict>> = None;
@@ -136,7 +158,11 @@ pub fn dump_to_py(
             continue;
         }
 
-        match value_schema.dump_to_py(registry, &v) {
+        let dumped = value_schema.map_or_else(
+            || Ok(v.clone().unbind()),
+            |schema| schema.dump_to_py(registry, &v),
+        );
+        match dumped {
             Ok(dumped) => {
                 if failed_key.is_none() {
                     result

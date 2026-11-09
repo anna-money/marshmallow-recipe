@@ -154,7 +154,7 @@ pub enum FieldContainer {
     Dict {
         common: FieldCommon,
         key: Option<Box<FieldContainer>>,
-        value: Box<FieldContainer>,
+        value: Option<Box<FieldContainer>>,
         value_validator: Option<Py<PyAny>>,
     },
     Nested {
@@ -487,7 +487,7 @@ pub enum TypeContainer {
     },
     Dict {
         key: Option<Box<FieldContainer>>,
-        value: Box<Self>,
+        value: Option<Box<Self>>,
     },
     Optional {
         inner: Box<Self>,

@@ -175,6 +175,20 @@ mr.dump(Loose(data={1: "x"}))
 # {"data": {1: "x"}}  — the key is left as an int
 ```
 
+The values of `dict[K, Any]`, `Mapping[K, Any]` and an unsubscripted `dict` or `Mapping` are
+not checked either: they are dumped as they are, by both backends, and encoding them is left
+to your JSON encoder. A bare `Any` field and `list[Any]` must still hold JSON-serializable values.
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Free:
+    data: dict[str, Any]
+
+
+mr.dump(Free(data={"id": uuid.UUID(int=1)}))
+# {"data": {"id": UUID("00000000-0000-0000-0000-000000000001")}}  — the value is left as a UUID
+```
+
 ## collections.abc Types
 
 Abstract collection types work transparently:

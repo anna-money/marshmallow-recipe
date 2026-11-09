@@ -169,7 +169,7 @@ impl FieldContainer {
                 registry,
                 value,
                 key_schema.as_deref(),
-                value_schema,
+                value_schema.as_deref(),
                 value_validator.as_ref(),
                 &common.invalid_error,
             ),
@@ -755,7 +755,11 @@ impl TypeContainer {
                             }
                         });
                     let target_key = loaded_key.as_ref().unwrap_or(&k);
-                    match value_container.load_from_py(py, registry, &v) {
+                    let loaded = value_container.as_deref().map_or_else(
+                        || Ok(v.clone().unbind()),
+                        |value_schema| value_schema.load_from_py(py, registry, &v),
+                    );
+                    match loaded {
                         Ok(py_val) => {
                             if key_ok {
                                 let _ = result.set_item(target_key, py_val);

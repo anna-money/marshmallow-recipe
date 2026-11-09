@@ -278,8 +278,7 @@ class _BuildContext:
 
         if origin is dict or origin is Mapping:
             key_handle = self.__build_dict_key(args, naming_case)
-            value_type = args[1] if len(args) > 1 else Any
-            value_handle = self.build_root_type(value_type, naming_case)
+            value_handle = None if len(args) < 2 or args[1] is Any else self.build_root_type(args[1], naming_case)
             return self.__builder.type_dict(value_handle, key_handle)
 
         if origin is set:
@@ -712,8 +711,7 @@ class _BuildContext:
 
         if origin is dict:
             key_handle = self.__build_dict_key(args, nested_naming_case)
-            value_type = args[1] if len(args) > 1 else Any
-            value_handle = self.__build_value_field(value_type, nested_naming_case)
+            value_handle = self.__build_dict_value(args, nested_naming_case)
             return self.__builder.dict_field(name, optional, value_handle, key_handle, **kwargs)
 
         if origin is set:
@@ -747,8 +745,7 @@ class _BuildContext:
 
         if origin is Mapping:
             key_handle = self.__build_dict_key(args, nested_naming_case)
-            value_type = args[1] if len(args) > 1 else Any
-            value_handle = self.__build_value_field(value_type, nested_naming_case)
+            value_handle = self.__build_dict_value(args, nested_naming_case)
             return self.__builder.dict_field(name, optional, value_handle, key_handle, **kwargs)
 
         if origin is tuple:
@@ -950,6 +947,11 @@ class _BuildContext:
             return None
         return self.__build_key_field(key_type, naming_case)
 
+    def __build_dict_value(self, args: tuple[Any, ...], naming_case: NamingCase | None) -> Any:
+        if len(args) < 2 or args[1] is Any:
+            return None
+        return self.__build_value_field(args[1], naming_case)
+
     def __build_key_field(self, field_type: Any, naming_case: NamingCase | None) -> Any:
         field_handle, _ = self.__build_field(
             None,
@@ -1065,7 +1067,8 @@ def dump[T](
 ) -> Any:
     """Serialize to a JSON-compatible value using the Rust backend.
 
-    Returns a JSON-compatible value (dict, list, or primitive).
+    Returns a JSON-compatible value (dict, list, or primitive). As in ``mr.dump``, values of
+    ``dict[K, Any]`` and an unsubscripted ``dict`` or ``Mapping`` are passed through unchecked.
 
     Args:
         cls: Dataclass type or root collection type (e.g. ``list[User]``, ``dict[str, User]``).
