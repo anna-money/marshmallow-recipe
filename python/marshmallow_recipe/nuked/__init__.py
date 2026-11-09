@@ -1147,26 +1147,30 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         )
         container = _get_container(cls, naming_case, none_value_handling, decimal_places)
 
-        class _NukedSchema(schema_cls):  # type: ignore[misc]
-            __slots__ = ()
+        def load(
+            self: marshmallow.Schema,
+            data: Any,
+            *,
+            many: bool | None = None,
+            partial: Any = None,
+            unknown: str | None = None,
+        ) -> Any:
+            if many if many is not None else self.many:
+                return [container.load(item) for item in data]
+            return container.load(data)
 
-            def load(
-                self, data: Any, *, many: bool | None = None, partial: Any = None, unknown: str | None = None
-            ) -> Any:  # type: ignore[override]
-                if many if many is not None else self.many:
-                    return [container.load(item) for item in data]
-                return container.load(data)
+        def dump(self: marshmallow.Schema, obj: Any, *, many: bool | None = None) -> Any:
+            if many if many is not None else self.many:
+                return [container.dump(item) for item in obj]
+            return container.dump(obj)
 
-            def dump(self, obj: Any, *, many: bool | None = None) -> Any:  # type: ignore[override]
-                if many if many is not None else self.many:
-                    return [container.dump(item) for item in obj]
-                return container.dump(obj)
+        nuked_schema_cls = type(
+            schema_cls.__name__,
+            (schema_cls,),
+            {"__module__": f"{__package__}.auto_generated", "__slots__": (), "load": load, "dump": dump},
+        )
 
-        _NukedSchema.__name__ = schema_cls.__name__
-        _NukedSchema.__qualname__ = schema_cls.__qualname__
-        _NukedSchema.__module__ = f"{__package__}.auto_generated"
-
-        new_schema = _NukedSchema(many=many)
+        new_schema = nuked_schema_cls(many=many)
         _nuked_schemas[key] = new_schema
         return new_schema
 
@@ -1192,27 +1196,26 @@ else:
         )
         container = _get_container(cls, naming_case, none_value_handling, decimal_places)
 
-        class _NukedSchema(schema_cls):  # type: ignore[misc]
-            __slots__ = ()
+        def load(self: marshmallow.Schema, data: Any, many: bool | None = None, partial: Any = None) -> Any:
+            if many if many is not None else self.many:
+                loaded = [container.load(item) for item in data]
+            else:
+                loaded = container.load(data)
+            return marshmallow.UnmarshalResult(loaded, None)
 
-            def load(self, data: Any, many: bool | None = None, partial: Any = None) -> Any:  # type: ignore[override]
-                if many if many is not None else self.many:
-                    loaded = [container.load(item) for item in data]
-                else:
-                    loaded = container.load(data)
-                return marshmallow.UnmarshalResult(loaded, None)
+        def dump(self: marshmallow.Schema, obj: Any, many: bool | None = None, **kwargs: Any) -> Any:
+            if many if many is not None else self.many:
+                dumped = [container.dump(item) for item in obj]
+            else:
+                dumped = container.dump(obj)
+            return marshmallow.MarshalResult(dumped, None)
 
-            def dump(self, obj: Any, many: bool | None = None, **kwargs: Any) -> Any:  # type: ignore[override]
-                if many if many is not None else self.many:
-                    dumped = [container.dump(item) for item in obj]
-                else:
-                    dumped = container.dump(obj)
-                return marshmallow.MarshalResult(dumped, None)
+        nuked_schema_cls = type(
+            schema_cls.__name__,
+            (schema_cls,),
+            {"__module__": f"{__package__}.auto_generated", "__slots__": (), "load": load, "dump": dump},
+        )
 
-        _NukedSchema.__name__ = schema_cls.__name__
-        _NukedSchema.__qualname__ = schema_cls.__qualname__
-        _NukedSchema.__module__ = f"{__package__}.auto_generated"
-
-        new_schema = _NukedSchema(strict=True, many=many)  # type: ignore[call-arg]
+        new_schema = nuked_schema_cls(strict=True, many=many)  # type: ignore[call-arg]
         _nuked_schemas[key] = new_schema
         return new_schema
