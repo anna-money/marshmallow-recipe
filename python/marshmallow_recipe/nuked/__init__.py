@@ -1162,6 +1162,10 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                     return [container.dump(item) for item in obj]
                 return container.dump(obj)
 
+        _NukedSchema.__name__ = schema_cls.__name__
+        _NukedSchema.__qualname__ = schema_cls.__qualname__
+        _NukedSchema.__module__ = f"{__package__}.auto_generated"
+
         new_schema = _NukedSchema(many=many)
         _nuked_schemas[key] = new_schema
         return new_schema
@@ -1204,6 +1208,10 @@ else:
                 else:
                     dumped = container.dump(obj)
                 return marshmallow.MarshalResult(dumped, None)
+
+        _NukedSchema.__name__ = schema_cls.__name__
+        _NukedSchema.__qualname__ = schema_cls.__qualname__
+        _NukedSchema.__module__ = f"{__package__}.auto_generated"
 
         new_schema = _NukedSchema(strict=True, many=many)  # type: ignore[call-arg]
         _nuked_schemas[key] = new_schema

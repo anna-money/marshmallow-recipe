@@ -1,3 +1,10 @@
+## v0.0.110 (2026-11-09)
+
+* [Name the `mr.nuked.schema` class after the dataclass the same way as in `mr.schema`](https://github.com/anna-money/marshmallow-recipe/pull/331), fixing [#318](https://github.com/anna-money/marshmallow-recipe/issues/318)
+  * `type(mr.nuked.schema(Refund)).__name__` and `__qualname__` are `Refund`, as with `mr.schema`; before, every nuked schema class was `_NukedSchema`, so apispec named every swagger definition `_Nuked`, `_Nuked1`, and so on.
+  * Its `__module__` is `marshmallow_recipe.nuked.auto_generated`, next to `marshmallow_recipe.auto_generated` for `mr.schema`.
+
+
 ## v0.0.109 (2026-11-06)
 
 * [Convert a loaded `datetime` to UTC in `mr.nuked.load` the same way as in `mr`](https://github.com/anna-money/marshmallow-recipe/pull/329), fixing the offset part of [#325](https://github.com/anna-money/marshmallow-recipe/issues/325)
