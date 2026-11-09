@@ -2,7 +2,7 @@
 
 * [Dump an enum member or subclass in a `str`/`int`/`float` field as the plain builtin in both backends](https://github.com/anna-money/marshmallow-recipe/pull/336), part of [#332](https://github.com/anna-money/marshmallow-recipe/issues/332)
   * A `StrEnum` member in a `str` field dumps as `"a"` of type `str`; before, `mr.nuked.dump` returned the `StrEnum` member itself. The same holds for `int` (`IntEnum`, `IntFlag`, `int` subclasses) and `float` fields, inside `list`/`set`/`frozenset`/`tuple` items, `dict` values, `Optional` and unions.
-  * A validator sees the plain builtin on dump, as in `mr`: `validate=lambda v: type(v) is str` no longer fails on a `StrEnum` member in `mr.nuked.dump`.
+  * A `str`/`int`/`float` field validator, a collection's `validate_item` and a `dict` value validator see the plain builtin on dump, as in `mr`: `validate=lambda v: type(v) is str` no longer fails on a `StrEnum` member in `mr.nuked.dump`. A validator on a union, on a whole collection or `dict`, or on a nested dataclass still sees the original member in `mr.nuked.dump`.
   * `mr.dump` emits the stored value instead of calling `__str__`/`__int__`/`__float__`: a `(str, Enum)` member dumps as `"a"` rather than `"Kind.A"`, and an `int` subclass in a `float` field dumps as a plain `int`.
   * `dict[int, V]` and `dict[float, V]` keys use the stored value too: an `(int, Enum)` key dumps as `"1"` in `mr.nuked.dump` rather than `"Kind.A"`.
   * `Literal["a"]` and `Literal[1]` reject an enum member or subclass on dump in `mr.nuked`, as in `mr`, so `Literal["a"] | str` falls through to the `str` variant.
