@@ -1,6 +1,6 @@
 ## v0.0.113 (2026-11-09)
 
-* [Dump an enum member or subclass in a `str`/`int`/`float` field as the plain builtin in both backends](https://github.com/anna-money/marshmallow-recipe/pulls), part of [#332](https://github.com/anna-money/marshmallow-recipe/issues/332)
+* [Dump an enum member or subclass in a `str`/`int`/`float` field as the plain builtin in both backends](https://github.com/anna-money/marshmallow-recipe/pull/336), part of [#332](https://github.com/anna-money/marshmallow-recipe/issues/332)
   * A `StrEnum` member in a `str` field dumps as `"a"` of type `str`; before, `mr.nuked.dump` returned the `StrEnum` member itself. The same holds for `int` (`IntEnum`, `IntFlag`, `int` subclasses) and `float` fields, inside `list`/`set`/`frozenset`/`tuple` items, `dict` values, `Optional` and unions.
   * A validator sees the plain builtin on dump, as in `mr`: `validate=lambda v: type(v) is str` no longer fails on a `StrEnum` member in `mr.nuked.dump`.
   * `mr.dump` emits the stored value instead of calling `__str__`/`__int__`/`__float__`: a `(str, Enum)` member dumps as `"a"` rather than `"Kind.A"`, and an `int` subclass in a `float` field dumps as a plain `int`.
