@@ -36,6 +36,7 @@ from .conftest import (
     WithListNestedStrippedItemValidation,
     WithListNoneError,
     WithListPostLoad,
+    WithListPostLoadSuffixMinLengthItem,
     WithListRequiredError,
     WithListStripEmailItem,
     WithListStrippedItemValidation,
@@ -303,6 +304,12 @@ class TestListDump:
                 WithOptionalListItemValidation(items=[None, 1]),
                 {"items": [None, 1]},
                 id="validate_item_none",
+            ),
+            pytest.param(
+                WithListPostLoadSuffixMinLengthItem,
+                WithListPostLoadSuffixMinLengthItem(items=["a"]),
+                {"items": ["a"]},
+                id="item_min_length_on_post_load_result",
             ),
         ],
     )

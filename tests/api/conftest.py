@@ -2261,6 +2261,58 @@ class WithStrStripPostLoadValidation:
     )
 
 
+def _with_suffix(value: str) -> str:
+    return value + "xyz"
+
+
+def _first_char(value: str) -> str:
+    return value[:1]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrPostLoadSuffixMinLength:
+    value: str = dataclasses.field(metadata=mr.str_meta(post_load=_with_suffix, min_length=3))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrPostLoadSuffixMaxLength:
+    value: str = dataclasses.field(metadata=mr.str_meta(post_load=_with_suffix, max_length=3))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrStripPostLoadSuffixMinLength:
+    value: str = dataclasses.field(metadata=mr.str_meta(strip_whitespaces=True, post_load=_with_suffix, min_length=3))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalStrStripPostLoadSuffixMinLength:
+    value: str | None = dataclasses.field(
+        default=None, metadata=mr.str_meta(strip_whitespaces=True, post_load=_with_suffix, min_length=3)
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrPostLoadSuffixMinLengthValidation:
+    value: str = dataclasses.field(
+        metadata=mr.str_meta(post_load=_with_suffix, min_length=3, validate=lambda x: x == "axyz")
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrPostLoadFirstCharMinLength:
+    value: str = dataclasses.field(metadata=mr.str_meta(post_load=_first_char, min_length=2))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrPostLoadFirstCharMaxLength:
+    value: str = dataclasses.field(metadata=mr.str_meta(post_load=_first_char, max_length=1))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithListPostLoadSuffixMinLengthItem:
+    items: list[Annotated[str, mr.str_meta(post_load=_with_suffix, min_length=3)]]
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithStrPrefixValidation:
     value: str = dataclasses.field(metadata=mr.meta(validate=lambda x: x.startswith("a")))

@@ -13,6 +13,7 @@ from .conftest import (
     WithAnnotatedStrStripEmail,
     WithOptionalPostLoadAndStrip,
     WithOptionalStrStripEmail,
+    WithOptionalStrStripPostLoadSuffixMinLength,
     WithOptionalStrStripWhitespace,
     WithPostLoadAndStrip,
     WithPostLoadTransform,
@@ -26,12 +27,18 @@ from .conftest import (
     WithStrMinMaxLength,
     WithStrMissing,
     WithStrNoneError,
+    WithStrPostLoadFirstCharMaxLength,
+    WithStrPostLoadFirstCharMinLength,
+    WithStrPostLoadSuffixMaxLength,
+    WithStrPostLoadSuffixMinLength,
+    WithStrPostLoadSuffixMinLengthValidation,
     WithStrPostLoadUpperValidation,
     WithStrPrefixValidation,
     WithStrRequiredError,
     WithStrStripDefaultStrippedValidation,
     WithStrStripEmail,
     WithStrStripEmptyValidation,
+    WithStrStripPostLoadSuffixMinLength,
     WithStrStripPostLoadValidation,
     WithStrStripStrippedValidation,
     WithStrStripWhitespaceDefault,
@@ -302,6 +309,70 @@ class TestStrDump:
         expected: bytes,
     ) -> None:
         assert impl.dump(WithOptionalStrStripEmail, obj, none_value_handling=none_value_handling) == expected
+
+    @pytest.mark.parametrize(
+        ("schema_type", "obj", "expected"),
+        [
+            pytest.param(
+                WithStrPostLoadSuffixMinLength,
+                WithStrPostLoadSuffixMinLength(value="a"),
+                {"value": "a"},
+                id="min_length",
+            ),
+            pytest.param(
+                WithStrStripPostLoadSuffixMinLength,
+                WithStrStripPostLoadSuffixMinLength(value=" a "),
+                {"value": "a"},
+                id="strip_min_length",
+            ),
+            pytest.param(
+                WithOptionalStrStripPostLoadSuffixMinLength,
+                WithOptionalStrStripPostLoadSuffixMinLength(value="   "),
+                {},
+                id="optional_strip_to_none",
+            ),
+            pytest.param(
+                WithStrPostLoadFirstCharMaxLength,
+                WithStrPostLoadFirstCharMaxLength(value="abc"),
+                {"value": "abc"},
+                id="max_length",
+            ),
+            pytest.param(
+                WithStrPostLoadSuffixMinLengthValidation,
+                WithStrPostLoadSuffixMinLengthValidation(value="a"),
+                {"value": "a"},
+                id="min_length_and_validate",
+            ),
+        ],
+    )
+    def test_length_checked_on_post_load_result(
+        self, impl: Serializer, schema_type: type, obj: object, expected: dict[str, str]
+    ) -> None:
+        assert_dumped(impl.dump_raw(schema_type, obj), expected)
+
+    @pytest.mark.parametrize(
+        ("schema_type", "obj", "error_messages"),
+        [
+            pytest.param(
+                WithStrPostLoadSuffixMaxLength,
+                WithStrPostLoadSuffixMaxLength(value="a"),
+                {"value": ["Longer than maximum length 3."]},
+                id="max_length",
+            ),
+            pytest.param(
+                WithStrPostLoadFirstCharMinLength,
+                WithStrPostLoadFirstCharMinLength(value="abc"),
+                {"value": ["Shorter than minimum length 2."]},
+                id="min_length",
+            ),
+        ],
+    )
+    def test_length_rejects_post_load_result(
+        self, impl: Serializer, schema_type: type, obj: object, error_messages: dict[str, list[str]]
+    ) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(schema_type, obj)
+        assert exc.value.messages == error_messages
 
     def test_validator_rejects_stripped_value(self, impl: Serializer) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:

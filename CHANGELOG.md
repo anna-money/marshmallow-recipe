@@ -4,6 +4,7 @@
   * `mr.dump` validates `load(dump(obj))`, so `validate` and `validate_item` see the value as it would load back. `mr.nuked.dump` passed the raw attribute instead, before stripping, rounding or converting it.
   * `str_meta(strip_whitespaces=True, validate=mr.email_validate())` dumps `" a@b.co "` as `"a@b.co"`; before, `mr.nuked.dump` raised `Not a valid email address.`. A `str | None` field that strips to `None` skips its validator.
   * A validator sees the `post_load` result of a `str`, a naive or offset `datetime` as UTC, a `datetime` in a `date` field as a `date`, a `Decimal` after `rounding`, a nested dataclass rebuilt from its dumped fields, and a `list`, `set`, `frozenset`, `tuple`, `dict` or union value as it loads back.
+  * A `str` field with `post_load` checks `min_length` and `max_length` on the `post_load` result, as `mr.dump` does: `str_meta(post_load=lambda s: s + "xyz", min_length=3)` dumps `"a"`, and `str_meta(post_load=lambda s: s[:1], min_length=2)` rejects `"abc"`. `post_load` now runs on every dump of such a field, so a `post_load` that raises fails the dump, as in `mr.dump`.
   * `validate_item` is skipped for a `None` item, as on load; before, `list[int | None]` with `validate_item=lambda x: x > 0` failed to dump `[None, 1]`.
   * A value of the wrong type reports the type error, such as `Not a valid string.`, instead of the validator's message. When a built-in check (length, range, decimal places) and a validator both fail, `mr.nuked.dump` now reports the built-in message, as `mr.nuked.load` does.
 

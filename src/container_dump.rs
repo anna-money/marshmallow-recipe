@@ -27,6 +27,11 @@ impl FieldContainer {
         let dumped = match self {
             Self::Str {
                 strip_whitespaces,
+                post_load: Some(_),
+                ..
+            } => return self.dump_str_with_post_load(registry, value, *strip_whitespaces),
+            Self::Str {
+                strip_whitespaces,
                 min_length,
                 max_length,
                 ..
@@ -174,6 +179,37 @@ impl FieldContainer {
         }
         let loaded = self.load_unvalidated(registry, dumped)?;
         call_validator_with_error(validator, loaded.bind(dumped.py()))
+    }
+
+    /// Dumps a `str` field that has `post_load`. Classic checks the length bounds and runs
+    /// the validator on the `post_load` result of the load-back, so load the dumped value back
+    /// once and check that instead of the dumped string.
+    #[cold]
+    #[inline(never)]
+    fn dump_str_with_post_load(
+        &self,
+        registry: &DataclassRegistry,
+        value: &Bound<'_, PyAny>,
+        strip_whitespaces: bool,
+    ) -> Result<Py<PyAny>, SerializationError> {
+        let py = value.py();
+        let common = self.common();
+        let dumped = str_type::dump_to_py(
+            value,
+            strip_whitespaces,
+            common.optional,
+            &common.invalid_error,
+            None,
+            None,
+        )?;
+        match common.validator {
+            Some(ref validator) => self.validate_dumped(registry, validator, dumped.bind(py))?,
+            None if !dumped.is_none(py) => {
+                self.load_unvalidated(registry, dumped.bind(py))?;
+            }
+            None => {}
+        }
+        Ok(dumped)
     }
 }
 
