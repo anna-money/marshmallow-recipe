@@ -1,6 +1,6 @@
 ## v0.0.112 (2026-11-09)
 
-* [Pass the values of `dict[K, Any]` through unchecked in `mr.nuked.dump` the same way as in `mr`](https://github.com/anna-money/marshmallow-recipe/pull/PR_NUMBER), part of [#332](https://github.com/anna-money/marshmallow-recipe/issues/332)
+* [Pass the values of `dict[K, Any]` through unchecked in `mr.nuked.dump` the same way as in `mr`](https://github.com/anna-money/marshmallow-recipe/pull/334), part of [#332](https://github.com/anna-money/marshmallow-recipe/issues/332)
   * A non-JSON value inside `dict[str, Any]`, `Mapping[str, Any]`, `dict[Any, Any]` or an unsubscripted `dict` or `Mapping` is dumped as it is, leaving encoding to the caller's JSON encoder: `Free(data={"id": UUID(...), "amount": Decimal("1.5")})` dumps as `{"data": {"id": UUID(...), "amount": Decimal("1.5")}}`; before, `mr.nuked.dump` raised `{'data': {'id': {'value': ['Not a valid JSON-serializable value.']}, ...}}`.
   * This holds wherever such a dict appears: `Optional`, a type alias, `NewType` or `Annotated` around it, inside a `list`, `tuple`, `dict` or union, and as a root type of `mr.nuked.dump`. A typed key such as `dict[int, Any]` is still converted: `{1: UUID(...)}` dumps to `{"1": UUID(...)}`.
   * A bare `Any` field, `list[Any]`, `dict[str, list[Any]]` and an `Any` value spelled through a type alias or `Annotated` are still checked to be JSON-serializable, as in `mr`.
