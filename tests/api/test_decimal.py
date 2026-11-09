@@ -26,9 +26,11 @@ from .conftest import (
     WithDecimalRoundHalfDown,
     WithDecimalRoundHalfEven,
     WithDecimalRoundHalfUp,
+    WithDecimalRoundingQuantizedValidation,
     WithDecimalRoundUp,
     WithDecimalTwoValidators,
     WithDecimalValidation,
+    assert_dumped,
 )
 
 
@@ -542,6 +544,19 @@ class TestDecimalDump:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(DC, DC(value=decimal.Decimal("99.999")))
         assert exc.value.messages == {"value": ["Must be less than 100."]}
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            pytest.param(decimal.Decimal("1.005"), {"value": "1.01"}, id="rounded"),
+            pytest.param(decimal.Decimal("1.01"), {"value": "1.01"}, id="exact"),
+        ],
+    )
+    def test_validator_sees_rounded_value(
+        self, impl: Serializer, value: decimal.Decimal, expected: dict[str, str]
+    ) -> None:
+        obj = WithDecimalRoundingQuantizedValidation(value=value)
+        assert_dumped(impl.dump_raw(WithDecimalRoundingQuantizedValidation, obj), expected)
 
 
 class TestDecimalLoad:

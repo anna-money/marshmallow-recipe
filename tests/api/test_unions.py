@@ -1,3 +1,5 @@
+import datetime
+
 import marshmallow
 import pytest
 
@@ -11,6 +13,7 @@ from .conftest import (
     StrDiscriminator,
     WithDiscriminatedUnion,
     WithUnion,
+    WithUnionDatetimeStrAwareValidation,
     WithUnionDictDataclass,
     WithUnionDictStr,
     WithUnionDictStrOptional,
@@ -22,6 +25,8 @@ from .conftest import (
     WithUnionStrDict,
     WithUnionStrDictOptional,
     WithUnionStrInt,
+    WithUnionStripEmailInt,
+    assert_dumped,
 )
 
 
@@ -174,6 +179,28 @@ class TestUnionDump:
     def test_optional_union_with_none_include(self, impl: Serializer, cls: type, obj: object) -> None:
         result = impl.dump(cls, obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
         assert result == b'{"value":null}'
+
+    @pytest.mark.parametrize(
+        ("schema_type", "obj", "expected"),
+        [
+            pytest.param(
+                WithUnionStripEmailInt,
+                WithUnionStripEmailInt(value=" a@b.co "),
+                {"value": "a@b.co"},
+                id="variant_strip_email",
+            ),
+            pytest.param(
+                WithUnionDatetimeStrAwareValidation,
+                WithUnionDatetimeStrAwareValidation(value=datetime.datetime(2020, 1, 1)),
+                {"value": "2020-01-01T00:00:00+00:00"},
+                id="union_validate_naive_datetime",
+            ),
+        ],
+    )
+    def test_validator_sees_loaded_value(
+        self, impl: Serializer, schema_type: type, obj: object, expected: dict[str, str]
+    ) -> None:
+        assert_dumped(impl.dump_raw(schema_type, obj), expected)
 
 
 class TestUnionLoad:

@@ -2,7 +2,7 @@ import pytest
 
 import marshmallow_recipe as mr
 
-from .conftest import OptionalValueOf, Serializer, ValueOf
+from .conftest import OptionalValueOf, Serializer, ValueOf, WithStrStripEmail
 
 
 @pytest.fixture
@@ -37,6 +37,11 @@ class TestManyDump:
         objs = [OptionalValueOf[str](value="hello"), OptionalValueOf[str](value=None)]
         result = impl.dump_many(OptionalValueOf[str], objs, none_value_handling=mr.NoneValueHandling.IGNORE)
         assert result == b'[{"value":"hello"},{}]'
+
+    def test_validator_sees_loaded_value(self, impl: Serializer) -> None:
+        objs = [WithStrStripEmail(value=" a@b.co "), WithStrStripEmail(value="c@d.co")]
+        result = impl.dump_many(WithStrStripEmail, objs)
+        assert result == b'[{"value":"a@b.co"},{"value":"c@d.co"}]'
 
 
 @pytest.mark.usefixtures("skip_if_no_many")

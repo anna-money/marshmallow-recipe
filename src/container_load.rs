@@ -22,7 +22,7 @@ use crate::utils::{
 
 const NESTED_ERROR: &str = "Invalid input type.";
 
-fn call_validator_with_error(
+pub fn call_validator_with_error(
     validator: &Py<PyAny>,
     value: &Bound<'_, PyAny>,
 ) -> Result<(), SerializationError> {
@@ -61,7 +61,18 @@ impl FieldContainer {
             ));
         }
 
-        let loaded = match self {
+        let loaded = self.load_unvalidated(registry, value)?;
+        apply_validate(py, loaded, common.validator.as_ref())
+    }
+
+    #[inline]
+    pub fn load_unvalidated(
+        &self,
+        registry: &DataclassRegistry,
+        value: &Bound<'_, PyAny>,
+    ) -> Result<Py<PyAny>, SerializationError> {
+        let common = self.common();
+        match self {
             Self::Str {
                 strip_whitespaces,
                 post_load,
@@ -177,8 +188,7 @@ impl FieldContainer {
                 dataclass_index, ..
             } => registry.get(*dataclass_index).load_from_py(registry, value),
             Self::Union { variants, .. } => union::load_from_py(registry, value, variants),
-        }?;
-        apply_validate(py, loaded, common.validator.as_ref())
+        }
     }
 }
 

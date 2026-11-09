@@ -10,7 +10,9 @@ from .conftest import (
     WithAnnotatedStrInvalidError,
     WithAnnotatedStrNoneError,
     WithAnnotatedStrRequiredError,
+    WithAnnotatedStrStripEmail,
     WithOptionalPostLoadAndStrip,
+    WithOptionalStrStripEmail,
     WithOptionalStrStripWhitespace,
     WithPostLoadAndStrip,
     WithPostLoadTransform,
@@ -24,10 +26,18 @@ from .conftest import (
     WithStrMinMaxLength,
     WithStrMissing,
     WithStrNoneError,
+    WithStrPostLoadUpperValidation,
+    WithStrPrefixValidation,
     WithStrRequiredError,
+    WithStrStripDefaultStrippedValidation,
+    WithStrStripEmail,
+    WithStrStripEmptyValidation,
+    WithStrStripPostLoadValidation,
+    WithStrStripStrippedValidation,
     WithStrStripWhitespaceDefault,
     WithStrTwoValidators,
     WithStrValidation,
+    assert_dumped,
 )
 
 
@@ -208,6 +218,102 @@ class TestStrDump:
     def test_strip_whitespaces_blank_with_default(self, impl: Serializer) -> None:
         result = impl.dump(WithStrStripWhitespaceDefault, WithStrStripWhitespaceDefault(value="   "))
         assert result == b'{"value":""}'
+
+    @pytest.mark.parametrize(
+        ("schema_type", "obj", "expected"),
+        [
+            pytest.param(WithStrStripEmail, WithStrStripEmail(value=" a@b.co "), {"value": "a@b.co"}, id="strip_email"),
+            pytest.param(
+                WithAnnotatedStrStripEmail,
+                WithAnnotatedStrStripEmail(value=" a@b.co "),
+                {"value": "a@b.co"},
+                id="annotated_strip_email",
+            ),
+            pytest.param(
+                WithStrStripStrippedValidation,
+                WithStrStripStrippedValidation(value=" x "),
+                {"value": "x"},
+                id="strip_is_stripped",
+            ),
+            pytest.param(
+                WithStrStripDefaultStrippedValidation,
+                WithStrStripDefaultStrippedValidation(value=" y "),
+                {"value": "y"},
+                id="strip_with_default_is_stripped",
+            ),
+            pytest.param(
+                WithStrStripDefaultStrippedValidation,
+                WithStrStripDefaultStrippedValidation(),
+                {"value": "d"},
+                id="strip_default_kept",
+            ),
+            pytest.param(
+                WithStrStripEmptyValidation,
+                WithStrStripEmptyValidation(value="   "),
+                {"value": ""},
+                id="strip_to_empty",
+            ),
+            pytest.param(
+                WithStrPostLoadUpperValidation,
+                WithStrPostLoadUpperValidation(value="abc"),
+                {"value": "abc"},
+                id="post_load",
+            ),
+            pytest.param(
+                WithStrStripPostLoadValidation,
+                WithStrStripPostLoadValidation(value=" ab "),
+                {"value": "ab"},
+                id="strip_post_load",
+            ),
+        ],
+    )
+    def test_validator_sees_loaded_value(
+        self, impl: Serializer, schema_type: type, obj: object, expected: dict[str, str]
+    ) -> None:
+        assert_dumped(impl.dump_raw(schema_type, obj), expected)
+
+    @pytest.mark.parametrize(
+        ("obj", "none_value_handling", "expected"),
+        [
+            pytest.param(WithOptionalStrStripEmail(value="   "), mr.NoneValueHandling.IGNORE, b"{}", id="blank_ignore"),
+            pytest.param(
+                WithOptionalStrStripEmail(value="   "),
+                mr.NoneValueHandling.INCLUDE,
+                b'{"value":null}',
+                id="blank_include",
+            ),
+            pytest.param(WithOptionalStrStripEmail(), mr.NoneValueHandling.IGNORE, b"{}", id="none_ignore"),
+            pytest.param(
+                WithOptionalStrStripEmail(), mr.NoneValueHandling.INCLUDE, b'{"value":null}', id="none_include"
+            ),
+            pytest.param(
+                WithOptionalStrStripEmail(value=" a@b.co "),
+                mr.NoneValueHandling.INCLUDE,
+                b'{"value":"a@b.co"}',
+                id="value",
+            ),
+        ],
+    )
+    def test_optional_strip_with_validator(
+        self,
+        impl: Serializer,
+        obj: WithOptionalStrStripEmail,
+        none_value_handling: mr.NoneValueHandling,
+        expected: bytes,
+    ) -> None:
+        assert impl.dump(WithOptionalStrStripEmail, obj, none_value_handling=none_value_handling) == expected
+
+    def test_validator_rejects_stripped_value(self, impl: Serializer) -> None:
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithStrStripEmail, WithStrStripEmail(value=" bad "))
+        assert exc.value.messages == {"value": ["Not a valid email address."]}
+
+    def test_invalid_type_with_validator(self, impl: Serializer) -> None:
+        obj = WithStrPrefixValidation(**{"value": 1})  # type: ignore[arg-type]
+        with pytest.raises(marshmallow.ValidationError) as exc:
+            impl.dump(WithStrPrefixValidation, obj)
+        if impl.supports_proper_validation_errors_on_dump:
+            assert exc.value.messages == {"value": ["Not a valid string."]}
 
 
 class TestStrLoad:

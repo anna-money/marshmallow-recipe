@@ -123,27 +123,28 @@ pub fn dump_to_py(
     let iter = value
         .try_iter()
         .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
-    let mut idx = 0usize;
 
-    for item_result in iter {
+    for (idx, item_result) in iter.enumerate() {
         let item_value = item_result.map_err(|e| SerializationError::simple(py, &e.to_string()))?;
 
-        if let Some(validator) = item_validator
-            && let Ok(Some(err_list)) = call_validator(py, validator, &item_value)
-        {
-            let e = pyerrors_to_serialization_error(py, &err_list);
-            accumulate_error(py, &mut errors, idx, &e);
-            idx += 1;
-            continue;
-        }
-
         match item.dump_to_py(registry, &item_value) {
-            Ok(dumped) => unsafe {
-                pyo3::ffi::PyList_SET_ITEM(result.as_ptr(), idx.cast_signed(), dumped.into_ptr());
-            },
+            Ok(dumped) => {
+                if let Some(validator) = item_validator
+                    && let Err(ref e) = item.validate_dumped(registry, validator, dumped.bind(py))
+                {
+                    accumulate_error(py, &mut errors, idx, e);
+                } else {
+                    unsafe {
+                        pyo3::ffi::PyList_SET_ITEM(
+                            result.as_ptr(),
+                            idx.cast_signed(),
+                            dumped.into_ptr(),
+                        );
+                    }
+                }
+            }
             Err(ref e) => accumulate_error(py, &mut errors, idx, e),
         }
-        idx += 1;
     }
 
     if let Some(errors) = errors {

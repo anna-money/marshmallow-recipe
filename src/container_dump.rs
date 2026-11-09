@@ -3,14 +3,13 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 
 use crate::container::{DataclassContainer, DataclassRegistry, FieldContainer, TypeContainer};
-use crate::error::{
-    SerializationError, accumulate_entry_error, accumulate_error, pyerrors_to_serialization_error,
-};
+use crate::container_load::call_validator_with_error;
+use crate::error::{SerializationError, accumulate_entry_error, accumulate_error};
 use crate::fields::{
     any, bool_literal, bool_type, bytes, collection, date, datetime, decimal, dict, float_type,
     int_enum, int_literal, int_type, str_enum, str_literal, str_type, time, union, uuid,
 };
-use crate::utils::{call_validator, new_presized_list};
+use crate::utils::new_presized_list;
 
 #[allow(clippy::cast_sign_loss, clippy::unused_self)]
 impl FieldContainer {
@@ -25,12 +24,7 @@ impl FieldContainer {
         }
 
         let common = self.common();
-        if let Some(ref validator) = common.validator
-            && let Ok(Some(err_list)) = call_validator(py, validator, value)
-        {
-            return Err(pyerrors_to_serialization_error(py, &err_list));
-        }
-        match self {
+        let dumped = match self {
             Self::Str {
                 strip_whitespaces,
                 min_length,
@@ -158,7 +152,28 @@ impl FieldContainer {
                 dataclass_index, ..
             } => registry.get(*dataclass_index).dump_to_py(registry, value),
             Self::Union { variants, .. } => union::dump_to_py(registry, value, variants),
+        }?;
+        if let Some(ref validator) = common.validator {
+            self.validate_dumped(registry, validator, dumped.bind(py))?;
         }
+        Ok(dumped)
+    }
+
+    /// Runs `validator` on the load of `dumped`: classic validates `load(dump(x))`, not `x`.
+    /// A `None` dump skips the validator, as classic does for `allow_none` fields.
+    #[cold]
+    #[inline(never)]
+    pub fn validate_dumped(
+        &self,
+        registry: &DataclassRegistry,
+        validator: &Py<PyAny>,
+        dumped: &Bound<'_, PyAny>,
+    ) -> Result<(), SerializationError> {
+        if dumped.is_none() {
+            return Ok(());
+        }
+        let loaded = self.load_unvalidated(registry, dumped)?;
+        call_validator_with_error(validator, loaded.bind(dumped.py()))
     }
 }
 

@@ -10,9 +10,11 @@ from .conftest import (
     OptionalValueOf,
     Serializer,
     ValueOf,
+    WithDatetimeAwareValidation,
     WithDateTimeCustomFormat,
     WithDateTimeCustomFormatFull,
     WithDateTimeCustomFormatTimezone,
+    WithDatetimeDateFormatMidnightValidation,
     WithDateTimeFormatDateOnly,
     WithDateTimeFormatHumanReadable,
     WithDateTimeFormatIso,
@@ -26,7 +28,9 @@ from .conftest import (
     WithDatetimeNoneError,
     WithDatetimeRequiredError,
     WithDatetimeTwoValidators,
+    WithDatetimeUtcValidation,
     WithDatetimeValidation,
+    assert_dumped,
 )
 
 LONDON = zoneinfo.ZoneInfo("Europe/London")
@@ -516,6 +520,36 @@ class TestDatetimeDump:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(WithDateTimeFormatTimestamp, obj)
         assert exc.value.messages == {"created_at": ["Not a valid datetime."]}
+
+    @pytest.mark.parametrize(
+        ("schema_type", "obj", "expected"),
+        [
+            pytest.param(
+                WithDatetimeAwareValidation,
+                WithDatetimeAwareValidation(value=datetime.datetime(2020, 1, 1)),
+                {"value": "2020-01-01T00:00:00+00:00"},
+                id="naive",
+            ),
+            pytest.param(
+                WithDatetimeUtcValidation,
+                WithDatetimeUtcValidation(
+                    value=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone(datetime.timedelta(hours=3)))
+                ),
+                {"value": "2020-01-01T00:00:00+03:00"},
+                id="offset",
+            ),
+            pytest.param(
+                WithDatetimeDateFormatMidnightValidation,
+                WithDatetimeDateFormatMidnightValidation(value=datetime.datetime(2020, 1, 1, 10, tzinfo=datetime.UTC)),
+                {"value": "2020-01-01"},
+                id="format_truncates",
+            ),
+        ],
+    )
+    def test_validator_sees_loaded_value(
+        self, impl: Serializer, schema_type: type, obj: object, expected: dict[str, str]
+    ) -> None:
+        assert_dumped(impl.dump_raw(schema_type, obj), expected)
 
 
 class TestDatetimeLoad:
