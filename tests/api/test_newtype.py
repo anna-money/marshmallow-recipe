@@ -7,9 +7,13 @@ import pytest
 from .conftest import (
     NewInt as ConfTestNewInt,
     Serializer,
+    Status,
+    StrDiscriminator,
+    ValueOf,
     WithNewTypeMissing,
     WithNewTypeTwoValidators,
     WithNewTypeValidation,
+    exactly,
 )
 
 NewInt = NewType("NewInt", int)
@@ -72,6 +76,17 @@ class TestNewTypeDump:
         obj = WithNewTypeMissing(value=ConfTestNewInt(42))
         result = impl.dump(WithNewTypeMissing, obj)
         assert result == b'{"value":42}'
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            pytest.param(StrDiscriminator.DOG, "DOG", id="str_enum"),
+            pytest.param(Status.ACTIVE, "active", id="str_mixin_enum"),
+        ],
+    )
+    def test_str_subclass_dumped_as_exact_str(self, impl: Serializer, value: str, expected: str) -> None:
+        result = impl.dump_raw(ValueOf[NewStr], ValueOf[NewStr](value=NewStr(value)))
+        assert exactly(result) == exactly({"value": expected})
 
 
 class TestNewTypeLoad:

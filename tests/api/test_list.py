@@ -14,14 +14,22 @@ import marshmallow_recipe as mr
 from .conftest import (
     Address,
     CollectionHolder,
+    FloatMixinEnum,
+    FloatSubclassWithDunders,
+    IntDiscriminator,
+    IntSubclassWithDunders,
     ListOf,
     OptionalListOf,
     Priority,
     Serializer,
     Status,
+    StrDiscriminator,
+    StrSubclass,
+    StrSubclassWithDunders,
     WithAnnotatedListItemValidation,
     WithDefaults,
     WithListAnnotatedItemValidation,
+    WithListAnnotatedStrExactTypeValidation,
     WithListInvalidError,
     WithListItemTwoValidators,
     WithListItemValidation,
@@ -34,8 +42,10 @@ from .conftest import (
     WithListNoneError,
     WithListPostLoad,
     WithListRequiredError,
+    WithListStrExactTypeItemValidation,
     WithListStripWhitespace,
     WithOptionalListItemValidation,
+    exactly,
 )
 
 
@@ -257,6 +267,50 @@ class TestListDump:
             impl.dump(schema_type, obj)
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == error_messages
+
+    @pytest.mark.parametrize(
+        ("schema_type", "obj", "expected"),
+        [
+            pytest.param(
+                ListOf[str],
+                ListOf[str](items=[StrDiscriminator.DOG, Status.ACTIVE, StrSubclassWithDunders("x")]),
+                {"items": ["DOG", "active", "x"]},
+                id="str",
+            ),
+            pytest.param(
+                ListOf[int],
+                ListOf[int](items=[IntDiscriminator.ONE, Priority.MEDIUM, IntSubclassWithDunders(3)]),
+                {"items": [1, 2, 3]},
+                id="int",
+            ),
+            pytest.param(
+                ListOf[float],
+                ListOf[float](items=[FloatSubclassWithDunders(1.5), FloatMixinEnum.HALF, IntDiscriminator.ONE]),
+                {"items": [1.5, 1.5, 1]},
+                id="float",
+            ),
+            pytest.param(
+                ListOf[list[str]], ListOf[list[str]](items=[[StrDiscriminator.DOG]]), {"items": [["DOG"]]}, id="nested"
+            ),
+            pytest.param(
+                WithListStrExactTypeItemValidation,
+                WithListStrExactTypeItemValidation(items=[StrDiscriminator.DOG, StrSubclass("x")]),
+                {"items": ["DOG", "x"]},
+                id="validate_item_sees_exact_str",
+            ),
+            pytest.param(
+                WithListAnnotatedStrExactTypeValidation,
+                WithListAnnotatedStrExactTypeValidation(items=[StrDiscriminator.DOG, StrSubclass("x")]),
+                {"items": ["DOG", "x"]},
+                id="item_validator_sees_exact_str",
+            ),
+        ],
+    )
+    def test_subclass_items_dumped_as_exact_builtins(
+        self, impl: Serializer, schema_type: type, obj: object, expected: dict[str, Any]
+    ) -> None:
+        result = impl.dump_raw(schema_type, obj)
+        assert exactly(result) == exactly(expected)
 
 
 class TestListLoad:

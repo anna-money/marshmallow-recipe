@@ -128,6 +128,11 @@ pub fn dump_to_py(
             }
         };
 
+        let v = match value_validator {
+            Some(_) => value_schema.to_exact_builtin(&v)?.unwrap_or(v),
+            None => v,
+        };
+
         if let Some(validator) = value_validator
             && let Ok(Some(err_list)) = call_validator(py, validator, &v)
         {

@@ -6,6 +6,10 @@ import marshmallow_recipe as mr
 from .conftest import (
     OptionalValueOf,
     Serializer,
+    Status,
+    StrDiscriminator,
+    StrSubclass,
+    StrSubclassWithDunders,
     ValueOf,
     WithAnnotatedStrInvalidError,
     WithAnnotatedStrNoneError,
@@ -15,6 +19,7 @@ from .conftest import (
     WithPostLoadAndStrip,
     WithPostLoadTransform,
     WithStrDefault,
+    WithStrExactTypeValidation,
     WithStrInvalidError,
     WithStripWhitespace,
     WithStrMaxLength,
@@ -28,6 +33,7 @@ from .conftest import (
     WithStrStripWhitespaceDefault,
     WithStrTwoValidators,
     WithStrValidation,
+    exactly,
 )
 
 
@@ -208,6 +214,29 @@ class TestStrDump:
     def test_strip_whitespaces_blank_with_default(self, impl: Serializer) -> None:
         result = impl.dump(WithStrStripWhitespaceDefault, WithStrStripWhitespaceDefault(value="   "))
         assert result == b'{"value":""}'
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            pytest.param(StrDiscriminator.DOG, "DOG", id="str_enum"),
+            pytest.param(Status.ACTIVE, "active", id="str_mixin_enum"),
+            pytest.param(StrSubclass("hello"), "hello", id="subclass"),
+            pytest.param(StrSubclassWithDunders("hello"), "hello", id="subclass_overriding_str"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "schema_type",
+        [
+            pytest.param(ValueOf[str], id="plain"),
+            pytest.param(OptionalValueOf[str], id="optional"),
+            pytest.param(WithOptionalStrStripWhitespace, id="strip_whitespaces"),
+            pytest.param(WithStrMinLength, id="min_length"),
+            pytest.param(WithStrExactTypeValidation, id="validator_sees_exact_str"),
+        ],
+    )
+    def test_subclass_dumped_as_exact_str(self, impl: Serializer, schema_type: type, value: str, expected: str) -> None:
+        result = impl.dump_raw(schema_type, schema_type(value=value))
+        assert exactly(result) == exactly({"value": expected})
 
 
 class TestStrLoad:
