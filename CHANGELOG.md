@@ -4,7 +4,7 @@
   * `str_meta(strip_whitespaces=True, validate=mr.email_validate())` dumps `" a@b.co "` as `"a@b.co"`; before, `mr.nuked.dump` ran the validator on the unstripped value and raised `Not a valid email address.`. This holds for a plain, `Optional`, defaulted or `Annotated` field, for items of `list`, `set`, `frozenset`, `tuple` and `Sequence`, for `dict` values, for union variants and in nested dataclasses, and for `validate_item` on stripped items.
   * A blank value of an optional stripped field dumps as `None` without calling the validator, as in `mr.dump`; before, `mr.nuked.dump` passed the blank string to the validator.
   * `min_length` and `max_length` are still checked on the stripped value: `" a@b.co "` with `min_length=7` reports `Shorter than minimum length 7.`, as in `mr.dump`; before, `mr.nuked.dump` reported `Not a valid email address.` for the unstripped value.
-  * `mr.dump` no longer runs `str_meta(post_load=...)` while validating the dumped data, so a validator sees the dumped string, as in `mr.nuked.dump`: `str_meta(post_load=str.upper, validate=str.isupper)` now rejects `"abc"` on dump, and a `post_load` that raises no longer fails the dump. `mr.load` still runs `post_load` before the validators.
+  * `mr.dump` no longer runs `str_meta(post_load=...)` while validating the dumped data, so a validator sees the dumped string, as in `mr.nuked.dump`: `str_meta(post_load=str.upper, validate=str.isupper)` now rejects `"abc"` on dump, and a `post_load` that raises no longer fails the dump. `mr.load` still runs `post_load` before the validators, also when a validator calls it during `mr.dump`.
 
 
 ## v0.0.110 (2026-11-09)

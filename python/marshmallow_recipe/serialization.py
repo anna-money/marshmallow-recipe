@@ -6,7 +6,7 @@ from typing import Any, ClassVar, Protocol, get_args, overload
 import marshmallow as m
 
 from .bake import bake_schema
-from .fields import without_post_load
+from .fields import post_load_disabled
 from .generics import extract_type, is_union_type, unwrap_type_alias
 from .missing import MISSING
 from .naming_case import NamingCase
@@ -17,7 +17,7 @@ _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split
 
 
 def _validate_dumped(schema: m.Schema, dumped: Any) -> None:
-    with without_post_load():
+    with post_load_disabled(True):
         errors = schema.validate(dumped)
     if errors:
         raise m.ValidationError(errors)
@@ -116,7 +116,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         schema = schema_v3(
             unwrapped, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
-        return schema.load(data)  # type: ignore
+        with post_load_disabled(False):
+            return schema.load(data)  # type: ignore
 
     def _load_union_v3(
         union_type: Any,
@@ -194,7 +195,8 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
         )
-        return schema.load(data)  # type: ignore
+        with post_load_disabled(False):
+            return schema.load(data)  # type: ignore
 
     load_many = load_many_v3
 
@@ -310,7 +312,8 @@ else:
         schema = schema_v2(
             unwrapped, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
-        loaded, _ = schema.load(data)  # type: ignore
+        with post_load_disabled(False):
+            loaded, _ = schema.load(data)  # type: ignore
         return loaded  # type: ignore[return-value]
 
     def _load_union_v2(
@@ -373,7 +376,8 @@ else:
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
         )
-        loaded, _ = schema.load(data)  # type: ignore
+        with post_load_disabled(False):
+            loaded, _ = schema.load(data)  # type: ignore
         return loaded  # type: ignore[return-value]
 
     load_many = load_many_v2

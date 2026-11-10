@@ -25,13 +25,14 @@ _POST_LOAD_DISABLED: contextvars.ContextVar[bool] = contextvars.ContextVar(
 
 
 @contextlib.contextmanager
-def without_post_load() -> collections.abc.Iterator[None]:
-    """Skip ``str_meta(post_load=...)`` while deserializing in this context.
+def post_load_disabled(disabled: bool) -> collections.abc.Iterator[None]:
+    """Skip ``str_meta(post_load=...)`` while deserializing in this context if ``disabled``.
 
     ``mr.dump`` validates the dumped data with ``Schema.validate``, which deserializes it; a
     ``post_load`` hook must not run on dump, so validators see the dumped value instead.
+    ``mr.load`` re-enables it, so a load called from a validator during a dump still runs it.
     """
-    token = _POST_LOAD_DISABLED.set(True)
+    token = _POST_LOAD_DISABLED.set(disabled)
     try:
         yield
     finally:

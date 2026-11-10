@@ -2240,3 +2240,16 @@ def _reject_post_load(value: str) -> str:
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WithStrRejectingPostLoad:
     value: str = dataclasses.field(metadata=mr.str_meta(post_load=_reject_post_load))
+
+
+def _load_post_load_upper(value: str) -> bool:
+    data = {"value": value}
+    expected = WithStrPostLoadUpperValidation(value=value.upper())
+    loaded = mr.load(WithStrPostLoadUpperValidation, data)
+    loaded_many = mr.load_many(WithStrPostLoadUpperValidation, [data])
+    return loaded == expected and loaded_many == [expected]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrValidationLoadingPostLoad:
+    value: str = dataclasses.field(metadata=mr.str_meta(validate=_load_post_load_upper))

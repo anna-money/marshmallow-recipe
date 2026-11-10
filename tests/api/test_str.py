@@ -35,6 +35,7 @@ from .conftest import (
     WithStrStripWhitespaceDefault,
     WithStrTwoValidators,
     WithStrValidation,
+    WithStrValidationLoadingPostLoad,
 )
 
 
@@ -285,6 +286,10 @@ class TestStrDump:
 
     def test_post_load_not_called(self, impl: Serializer) -> None:
         result = impl.dump(WithStrRejectingPostLoad, WithStrRejectingPostLoad(value="abc"))
+        assert result == b'{"value":"abc"}'
+
+    def test_load_in_validator_runs_post_load(self, impl: Serializer) -> None:
+        result = impl.dump(WithStrValidationLoadingPostLoad, WithStrValidationLoadingPostLoad(value="abc"))
         assert result == b'{"value":"abc"}'
 
 
