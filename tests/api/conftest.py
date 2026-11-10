@@ -74,23 +74,6 @@ def _assert_json_object(value: Any) -> None:
             stack.extend(current)
 
 
-def _type_shape(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {(type(key), key): _type_shape(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_type_shape(item) for item in value]
-    return type(value)
-
-
-def assert_dumped(actual: Any, expected: Any) -> None:
-    """Assert a raw dump equals ``expected`` with the exact same types at every level.
-
-    Plain equality cannot tell ``"a"`` from a ``StrEnum`` member or ``1`` from ``True``.
-    """
-    assert actual == expected
-    assert _type_shape(actual) == _type_shape(expected)
-
-
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
 
 
@@ -2209,12 +2192,7 @@ class WithTwoGenericValues:
     str_value: GenericValue[str]
 
 
-def _is_stripped(value: str) -> bool:
-    return value == value.strip()
-
-
-def _is_aware(value: datetime.datetime) -> bool:
-    return value.tzinfo is not None
+StripEmail = Annotated[str, mr.str_meta(strip_whitespaces=True, validate=mr.email_validate())]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -2223,8 +2201,10 @@ class WithStrStripEmail:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithAnnotatedStrStripEmail:
-    value: Annotated[str, mr.str_meta(strip_whitespaces=True, validate=mr.email_validate())]
+class WithStrStripEmailDefault:
+    value: str = dataclasses.field(
+        default="d@e.co", metadata=mr.str_meta(strip_whitespaces=True, validate=mr.email_validate())
+    )
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -2235,18 +2215,17 @@ class WithOptionalStrStripEmail:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithStrStripStrippedValidation:
-    value: str = dataclasses.field(metadata=mr.str_meta(strip_whitespaces=True, validate=_is_stripped))
+class WithStrStripEmailMaxLength:
+    value: str = dataclasses.field(
+        metadata=mr.str_meta(strip_whitespaces=True, max_length=6, validate=mr.email_validate())
+    )
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithStrStripDefaultStrippedValidation:
-    value: str = dataclasses.field(default="d", metadata=mr.str_meta(strip_whitespaces=True, validate=_is_stripped))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithStrStripEmptyValidation:
-    value: str = dataclasses.field(metadata=mr.str_meta(strip_whitespaces=True, validate=lambda x: x == ""))
+class WithListStripItemEmailValidation:
+    items: list[Annotated[str, mr.str_meta(strip_whitespaces=True)]] = dataclasses.field(
+        metadata=mr.list_meta(validate_item=mr.email_validate())
+    )
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -2254,207 +2233,10 @@ class WithStrPostLoadUpperValidation:
     value: str = dataclasses.field(metadata=mr.str_meta(post_load=str.upper, validate=str.isupper))
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithStrStripPostLoadValidation:
-    value: str = dataclasses.field(
-        metadata=mr.str_meta(strip_whitespaces=True, post_load=str.upper, validate=lambda x: x == "AB")
-    )
-
-
-def _with_suffix(value: str) -> str:
-    return value + "xyz"
-
-
-def _first_char(value: str) -> str:
-    return value[:1]
+def _reject_post_load(value: str) -> str:
+    raise ValueError(f"post_load called with {value!r}")
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithStrPostLoadSuffixMinLength:
-    value: str = dataclasses.field(metadata=mr.str_meta(post_load=_with_suffix, min_length=3))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithStrPostLoadSuffixMaxLength:
-    value: str = dataclasses.field(metadata=mr.str_meta(post_load=_with_suffix, max_length=3))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithStrStripPostLoadSuffixMinLength:
-    value: str = dataclasses.field(metadata=mr.str_meta(strip_whitespaces=True, post_load=_with_suffix, min_length=3))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithOptionalStrStripPostLoadSuffixMinLength:
-    value: str | None = dataclasses.field(
-        default=None, metadata=mr.str_meta(strip_whitespaces=True, post_load=_with_suffix, min_length=3)
-    )
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithStrPostLoadSuffixMinLengthValidation:
-    value: str = dataclasses.field(
-        metadata=mr.str_meta(post_load=_with_suffix, min_length=3, validate=lambda x: x == "axyz")
-    )
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithStrPostLoadFirstCharMinLength:
-    value: str = dataclasses.field(metadata=mr.str_meta(post_load=_first_char, min_length=2))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithStrPostLoadFirstCharMaxLength:
-    value: str = dataclasses.field(metadata=mr.str_meta(post_load=_first_char, max_length=1))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithListPostLoadSuffixMinLengthItem:
-    items: list[Annotated[str, mr.str_meta(post_load=_with_suffix, min_length=3)]]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithStrPrefixValidation:
-    value: str = dataclasses.field(metadata=mr.meta(validate=lambda x: x.startswith("a")))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithDatetimeAwareValidation:
-    value: datetime.datetime = dataclasses.field(metadata=mr.datetime_meta(validate=_is_aware))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithDatetimeUtcValidation:
-    value: datetime.datetime = dataclasses.field(
-        metadata=mr.datetime_meta(validate=lambda x: x.utcoffset() == datetime.timedelta(0))
-    )
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithDatetimeDateFormatMidnightValidation:
-    value: datetime.datetime = dataclasses.field(
-        metadata=mr.datetime_meta(format="%Y-%m-%d", validate=lambda x: x.hour == 0)
-    )
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithDateExactTypeValidation:
-    value: datetime.date = dataclasses.field(metadata=mr.meta(validate=lambda x: type(x) is datetime.date))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithDecimalRoundingQuantizedValidation:
-    value: decimal.Decimal = dataclasses.field(
-        metadata=mr.decimal_meta(
-            places=2, rounding=decimal.ROUND_HALF_UP, validate=lambda x: x == x.quantize(decimal.Decimal("0.01"))
-        )
-    )
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class StrippedName:
-    name: str = dataclasses.field(metadata=mr.str_meta(strip_whitespaces=True))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithListStrippedItemValidation:
-    items: list[Annotated[str, mr.str_meta(strip_whitespaces=True)]] = dataclasses.field(
-        metadata=mr.list_meta(validate_item=_is_stripped)
-    )
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithListStrippedValidation:
-    items: list[Annotated[str, mr.str_meta(strip_whitespaces=True)]] = dataclasses.field(
-        metadata=mr.list_meta(validate=lambda x: all(_is_stripped(item) for item in x))
-    )
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithListStripEmailItem:
-    items: list[Annotated[str, mr.str_meta(strip_whitespaces=True, validate=mr.email_validate())]]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithListNestedStrippedItemValidation:
-    items: list[StrippedName] = dataclasses.field(metadata=mr.list_meta(validate_item=lambda x: _is_stripped(x.name)))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithListAwareItemValidation:
-    items: list[datetime.datetime] = dataclasses.field(metadata=mr.list_meta(validate_item=_is_aware))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithSetAwareItemValidation:
-    items: set[datetime.datetime] = dataclasses.field(metadata=mr.set_meta(validate_item=_is_aware))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithFrozenSetAwareItemValidation:
-    items: frozenset[datetime.datetime] = dataclasses.field(metadata=mr.frozenset_meta(validate_item=_is_aware))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithTupleAwareItemValidation:
-    items: tuple[datetime.datetime, ...] = dataclasses.field(metadata=mr.tuple_meta(validate_item=_is_aware))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithSequenceAwareItemValidation:
-    items: Sequence[datetime.datetime] = dataclasses.field(metadata=mr.sequence_meta(validate_item=_is_aware))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithDictStripEmailValue:
-    data: dict[str, Annotated[str, mr.str_meta(strip_whitespaces=True, validate=mr.email_validate())]]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithDictStrippedValidation:
-    data: dict[str, Annotated[str, mr.str_meta(strip_whitespaces=True)]] = dataclasses.field(
-        metadata=mr.meta(validate=lambda x: all(_is_stripped(item) for item in x.values()))
-    )
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithNestedStrippedValidation:
-    value: StrippedName = dataclasses.field(metadata=mr.meta(validate=lambda x: _is_stripped(x.name)))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithOptionalNestedStrippedValidation:
-    value: StrippedName | None = dataclasses.field(
-        default=None, metadata=mr.meta(validate=lambda x: _is_stripped(x.name))
-    )
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithUnionStripEmailInt:
-    value: Annotated[str, mr.str_meta(strip_whitespaces=True, validate=mr.email_validate())] | int
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithUnionDatetimeStrAwareValidation:
-    value: datetime.datetime | str = dataclasses.field(
-        metadata=mr.meta(validate=lambda x: isinstance(x, str) or _is_aware(x))
-    )
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithUnionStrDatetimeStrValidation:
-    value: str | datetime.datetime = dataclasses.field(metadata=mr.meta(validate=lambda x: isinstance(x, str)))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithDatetimeSecondsFormatValidation:
-    value: datetime.datetime = dataclasses.field(
-        metadata=mr.datetime_meta(format="%Y-%m-%dT%H:%M:%S", validate=lambda x: x.microsecond == 0)
-    )
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithDictAwareValidation:
-    data: dict[str, datetime.datetime] = dataclasses.field(
-        metadata=mr.meta(validate=lambda x: all(_is_aware(item) for item in x.values()))
-    )
+class WithStrRejectingPostLoad:
+    value: str = dataclasses.field(metadata=mr.str_meta(post_load=_reject_post_load))

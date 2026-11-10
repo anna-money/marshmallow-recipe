@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyFrozenSet, PyList, PySet, PyString, PyTuple};
 
 use crate::container::{DataclassRegistry, FieldContainer};
+use crate::container_dump::validate_dumped;
 use crate::error::{SerializationError, accumulate_error, pyerrors_to_serialization_error};
 use crate::fields::length::{LengthBound, validate_length};
 use crate::utils::{call_validator, new_presized_list};
@@ -123,28 +124,39 @@ pub fn dump_to_py(
     let iter = value
         .try_iter()
         .map_err(|_| SerializationError::Single(invalid_error.clone_ref(py)))?;
+    let (raw_item_validator, dumped_item_validator) = if item.validates_dumped() {
+        (None, item_validator)
+    } else {
+        (item_validator, None)
+    };
+    let mut idx = 0usize;
 
-    for (idx, item_result) in iter.enumerate() {
+    for item_result in iter {
         let item_value = item_result.map_err(|e| SerializationError::simple(py, &e.to_string()))?;
 
-        match item.dump_to_py(registry, &item_value) {
-            Ok(dumped) => {
-                if let Some(validator) = item_validator
-                    && let Err(ref e) = item.validate_dumped(registry, validator, dumped.bind(py))
-                {
-                    accumulate_error(py, &mut errors, idx, e);
-                } else {
-                    unsafe {
-                        pyo3::ffi::PyList_SET_ITEM(
-                            result.as_ptr(),
-                            idx.cast_signed(),
-                            dumped.into_ptr(),
-                        );
-                    }
-                }
-            }
+        if let Some(validator) = raw_item_validator
+            && let Ok(Some(err_list)) = call_validator(py, validator, &item_value)
+        {
+            let e = pyerrors_to_serialization_error(py, &err_list);
+            accumulate_error(py, &mut errors, idx, &e);
+            idx += 1;
+            continue;
+        }
+
+        let dumped = match (
+            item.dump_to_py(registry, &item_value),
+            dumped_item_validator,
+        ) {
+            (Ok(dumped), Some(validator)) => validate_dumped(py, validator, dumped),
+            (dumped, _) => dumped,
+        };
+        match dumped {
+            Ok(dumped) => unsafe {
+                pyo3::ffi::PyList_SET_ITEM(result.as_ptr(), idx.cast_signed(), dumped.into_ptr());
+            },
             Err(ref e) => accumulate_error(py, &mut errors, idx, e),
         }
+        idx += 1;
     }
 
     if let Some(errors) = errors {

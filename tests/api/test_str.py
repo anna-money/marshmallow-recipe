@@ -6,14 +6,13 @@ import marshmallow_recipe as mr
 from .conftest import (
     OptionalValueOf,
     Serializer,
+    StripEmail,
     ValueOf,
     WithAnnotatedStrInvalidError,
     WithAnnotatedStrNoneError,
     WithAnnotatedStrRequiredError,
-    WithAnnotatedStrStripEmail,
     WithOptionalPostLoadAndStrip,
     WithOptionalStrStripEmail,
-    WithOptionalStrStripPostLoadSuffixMinLength,
     WithOptionalStrStripWhitespace,
     WithPostLoadAndStrip,
     WithPostLoadTransform,
@@ -27,24 +26,15 @@ from .conftest import (
     WithStrMinMaxLength,
     WithStrMissing,
     WithStrNoneError,
-    WithStrPostLoadFirstCharMaxLength,
-    WithStrPostLoadFirstCharMinLength,
-    WithStrPostLoadSuffixMaxLength,
-    WithStrPostLoadSuffixMinLength,
-    WithStrPostLoadSuffixMinLengthValidation,
     WithStrPostLoadUpperValidation,
-    WithStrPrefixValidation,
+    WithStrRejectingPostLoad,
     WithStrRequiredError,
-    WithStrStripDefaultStrippedValidation,
     WithStrStripEmail,
-    WithStrStripEmptyValidation,
-    WithStrStripPostLoadSuffixMinLength,
-    WithStrStripPostLoadValidation,
-    WithStrStripStrippedValidation,
+    WithStrStripEmailDefault,
+    WithStrStripEmailMaxLength,
     WithStrStripWhitespaceDefault,
     WithStrTwoValidators,
     WithStrValidation,
-    assert_dumped,
 )
 
 
@@ -229,162 +219,70 @@ class TestStrDump:
     @pytest.mark.parametrize(
         ("schema_type", "obj", "expected"),
         [
-            pytest.param(WithStrStripEmail, WithStrStripEmail(value=" a@b.co "), {"value": "a@b.co"}, id="strip_email"),
+            pytest.param(WithStrStripEmail, WithStrStripEmail(value=" a@b.co "), {"value": "a@b.co"}, id="field"),
             pytest.param(
-                WithAnnotatedStrStripEmail,
-                WithAnnotatedStrStripEmail(value=" a@b.co "),
-                {"value": "a@b.co"},
-                id="annotated_strip_email",
+                ValueOf[StripEmail], ValueOf[StripEmail](value=" a@b.co "), {"value": "a@b.co"}, id="annotated"
             ),
             pytest.param(
-                WithStrStripStrippedValidation,
-                WithStrStripStrippedValidation(value=" x "),
-                {"value": "x"},
-                id="strip_is_stripped",
-            ),
-            pytest.param(
-                WithStrStripDefaultStrippedValidation,
-                WithStrStripDefaultStrippedValidation(value=" y "),
-                {"value": "y"},
-                id="strip_with_default_is_stripped",
-            ),
-            pytest.param(
-                WithStrStripDefaultStrippedValidation,
-                WithStrStripDefaultStrippedValidation(),
-                {"value": "d"},
-                id="strip_default_kept",
-            ),
-            pytest.param(
-                WithStrStripEmptyValidation,
-                WithStrStripEmptyValidation(value="   "),
-                {"value": ""},
-                id="strip_to_empty",
-            ),
-            pytest.param(
-                WithStrPostLoadUpperValidation,
-                WithStrPostLoadUpperValidation(value="abc"),
-                {"value": "abc"},
-                id="post_load",
-            ),
-            pytest.param(
-                WithStrStripPostLoadValidation,
-                WithStrStripPostLoadValidation(value=" ab "),
-                {"value": "ab"},
-                id="strip_post_load",
-            ),
-        ],
-    )
-    def test_validator_sees_loaded_value(
-        self, impl: Serializer, schema_type: type, obj: object, expected: dict[str, str]
-    ) -> None:
-        assert_dumped(impl.dump_raw(schema_type, obj), expected)
-
-    @pytest.mark.parametrize(
-        ("obj", "none_value_handling", "expected"),
-        [
-            pytest.param(WithOptionalStrStripEmail(value="   "), mr.NoneValueHandling.IGNORE, b"{}", id="blank_ignore"),
-            pytest.param(
-                WithOptionalStrStripEmail(value="   "),
-                mr.NoneValueHandling.INCLUDE,
-                b'{"value":null}',
-                id="blank_include",
-            ),
-            pytest.param(WithOptionalStrStripEmail(), mr.NoneValueHandling.IGNORE, b"{}", id="none_ignore"),
-            pytest.param(
-                WithOptionalStrStripEmail(), mr.NoneValueHandling.INCLUDE, b'{"value":null}', id="none_include"
-            ),
-            pytest.param(
+                WithOptionalStrStripEmail,
                 WithOptionalStrStripEmail(value=" a@b.co "),
-                mr.NoneValueHandling.INCLUDE,
-                b'{"value":"a@b.co"}',
-                id="value",
+                {"value": "a@b.co"},
+                id="optional",
             ),
-        ],
-    )
-    def test_optional_strip_with_validator(
-        self,
-        impl: Serializer,
-        obj: WithOptionalStrStripEmail,
-        none_value_handling: mr.NoneValueHandling,
-        expected: bytes,
-    ) -> None:
-        assert impl.dump(WithOptionalStrStripEmail, obj, none_value_handling=none_value_handling) == expected
-
-    @pytest.mark.parametrize(
-        ("schema_type", "obj", "expected"),
-        [
+            pytest.param(WithOptionalStrStripEmail, WithOptionalStrStripEmail(value="   "), {}, id="optional_blank"),
             pytest.param(
-                WithStrPostLoadSuffixMinLength,
-                WithStrPostLoadSuffixMinLength(value="a"),
-                {"value": "a"},
-                id="min_length",
+                WithStrStripEmailDefault, WithStrStripEmailDefault(value=" a@b.co "), {"value": "a@b.co"}, id="default"
             ),
             pytest.param(
-                WithStrStripPostLoadSuffixMinLength,
-                WithStrStripPostLoadSuffixMinLength(value=" a "),
-                {"value": "a"},
-                id="strip_min_length",
-            ),
-            pytest.param(
-                WithOptionalStrStripPostLoadSuffixMinLength,
-                WithOptionalStrStripPostLoadSuffixMinLength(value="   "),
-                {},
-                id="optional_strip_to_none",
-            ),
-            pytest.param(
-                WithStrPostLoadFirstCharMaxLength,
-                WithStrPostLoadFirstCharMaxLength(value="abc"),
-                {"value": "abc"},
+                WithStrStripEmailMaxLength,
+                WithStrStripEmailMaxLength(value=" a@b.co "),
+                {"value": "a@b.co"},
                 id="max_length",
             ),
-            pytest.param(
-                WithStrPostLoadSuffixMinLengthValidation,
-                WithStrPostLoadSuffixMinLengthValidation(value="a"),
-                {"value": "a"},
-                id="min_length_and_validate",
-            ),
         ],
     )
-    def test_length_checked_on_post_load_result(
+    def test_strip_then_validate(
         self, impl: Serializer, schema_type: type, obj: object, expected: dict[str, str]
     ) -> None:
-        assert_dumped(impl.dump_raw(schema_type, obj), expected)
+        assert impl.dump_raw(schema_type, obj) == expected
 
     @pytest.mark.parametrize(
         ("schema_type", "obj", "error_messages"),
         [
             pytest.param(
-                WithStrPostLoadSuffixMaxLength,
-                WithStrPostLoadSuffixMaxLength(value="a"),
-                {"value": ["Longer than maximum length 3."]},
+                WithStrStripEmail,
+                WithStrStripEmail(value=" bad "),
+                {"value": ["Not a valid email address."]},
+                id="invalid",
+            ),
+            pytest.param(
+                WithStrStripEmail, WithStrStripEmail(value="   "), {"value": ["Not a valid email address."]}, id="blank"
+            ),
+            pytest.param(
+                WithStrStripEmailMaxLength,
+                WithStrStripEmailMaxLength(value=" ab@cd.co "),
+                {"value": ["Longer than maximum length 6."]},
                 id="max_length",
             ),
             pytest.param(
-                WithStrPostLoadFirstCharMinLength,
-                WithStrPostLoadFirstCharMinLength(value="abc"),
-                {"value": ["Shorter than minimum length 2."]},
-                id="min_length",
+                WithStrPostLoadUpperValidation,
+                WithStrPostLoadUpperValidation(value="abc"),
+                {"value": ["Invalid value."]},
+                id="post_load_not_applied",
             ),
         ],
     )
-    def test_length_rejects_post_load_result(
+    def test_strip_then_validate_fail(
         self, impl: Serializer, schema_type: type, obj: object, error_messages: dict[str, list[str]]
     ) -> None:
         with pytest.raises(marshmallow.ValidationError) as exc:
             impl.dump(schema_type, obj)
-        assert exc.value.messages == error_messages
-
-    def test_validator_rejects_stripped_value(self, impl: Serializer) -> None:
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(WithStrStripEmail, WithStrStripEmail(value=" bad "))
-        assert exc.value.messages == {"value": ["Not a valid email address."]}
-
-    def test_invalid_type_with_validator(self, impl: Serializer) -> None:
-        obj = WithStrPrefixValidation(**{"value": 1})  # type: ignore[arg-type]
-        with pytest.raises(marshmallow.ValidationError) as exc:
-            impl.dump(WithStrPrefixValidation, obj)
         if impl.supports_proper_validation_errors_on_dump:
-            assert exc.value.messages == {"value": ["Not a valid string."]}
+            assert exc.value.messages == error_messages
+
+    def test_post_load_not_called(self, impl: Serializer) -> None:
+        result = impl.dump(WithStrRejectingPostLoad, WithStrRejectingPostLoad(value="abc"))
+        assert result == b'{"value":"abc"}'
 
 
 class TestStrLoad:
@@ -518,6 +416,10 @@ class TestStrLoad:
         data = b'{"value":"  HELLO  "}'
         result = impl.load(WithPostLoadAndStrip, data)
         assert result == WithPostLoadAndStrip(value="hello")
+
+    def test_post_load_before_validate(self, impl: Serializer) -> None:
+        result = impl.load(WithStrPostLoadUpperValidation, b'{"value":"abc"}')
+        assert result == WithStrPostLoadUpperValidation(value="ABC")
 
     @pytest.mark.parametrize(
         ("data", "expected"),

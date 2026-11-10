@@ -1,6 +1,8 @@
 import base64
 import collections
 import collections.abc
+import contextlib
+import contextvars
 import dataclasses
 import datetime
 import decimal
@@ -16,6 +18,24 @@ import marshmallow.validate
 from .validation import ValidationFunc, combine_validators
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
+
+_POST_LOAD_DISABLED: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "marshmallow_recipe_post_load_disabled", default=False
+)
+
+
+@contextlib.contextmanager
+def without_post_load() -> collections.abc.Iterator[None]:
+    """Skip ``str_meta(post_load=...)`` while deserializing in this context.
+
+    ``mr.dump`` validates the dumped data with ``Schema.validate``, which deserializes it; a
+    ``post_load`` hook must not run on dump, so validators see the dumped value instead.
+    """
+    token = _POST_LOAD_DISABLED.set(True)
+    try:
+        yield
+    finally:
+        _POST_LOAD_DISABLED.reset(token)
 
 
 def str_field(
@@ -1294,7 +1314,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
                     if self.allow_none and len(result) == 0:
                         return None
 
-                if self.post_load is not None:
+                if self.post_load is not None and not _POST_LOAD_DISABLED.get():
                     result = self.post_load(result)
 
             return result
@@ -1710,7 +1730,7 @@ else:
                     if self.allow_none and len(result) == 0:
                         return None
 
-                if self.post_load is not None:
+                if self.post_load is not None and not _POST_LOAD_DISABLED.get():
                     result = self.post_load(result)
 
             return result

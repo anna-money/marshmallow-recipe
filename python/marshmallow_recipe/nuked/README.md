@@ -140,8 +140,6 @@ def build_combined_validator(validators):
 
 Rust calls the combined validator once per field via FFI. Returned errors are merged into the field's error list.
 
-**Dump**: `mr.dump` dumps without validators and then validates the dumped output, so a validator sees `load(dump(value))`: a stripped string, the `post_load` result, a UTC datetime, a rounded decimal, a reloaded nested object. `mr.nuked.dump` does the same per field: after a field with `validate` (or a collection with `validate_item`) dumps, Rust loads the dumped value back with that field's load path and passes the result to the validator. A field whose dumped value is `None` skips its validator. A `str` field with `post_load` always loads back on dump, because classic checks `min_length` / `max_length` on the `post_load` result; it dumps the stripped string, not that result. Other fields without validators skip the load-back entirely.
-
 ### 5. Enum Pre-generated Lookup
 
 **Problem**: Finding an enum member by value during deserialization.

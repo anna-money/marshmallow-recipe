@@ -38,8 +38,8 @@ class TestManyDump:
         result = impl.dump_many(OptionalValueOf[str], objs, none_value_handling=mr.NoneValueHandling.IGNORE)
         assert result == b'[{"value":"hello"},{}]'
 
-    def test_validator_sees_loaded_value(self, impl: Serializer) -> None:
-        objs = [WithStrStripEmail(value=" a@b.co "), WithStrStripEmail(value="c@d.co")]
+    def test_strip_then_validate(self, impl: Serializer) -> None:
+        objs = [WithStrStripEmail(value=" a@b.co "), WithStrStripEmail(value="c@d.co ")]
         result = impl.dump_many(WithStrStripEmail, objs)
         assert result == b'[{"value":"a@b.co"},{"value":"c@d.co"}]'
 

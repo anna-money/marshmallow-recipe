@@ -128,14 +128,17 @@ pub fn dump_to_py(
             }
         };
 
+        if let Some(validator) = value_validator
+            && let Ok(Some(err_list)) = call_validator(py, validator, &v)
+        {
+            let e = pyerrors_to_serialization_error(py, &err_list);
+            accumulate_entry_error(py, &mut errors, key_str, "value", &e);
+            continue;
+        }
+
         match value_schema.dump_to_py(registry, &v) {
             Ok(dumped) => {
-                if let Some(validator) = value_validator
-                    && let Err(ref e) =
-                        value_schema.validate_dumped(registry, validator, dumped.bind(py))
-                {
-                    accumulate_entry_error(py, &mut errors, key_str, "value", e);
-                } else if failed_key.is_none() {
+                if failed_key.is_none() {
                     result
                         .set_item(target_key, dumped)
                         .map_err(|e| SerializationError::simple(py, &e.to_string()))?;

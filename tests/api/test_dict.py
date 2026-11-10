@@ -20,6 +20,7 @@ from .conftest import (
     Priority,
     Serializer,
     Status,
+    StripEmail,
     TimestampDateTime,
     WithAliasKey,
     WithAnnotatedIntKey,
@@ -29,20 +30,16 @@ from .conftest import (
     WithBareMapping,
     WithDictAnnotatedKeyValidation,
     WithDictAnnotatedValueValidation,
-    WithDictAwareValidation,
     WithDictInvalidError,
     WithDictMissing,
     WithDictNoneError,
     WithDictRequiredError,
-    WithDictStripEmailValue,
-    WithDictStrippedValidation,
     WithDictTwoValidators,
     WithDictValidation,
     WithIntKeyGte,
     WithNewTypeKey,
     WithStrKeyMinLength,
     WithStrLiteralKey,
-    assert_dumped,
 )
 
 _WRAPPED_KEY_CASES = [
@@ -473,33 +470,9 @@ class TestDictDump:
         result = impl.dump(schema_type, schema_type(data=data))
         assert result == expected
 
-    @pytest.mark.parametrize(
-        ("schema_type", "obj", "expected"),
-        [
-            pytest.param(
-                WithDictStripEmailValue,
-                WithDictStripEmailValue(data={"k": " a@b.co "}),
-                {"data": {"k": "a@b.co"}},
-                id="annotated_value_strip_email",
-            ),
-            pytest.param(
-                WithDictStrippedValidation,
-                WithDictStrippedValidation(data={"k": " a "}),
-                {"data": {"k": "a"}},
-                id="validate_stripped",
-            ),
-            pytest.param(
-                WithDictAwareValidation,
-                WithDictAwareValidation(data={"k": datetime.datetime(2020, 1, 1)}),
-                {"data": {"k": "2020-01-01T00:00:00+00:00"}},
-                id="validate_naive_datetime",
-            ),
-        ],
-    )
-    def test_validator_sees_loaded_value(
-        self, impl: Serializer, schema_type: type, obj: object, expected: dict[str, object]
-    ) -> None:
-        assert_dumped(impl.dump_raw(schema_type, obj), expected)
+    def test_strip_then_validate(self, impl: Serializer) -> None:
+        obj = DictOf[str, StripEmail](data={"k": " a@b.co "})
+        assert impl.dump_raw(DictOf[str, StripEmail], obj) == {"data": {"k": "a@b.co"}}
 
 
 class TestDictLoad:

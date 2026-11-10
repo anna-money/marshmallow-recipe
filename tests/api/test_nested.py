@@ -13,12 +13,10 @@ from .conftest import (
     PersonWithAddressTwoValidators,
     PersonWithAddressValidation,
     Serializer,
-    StrippedName,
+    ValueOf,
     WithNestedDefault,
     WithNestedMissing,
-    WithNestedStrippedValidation,
-    WithOptionalNestedStrippedValidation,
-    assert_dumped,
+    WithStrStripEmail,
 )
 
 
@@ -67,23 +65,9 @@ class TestNestedDump:
         result = impl.dump(WithNestedMissing, obj)
         assert result == b'{"address":{"street":"Main St","city":"Boston","zip_code":"02101"}}'
 
-    @pytest.mark.parametrize(
-        ("schema_type", "obj"),
-        [
-            pytest.param(
-                WithNestedStrippedValidation,
-                WithNestedStrippedValidation(value=StrippedName(name=" a ")),
-                id="required",
-            ),
-            pytest.param(
-                WithOptionalNestedStrippedValidation,
-                WithOptionalNestedStrippedValidation(value=StrippedName(name=" a ")),
-                id="optional",
-            ),
-        ],
-    )
-    def test_validator_sees_loaded_value(self, impl: Serializer, schema_type: type, obj: object) -> None:
-        assert_dumped(impl.dump_raw(schema_type, obj), {"value": {"name": "a"}})
+    def test_strip_then_validate(self, impl: Serializer) -> None:
+        obj = ValueOf[WithStrStripEmail](value=WithStrStripEmail(value=" a@b.co "))
+        assert impl.dump_raw(ValueOf[WithStrStripEmail], obj) == {"value": {"value": "a@b.co"}}
 
 
 class TestNestedLoad:

@@ -6,6 +6,7 @@ from typing import Any, ClassVar, Protocol, get_args, overload
 import marshmallow as m
 
 from .bake import bake_schema
+from .fields import without_post_load
 from .generics import extract_type, is_union_type, unwrap_type_alias
 from .missing import MISSING
 from .naming_case import NamingCase
@@ -13,6 +14,13 @@ from .options import NoneValueHandling
 from .utils import validate_decimal_places
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
+
+
+def _validate_dumped(schema: m.Schema, dumped: Any) -> None:
+    with without_post_load():
+        errors = schema.validate(dumped)
+    if errors:
+        raise m.ValidationError(errors)
 
 
 class Dataclass(Protocol):
@@ -207,8 +215,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             decimal_places=decimal_places,
         )
         dumped: dict[str, Any] = data_schema.dump(data)  # type: ignore
-        if errors := data_schema.validate(dumped):
-            raise m.ValidationError(errors)
+        _validate_dumped(data_schema, dumped)
         return dumped
 
     dump_impl = dump_v3
@@ -245,8 +252,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             decimal_places=decimal_places,
         )
         dumped: list[dict[str, Any]] = data_schema.dump(data)  # type: ignore
-        if errors := data_schema.validate(dumped):
-            raise m.ValidationError(errors)
+        _validate_dumped(data_schema, dumped)
         return dumped
 
     dump_many_impl = dump_many_v3
@@ -391,8 +397,7 @@ else:
         dumped, errors = data_schema.dump(data)
         if errors:
             raise m.ValidationError(errors)
-        if errors := data_schema.validate(dumped):
-            raise m.ValidationError(errors)
+        _validate_dumped(data_schema, dumped)
         return dumped  # type: ignore
 
     dump_impl = dump_v2
@@ -431,8 +436,7 @@ else:
         dumped, errors = data_schema.dump(data)
         if errors:
             raise m.ValidationError(errors)
-        if errors := data_schema.validate(dumped):
-            raise m.ValidationError(errors)
+        _validate_dumped(data_schema, dumped)
         return dumped  # type: ignore
 
     dump_many_impl = dump_many_v2

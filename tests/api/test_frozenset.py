@@ -16,8 +16,8 @@ from .conftest import (
     Priority,
     Serializer,
     Status,
+    StripEmail,
     WithAnnotatedFrozenSetItemValidation,
-    WithFrozenSetAwareItemValidation,
     WithFrozenSetInvalidError,
     WithFrozenSetItemTwoValidators,
     WithFrozenSetItemValidation,
@@ -25,7 +25,6 @@ from .conftest import (
     WithFrozenSetNoneError,
     WithFrozenSetRequiredError,
     WithOptionalFrozenSetItemValidation,
-    assert_dumped,
 )
 
 
@@ -155,27 +154,9 @@ class TestFrozenSetDump:
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == {"items": ["Custom invalid message"]}
 
-    @pytest.mark.parametrize(
-        ("schema_type", "obj", "expected"),
-        [
-            pytest.param(
-                WithFrozenSetAwareItemValidation,
-                WithFrozenSetAwareItemValidation(items=frozenset({datetime.datetime(2020, 1, 1)})),
-                {"items": ["2020-01-01T00:00:00+00:00"]},
-                id="validate_item_naive_datetime",
-            ),
-            pytest.param(
-                WithOptionalFrozenSetItemValidation,
-                WithOptionalFrozenSetItemValidation(items=frozenset({None})),
-                {"items": [None]},
-                id="validate_item_none",
-            ),
-        ],
-    )
-    def test_validator_sees_loaded_value(
-        self, impl: Serializer, schema_type: type, obj: object, expected: dict[str, object]
-    ) -> None:
-        assert_dumped(impl.dump_raw(schema_type, obj), expected)
+    def test_strip_then_validate(self, impl: Serializer) -> None:
+        obj = FrozenSetOf[StripEmail](items=frozenset({" a@b.co "}))
+        assert impl.dump_raw(FrozenSetOf[StripEmail], obj) == {"items": ["a@b.co"]}
 
 
 class TestFrozenSetLoad:

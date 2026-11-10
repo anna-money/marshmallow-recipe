@@ -19,11 +19,10 @@ from .conftest import (
     Priority,
     Serializer,
     Status,
-    StrippedName,
+    StripEmail,
     WithAnnotatedListItemValidation,
     WithDefaults,
     WithListAnnotatedItemValidation,
-    WithListAwareItemValidation,
     WithListInvalidError,
     WithListItemTwoValidators,
     WithListItemValidation,
@@ -33,17 +32,12 @@ from .conftest import (
     WithListMinLengthError,
     WithListMinMaxLength,
     WithListMissing,
-    WithListNestedStrippedItemValidation,
     WithListNoneError,
     WithListPostLoad,
-    WithListPostLoadSuffixMinLengthItem,
     WithListRequiredError,
-    WithListStripEmailItem,
-    WithListStrippedItemValidation,
-    WithListStrippedValidation,
+    WithListStripItemEmailValidation,
     WithListStripWhitespace,
     WithOptionalListItemValidation,
-    assert_dumped,
 )
 
 
@@ -267,56 +261,18 @@ class TestListDump:
             assert exc.value.messages == error_messages
 
     @pytest.mark.parametrize(
-        ("schema_type", "obj", "expected"),
+        ("schema_type", "obj"),
         [
+            pytest.param(ListOf[StripEmail], ListOf[StripEmail](items=[" a@b.co "]), id="annotated_item"),
             pytest.param(
-                WithListStrippedItemValidation,
-                WithListStrippedItemValidation(items=[" a "]),
-                {"items": ["a"]},
-                id="validate_item_stripped",
-            ),
-            pytest.param(
-                WithListStrippedValidation,
-                WithListStrippedValidation(items=[" a "]),
-                {"items": ["a"]},
-                id="validate_stripped",
-            ),
-            pytest.param(
-                WithListStripEmailItem,
-                WithListStripEmailItem(items=[" a@b.co "]),
-                {"items": ["a@b.co"]},
-                id="annotated_item_strip_email",
-            ),
-            pytest.param(
-                WithListNestedStrippedItemValidation,
-                WithListNestedStrippedItemValidation(items=[StrippedName(name=" a ")]),
-                {"items": [{"name": "a"}]},
-                id="validate_item_nested",
-            ),
-            pytest.param(
-                WithListAwareItemValidation,
-                WithListAwareItemValidation(items=[datetime.datetime(2020, 1, 1)]),
-                {"items": ["2020-01-01T00:00:00+00:00"]},
-                id="validate_item_naive_datetime",
-            ),
-            pytest.param(
-                WithOptionalListItemValidation,
-                WithOptionalListItemValidation(items=[None, 1]),
-                {"items": [None, 1]},
-                id="validate_item_none",
-            ),
-            pytest.param(
-                WithListPostLoadSuffixMinLengthItem,
-                WithListPostLoadSuffixMinLengthItem(items=["a"]),
-                {"items": ["a"]},
-                id="item_min_length_on_post_load_result",
+                WithListStripItemEmailValidation,
+                WithListStripItemEmailValidation(items=[" a@b.co "]),
+                id="validate_item",
             ),
         ],
     )
-    def test_validator_sees_loaded_value(
-        self, impl: Serializer, schema_type: type, obj: object, expected: dict[str, object]
-    ) -> None:
-        assert_dumped(impl.dump_raw(schema_type, obj), expected)
+    def test_strip_then_validate(self, impl: Serializer, schema_type: type, obj: object) -> None:
+        assert impl.dump_raw(schema_type, obj) == {"items": ["a@b.co"]}
 
 
 class TestListLoad:

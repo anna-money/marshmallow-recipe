@@ -1,5 +1,3 @@
-import datetime
-
 import marshmallow
 import pytest
 
@@ -11,9 +9,10 @@ from .conftest import (
     Inner,
     Serializer,
     StrDiscriminator,
+    StripEmail,
+    ValueOf,
     WithDiscriminatedUnion,
     WithUnion,
-    WithUnionDatetimeStrAwareValidation,
     WithUnionDictDataclass,
     WithUnionDictStr,
     WithUnionDictStrOptional,
@@ -22,12 +21,9 @@ from .conftest import (
     WithUnionIntStrOptional,
     WithUnionMissing,
     WithUnionPositiveIntStr,
-    WithUnionStrDatetimeStrValidation,
     WithUnionStrDict,
     WithUnionStrDictOptional,
     WithUnionStrInt,
-    WithUnionStripEmailInt,
-    assert_dumped,
 )
 
 
@@ -181,33 +177,9 @@ class TestUnionDump:
         result = impl.dump(cls, obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
         assert result == b'{"value":null}'
 
-    @pytest.mark.parametrize(
-        ("schema_type", "obj", "expected"),
-        [
-            pytest.param(
-                WithUnionStripEmailInt,
-                WithUnionStripEmailInt(value=" a@b.co "),
-                {"value": "a@b.co"},
-                id="variant_strip_email",
-            ),
-            pytest.param(
-                WithUnionDatetimeStrAwareValidation,
-                WithUnionDatetimeStrAwareValidation(value=datetime.datetime(2020, 1, 1)),
-                {"value": "2020-01-01T00:00:00+00:00"},
-                id="union_validate_naive_datetime",
-            ),
-            pytest.param(
-                WithUnionStrDatetimeStrValidation,
-                WithUnionStrDatetimeStrValidation(value=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC)),
-                {"value": "2020-01-01T00:00:00+00:00"},
-                id="union_validate_first_loading_variant",
-            ),
-        ],
-    )
-    def test_validator_sees_loaded_value(
-        self, impl: Serializer, schema_type: type, obj: object, expected: dict[str, str]
-    ) -> None:
-        assert_dumped(impl.dump_raw(schema_type, obj), expected)
+    def test_strip_then_validate(self, impl: Serializer) -> None:
+        obj = ValueOf[StripEmail | int](value=" a@b.co ")
+        assert impl.dump_raw(ValueOf[StripEmail | int], obj) == {"value": "a@b.co"}
 
 
 class TestUnionLoad:

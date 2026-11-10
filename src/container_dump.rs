@@ -3,13 +3,14 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 
 use crate::container::{DataclassContainer, DataclassRegistry, FieldContainer, TypeContainer};
-use crate::container_load::call_validator_with_error;
-use crate::error::{SerializationError, accumulate_entry_error, accumulate_error};
+use crate::error::{
+    SerializationError, accumulate_entry_error, accumulate_error, pyerrors_to_serialization_error,
+};
 use crate::fields::{
     any, bool_literal, bool_type, bytes, collection, date, datetime, decimal, dict, float_type,
     int_enum, int_literal, int_type, str_enum, str_literal, str_type, time, union, uuid,
 };
-use crate::utils::new_presized_list;
+use crate::utils::{call_validator, new_presized_list};
 
 #[allow(clippy::cast_sign_loss, clippy::unused_self)]
 impl FieldContainer {
@@ -24,25 +25,34 @@ impl FieldContainer {
         }
 
         let common = self.common();
-        let dumped = match self {
-            Self::Str {
-                strip_whitespaces,
-                post_load: Some(_),
-                ..
-            } => return self.dump_str_with_post_load(registry, value, *strip_whitespaces),
+        if let Some(ref validator) = common.validator
+            && !self.validates_dumped()
+            && let Ok(Some(err_list)) = call_validator(py, validator, value)
+        {
+            return Err(pyerrors_to_serialization_error(py, &err_list));
+        }
+        match self {
             Self::Str {
                 strip_whitespaces,
                 min_length,
                 max_length,
                 ..
-            } => str_type::dump_to_py(
-                value,
-                *strip_whitespaces,
-                common.optional,
-                &common.invalid_error,
-                min_length.as_ref(),
-                max_length.as_ref(),
-            ),
+            } => {
+                let dumped = str_type::dump_to_py(
+                    value,
+                    *strip_whitespaces,
+                    common.optional,
+                    &common.invalid_error,
+                    min_length.as_ref(),
+                    max_length.as_ref(),
+                )?;
+                match common.validator {
+                    Some(ref validator) if *strip_whitespaces => {
+                        validate_dumped(py, validator, dumped)
+                    }
+                    _ => Ok(dumped),
+                }
+            }
             Self::Int {
                 as_string,
                 gt,
@@ -157,60 +167,37 @@ impl FieldContainer {
                 dataclass_index, ..
             } => registry.get(*dataclass_index).dump_to_py(registry, value),
             Self::Union { variants, .. } => union::dump_to_py(registry, value, variants),
-        }?;
-        if let Some(ref validator) = common.validator {
-            self.validate_dumped(registry, validator, dumped.bind(py))?;
         }
-        Ok(dumped)
     }
 
-    /// Runs `validator` on the load of `dumped`: classic validates `load(dump(x))`, not `x`.
-    /// A `None` dump skips the validator, as classic does for `allow_none` fields.
-    #[cold]
-    #[inline(never)]
-    pub fn validate_dumped(
-        &self,
-        registry: &DataclassRegistry,
-        validator: &Py<PyAny>,
-        dumped: &Bound<'_, PyAny>,
-    ) -> Result<(), SerializationError> {
-        if dumped.is_none() {
-            return Ok(());
-        }
-        let loaded = self.load_unvalidated(registry, dumped)?;
-        call_validator_with_error(validator, loaded.bind(dumped.py()))
-    }
-
-    /// Dumps a `str` field that has `post_load`. Classic checks the length bounds and runs
-    /// the validator on the `post_load` result of the load-back, so load the dumped value back
-    /// once and check that instead of the dumped string.
-    #[cold]
-    #[inline(never)]
-    fn dump_str_with_post_load(
-        &self,
-        registry: &DataclassRegistry,
-        value: &Bound<'_, PyAny>,
-        strip_whitespaces: bool,
-    ) -> Result<Py<PyAny>, SerializationError> {
-        let py = value.py();
-        let common = self.common();
-        let dumped = str_type::dump_to_py(
-            value,
-            strip_whitespaces,
-            common.optional,
-            &common.invalid_error,
-            None,
-            None,
-        )?;
-        match common.validator {
-            Some(ref validator) => self.validate_dumped(registry, validator, dumped.bind(py))?,
-            None if !dumped.is_none(py) => {
-                self.load_unvalidated(registry, dumped.bind(py))?;
+    /// Whether a validator sees the dumped value instead of the attribute: a stripping `str`
+    /// field dumps the stripped string, which is what `mr.dump` validates.
+    #[inline]
+    pub const fn validates_dumped(&self) -> bool {
+        matches!(
+            self,
+            Self::Str {
+                strip_whitespaces: true,
+                ..
             }
-            None => {}
-        }
-        Ok(dumped)
+        )
     }
+}
+
+/// Runs `validator` on a dumped value; a `None` dump skips it, as `mr.dump` does.
+#[cold]
+#[inline(never)]
+pub fn validate_dumped(
+    py: Python<'_>,
+    validator: &Py<PyAny>,
+    dumped: Py<PyAny>,
+) -> Result<Py<PyAny>, SerializationError> {
+    if !dumped.is_none(py)
+        && let Ok(Some(err_list)) = call_validator(py, validator, dumped.bind(py))
+    {
+        return Err(pyerrors_to_serialization_error(py, &err_list));
+    }
+    Ok(dumped)
 }
 
 impl DataclassContainer {

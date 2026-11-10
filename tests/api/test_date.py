@@ -9,14 +9,12 @@ from .conftest import (
     OptionalValueOf,
     Serializer,
     ValueOf,
-    WithDateExactTypeValidation,
     WithDateInvalidError,
     WithDateMissing,
     WithDateNoneError,
     WithDateRequiredError,
     WithDateTwoValidators,
     WithDateValidation,
-    assert_dumped,
 )
 
 
@@ -93,20 +91,6 @@ class TestDateDump:
             impl.dump(WithDateInvalidError, obj)
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == {"value": ["Custom invalid message"]}
-
-    @pytest.mark.parametrize(
-        ("value", "expected"),
-        [
-            pytest.param(datetime.date(2020, 1, 1), {"value": "2020-01-01"}, id="date"),
-            pytest.param(
-                datetime.datetime(2020, 1, 1, 10, tzinfo=datetime.UTC), {"value": "2020-01-01"}, id="datetime"
-            ),
-        ],
-    )
-    def test_validator_sees_loaded_value(
-        self, impl: Serializer, value: datetime.date, expected: dict[str, str]
-    ) -> None:
-        assert_dumped(impl.dump_raw(WithDateExactTypeValidation, WithDateExactTypeValidation(value=value)), expected)
 
 
 class TestDateLoad:
