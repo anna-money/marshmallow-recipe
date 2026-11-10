@@ -39,6 +39,11 @@ def post_load_disabled(disabled: bool) -> collections.abc.Iterator[None]:
         _POST_LOAD_DISABLED.reset(token)
 
 
+def is_post_load_disabled() -> bool:
+    """Return whether ``str_meta(post_load=...)`` is skipped in the current context."""
+    return _POST_LOAD_DISABLED.get()
+
+
 def str_field(
     *,
     required: bool,
