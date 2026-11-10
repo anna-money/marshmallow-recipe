@@ -31,7 +31,7 @@ from .conftest import (
     WithStrRequiredError,
     WithStrStripEmail,
     WithStrStripEmailDefault,
-    WithStrStripEmailMaxLength,
+    WithStrStripEmailLength,
     WithStrStripWhitespaceDefault,
     WithStrTwoValidators,
     WithStrValidation,
@@ -234,10 +234,7 @@ class TestStrDump:
                 WithStrStripEmailDefault, WithStrStripEmailDefault(value=" a@b.co "), {"value": "a@b.co"}, id="default"
             ),
             pytest.param(
-                WithStrStripEmailMaxLength,
-                WithStrStripEmailMaxLength(value=" a@b.co "),
-                {"value": "a@b.co"},
-                id="max_length",
+                WithStrStripEmailLength, WithStrStripEmailLength(value=" ab@c.co "), {"value": "ab@c.co"}, id="length"
             ),
         ],
     )
@@ -259,9 +256,15 @@ class TestStrDump:
                 WithStrStripEmail, WithStrStripEmail(value="   "), {"value": ["Not a valid email address."]}, id="blank"
             ),
             pytest.param(
-                WithStrStripEmailMaxLength,
-                WithStrStripEmailMaxLength(value=" ab@cd.co "),
-                {"value": ["Longer than maximum length 6."]},
+                WithStrStripEmailLength,
+                WithStrStripEmailLength(value=" a@b.co "),
+                {"value": ["Shorter than minimum length 7."]},
+                id="min_length",
+            ),
+            pytest.param(
+                WithStrStripEmailLength,
+                WithStrStripEmailLength(value=" abc@de.co "),
+                {"value": ["Longer than maximum length 8."]},
                 id="max_length",
             ),
             pytest.param(

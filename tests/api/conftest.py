@@ -2215,9 +2215,9 @@ class WithOptionalStrStripEmail:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WithStrStripEmailMaxLength:
+class WithStrStripEmailLength:
     value: str = dataclasses.field(
-        metadata=mr.str_meta(strip_whitespaces=True, max_length=6, validate=mr.email_validate())
+        metadata=mr.str_meta(strip_whitespaces=True, min_length=7, max_length=8, validate=mr.email_validate())
     )
 
 
