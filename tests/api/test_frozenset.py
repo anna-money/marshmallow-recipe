@@ -16,6 +16,7 @@ from .conftest import (
     Priority,
     Serializer,
     Status,
+    StripEmail,
     WithAnnotatedFrozenSetItemValidation,
     WithFrozenSetInvalidError,
     WithFrozenSetItemTwoValidators,
@@ -152,6 +153,10 @@ class TestFrozenSetDump:
             impl.dump(WithFrozenSetInvalidError, obj)
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == {"items": ["Custom invalid message"]}
+
+    def test_strip_then_validate(self, impl: Serializer) -> None:
+        obj = FrozenSetOf[StripEmail](items=frozenset({" a@b.co "}))
+        assert impl.dump_raw(FrozenSetOf[StripEmail], obj) == {"items": ["a@b.co"]}
 
 
 class TestFrozenSetLoad:

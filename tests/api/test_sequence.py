@@ -17,6 +17,7 @@ from .conftest import (
     SequenceOf,
     Serializer,
     Status,
+    StripEmail,
     WithAnnotatedSequenceValidation,
     WithOptionalSequenceItemValidation,
     WithSequenceInvalidError,
@@ -172,6 +173,10 @@ class TestSequenceDump:
             impl.dump(WithSequenceInvalidError, obj)
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == {"items": ["Custom invalid message"]}
+
+    def test_strip_then_validate(self, impl: Serializer) -> None:
+        obj = SequenceOf[StripEmail](items=[" a@b.co "])
+        assert impl.dump_raw(SequenceOf[StripEmail], obj) == {"items": ["a@b.co"]}
 
 
 class TestSequenceLoad:

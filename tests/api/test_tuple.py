@@ -18,6 +18,7 @@ from .conftest import (
     Priority,
     Serializer,
     Status,
+    StripEmail,
     TupleOf,
     WithAnnotatedTupleItemValidation,
     WithOptionalTupleItemValidation,
@@ -159,6 +160,10 @@ class TestTupleDump:
             impl.dump(WithTupleInvalidError, obj)
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == {"items": ["Custom invalid message"]}
+
+    def test_strip_then_validate(self, impl: Serializer) -> None:
+        obj = TupleOf[StripEmail](items=(" a@b.co ",))
+        assert impl.dump_raw(TupleOf[StripEmail], obj) == {"items": ["a@b.co"]}
 
 
 class TestTupleLoad:

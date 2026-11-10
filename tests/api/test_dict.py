@@ -20,6 +20,7 @@ from .conftest import (
     Priority,
     Serializer,
     Status,
+    StripEmail,
     TimestampDateTime,
     WithAliasKey,
     WithAnnotatedIntKey,
@@ -468,6 +469,10 @@ class TestDictDump:
     ) -> None:
         result = impl.dump(schema_type, schema_type(data=data))
         assert result == expected
+
+    def test_strip_then_validate(self, impl: Serializer) -> None:
+        obj = DictOf[str, StripEmail](data={"k": " a@b.co "})
+        assert impl.dump_raw(DictOf[str, StripEmail], obj) == {"data": {"k": "a@b.co"}}
 
 
 class TestDictLoad:

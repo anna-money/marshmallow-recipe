@@ -13,8 +13,10 @@ from .conftest import (
     PersonWithAddressTwoValidators,
     PersonWithAddressValidation,
     Serializer,
+    ValueOf,
     WithNestedDefault,
     WithNestedMissing,
+    WithStrStripEmail,
 )
 
 
@@ -62,6 +64,10 @@ class TestNestedDump:
         obj = WithNestedMissing(address=Address(street="Main St", city="Boston", zip_code="02101"))
         result = impl.dump(WithNestedMissing, obj)
         assert result == b'{"address":{"street":"Main St","city":"Boston","zip_code":"02101"}}'
+
+    def test_strip_then_validate(self, impl: Serializer) -> None:
+        obj = ValueOf[WithStrStripEmail](value=WithStrStripEmail(value=" a@b.co "))
+        assert impl.dump_raw(ValueOf[WithStrStripEmail], obj) == {"value": {"value": "a@b.co"}}
 
 
 class TestNestedLoad:

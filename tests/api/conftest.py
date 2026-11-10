@@ -2190,3 +2190,66 @@ class WithUnionIntStrOptional:
 class WithTwoGenericValues:
     int_value: GenericValue[int]
     str_value: GenericValue[str]
+
+
+StripEmail = Annotated[str, mr.str_meta(strip_whitespaces=True, validate=mr.email_validate())]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrStripEmail:
+    value: str = dataclasses.field(metadata=mr.str_meta(strip_whitespaces=True, validate=mr.email_validate()))
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrStripEmailDefault:
+    value: str = dataclasses.field(
+        default="d@e.co", metadata=mr.str_meta(strip_whitespaces=True, validate=mr.email_validate())
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithOptionalStrStripEmail:
+    value: str | None = dataclasses.field(
+        default=None, metadata=mr.str_meta(strip_whitespaces=True, validate=mr.email_validate())
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrStripEmailLength:
+    value: str = dataclasses.field(
+        metadata=mr.str_meta(strip_whitespaces=True, min_length=7, max_length=8, validate=mr.email_validate())
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithListStripItemEmailValidation:
+    items: list[Annotated[str, mr.str_meta(strip_whitespaces=True)]] = dataclasses.field(
+        metadata=mr.list_meta(validate_item=mr.email_validate())
+    )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrPostLoadUpperValidation:
+    value: str = dataclasses.field(metadata=mr.str_meta(post_load=str.upper, validate=str.isupper))
+
+
+def _reject_post_load(value: str) -> str:
+    raise ValueError(f"post_load called with {value!r}")
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrRejectingPostLoad:
+    value: str = dataclasses.field(metadata=mr.str_meta(post_load=_reject_post_load))
+
+
+def _load_post_load_upper(value: str) -> bool:
+    data = {"value": value}
+    expected = WithStrPostLoadUpperValidation(value=value.upper())
+    loaded = mr.load(WithStrPostLoadUpperValidation, data)
+    loaded_many = mr.load_many(WithStrPostLoadUpperValidation, [data])
+    return loaded == expected and loaded_many == [expected]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WithStrValidationLoadingPostLoad:
+    value: str = dataclasses.field(metadata=mr.str_meta(validate=_load_post_load_upper))

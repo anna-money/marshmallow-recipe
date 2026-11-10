@@ -26,6 +26,7 @@ impl FieldContainer {
 
         let common = self.common();
         if let Some(ref validator) = common.validator
+            && !self.validates_dumped()
             && let Ok(Some(err_list)) = call_validator(py, validator, value)
         {
             return Err(pyerrors_to_serialization_error(py, &err_list));
@@ -36,14 +37,22 @@ impl FieldContainer {
                 min_length,
                 max_length,
                 ..
-            } => str_type::dump_to_py(
-                value,
-                *strip_whitespaces,
-                common.optional,
-                &common.invalid_error,
-                min_length.as_ref(),
-                max_length.as_ref(),
-            ),
+            } => {
+                let dumped = str_type::dump_to_py(
+                    value,
+                    *strip_whitespaces,
+                    common.optional,
+                    &common.invalid_error,
+                    min_length.as_ref(),
+                    max_length.as_ref(),
+                )?;
+                match common.validator {
+                    Some(ref validator) if *strip_whitespaces => {
+                        validate_dumped(py, validator, dumped)
+                    }
+                    _ => Ok(dumped),
+                }
+            }
             Self::Int {
                 as_string,
                 gt,
@@ -160,6 +169,35 @@ impl FieldContainer {
             Self::Union { variants, .. } => union::dump_to_py(registry, value, variants),
         }
     }
+
+    /// Whether a validator sees the dumped value instead of the attribute: a stripping `str`
+    /// field dumps the stripped string, which is what `mr.dump` validates.
+    #[inline]
+    pub const fn validates_dumped(&self) -> bool {
+        matches!(
+            self,
+            Self::Str {
+                strip_whitespaces: true,
+                ..
+            }
+        )
+    }
+}
+
+/// Runs `validator` on a dumped value; a `None` dump skips it, as `mr.dump` does.
+#[cold]
+#[inline(never)]
+pub fn validate_dumped(
+    py: Python<'_>,
+    validator: &Py<PyAny>,
+    dumped: Py<PyAny>,
+) -> Result<Py<PyAny>, SerializationError> {
+    if !dumped.is_none(py)
+        && let Ok(Some(err_list)) = call_validator(py, validator, dumped.bind(py))
+    {
+        return Err(pyerrors_to_serialization_error(py, &err_list));
+    }
+    Ok(dumped)
 }
 
 impl DataclassContainer {

@@ -6,6 +6,7 @@ from typing import Any, ClassVar, Protocol, get_args, overload
 import marshmallow as m
 
 from .bake import bake_schema
+from .fields import is_post_load_disabled, post_load_disabled
 from .generics import extract_type, is_union_type, unwrap_type_alias
 from .missing import MISSING
 from .naming_case import NamingCase
@@ -13,6 +14,20 @@ from .options import NoneValueHandling
 from .utils import validate_decimal_places
 
 _MARSHMALLOW_VERSION_MAJOR = int(importlib.metadata.version("marshmallow").split(".")[0])
+
+
+def _load_with_post_load(schema: m.Schema, data: Any) -> Any:
+    if not is_post_load_disabled():
+        return schema.load(data)  # type: ignore
+    with post_load_disabled(False):
+        return schema.load(data)  # type: ignore
+
+
+def _validate_dumped(schema: m.Schema, dumped: Any) -> None:
+    with post_load_disabled(True):
+        errors = schema.validate(dumped)
+    if errors:
+        raise m.ValidationError(errors)
 
 
 class Dataclass(Protocol):
@@ -108,7 +123,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
         schema = schema_v3(
             unwrapped, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
-        return schema.load(data)  # type: ignore
+        return _load_with_post_load(schema, data)
 
     def _load_union_v3(
         union_type: Any,
@@ -186,7 +201,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
         )
-        return schema.load(data)  # type: ignore
+        return _load_with_post_load(schema, data)
 
     load_many = load_many_v3
 
@@ -207,8 +222,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             decimal_places=decimal_places,
         )
         dumped: dict[str, Any] = data_schema.dump(data)  # type: ignore
-        if errors := data_schema.validate(dumped):
-            raise m.ValidationError(errors)
+        _validate_dumped(data_schema, dumped)
         return dumped
 
     dump_impl = dump_v3
@@ -245,8 +259,7 @@ if _MARSHMALLOW_VERSION_MAJOR >= 3:
             decimal_places=decimal_places,
         )
         dumped: list[dict[str, Any]] = data_schema.dump(data)  # type: ignore
-        if errors := data_schema.validate(dumped):
-            raise m.ValidationError(errors)
+        _validate_dumped(data_schema, dumped)
         return dumped
 
     dump_many_impl = dump_many_v3
@@ -304,7 +317,7 @@ else:
         schema = schema_v2(
             unwrapped, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
-        loaded, _ = schema.load(data)  # type: ignore
+        loaded, _ = _load_with_post_load(schema, data)
         return loaded  # type: ignore[return-value]
 
     def _load_union_v2(
@@ -367,7 +380,7 @@ else:
             none_value_handling=none_value_handling,
             decimal_places=decimal_places,
         )
-        loaded, _ = schema.load(data)  # type: ignore
+        loaded, _ = _load_with_post_load(schema, data)
         return loaded  # type: ignore[return-value]
 
     load_many = load_many_v2
@@ -391,8 +404,7 @@ else:
         dumped, errors = data_schema.dump(data)
         if errors:
             raise m.ValidationError(errors)
-        if errors := data_schema.validate(dumped):
-            raise m.ValidationError(errors)
+        _validate_dumped(data_schema, dumped)
         return dumped  # type: ignore
 
     dump_impl = dump_v2
@@ -431,8 +443,7 @@ else:
         dumped, errors = data_schema.dump(data)
         if errors:
             raise m.ValidationError(errors)
-        if errors := data_schema.validate(dumped):
-            raise m.ValidationError(errors)
+        _validate_dumped(data_schema, dumped)
         return dumped  # type: ignore
 
     dump_many_impl = dump_many_v2

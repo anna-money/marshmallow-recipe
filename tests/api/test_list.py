@@ -19,6 +19,7 @@ from .conftest import (
     Priority,
     Serializer,
     Status,
+    StripEmail,
     WithAnnotatedListItemValidation,
     WithDefaults,
     WithListAnnotatedItemValidation,
@@ -34,6 +35,7 @@ from .conftest import (
     WithListNoneError,
     WithListPostLoad,
     WithListRequiredError,
+    WithListStripItemEmailValidation,
     WithListStripWhitespace,
     WithOptionalListItemValidation,
 )
@@ -257,6 +259,20 @@ class TestListDump:
             impl.dump(schema_type, obj)
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == error_messages
+
+    @pytest.mark.parametrize(
+        ("schema_type", "obj"),
+        [
+            pytest.param(ListOf[StripEmail], ListOf[StripEmail](items=[" a@b.co "]), id="annotated_item"),
+            pytest.param(
+                WithListStripItemEmailValidation,
+                WithListStripItemEmailValidation(items=[" a@b.co "]),
+                id="validate_item",
+            ),
+        ],
+    )
+    def test_strip_then_validate(self, impl: Serializer, schema_type: type, obj: object) -> None:
+        assert impl.dump_raw(schema_type, obj) == {"items": ["a@b.co"]}
 
 
 class TestListLoad:

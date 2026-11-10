@@ -9,6 +9,8 @@ from .conftest import (
     Inner,
     Serializer,
     StrDiscriminator,
+    StripEmail,
+    ValueOf,
     WithDiscriminatedUnion,
     WithUnion,
     WithUnionDictDataclass,
@@ -174,6 +176,10 @@ class TestUnionDump:
     def test_optional_union_with_none_include(self, impl: Serializer, cls: type, obj: object) -> None:
         result = impl.dump(cls, obj, none_value_handling=mr.NoneValueHandling.INCLUDE)
         assert result == b'{"value":null}'
+
+    def test_strip_then_validate(self, impl: Serializer) -> None:
+        obj = ValueOf[StripEmail | int](value=" a@b.co ")
+        assert impl.dump_raw(ValueOf[StripEmail | int], obj) == {"value": "a@b.co"}
 
 
 class TestUnionLoad:

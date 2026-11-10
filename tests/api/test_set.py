@@ -16,6 +16,7 @@ from .conftest import (
     Serializer,
     SetOf,
     Status,
+    StripEmail,
     WithAnnotatedSetItemValidation,
     WithDefaults,
     WithOptionalSetItemValidation,
@@ -135,6 +136,10 @@ class TestSetDump:
             impl.dump(WithSetInvalidError, obj)
         if impl.supports_proper_validation_errors_on_dump:
             assert exc.value.messages == {"items": ["Custom invalid message"]}
+
+    def test_strip_then_validate(self, impl: Serializer) -> None:
+        obj = SetOf[StripEmail](items={" a@b.co "})
+        assert impl.dump_raw(SetOf[StripEmail], obj) == {"items": ["a@b.co"]}
 
 
 class TestSetLoad:
