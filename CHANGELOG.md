@@ -1,8 +1,6 @@
 ## v0.0.111 (2026-11-12)
 
-* [Load an absent `Any` field as `None` in `mr.nuked.load` the same way as in `mr`](https://github.com/anna-money/marshmallow-recipe/pull/337)
-  * `mr.dump` and `mr.nuked.dump` omit an `Any` field holding `None`, and `mr.load` reads that output back as `None`; before, `mr.nuked.load` raised `Missing data for required field.`, with or without a `None` default, so it could not read what either backend wrote.
-  * As in `mr`, validators do not run for the absent value and `required_error` is never raised for an `Any` field.
+* [Load an absent `Any` field as `None` in `mr.nuked.load` the same way as in `mr`](https://github.com/anna-money/marshmallow-recipe/pull/337); before, it raised `Missing data for required field.`
 
 
 ## v0.0.110 (2026-11-09)
