@@ -783,6 +783,8 @@ class _BuildContext:
         kwargs: dict[str, Any],
     ) -> Any:
         if field_type is Any:
+            if "default_factory" not in kwargs:
+                kwargs.setdefault("default_value", None)
             return self.__builder.any_field(name, optional, **kwargs)
         if field_type is str:
             if field_metadata.strip_whitespaces:

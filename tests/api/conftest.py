@@ -418,6 +418,16 @@ class OptionalValueOf[T]:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class NoneDefaultOf[T]:
+    value: T = None  # type: ignore[assignment]
+
+
+@dataclasses.dataclass(kw_only=True)
+class NoneDefaultOfNoSlots[T]:
+    value: T = None  # type: ignore[assignment]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class SimpleTypes:
     name: str
     age: int
@@ -945,6 +955,22 @@ class WithAnyField:
 class WithRequiredAny:
     data: Any
     name: str
+
+
+@dataclasses.dataclass(slots=True, kw_only=True)
+class WithNestedRequiredAny:
+    items: list[WithRequiredAny]
+
+
+@dataclasses.dataclass(frozen=True)
+class WithRequiredAnyNoSlots:
+    data: Any
+    name: str = ""
+
+
+@dataclasses.dataclass(slots=True, kw_only=True)
+class WithAnyRequiredError:
+    data: Any = dataclasses.field(metadata=mr.meta(required_error="Custom required"))
 
 
 @dataclasses.dataclass(slots=True, kw_only=True)

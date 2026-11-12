@@ -312,7 +312,7 @@ Python's string interning guarantees pointer equality for identical strings, mak
 | `StrEnum`, `IntEnum` | lookup by value | `.getattr("value")` |
 | Nested dataclass | recursive schema | recursive schema |
 | Generic dataclass | TypeVars resolved at build time | TypeVars resolved at build time |
-| `Any` | pass-through | pass-through |
+| `Any` | pass-through; an absent key without a default loads as `None` | pass-through |
 
 ## Error Handling
 

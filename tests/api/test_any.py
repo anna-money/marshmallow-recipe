@@ -16,11 +16,14 @@ from .conftest import (
     WithAnyField,
     WithAnyMissing,
     WithAnyNamingCase,
+    WithAnyRequiredError,
     WithAnyTwoValidators,
     WithAnyValidation,
     WithDictAny,
     WithListAny,
+    WithNestedRequiredAny,
     WithRequiredAny,
+    WithRequiredAnyNoSlots,
 )
 
 
@@ -432,6 +435,26 @@ class TestAnyLoad:
         data = b'{"data":null,"name":"test"}'
         result = impl.load(WithRequiredAny, data)
         assert result == WithRequiredAny(data=None, name="test")
+
+    @pytest.mark.parametrize(
+        ("cls", "data", "expected"),
+        [
+            pytest.param(WithRequiredAny, b'{"name":"test"}', WithRequiredAny(data=None, name="test"), id="no_default"),
+            pytest.param(WithAnyField, b'{"name":"test"}', WithAnyField(data=None, name="test"), id="none_default"),
+            pytest.param(WithRequiredAnyNoSlots, b"{}", WithRequiredAnyNoSlots(data=None), id="no_slots"),
+            pytest.param(WithAnyValidation, b"{}", WithAnyValidation(data=None), id="validator"),
+            pytest.param(WithAnyRequiredError, b"{}", WithAnyRequiredError(data=None), id="required_error"),
+            pytest.param(
+                WithNestedRequiredAny,
+                b'{"items":[{"name":"a"},{"data":1,"name":"b"}]}',
+                WithNestedRequiredAny(items=[WithRequiredAny(data=None, name="a"), WithRequiredAny(data=1, name="b")]),
+                id="nested_in_list",
+            ),
+        ],
+    )
+    def test_absent_loads_none(self, impl: Serializer, cls: type, data: bytes, expected: object) -> None:
+        result = impl.load(cls, data)
+        assert result == expected
 
     def test_list_any_mixed_types(self, impl: Serializer) -> None:
         data = b'{"items":[1,"two",3.0,true],"name":"test"}'
