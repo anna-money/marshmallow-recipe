@@ -418,6 +418,16 @@ class OptionalValueOf[T]:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class NoneDefaultOf[T]:
+    value: T = None  # type: ignore[assignment]
+
+
+@dataclasses.dataclass(kw_only=True)
+class NoneDefaultOfNoSlots[T]:
+    value: T = None  # type: ignore[assignment]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class SimpleTypes:
     name: str
     age: int

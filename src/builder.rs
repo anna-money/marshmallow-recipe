@@ -282,7 +282,7 @@ fn build_field_common(
     kwargs: &Bound<'_, PyAny>,
     invalid_error: Py<PyString>,
 ) -> PyResult<FieldCommon> {
-    let default_value = extract_optional_py(kwargs, "default_value");
+    let default_value = kwargs.get_item("default_value").ok().map(Bound::unbind);
     let default_factory = extract_optional_py(kwargs, "default_factory");
     let required_error = extract_optional_py_string(kwargs, "required_error")?;
     let none_error = extract_optional_py_string(kwargs, "none_error")?;
