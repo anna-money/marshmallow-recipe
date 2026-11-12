@@ -299,7 +299,7 @@ impl TypeContainer {
                                 Ok(dumped) => Some(dumped.into_bound(py)),
                                 Err(ref e) => {
                                     let key_str =
-                                        k.str().map(|s| s.to_string()).unwrap_or_default();
+                                        k.str().map_or_else(|_| String::new(), |s| s.to_string());
                                     accumulate_entry_error(py, &mut errors, &key_str, "key", e);
                                     key_ok = false;
                                     None
@@ -316,8 +316,9 @@ impl TypeContainer {
                             }
                         }
                         Err(ref e) => {
-                            let key_str =
-                                target_key.str().map(|s| s.to_string()).unwrap_or_default();
+                            let key_str = target_key
+                                .str()
+                                .map_or_else(|_| String::new(), |s| s.to_string());
                             accumulate_entry_error(py, &mut errors, &key_str, "value", e);
                         }
                     }
