@@ -440,6 +440,7 @@ class TestAnyLoad:
         ("cls", "data", "expected"),
         [
             pytest.param(WithRequiredAny, b'{"name":"test"}', WithRequiredAny(data=None, name="test"), id="no_default"),
+            pytest.param(WithAnyField, b'{"name":"test"}', WithAnyField(data=None, name="test"), id="none_default"),
             pytest.param(WithRequiredAnyNoSlots, b"{}", WithRequiredAnyNoSlots(data=None), id="no_slots"),
             pytest.param(WithAnyValidation, b"{}", WithAnyValidation(data=None), id="validator"),
             pytest.param(WithAnyRequiredError, b"{}", WithAnyRequiredError(data=None), id="required_error"),
