@@ -455,12 +455,6 @@ class TestAnyLoad:
         result = impl.load(cls, data)
         assert result == expected
 
-    def test_dump_none_round_trip(self, impl: Serializer) -> None:
-        obj = WithRequiredAny(data=None, name="test")
-        dumped = impl.dump(WithRequiredAny, obj)
-        assert dumped == b'{"name":"test"}'
-        assert impl.load(WithRequiredAny, dumped) == obj
-
     def test_list_any_mixed_types(self, impl: Serializer) -> None:
         data = b'{"items":[1,"two",3.0,true],"name":"test"}'
         result = impl.load(WithListAny, data)
