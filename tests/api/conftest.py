@@ -207,6 +207,7 @@ class MarshmallowSerializer(Serializer):
         result = mr.dump(
             obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
+        _assert_json_object(result)
         return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def dump_many[T](
@@ -287,6 +288,7 @@ class NukedSerializer(Serializer):
         result = mr.nuked.dump(
             obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
+        _assert_json_object(result)
         return json.dumps(result, separators=(",", ":")).encode(encoding)
 
     def load[T](
