@@ -1,3 +1,10 @@
+## v0.0.111 (2026-11-12)
+
+* Load an absent `Any` field without a default as `None` in `mr.nuked.load` the same way as in `mr`
+  * `mr.dump` and `mr.nuked.dump` omit an `Any` field holding `None`, and `mr.load` reads that output back as `None`; before, `mr.nuked.load` raised `Missing data for required field.`, so it could not read what either backend wrote.
+  * As in `mr`, validators do not run for the absent value and `required_error` is never raised for an `Any` field.
+
+
 ## v0.0.110 (2026-11-09)
 
 * [Name the `mr.nuked.schema` class after the dataclass, as `mr.schema` does](https://github.com/anna-money/marshmallow-recipe/pull/331), fixing [#318](https://github.com/anna-money/marshmallow-recipe/issues/318): it was always `_NukedSchema`, so apispec named every definition `_Nuked`, `_Nuked1`, …

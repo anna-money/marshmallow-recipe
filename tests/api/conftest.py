@@ -948,6 +948,22 @@ class WithRequiredAny:
 
 
 @dataclasses.dataclass(slots=True, kw_only=True)
+class WithNestedRequiredAny:
+    items: list[WithRequiredAny]
+
+
+@dataclasses.dataclass(frozen=True)
+class WithRequiredAnyNoSlots:
+    data: Any
+    name: str = ""
+
+
+@dataclasses.dataclass(slots=True, kw_only=True)
+class WithAnyRequiredError:
+    data: Any = dataclasses.field(metadata=mr.meta(required_error="Custom required"))
+
+
+@dataclasses.dataclass(slots=True, kw_only=True)
 class WithListAny:
     items: list[Any]
     name: str = ""
