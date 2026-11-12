@@ -1,3 +1,9 @@
+## v0.0.111 (2026-11-12)
+
+* [Infer the type in `mr.nuked.dump(obj)` for non-generic dataclasses](https://github.com/anna-money/marshmallow-recipe/pull/323)
+* [Use the same `dump` overloads in `mr` and `mr.nuked`](https://github.com/anna-money/marshmallow-recipe/pull/323): pyright/mypy reject `mr.dump(obj)` unless `obj` is typed as a dataclass instance, `mr.dump` accepts `cls`/`data` as keywords, and `mr.nuked.dump(cls, obj)` returns `dict[str, Any]` for dataclasses
+
+
 ## v0.0.110 (2026-11-09)
 
 * [Name the `mr.nuked.schema` class after the dataclass, as `mr.schema` does](https://github.com/anna-money/marshmallow-recipe/pull/331), fixing [#318](https://github.com/anna-money/marshmallow-recipe/issues/318): it was always `_NukedSchema`, so apispec named every definition `_Nuked`, `_Nuked1`, …

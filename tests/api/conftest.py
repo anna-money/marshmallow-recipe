@@ -100,6 +100,10 @@ class Serializer(abc.ABC):
     def supports_proper_validation_errors_on_dump(self) -> bool:
         return True
 
+    @property
+    def supports_dump_without_cls(self) -> bool:
+        return False
+
     @abc.abstractmethod
     def dump_raw[T](self, cls: type[T], obj: T) -> Any:
         """Dump without JSON encoding, so keys ``json.dumps`` would coerce stay observable."""
@@ -120,6 +124,16 @@ class Serializer(abc.ABC):
         self,
         cls: type[T],
         obj: list[T],
+        naming_case: mr.NamingCase | None = None,
+        none_value_handling: mr.NoneValueHandling | None = None,
+        decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
+    ) -> bytes:
+        raise NotImplementedError
+
+    def dump_without_cls(
+        self,
+        obj: Any,
         naming_case: mr.NamingCase | None = None,
         none_value_handling: mr.NoneValueHandling | None = None,
         decimal_places: int | None = mr.MISSING,
@@ -163,6 +177,10 @@ class MarshmallowSerializer(Serializer):
     def dump_raw[T](self, cls: type[T], obj: T) -> Any:
         return mr.dump(cls, obj)
 
+    @property
+    def supports_dump_without_cls(self) -> bool:
+        return True
+
     def dump[T](
         self,
         cls: type[T],
@@ -174,6 +192,20 @@ class MarshmallowSerializer(Serializer):
     ) -> bytes:
         result = mr.dump(
             cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
+        )
+        _assert_json_object(result)
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
+
+    def dump_without_cls(
+        self,
+        obj: Any,
+        naming_case: mr.NamingCase | None = None,
+        none_value_handling: mr.NoneValueHandling | None = None,
+        decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
+    ) -> bytes:
+        result = mr.dump(
+            obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
         _assert_json_object(result)
         return json.dumps(result, separators=(",", ":")).encode(encoding)
@@ -226,6 +258,10 @@ class NukedSerializer(Serializer):
     def dump_raw[T](self, cls: type[T], obj: T) -> Any:
         return mr.nuked.dump(cls, obj)
 
+    @property
+    def supports_dump_without_cls(self) -> bool:
+        return True
+
     def dump[T](
         self,
         cls: type[T],
@@ -237,6 +273,20 @@ class NukedSerializer(Serializer):
     ) -> bytes:
         result = mr.nuked.dump(
             cls, obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
+        )
+        _assert_json_object(result)
+        return json.dumps(result, separators=(",", ":")).encode(encoding)
+
+    def dump_without_cls(
+        self,
+        obj: Any,
+        naming_case: mr.NamingCase | None = None,
+        none_value_handling: mr.NoneValueHandling | None = None,
+        decimal_places: int | None = mr.MISSING,
+        encoding: str = "utf-8",
+    ) -> bytes:
+        result = mr.nuked.dump(
+            obj, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
         )
         _assert_json_object(result)
         return json.dumps(result, separators=(",", ":")).encode(encoding)

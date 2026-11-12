@@ -30,6 +30,7 @@ Dataclass-level settings:
     See help(mr.options) for all settings.
 
 High-performance Rust backend (drop-in replacement, 10-25x faster):
+    mr.nuked.dump(obj)
     mr.nuked.dump(cls, obj)
     mr.nuked.load(cls, data)
     mr.nuked.schema(cls)

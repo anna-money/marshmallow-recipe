@@ -440,10 +440,24 @@ else:
 EmptySchema = m.Schema
 
 
+_NO_DATA: Any = object()
+
+
 @overload
 def dump(
-    data: Any,
+    data: Dataclass,
     /,
+    *,
+    naming_case: NamingCase | None = None,
+    none_value_handling: NoneValueHandling | None = None,
+    decimal_places: int | None = MISSING,
+) -> dict[str, Any]: ...
+
+
+@overload
+def dump[T: Dataclass](
+    cls: type[T],
+    data: T,
     *,
     naming_case: NamingCase | None = None,
     none_value_handling: NoneValueHandling | None = None,
@@ -455,15 +469,21 @@ def dump(
 def dump[T](
     cls: type[T],
     data: T,
-    /,
     *,
     naming_case: NamingCase | None = None,
     none_value_handling: NoneValueHandling | None = None,
     decimal_places: int | None = MISSING,
-) -> dict[str, Any]: ...
+) -> Any: ...
 
 
-def dump(*args: Any, **kwargs: Any) -> dict[str, Any]:
+def dump(
+    cls: Any,
+    data: Any = _NO_DATA,
+    *,
+    naming_case: NamingCase | None = None,
+    none_value_handling: NoneValueHandling | None = None,
+    decimal_places: int | None = MISSING,
+) -> dict[str, Any]:
     """Serialize a dataclass instance to a dict.
 
     Args:
@@ -481,9 +501,11 @@ def dump(*args: Any, **kwargs: Any) -> dict[str, Any]:
     Raises:
         marshmallow.ValidationError: On invalid data.
     """
-    if len(args) == 1:
-        return dump_impl(None, *args, **kwargs)
-    return dump_impl(*args, **kwargs)
+    if data is _NO_DATA:
+        cls, data = None, cls
+    return dump_impl(
+        cls, data, naming_case=naming_case, none_value_handling=none_value_handling, decimal_places=decimal_places
+    )
 
 
 @overload
