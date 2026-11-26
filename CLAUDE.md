@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+You are the owner and long-term maintainer of this codebase, and its design is up to you.
+
 ## Code Practices
 
 ### Import Guidelines
@@ -24,6 +26,7 @@
 - Always assert objects in full, do not do that field by field
 - Tests in tests/api/**.py have TestXxxDump and TestXxxLoad classes, add tests to these classes as appropriate
 - Tests should be reasonably parameterized
+- No round-trip tests: never dump and then load in one test; assert dump against literal bytes and load from literal bytes separately
 
 ### Development Workflow
 

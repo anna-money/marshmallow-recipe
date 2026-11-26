@@ -1,3 +1,8 @@
+## v0.0.111 (2026-11-26)
+
+* [Load an absent `Any` field as `None` in nuked](https://github.com/anna-money/marshmallow-recipe/pull/337)
+
+
 ## v0.0.110 (2026-11-09)
 
 * [Name the `mr.nuked.schema` class after the dataclass, as `mr.schema` does](https://github.com/anna-money/marshmallow-recipe/pull/331), fixing [#318](https://github.com/anna-money/marshmallow-recipe/issues/318): it was always `_NukedSchema`, so apispec named every definition `_Nuked`, `_Nuked1`, …

@@ -9,8 +9,8 @@ mod utils;
 
 use pyo3::prelude::*;
 
-#[pymodule]
-fn _nuked(m: &Bound<'_, PyModule>) -> PyResult<()> {
+#[pymodule(name = "_nuked")]
+fn nuked(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<builder::ContainerBuilder>()?;
     m.add_class::<builder::FieldHandle>()?;
     m.add_class::<builder::DataclassHandle>()?;

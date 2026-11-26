@@ -107,7 +107,7 @@ pub fn dump_to_py(
         let dumped_key = key_schema.and_then(|schema| match schema.dump_to_py(registry, &k) {
             Ok(dumped) => Some(dumped.into_bound(py)),
             Err(ref e) => {
-                let raw = k.str().map(|s| s.to_string()).unwrap_or_default();
+                let raw = k.str().map_or_else(|_| String::new(), |s| s.to_string());
                 accumulate_entry_error(py, &mut errors, raw.as_str(), "key", e);
                 failed_key = Some(raw);
                 None
@@ -122,7 +122,9 @@ pub fn dump_to_py(
                     s.to_str()
                         .map_err(|e| SerializationError::simple(py, &e.to_string()))?
                 } else {
-                    key_repr = target_key.str().map(|s| s.to_string()).unwrap_or_default();
+                    key_repr = target_key
+                        .str()
+                        .map_or_else(|_| String::new(), |s| s.to_string());
                     key_repr.as_str()
                 }
             }
