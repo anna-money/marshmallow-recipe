@@ -274,7 +274,7 @@ impl DataclassContainer {
                 continue;
             }
             if !seen[idx] && dc_field.field_init {
-                match get_default_value(py, common) {
+                match get_default_value(py, &dc_field.field) {
                     Ok(Some(val)) => {
                         let _ = result.set_item(dc_field.name_interned.bind(py), val);
                     }
@@ -397,7 +397,7 @@ impl DataclassContainer {
             let py_value = if let Some(value) = field_values[idx].take() {
                 value
             } else {
-                match get_default_value(py, common) {
+                match get_default_value(py, &dc_field.field) {
                     Ok(Some(val)) => val,
                     Ok(None) => {
                         push_required_error(
@@ -460,7 +460,7 @@ impl DataclassContainer {
             let py_val_result = if let Some(v) = present {
                 dc_field.field.load_from_py(registry, &v)
             } else {
-                match get_default_value(py, common) {
+                match get_default_value(py, &dc_field.field) {
                     Ok(Some(val)) => Ok(val),
                     Ok(None) => {
                         push_required_error(
@@ -555,7 +555,7 @@ impl DataclassContainer {
                     }
                 }
             } else {
-                match get_default_value(py, common) {
+                match get_default_value(py, &dc_field.field) {
                     Ok(Some(val)) => val,
                     Ok(None) => {
                         push_required_error(
@@ -653,8 +653,9 @@ fn call_pre_load<'py>(
 
 fn get_default_value(
     py: Python<'_>,
-    common: &FieldCommon,
+    field: &FieldContainer,
 ) -> Result<Option<Py<PyAny>>, SerializationError> {
+    let common = field.common();
     if let Some(ref factory) = common.default_factory {
         return factory
             .call0(py)
@@ -664,7 +665,7 @@ fn get_default_value(
     if let Some(ref value) = common.default_value {
         return Ok(Some(value.clone_ref(py)));
     }
-    Ok(common.optional.then(|| py.None()))
+    Ok((common.optional || matches!(field, FieldContainer::Any { .. })).then(|| py.None()))
 }
 
 fn apply_validate(
