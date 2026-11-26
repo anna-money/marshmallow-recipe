@@ -1,4 +1,4 @@
-## v0.0.111 (2026-11-12)
+## v0.0.111 (2026-11-26)
 
 * [Load an absent `Any` field as `None` in `mr.nuked.load` the same way as in `mr`](https://github.com/anna-money/marshmallow-recipe/pull/337); before, it raised `Missing data for required field.`
 
